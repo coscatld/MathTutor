@@ -1,0 +1,455 @@
+"""Generative Model Gateway — the ONLY generative surface of MathTutor.
+
+Design requirement: every generative call travels through ONE
+OpenAI-compatible HTTP gateway. Domain/application layers never bind to a
+vendor (no OpenAI/DeepSeek/Moonshot SDK import anywhere in domain/ or
+application/); they address the gateway by ROLE
+(``TUTOR_WRITER`` / ``PRACTICE_GENERATOR``) and receive plain text back.
+
+User-facing configuration (desktop):
+
+- ordinary users pick a provider PRESET + paste an API key — nothing else;
+- only the ``custom`` preset additionally asks for base_url + model;
+- the SYSTEM owns model discovery via ``GET {base_url}/models``
+  (:meth:`GenerativeModelGateway.discover_models`), and resolves the
+  concrete model automatically when none was configured.
+
+Secret handling: providers never hold the key. A provider receives an
+async resolver bound to the :class:`SecretStore`; the key is fetched at
+call time and never written into config JSON or the business DB.
+
+HTTP is plain ``httpx`` — no vendor SDK, no dependency on DeepTutor's
+legacy LLMClient stack. The gateway is self-contained and testable with
+the stdlib-free contract (a fake provider satisfies the same Protocol).
+"""
+
+from __future__ import annotations
+
+import asyncio
+from enum import Enum
+from typing import Awaitable, Callable, Protocol, Sequence
+
+import httpx
+from pydantic import BaseModel, ConfigDict, Field
+
+from mathtutor.infrastructure.secret_store import (
+    SecretStore,
+    SecretStoreUnavailableError,
+)
+
+
+class ModelRole(str, Enum):
+    """Business roles a generative model can serve (never a vendor name)."""
+
+    TUTOR_WRITER = "tutor_writer"
+    PRACTICE_GENERATOR = "practice_generator"
+
+
+class GenerativeProviderError(RuntimeError):
+    """Provider call failed after retries (transport / HTTP / malformed)."""
+
+
+class GenerativeConfigError(RuntimeError):
+    """Gateway/role misconfiguration (no provider registered, missing key)."""
+
+
+class CompletionResult(BaseModel):
+    """One completed generation with provenance."""
+
+    model_config = ConfigDict(frozen=True)
+
+    text: str
+    provider_id: str
+    model: str
+    finish_reason: str = ""
+
+
+class ProviderPreset(BaseModel):
+    """A user-selectable provider preset (config data, not a vendor binding).
+
+    The preset list is the desktop picker's data source. Business code
+    NEVER references preset ids — only the gateway does.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    preset_id: str
+    label: str
+    base_url: str
+    default_model: str
+    custom: bool = False  # True → the ONLY preset asking for base_url+model
+
+
+PRESETS: dict[str, ProviderPreset] = {
+    preset.preset_id: preset
+    for preset in (
+        ProviderPreset(
+            preset_id="openai",
+            label="OpenAI",
+            base_url="https://api.openai.com/v1",
+            default_model="gpt-4o-mini",
+        ),
+        ProviderPreset(
+            preset_id="deepseek",
+            label="DeepSeek",
+            base_url="https://api.deepseek.com/v1",
+            default_model="deepseek-chat",
+        ),
+        ProviderPreset(
+            preset_id="moonshot",
+            label="Moonshot (Kimi)",
+            base_url="https://api.moonshot.cn/v1",
+            default_model="moonshot-v1-8k",
+        ),
+        ProviderPreset(
+            preset_id="custom",
+            label="自定义 (OpenAI 兼容)",
+            base_url="",
+            default_model="",
+            custom=True,
+        ),
+    )
+}
+
+DEFAULT_TIMEOUT_SECONDS = 30.0
+
+
+class GenerativeModelProvider(Protocol):
+    """Minimal generative capability contract (async).
+
+    ``complete`` takes OpenAI chat-message dicts (role/content) so any
+    OpenAI-compatible endpoint fits without an adapter layer.
+    """
+
+    provider_id: str
+    model: str
+
+    async def complete(
+        self,
+        messages: Sequence[dict],
+        *,
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+        max_retries: int = 0,
+    ) -> CompletionResult: ...
+
+    async def fetch_models(self) -> list[str]: ...
+
+
+class OpenAICompatibleProvider:
+    """httpx implementation of the chat-completions + models contract.
+
+    - POST ``{base_url}/chat/completions`` — bearer key resolved at call
+      time through ``api_key_resolver`` (bound to the SecretStore);
+    - GET ``{base_url}/models`` — model discovery, the system's job;
+    - ``max_retries`` counts ADDITIONAL attempts after the first (matches
+      the LLMTutorWriter convention: ``max_retries=0`` → exactly one call);
+    - failures raise :class:`GenerativeProviderError` — never swallow.
+      (Pedagogy callers convert that into their deterministic fallback.)
+    """
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        model: str,
+        api_key_resolver: Callable[[], Awaitable[str | None]],
+        provider_id: str = "custom",
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        if not base_url:
+            raise GenerativeConfigError("base_url is required for a provider")
+        # ``model`` MAY be empty: the gateway then resolves it via model
+        # discovery (preset default → first discovered). ``complete``
+        # fails closed until a model is resolved.
+        self._base_url = base_url.rstrip("/")
+        self._model = model
+        self._api_key_resolver = api_key_resolver
+        self.provider_id = provider_id
+        self._timeout = httpx.Timeout(timeout_seconds)
+        # Injectable transport (httpx.MockTransport in tests); None → real HTTP.
+        self._transport = transport
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    async def _key(self) -> str:
+        key = await self._api_key_resolver()
+        if not key:
+            raise SecretStoreUnavailableError(
+                f"API key for provider {self.provider_id!r} is not configured"
+            )
+        return key
+
+    async def complete(
+        self,
+        messages: Sequence[dict],
+        *,
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+        max_retries: int = 0,
+    ) -> CompletionResult:
+        if not self._model:
+            raise GenerativeConfigError(
+                f"provider {self.provider_id!r} has no model resolved — "
+                "run gateway.resolve_model() (model discovery) first"
+            )
+        payload: dict = {
+            "model": self._model,
+            "messages": list(messages),
+            "temperature": temperature,
+        }
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        last_error: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                return await self._post_chat(payload)
+            except GenerativeProviderError as error:
+                last_error = error
+                if attempt < max_retries:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+        raise GenerativeProviderError(
+            f"provider {self.provider_id!r} failed after {max_retries + 1} attempt(s): {last_error}"
+        )
+
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
+
+    async def _post_chat(self, payload: dict) -> CompletionResult:
+        headers = {
+            "Authorization": f"Bearer {await self._key()}",
+            "Content-Type": "application/json",
+        }
+        try:
+            async with self._client() as client:
+                response = await client.post(
+                    f"{self._base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                )
+        except httpx.HTTPError as error:
+            raise GenerativeProviderError(
+                f"provider {self.provider_id!r} transport error: {error}"
+            ) from error
+        if response.status_code != 200:
+            detail = response.text[:300]
+            raise GenerativeProviderError(
+                f"provider {self.provider_id!r} HTTP {response.status_code}: {detail}"
+            )
+        try:
+            data = response.json()
+            text = data["choices"][0]["message"]["content"]
+            finish_reason = data["choices"][0].get("finish_reason") or ""
+        except (KeyError, IndexError, ValueError) as error:
+            raise GenerativeProviderError(
+                f"provider {self.provider_id!r} malformed response: {response.text[:300]!r}"
+            ) from error
+        if not isinstance(text, str) or not text.strip():
+            raise GenerativeProviderError(
+                f"provider {self.provider_id!r} returned empty content"
+            )
+        return CompletionResult(
+            text=text,
+            provider_id=self.provider_id,
+            model=self._model,
+            finish_reason=finish_reason,
+        )
+
+    async def fetch_models(self) -> list[str]:
+        headers = {"Authorization": f"Bearer {await self._key()}"}
+        try:
+            async with self._client() as client:
+                response = await client.get(f"{self._base_url}/models", headers=headers)
+        except httpx.HTTPError as error:
+            raise GenerativeProviderError(
+                f"provider {self.provider_id!r} model discovery transport error: {error}"
+            ) from error
+        if response.status_code != 200:
+            raise GenerativeProviderError(
+                f"provider {self.provider_id!r} model discovery HTTP "
+                f"{response.status_code}: {response.text[:300]}"
+            )
+        try:
+            entries = response.json()["data"]
+            return sorted(str(entry["id"]) for entry in entries)
+        except (KeyError, TypeError, ValueError) as error:
+            raise GenerativeProviderError(
+                f"provider {self.provider_id!r} malformed /models response"
+            ) from error
+
+
+class GatewayRoleClient:
+    """Adapter to the legacy ``LLMClient`` calling convention.
+
+    ``LLMTutorWriter`` calls ``client.complete(prompt=..., system_prompt=...,
+    temperature=..., max_tokens=..., max_retries=...)`` and expects a plain
+    string back. This class makes a gateway role look exactly like that —
+    so wiring the gateway into pedagogy is injection-only, no writer edits.
+    """
+
+    def __init__(self, gateway: "GenerativeModelGateway", role: ModelRole) -> None:
+        self._gateway = gateway
+        self._role = role
+
+    async def complete(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str = "",
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+        max_retries: int = 0,
+    ) -> str:
+        messages: list[dict] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        result = await self._gateway.complete(
+            self._role,
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_retries=max_retries,
+        )
+        return result.text
+
+
+class GenerativeModelGateway:
+    """Role→provider registry + the only generative entry point.
+
+    Providers are registered per ROLE (one role → one provider). Every
+    call site resolves through this gateway; nothing outside
+    ``infrastructure/`` ever imports a vendor SDK or a preset id.
+    """
+
+    def __init__(self, secret_store: SecretStore | None = None) -> None:
+        self._secret_store = secret_store
+        self._by_role: dict[ModelRole, OpenAICompatibleProvider] = {}
+        self._by_id: dict[str, OpenAICompatibleProvider] = {}
+
+    # ------------------------------------------------------- registration
+
+    def register_provider(
+        self,
+        role: ModelRole,
+        provider: OpenAICompatibleProvider,
+    ) -> None:
+        """Bind a role to a provider (overwrites any previous binding)."""
+        self._by_role[role] = provider
+        self._by_id[provider.provider_id] = provider
+
+    def register_openai_compatible(
+        self,
+        role: ModelRole,
+        *,
+        provider_id: str,
+        base_url: str,
+        model: str,
+        secret_key: str,
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    ) -> OpenAICompatibleProvider:
+        """Configure a role from the desktop settings surface.
+
+        ``secret_key`` is the SecretStore key NAME — the value stays in the
+        store (OS credential store in the shipped desktop app).
+        """
+        store = self._secret_store
+        if store is None:
+            raise GenerativeConfigError(
+                "gateway has no SecretStore — API keys cannot be resolved"
+            )
+
+        async def resolve_key() -> str | None:
+            return await store.get(secret_key)
+
+        provider = OpenAICompatibleProvider(
+            base_url=base_url,
+            model=model,
+            api_key_resolver=resolve_key,
+            provider_id=provider_id,
+            timeout_seconds=timeout_seconds,
+        )
+        self.register_provider(role, provider)
+        return provider
+
+    def unregister(self, role: ModelRole) -> None:
+        self._by_role.pop(role, None)
+
+    # ------------------------------------------------------------- queries
+
+    def provider_for(self, role: ModelRole) -> OpenAICompatibleProvider | None:
+        return self._by_role.get(role)
+
+    def client_for(self, role: ModelRole) -> GatewayRoleClient | None:
+        if role not in self._by_role:
+            return None
+        return GatewayRoleClient(self, role)
+
+    def configured_roles(self) -> list[ModelRole]:
+        return list(self._by_role)
+
+    # ----------------------------------------------------------- generation
+
+    async def complete(
+        self,
+        role: ModelRole,
+        messages: Sequence[dict],
+        *,
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+        max_retries: int = 0,
+    ) -> CompletionResult:
+        provider = self._by_role.get(role)
+        if provider is None:
+            raise GenerativeConfigError(f"no generative provider for role {role.value!r}")
+        return await provider.complete(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_retries=max_retries,
+        )
+
+    # ---------------------------------------------------------- discovery
+
+    async def fetch_models(self, provider_id: str) -> list[str]:
+        """System-side model discovery (GET /models) — never a user chore."""
+        provider = self._by_id.get(provider_id)
+        if provider is None:
+            raise GenerativeConfigError(f"unknown provider id {provider_id!r}")
+        return await provider.fetch_models()
+
+    async def resolve_model(self, provider_id: str) -> str:
+        """Concrete model for a provider: configured → preset default →
+        first discovered. Raises when nothing is discoverable."""
+        provider = self._by_id.get(provider_id)
+        if provider is None:
+            raise GenerativeConfigError(f"unknown provider id {provider_id!r}")
+        if provider.model:
+            return provider.model
+        preset = PRESETS.get(provider_id)
+        models = await provider.fetch_models()
+        if preset and preset.default_model in models:
+            return preset.default_model
+        if models:
+            return models[0]
+        raise GenerativeConfigError(
+            f"provider {provider_id!r} exposes no models and none is configured"
+        )
+
+
+__all__ = [
+    "CompletionResult",
+    "DEFAULT_TIMEOUT_SECONDS",
+    "GenerativeConfigError",
+    "GenerativeModelGateway",
+    "GenerativeModelProvider",
+    "GenerativeProviderError",
+    "GatewayRoleClient",
+    "ModelRole",
+    "OpenAICompatibleProvider",
+    "PRESETS",
+    "ProviderPreset",
+]

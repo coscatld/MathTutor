@@ -1,0 +1,1466 @@
+{
+  "schema_version": 1,
+  "extraction_stage": "STANDALONE_RC_CANDIDATE",
+  "python_namespace": "mathtutor",
+  "distribution": "mathtutor",
+  "source_repository_dependency": false,
+  "file_count": 291,
+  "content_bytes": 2672808,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 211,
+      "sha256": "0e6c303db72287b1ed2ae2f2cb2be23d0975256abe4d14dd1739d3e6d5f6c9bb"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 11408,
+      "sha256": "cd2f54e1e5066644023203dcbd956776a9f4ef6eb8b6225afe1ffa2d380fede4"
+    },
+    {
+      "path": "README.md",
+      "bytes": 695,
+      "sha256": "b153fb1b588f200527017a27825ba44580214f8383743daea636de4d5832846c"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 1704,
+      "sha256": "3ef87f91f3db8235768f9ee6eb1824741777e3aa067c730f8a8d7728d79040fd"
+    },
+    {
+      "path": "desktop/ADR-DESKTOP.md",
+      "bytes": 8874,
+      "sha256": "862dd07c715c35d18314c637aff09fb8f92dc569465641d31123c3fe39b8aa7e"
+    },
+    {
+      "path": "desktop/build/entitlements.mac.plist",
+      "bytes": 241,
+      "sha256": "958648f799e436860b51eaf55ec8f92d2c62da17001e23d96bc05ffc748f2a2a"
+    },
+    {
+      "path": "desktop/electron-builder.config.cjs",
+      "bytes": 4225,
+      "sha256": "164a53a3fbb128bec050687bd36c5ffb823dc576ea2589be6ebfd79051f138e7"
+    },
+    {
+      "path": "desktop/main.js",
+      "bytes": 52615,
+      "sha256": "a1c843979bf0cfed13f8c24171102c6aa8547b2b5bfcf75f3f354f6c2da59001"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "bytes": 139941,
+      "sha256": "cabc93d97923a30d01e8527a03707e55b6825a313318bc92a5a44c7132f5c164"
+    },
+    {
+      "path": "desktop/package.json",
+      "bytes": 1160,
+      "sha256": "d5bd0ab8c56f8ae99ed82af0c49a42e560a2d74edcd1a9000d8680013f5c5080"
+    },
+    {
+      "path": "desktop/package_allowlist.json",
+      "bytes": 4954,
+      "sha256": "2ee8659971c803920c0817f323e19400f2607c73d7cbdb1897dc3f9b247fe3d6"
+    },
+    {
+      "path": "desktop/preload.js",
+      "bytes": 667,
+      "sha256": "2863758d06f40f68888c6924a1f21e16544a70f7b8f20d353d29067c3fc2efbe"
+    },
+    {
+      "path": "desktop/scripts/after-pack-macos.cjs",
+      "bytes": 2426,
+      "sha256": "59932e2dea66838653cca8c06a8ad738315dcd118eb9b5e5cfd1222913c48b5b"
+    },
+    {
+      "path": "desktop/scripts/audit-package-surface.py",
+      "bytes": 11156,
+      "sha256": "0bf7d9c052fa325136b1407f4ddc36d7059f1cbda56b346e1962d64244c4b35f"
+    },
+    {
+      "path": "desktop/scripts/generate-macos-release-manifest.js",
+      "bytes": 13664,
+      "sha256": "45d1010418a4502bc05ebdec13695474e481630562430c81237cdceef7082c8d"
+    },
+    {
+      "path": "desktop/scripts/macos-keychain-sentinel.py",
+      "bytes": 4124,
+      "sha256": "61c276110146ccbc513f41f6dd51069086107d94e342b113a6d10692777654c6"
+    },
+    {
+      "path": "desktop/scripts/macos-upgrade-probe.py",
+      "bytes": 10824,
+      "sha256": "97b6feed71132bfbf1c9cc02202eca4c881cc979e386cf0cc6b7ae540bb1bd69"
+    },
+    {
+      "path": "desktop/scripts/no-api-key-smoke.py",
+      "bytes": 4874,
+      "sha256": "683ae849f9a0539dbb47e4f16d3ee86e0c061a21ccb45bbe449d1f70c07f6d2d"
+    },
+    {
+      "path": "desktop/scripts/rc-public-release-smoke.js",
+      "bytes": 11293,
+      "sha256": "ad8d6ceaca5f6572c629eb3528454802147d3f2d09bca46e4c3d419835a36fe7"
+    },
+    {
+      "path": "desktop/scripts/rc-secret-store-sentinel.py",
+      "bytes": 3393,
+      "sha256": "c26af0862c4c1ef386ab87ab8722fa7d21c5fdfae4d86e23cf794f242455f841"
+    },
+    {
+      "path": "desktop/scripts/run-linux-release-smoke.sh",
+      "bytes": 3470,
+      "sha256": "169ac9120ba42644e1e8354510cfd4267206995877eaee58fb8180b9b5325e58"
+    },
+    {
+      "path": "desktop/scripts/run-macos-no-api-key-smoke.js",
+      "bytes": 2402,
+      "sha256": "5ead0bba7b76ead875a0099f6e4a9e1646a14480847a061f32b41a0fc2b27ef5"
+    },
+    {
+      "path": "desktop/scripts/run-macos-public-release-smoke.js",
+      "bytes": 3554,
+      "sha256": "4f9ab7aba75a9e5597477c773269c1e9a7d7a45812be100945315469dfba0432"
+    },
+    {
+      "path": "desktop/scripts/run-macos-upgrade-smoke.js",
+      "bytes": 6600,
+      "sha256": "fa69e83032ff26c9121ee07c6b26067881e00cfcab1b7338e4e0fb3eea712681"
+    },
+    {
+      "path": "desktop/scripts/run-packaged-smoke.js",
+      "bytes": 9160,
+      "sha256": "079914c9b552122c75a40e8db2038e1ab25ccfbc73f1a3262ef2ebb198623b27"
+    },
+    {
+      "path": "desktop/scripts/run-windows-release-smoke.ps1",
+      "bytes": 5400,
+      "sha256": "0fb5b899544eac63bb14e02c9c52f03a8527181d9df4eda860ac9c13ed8f67aa"
+    },
+    {
+      "path": "desktop/tests/distribution.test.js",
+      "bytes": 6778,
+      "sha256": "4a9d9ce0cc4da22f434ed9acd937feaae45f1064c0f379cff93969b8e71ec681"
+    },
+    {
+      "path": "desktop/tests/package-surface.test.js",
+      "bytes": 3756,
+      "sha256": "0f2a7d65c3d0e2898b8dbeb4cd5b7fd53117eea8f3690374cae052b8023582cd"
+    },
+    {
+      "path": "desktop/tests/platform-release.test.js",
+      "bytes": 6936,
+      "sha256": "bd49945ada513f507fc24345b59ea3dbc9e5e7b3cbb9d2cfcf3d58c380dcdf69"
+    },
+    {
+      "path": "desktop/tests/test_package_surface_contract.py",
+      "bytes": 1801,
+      "sha256": "9056b2f9e1e4fb6a1939530bde5a835db459e41900f2e33b4ee7e681e20a92f4"
+    },
+    {
+      "path": "desktop/tests/test_platform_release_contract.py",
+      "bytes": 1533,
+      "sha256": "70b61a028c12323795fbf1d023def07fab01afa812ce8d10eddbae2508546b6e"
+    },
+    {
+      "path": "docs/ADR_DATA_LIFECYCLE_RAW_TEXT.md",
+      "bytes": 6978,
+      "sha256": "ef90e7dd199d14473f0e9691f3ee3c8bbee90e5619000c1697913b8d50d35b77"
+    },
+    {
+      "path": "docs/ADR_DESKTOP_DISTRIBUTION.md",
+      "bytes": 22471,
+      "sha256": "40c8ba3a5419830e84ae745ad74a1551117c3453a24402330ae7430df5e9cea7"
+    },
+    {
+      "path": "docs/ADR_EMBEDDING_DISTRIBUTION.md",
+      "bytes": 31443,
+      "sha256": "2a6e0757f8ef214069262ec1742c10ae246002468f2235a296f69e4657041c87"
+    },
+    {
+      "path": "docs/FINAL_REPORT_PHASE5_DESKTOP_PHASE6.md",
+      "bytes": 12339,
+      "sha256": "f57a8ae105865769e983cd54d43806a5b9adb561c010272879f2ebb8f6448600"
+    },
+    {
+      "path": "docs/FINAL_REPORT_PHASE6_ROUND2_DESKTOP.md",
+      "bytes": 17911,
+      "sha256": "df1d3910b10ed0e20fb352f140b0b355fec9443d75028ab9c5053951322e3294"
+    },
+    {
+      "path": "docs/PHASE6_SQLITE_VEC_EVALUATION.md",
+      "bytes": 8426,
+      "sha256": "bc205c7e38918db126cdd2fc38fe529582e644805d4e509ae3189c7c872b578c"
+    },
+    {
+      "path": "docs/rc/PLATFORM_RELEASE_MATRIX.json",
+      "bytes": 6395,
+      "sha256": "3323e6c6d3196fe70e36d4107347faecca2e8a09ba1b8880bf96f0b93d163b6d"
+    },
+    {
+      "path": "docs/rc/PLATFORM_RELEASE_MATRIX.md",
+      "bytes": 7679,
+      "sha256": "ee3c0d0da6e517e5e207296cbd84d0fc15efe73a78b64d7f4451b91e5458b17d"
+    },
+    {
+      "path": "docs/rc/RC_PUBLIC_RELEASE_SMOKE.json",
+      "bytes": 2853,
+      "sha256": "5d2f8f1ca6d4d99147b321abe71865abc1ba886f78badd21fb144f84025c94c1"
+    },
+    {
+      "path": "docs/rc/RC_PUBLIC_RELEASE_SMOKE_REPORT.schema.json",
+      "bytes": 2383,
+      "sha256": "5a45627f3e9bd52a03599c743fefa6ef2d3f37715d736c02427a05a2119308f4"
+    },
+    {
+      "path": "docs/rc/WINDOWS_LINUX_UPGRADE_RUNBOOK.md",
+      "bytes": 4048,
+      "sha256": "4534d30c7bfd30258ef76d812f46aeaa503bd50193be64ed8f5e65bdf0e2e67b"
+    },
+    {
+      "path": "docs/standalone/STANDALONE_ARCHITECTURE.md",
+      "bytes": 3587,
+      "sha256": "2360709369157ca9ae38d1e9ad2241b1948d7db603ff66333e18156d03fbf3f7"
+    },
+    {
+      "path": "docs/standalone/STANDALONE_DEPENDENCY_AUDIT.md",
+      "bytes": 22167,
+      "sha256": "fe583582834bc21a3434a80055b7d474bbb3289d22100ad1a08251feee1e2e46"
+    },
+    {
+      "path": "docs/standalone/STANDALONE_EXTRACTION_MANIFEST.md",
+      "bytes": 4465,
+      "sha256": "89de3d6fb8d85c9995744f97858c6a1bd743db51fd669875f245044d3b434dc7"
+    },
+    {
+      "path": "docs/standalone/STANDALONE_RC_REPORT.md",
+      "bytes": 7515,
+      "sha256": "fec763b94a3a1c7a09f60b0d751f8535b9c2a073523531c179987e3fb21aaac0"
+    },
+    {
+      "path": "docs/standalone/TEST_MIGRATION_MATRIX.md",
+      "bytes": 5984,
+      "sha256": "2028deed1a567b275c4a8e0443c26776611a116aa1878cdffd6186c1bc33c269"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 1157,
+      "sha256": "cbd678ea905746c11b20036be8caffc980cce72b02d8e719f16dfffcf32bab34"
+    },
+    {
+      "path": "resources/README.md",
+      "bytes": 467,
+      "sha256": "9f371916c24abd89b003289decfd6631ff1e0c5f91411d02d636c3781763a439"
+    },
+    {
+      "path": "scripts/generate_extraction_manifest.py",
+      "bytes": 1660,
+      "sha256": "c9fd25d619bbbe4741ccdee460efe68082aba98c5a7b232f37c54de0fab946ee"
+    },
+    {
+      "path": "scripts/math_tutor_rc_benchmark.py",
+      "bytes": 8999,
+      "sha256": "73fad7041ada7d7096708392eb177c6575c19f8ed85435010bc5747640b6fcd3"
+    },
+    {
+      "path": "scripts/math_tutor_vector_index_benchmark.py",
+      "bytes": 8987,
+      "sha256": "207b3b90bd3d0aeee5e059069160a889a5ab8890a91676f6d9f0c13a447ecaa8"
+    },
+    {
+      "path": "src/mathtutor/__init__.py",
+      "bytes": 1097,
+      "sha256": "7ba1f47e3b3640dcacd8e38400699be818e1b909716a7b146f43ef9ae773ef5e"
+    },
+    {
+      "path": "src/mathtutor/api/__init__.py",
+      "bytes": 309,
+      "sha256": "11fe072760a35c72d2512be0b6e2457cbb8e7f7481d71c4dcce6e9fd3ba59ed5"
+    },
+    {
+      "path": "src/mathtutor/api/auth_deps.py",
+      "bytes": 3199,
+      "sha256": "854d6cd86446d4acf4056751ff4a8e75ec1521bcf2c74d35164058f0416ac4d9"
+    },
+    {
+      "path": "src/mathtutor/api/auth_router.py",
+      "bytes": 5907,
+      "sha256": "4785f9967031b2e5cde6bf5a550b652822c3e60ffe0104871cd1d1fecd8d3910"
+    },
+    {
+      "path": "src/mathtutor/api/desktop_api.py",
+      "bytes": 57793,
+      "sha256": "7a357569ff472c7ff8969abf47435019bda7a4737d87f4c39403aedde85cf198"
+    },
+    {
+      "path": "src/mathtutor/api/event_stream.py",
+      "bytes": 1839,
+      "sha256": "f1d576efa7f4d8cf5bf9c4ca434e0b203664699bbc0b51ef26f1e091b22ef42c"
+    },
+    {
+      "path": "src/mathtutor/api/math_tutor_read.py",
+      "bytes": 4811,
+      "sha256": "99516791adef5c6e7c6b06804a6b3a52a59a0696ed2535c84b05ead550382a52"
+    },
+    {
+      "path": "src/mathtutor/api/math_tutor_ws.py",
+      "bytes": 6436,
+      "sha256": "6d3e1309d54c5f4738085a43e7adc11b13f8b7bcf810de729406d7fa5ec0f0c2"
+    },
+    {
+      "path": "src/mathtutor/api/product_app.py",
+      "bytes": 11967,
+      "sha256": "bd69b436cb71feb6408eefb87896b749eff0a212848efe0df84d3aa3dfdf3cdd"
+    },
+    {
+      "path": "src/mathtutor/api/product_state.py",
+      "bytes": 28884,
+      "sha256": "305a2121c18210b6b7d0e9efbffa39f2001491627ddff8baf19c3a6c1b0666a2"
+    },
+    {
+      "path": "src/mathtutor/application/__init__.py",
+      "bytes": 643,
+      "sha256": "86a8e9e86b0da3205f4ec61329fb6c7b6ffdee22a38c1eec1c9fab33b54b7264"
+    },
+    {
+      "path": "src/mathtutor/application/adaptive_practice.py",
+      "bytes": 14809,
+      "sha256": "6f074180883ea261905eeca7988d2aa2d23f411e40f76ec3179c91fc3e0c3932"
+    },
+    {
+      "path": "src/mathtutor/application/context_assembler.py",
+      "bytes": 28438,
+      "sha256": "dcbd59d2a3bbc3ba7e3364d6739568a17d6274397625d5eeaf9a4fb66e2d7309"
+    },
+    {
+      "path": "src/mathtutor/application/controller.py",
+      "bytes": 49295,
+      "sha256": "a6cb1fea57972c526bd78fbffa2384e0bf365168cfa5340168769c8228ed39e6"
+    },
+    {
+      "path": "src/mathtutor/application/curriculum_catalog.py",
+      "bytes": 7551,
+      "sha256": "78f281cb36a16758cf7ba3e92665c26444b3fe5fce6e24b6e3fdfea9b5b2bbbf"
+    },
+    {
+      "path": "src/mathtutor/application/data_export.py",
+      "bytes": 9320,
+      "sha256": "1344cadf8835b410dc2f005fe85fc131c18e9b09abd88bf2210e4b4856b2433c"
+    },
+    {
+      "path": "src/mathtutor/application/data_lifecycle.py",
+      "bytes": 30317,
+      "sha256": "fc7f4d1bc2cd4769d3736f535ccf74eb1f7aab4fe664dccfd834a3f4a3e221b1"
+    },
+    {
+      "path": "src/mathtutor/application/desktop_files.py",
+      "bytes": 8321,
+      "sha256": "cfb33df57c2202e463952a437ba5303ae7d4520e5302f46317868546c1198510"
+    },
+    {
+      "path": "src/mathtutor/application/document_ingestion.py",
+      "bytes": 14216,
+      "sha256": "e97bf650d54bd2341b4d8248e5a1f93b43f65761ed13bb1d291a5afdfa48b5ff"
+    },
+    {
+      "path": "src/mathtutor/application/lexical_reranker.py",
+      "bytes": 2990,
+      "sha256": "7cd22a32633dce4f787807b406d445acb1c36f2cac4e3f775d73b51bc0d50910"
+    },
+    {
+      "path": "src/mathtutor/application/llm_candidate_generator.py",
+      "bytes": 13290,
+      "sha256": "85dd7c8128a31f3b3b531ee85baf80ca28a2e08b5598a576a40ee8dacf590801"
+    },
+    {
+      "path": "src/mathtutor/application/math_tutor_service.py",
+      "bytes": 4320,
+      "sha256": "450ee54a4568cde536359b9f1cf7654f8ba2651bc6f244ed1c734a4762fdde7d"
+    },
+    {
+      "path": "src/mathtutor/application/outbox_relay.py",
+      "bytes": 24199,
+      "sha256": "6d7d35979a5e6bd05335982496a71ce0c83a29e32c6afb5799a83ee43a2a4359"
+    },
+    {
+      "path": "src/mathtutor/application/personal_memory_service.py",
+      "bytes": 7358,
+      "sha256": "64343fbe70a3f80641d92839895705a11fb74c01e487e4c7da0d3f255fa6414e"
+    },
+    {
+      "path": "src/mathtutor/application/practice_release.py",
+      "bytes": 18411,
+      "sha256": "70b884bf72eb336ed0bbd3feedfd14b59a98c7f2167ef5386378045d3f750a79"
+    },
+    {
+      "path": "src/mathtutor/application/retrieval_router.py",
+      "bytes": 9816,
+      "sha256": "b87808b1ce1d7fe4d0ebf55ff5051c1aebf681415af591fad44b389b3959b9f2"
+    },
+    {
+      "path": "src/mathtutor/application/state_machine.py",
+      "bytes": 11177,
+      "sha256": "e0984881efbbce3e21760b1f8a2d99b85852a996bd0657ff4a6eebb48d9091fc"
+    },
+    {
+      "path": "src/mathtutor/application/verification_backend.py",
+      "bytes": 2907,
+      "sha256": "1e781780658aa945433d8e37c303f0c79d82bdeb5b7aecfb0d3aed410de3a479"
+    },
+    {
+      "path": "src/mathtutor/domain/__init__.py",
+      "bytes": 1834,
+      "sha256": "6447f19e4f83164f6d8ae73161ccaee1e1a648eb97da3ef7e6710efdf45a040b"
+    },
+    {
+      "path": "src/mathtutor/domain/assembled_context.py",
+      "bytes": 6481,
+      "sha256": "d7414d3fd09fab8a5d5be5fb0817ca3d0cd588c7a220499801bae23c932b85ac"
+    },
+    {
+      "path": "src/mathtutor/domain/attempt.py",
+      "bytes": 2960,
+      "sha256": "0a2f31cb52f9df7cb836aaae1fd4fb01d91e5dcca8e03dd095bf1070f809be9e"
+    },
+    {
+      "path": "src/mathtutor/domain/curriculum.py",
+      "bytes": 1858,
+      "sha256": "271da4d5c7dc6bb276a2d95d577336fa4561bc110a906d8b8f7c5975f3c7c035"
+    },
+    {
+      "path": "src/mathtutor/domain/documents.py",
+      "bytes": 7105,
+      "sha256": "7715b810e0981eed820c836bd72d2c1c94891769ae571f1c29ead9481d51e136"
+    },
+    {
+      "path": "src/mathtutor/domain/embedding.py",
+      "bytes": 4505,
+      "sha256": "807ec49d8fe5032c835b697675ec56da10b43d4759f3c546b72e06054b72c109"
+    },
+    {
+      "path": "src/mathtutor/domain/hashing.py",
+      "bytes": 1698,
+      "sha256": "f6ab7f1034b47e8df38ee6174370755c10cd065bb48a493736f1a595727437cf"
+    },
+    {
+      "path": "src/mathtutor/domain/memory.py",
+      "bytes": 5495,
+      "sha256": "da49f818c266539acfe361cca1628309ec1aa8a1c28a7f5685a1d2bbd7d9cb80"
+    },
+    {
+      "path": "src/mathtutor/domain/practice.py",
+      "bytes": 3695,
+      "sha256": "9f63d683294e313b90d58b0f6e911016d2d6cb7a0a9077b3c309d2b55c877fdf"
+    },
+    {
+      "path": "src/mathtutor/domain/practice_context.py",
+      "bytes": 4045,
+      "sha256": "3033e400bab9b75056dfb9d1023e3aed38ea64d8850ae2a0835a6d6ef9054ec5"
+    },
+    {
+      "path": "src/mathtutor/domain/problem.py",
+      "bytes": 4701,
+      "sha256": "746f811db2e0c23c9fc636cf97d9800a5e5923838ab398a90979ee180ba06318"
+    },
+    {
+      "path": "src/mathtutor/domain/retrieval_policy.py",
+      "bytes": 6258,
+      "sha256": "091be90744b30d6a785c030035611e3cb5d4cdefc68a946d87833a1c778f6015"
+    },
+    {
+      "path": "src/mathtutor/domain/solution.py",
+      "bytes": 4510,
+      "sha256": "229718f0ab41bcdf55dabba4bbd2e0ef680dc322d8553d431843abca36d28e1e"
+    },
+    {
+      "path": "src/mathtutor/domain/student_state.py",
+      "bytes": 2143,
+      "sha256": "6114cba27de8fc4f0ead8b5576644337a5795331b3190e3afba3b7a27f585072"
+    },
+    {
+      "path": "src/mathtutor/domain/tutoring.py",
+      "bytes": 3851,
+      "sha256": "4b3bf106145a108b08c49019d657087f61f7d06109323c068575e7cdf6506374"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/__init__.py",
+      "bytes": 597,
+      "sha256": "45723debf213dda2f2b660f01407e153a6ccf96d4360d8b9c29d6585ec1c3869"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/backup.py",
+      "bytes": 32156,
+      "sha256": "4653858fea46b0f93cde15a21d547e8abd684c41fdb8b1c77c4ba6e77ed2fdb4"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/chunking.py",
+      "bytes": 3277,
+      "sha256": "2688ad0b97a82d485375debe4fe7d5fba52ec9da2319c2a58902f80ed76d8a7b"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/db.py",
+      "bytes": 3003,
+      "sha256": "bc87d27cc5c648cf37517b717a99b43aaf8feeedd351098df58b984e63659632"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/document_parser.py",
+      "bytes": 4835,
+      "sha256": "a688a2e507e82a639c200915c4e3841fc78c195f4a0710274c50a1c327940184"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/document_storage.py",
+      "bytes": 4867,
+      "sha256": "87d42305b07c9d86711435b65ee579f56ab4b7a33b3685769b974a99e8c0418e"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/embedding_runtime.py",
+      "bytes": 5114,
+      "sha256": "325afb8e570c644061efa596922555ba9c87f23d0f409350fb22bcfd7b8d0b24"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/gateway_config.py",
+      "bytes": 14946,
+      "sha256": "2e168c7d0046706c964a29cbc3fea5cfd29b5ec65386cde0c3d9dd92fbb0fb54"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/generative_gateway.py",
+      "bytes": 15874,
+      "sha256": "4b4ddee654eed1b39964ee7ef0da07669ce595baa201793bcc6042bd214b9554"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/keychain_secret_store.py",
+      "bytes": 18072,
+      "sha256": "9ccb8a7515130e49a704220f4598ddf19324c77f565f21df5a125e283214034b"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/lexical.py",
+      "bytes": 2732,
+      "sha256": "470ecef03d3ab60de6a56f9236534ec267357a164cff129d08b631b75b60cc8f"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrate.py",
+      "bytes": 1246,
+      "sha256": "4996ebb9be49faa7c7b126526d1f47871608d1e10e1ea2d123b867a29c732d61"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/env.py",
+      "bytes": 1618,
+      "sha256": "cb96c7488cf09a6408c6945466f8a6afd0f96ccfb62703e5a7704812323c43e0"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/script.py.mako",
+      "bytes": 468,
+      "sha256": "114d2c8daf1106848ce42d0c5f13a4d0056ec4205dfc568999d988c131bb8c54"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/versions/001_initial_schema.py",
+      "bytes": 612,
+      "sha256": "0860ef0e74ce623bcaddfe5ff887e4096427b4d6b08746d67bc98281adbe999d"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/versions/002_misconceptions.py",
+      "bytes": 975,
+      "sha256": "bc942a3f16579db364716d36e245d8dac850425dc46aae7d970d96cd5ed74467"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/versions/003_personal_memory_and_documents.py",
+      "bytes": 2042,
+      "sha256": "6e3bd8d84d6ebd817205506a85913e77dab0bd34a5e1bebd97e466b54fa3458d"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/versions/004_practice_release.py",
+      "bytes": 1788,
+      "sha256": "b79738c09b6b0183f0db8537cc11dfddaf09c5fb4839ce77ea44093a92e681a2"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/versions/005_curriculum_and_outbox_relay.py",
+      "bytes": 1913,
+      "sha256": "9dfc8fb78cfc7ec7267fd21efcab921c855603aa7580a7fe99f0fcd9ed5354b3"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/migrations/versions/006_evidence_identity.py",
+      "bytes": 4301,
+      "sha256": "8df0c61590da9cd2a604c339fb4d588f62369731c6f7aa731344a4a59671c4e3"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/observability.py",
+      "bytes": 8963,
+      "sha256": "c4a2d9a09a11058cde483a50c74a3c02b641faac23dd902721281f03daec39da"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/schema.py",
+      "bytes": 24976,
+      "sha256": "aac163d8b89e859c45b25467be83b37e70f01c97450e76e262f70b04837d4276"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/secret_store.py",
+      "bytes": 2111,
+      "sha256": "68667885034cff5d0c8479067f7c8f9152ca60c9f61fcd43024cc67ea9b8540b"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/sqlite_vec_index.py",
+      "bytes": 9365,
+      "sha256": "c798a86d674af47ac6508690751dcb1ec8ea16e70e75aba005313723fff86ad8"
+    },
+    {
+      "path": "src/mathtutor/infrastructure/verifier_worker.py",
+      "bytes": 23276,
+      "sha256": "6faa3a36e2e1be168751154c2eaf1ca81ef8fd2e912986a31d039b2dfb113c56"
+    },
+    {
+      "path": "src/mathtutor/learning/__init__.py",
+      "bytes": 2020,
+      "sha256": "6d19edfc3aa1c59e4891c76a1705c2965d9f7826148c6b8601239afdd36a93e8"
+    },
+    {
+      "path": "src/mathtutor/learning/attempt_parser.py",
+      "bytes": 6333,
+      "sha256": "c056348b655b1c532ec51b06acdc7c2dd47f9e64339e022bd5f2512c8288d659"
+    },
+    {
+      "path": "src/mathtutor/learning/attempt_verifier.py",
+      "bytes": 25168,
+      "sha256": "39ef12d946c156c089f1ebc13822022bebe9345b626a4ad0b95351f57508c0ce"
+    },
+    {
+      "path": "src/mathtutor/learning/diagnosis.py",
+      "bytes": 4076,
+      "sha256": "2421ecc8198609e349cef2aa4a1d14af6c56e9705bfa8cf4c177a01c6d339e7a"
+    },
+    {
+      "path": "src/mathtutor/learning/estimator.py",
+      "bytes": 2531,
+      "sha256": "ce1e26122c72d3601e1aec4d4a0601b533c4871dd6afa7656cc2c44106dada80"
+    },
+    {
+      "path": "src/mathtutor/learning/evidence.py",
+      "bytes": 5653,
+      "sha256": "8a4f3feca6bbd0fe8ef6dcee7a8c5174f0bc0b62857095c357776548c412225c"
+    },
+    {
+      "path": "src/mathtutor/learning/projection.py",
+      "bytes": 9017,
+      "sha256": "66334f228761abbd4cb47d16a795a2db4fddbd4b17e557571a9c474863fe5c90"
+    },
+    {
+      "path": "src/mathtutor/learning/skills.py",
+      "bytes": 2876,
+      "sha256": "921fc070afd0d05d93b4bfc746274015e2d990fdcc564e55f4a3f1f729b75ca9"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/__init__.py",
+      "bytes": 1997,
+      "sha256": "5a2648e7979588bc6dc5b6ae32ec1c36154fc6fb12781d4c6ccc592bc80b2b45"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/disclosure.py",
+      "bytes": 6606,
+      "sha256": "c5cdd82de0ece812dce62f7e327836db31243f76904878712d0791409498a855"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/events.py",
+      "bytes": 4705,
+      "sha256": "20ab4cb9c78faa0525f6cda711a32fbb2c81fda39796870e08b741b4e2ab63ca"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/exceptions.py",
+      "bytes": 197,
+      "sha256": "555761cd3aede04a9cc91befc63f7dc72028a3cfcdff71cc8703f4bbe993a0e4"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/guard_math.py",
+      "bytes": 2906,
+      "sha256": "c2a1f7558f47844615083cf54a06a22fa84e757a8a19990e30e71d0a1db70c24"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/output_guard.py",
+      "bytes": 6478,
+      "sha256": "8819d8b8c67fa589a2622aa7646a35cc3798867a550a7a06be5a90ba2e02fd19"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/planner.py",
+      "bytes": 5373,
+      "sha256": "025d061272736c78e4564b1d1079ab75f509c8da19a1e659a3732c242b8d43e7"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/stage_policy.py",
+      "bytes": 3620,
+      "sha256": "d8d36931b7b9257a9bbca2eff5371c7919d0f6936c3b1e0c64e848ea4cae2a66"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/tutor_writer.py",
+      "bytes": 16192,
+      "sha256": "3f5207c47c262537e057ef8c0592a4f215c5ccccad6a0f82f917b629f082f36b"
+    },
+    {
+      "path": "src/mathtutor/pedagogy/writer_settings.py",
+      "bytes": 3028,
+      "sha256": "13022e617e372ee03685fbe254d5f9a1acf15b0a53befde3378df375d29bfeb7"
+    },
+    {
+      "path": "src/mathtutor/release_config.py",
+      "bytes": 2503,
+      "sha256": "65879911f93dc940e98decaeabc6729ff96a3ca39b572ab0c79bc297c9ce610e"
+    },
+    {
+      "path": "src/mathtutor/release_probe.py",
+      "bytes": 2325,
+      "sha256": "e7bc203f8c3adf7957f9d696b1c19f5781ba5671c75ff38d7b563853e6c6958d"
+    },
+    {
+      "path": "src/mathtutor/repositories/__init__.py",
+      "bytes": 478,
+      "sha256": "9c9f0065fdd37b1737958651fcf2fec5f70a66a38d1b080887acce970cdb8ce2"
+    },
+    {
+      "path": "src/mathtutor/repositories/document_repository.py",
+      "bytes": 12681,
+      "sha256": "5aadfcf803c1f3208a8f6ed1109940d97e3cb6058df4ef571ce2e80d06d1bc01"
+    },
+    {
+      "path": "src/mathtutor/repositories/memory_repository.py",
+      "bytes": 7380,
+      "sha256": "3d308d28bda8a57afc7f8ce6d09584739d10da5835fbbb234ab2507c753cf702"
+    },
+    {
+      "path": "src/mathtutor/repositories/practice_repository.py",
+      "bytes": 14617,
+      "sha256": "c180009b9686826ede21b52a5a9175e85c46f8147a706ce211800e3ac3de5366"
+    },
+    {
+      "path": "src/mathtutor/repositories/session_store.py",
+      "bytes": 14817,
+      "sha256": "2ebfbb05f28d3245198274db7521552290b7a99431003a3d8111dd7e02f6753d"
+    },
+    {
+      "path": "src/mathtutor/repositories/solution_repository.py",
+      "bytes": 6415,
+      "sha256": "9399e6f7039890ec597ed2263bd438aa6d6034eb0ca451f4d69d3c63094972e7"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_curriculum.py",
+      "bytes": 29092,
+      "sha256": "6e3c330398a932699fd18e356ac7b64509d9ee46dbce0404c48ee3b4e19daf02"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_documents.py",
+      "bytes": 17688,
+      "sha256": "31cfc75d8e7ad838d90cd686163e02d7572d6344f609494ba4d2f2b74f088ded"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_education.py",
+      "bytes": 15933,
+      "sha256": "2558ac101b694d09bf5e3a56184c8244a7c5effe67bc175b37ada768949e1ddc"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_knowledge.py",
+      "bytes": 9767,
+      "sha256": "3e123417e007dd319b0c51cde612d70d8c086588eece2d5581a027792fb4936b"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_math_facts.py",
+      "bytes": 12792,
+      "sha256": "8d5c968b2889377d2539edd5323cfb0f5a83654547f20fca6031f44ad94d5c51"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_memory.py",
+      "bytes": 9733,
+      "sha256": "68e5b3d5452e5f2f825044432af44a0705627fb86e773cd14877128805241b38"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_practice.py",
+      "bytes": 20771,
+      "sha256": "8fe13cc2ea592081939eb934291d00d92d8af3557501985fbca8500e388cbfce"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_runtime.py",
+      "bytes": 10970,
+      "sha256": "5e6632cb9ddee7ba25f91abe3ca6f8bbb4936bcebc99cc761971fbf7cc49210b"
+    },
+    {
+      "path": "src/mathtutor/repositories/sqlite_store.py",
+      "bytes": 17942,
+      "sha256": "3cf492fc1297a820b78ea2a69f5f6660228d6653d4c3f9fc67f4fccfb89afaeb"
+    },
+    {
+      "path": "src/mathtutor/repositories/uow.py",
+      "bytes": 2778,
+      "sha256": "57bb2771d6c6e0e1f91761acebfbd72badd43521c519fe37a6472e6aab7ee2b3"
+    },
+    {
+      "path": "src/mathtutor/security/__init__.py",
+      "bytes": 1285,
+      "sha256": "8fd15a1a0b0b2ac795c93e2c13d2ff37aa98bb6ef9fa616a433b47cd2400398f"
+    },
+    {
+      "path": "src/mathtutor/security/allowlist.py",
+      "bytes": 4107,
+      "sha256": "dc9a46e82c68b23f3d07d8bd59800c6802a9f812485cba2f7d4d2ddf3454d867"
+    },
+    {
+      "path": "src/mathtutor/security/auth.py",
+      "bytes": 8585,
+      "sha256": "6b95efa53b2b807dfc8bead80915057891e41ed542117a401893fbcc29639701"
+    },
+    {
+      "path": "src/mathtutor/security/gate.py",
+      "bytes": 3579,
+      "sha256": "2cb3e3d94b074c05d01ae0f96a3503afa9243174830522a15cacea5fe96f95e2"
+    },
+    {
+      "path": "src/mathtutor/security/scopes.py",
+      "bytes": 4758,
+      "sha256": "a8bbea4f69987e7ab0eda74c1bdd15194c69366c3d10b8c630e014f4993f7524"
+    },
+    {
+      "path": "src/mathtutor/security/settings.py",
+      "bytes": 2876,
+      "sha256": "289798331ab068cdc6ccad98e77a30bd8d7dcc9622fb4bb274b8a44048d02ec1"
+    },
+    {
+      "path": "src/mathtutor/solving/__init__.py",
+      "bytes": 790,
+      "sha256": "043e2774c6fe4aa1da66a31689d505ef4c81c8a5b3ce9f154298ef27272b4ed4"
+    },
+    {
+      "path": "src/mathtutor/solving/nodes.py",
+      "bytes": 20539,
+      "sha256": "5003c0aeafd951ae3d6d2464d8b7c305aa8fc056862de2217387700913fd7392"
+    },
+    {
+      "path": "src/mathtutor/solving/parser.py",
+      "bytes": 15540,
+      "sha256": "b5edac57b2a001cfdef5c46ac30b9559d3547c7adaa2fa786ab5e3da4421a8aa"
+    },
+    {
+      "path": "src/mathtutor/solving/solver.py",
+      "bytes": 2153,
+      "sha256": "7324ad5f83c43dec30581dced5a82a907c70d0b9753110f30529ddf5da82c9b7"
+    },
+    {
+      "path": "src/mathtutor/solving/strategies/__init__.py",
+      "bytes": 575,
+      "sha256": "b0e69db4b84b10387f9ebda221884594df9dff33a4b3e7952ad7a0c938fe6819"
+    },
+    {
+      "path": "src/mathtutor/solving/strategies/_common.py",
+      "bytes": 3872,
+      "sha256": "b6069e3b2cff0f4f588dcf1c69bf2cf9ea1cd11ebd97cdfd2186fa6e86d5e8a4"
+    },
+    {
+      "path": "src/mathtutor/solving/strategies/arithmetic.py",
+      "bytes": 1774,
+      "sha256": "f28331dce4165d32bee08e3b4b76eaeb45ac8e5c632f81bff53b1b5677e118b5"
+    },
+    {
+      "path": "src/mathtutor/solving/strategies/linear.py",
+      "bytes": 2380,
+      "sha256": "25844427f5a3da935e7b51a4598ae0cfa5af360890396ac20e8873a3c0186114"
+    },
+    {
+      "path": "src/mathtutor/solving/strategies/polynomial.py",
+      "bytes": 1305,
+      "sha256": "3a716207e9d90659c1fd356f0fc1236c8031e2fa7cf403163c55620e151db28c"
+    },
+    {
+      "path": "src/mathtutor/solving/strategies/quadratic.py",
+      "bytes": 5206,
+      "sha256": "01d7c6e4fe332a168908341d671dcd29ade3e7fb2701c9d5a8dfdcc89a583926"
+    },
+    {
+      "path": "src/mathtutor/solving/verifier.py",
+      "bytes": 19054,
+      "sha256": "7ab3b6c34305487400cc84e94938b35808bca3ef333648d189fc67414bbcea5a"
+    },
+    {
+      "path": "src/mathtutor/standalone.py",
+      "bytes": 1873,
+      "sha256": "dee3799e83906e9200129a0150decd65104627d816e877211c41fa876bd36b04"
+    },
+    {
+      "path": "tests/benchmark_fixtures.py",
+      "bytes": 11904,
+      "sha256": "1bb8a6017d0813fd6343356388a39320375e22214b9e26d9a75269b222454b28"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_capability.py",
+      "bytes": 10946,
+      "sha256": "4a2bc24ad816f503b5b8ed617734de91f10af3d2a874b899486620ac6eefeb67"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_execution_surface_isolation.py",
+      "bytes": 2612,
+      "sha256": "a10baf58f90b865d57348a38ea1636c00b0d1dd541943edef4b462b6d554a27b"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_llm_tutor_writer.py",
+      "bytes": 17691,
+      "sha256": "a2c41d57e84974fa0bee3543f74f08f1079be6507297af1e0c011c3498903043"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_math_tutor_ws_auth.py",
+      "bytes": 11793,
+      "sha256": "7edbe24862b7c56b735ee7cf218ab7fab788590545ae2e135bd0175b8f4b17d6"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_owner_scope.py",
+      "bytes": 4932,
+      "sha256": "fc64c9a0c9a3507d113faaba9f0c79e478bc9e6e1e36ae4b87a9b28884514894"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_pedagogy_chain.py",
+      "bytes": 23718,
+      "sha256": "43294501ba171b63ea06ba3eea0402e2d6edf45160727e15628f35666ce3d82f"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_pedagogy_restart_safe.py",
+      "bytes": 7899,
+      "sha256": "cc7d5f5157c3bd1069cd21f66acf2b7d0766b50f7782f7bccc138ef4ccfb8b6d"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_phase5_practice.py",
+      "bytes": 46717,
+      "sha256": "4ad7eacf81ebca016aaeac2ca1da6555700dfa9a2ba69869d4530da63278a64a"
+    },
+    {
+      "path": "tests/compat_deeptutor/test_sqlite_persistence.py",
+      "bytes": 22630,
+      "sha256": "e1948be3b9ffecba97cbfeff2854ae528eae3bf68703078c5f7af3a17d91c3fd"
+    },
+    {
+      "path": "tests/test_adaptive_practice.py",
+      "bytes": 15229,
+      "sha256": "12cef6f0be25338d92ca9138d440a1337c74e3ad789c2009cc58a5bcdfb099e8"
+    },
+    {
+      "path": "tests/test_architecture_debt.py",
+      "bytes": 11646,
+      "sha256": "0933f433de74402ac8960e6168f41c019d85a25fd6447781484ffe6d236fc018"
+    },
+    {
+      "path": "tests/test_auth_gate.py",
+      "bytes": 3791,
+      "sha256": "734cd4d285348c5fc420759b98bd489fbd178a2df3c99248bb2754245050f31a"
+    },
+    {
+      "path": "tests/test_capability_allowlist.py",
+      "bytes": 2891,
+      "sha256": "145602f1268fc53a2a783aac34f5d51c5537f7fdb04ce548e02367677dce320a"
+    },
+    {
+      "path": "tests/test_context_assembler.py",
+      "bytes": 17508,
+      "sha256": "f02bf537c5008e4b87ecdc66f972f405273d7edd1765219f76b73af9e0f4ff6e"
+    },
+    {
+      "path": "tests/test_desktop_bridge.py",
+      "bytes": 38584,
+      "sha256": "40a1271cfdbff00fc02b157d44ee382dc16100146e173e086930ad9717b7d825"
+    },
+    {
+      "path": "tests/test_desktop_files.py",
+      "bytes": 4010,
+      "sha256": "e00f2428a60d0e4132eb9cf14ff66d660569e545d0a20f16f1a417d0bc41f4db"
+    },
+    {
+      "path": "tests/test_document_pipeline.py",
+      "bytes": 9309,
+      "sha256": "fc01da8d6c47ea81c806a54adb50a92189bfcc4cee6eb70c86996455d46b76d6"
+    },
+    {
+      "path": "tests/test_embedding.py",
+      "bytes": 8403,
+      "sha256": "e23b50e87dbc6a099025fcf5f550ef1fb50f6f1c2b31d56d7adc2bba7faa148d"
+    },
+    {
+      "path": "tests/test_gateway_cutover.py",
+      "bytes": 20212,
+      "sha256": "04a489edc954532420130a3243b4a230fc549b9d9e27ae0947075764f9814406"
+    },
+    {
+      "path": "tests/test_gateway_secret.py",
+      "bytes": 8937,
+      "sha256": "0d2f58783e9c3efb80c5ae04423f8de4769569826fc09717aa82df0abaa0244a"
+    },
+    {
+      "path": "tests/test_nodes.py",
+      "bytes": 4582,
+      "sha256": "6e12e67735f6dddc9ea6df27c25014c478558c877309165d62ddee019384aaf5"
+    },
+    {
+      "path": "tests/test_parser.py",
+      "bytes": 3910,
+      "sha256": "0dc1ac650a62d2ca69f1b4fef2d40800ab63551da5ea017c85d11c8a5d945e2d"
+    },
+    {
+      "path": "tests/test_personal_memory.py",
+      "bytes": 7650,
+      "sha256": "e4af11545d8c30e0a761f28afddabcad670050025e8d1a8c07834d01d6261e4f"
+    },
+    {
+      "path": "tests/test_phase4_learning.py",
+      "bytes": 51712,
+      "sha256": "db81c9f0b772096580231880c6d8ecbbf4a28900eedb8d81e5c8529b4fbcdb62"
+    },
+    {
+      "path": "tests/test_phase5_e2e_offer_flow.py",
+      "bytes": 12341,
+      "sha256": "1398d16874407ad2643250b433a2c1ed537df3642d560b8522ccc6c6cad7eee1"
+    },
+    {
+      "path": "tests/test_phase6_backup.py",
+      "bytes": 4253,
+      "sha256": "02b5d31f6f793d03ad559969233ea478f365373ac48661aaa6a194d2ca93eaf7"
+    },
+    {
+      "path": "tests/test_phase6_backup_policy.py",
+      "bytes": 20033,
+      "sha256": "e7d5016232bb5fe6e2c434fbc28948eb86af4a77805e18402a1b0edd781a7447"
+    },
+    {
+      "path": "tests/test_phase6_curriculum.py",
+      "bytes": 12910,
+      "sha256": "57d1b0e26ca1c7081ac1d9c1b93590a0aeab67cc21f6512dacc8b0040e98f786"
+    },
+    {
+      "path": "tests/test_phase6_data_lifecycle.py",
+      "bytes": 38359,
+      "sha256": "31ec94b472161e5c9e94b81a1c07374490b8f61c283fde9afffedd630d752314"
+    },
+    {
+      "path": "tests/test_phase6_main_integration.py",
+      "bytes": 25939,
+      "sha256": "ea82b601478e9da861b08a8699e07fd83fb26eaf0b57571214884bd80b0f86a9"
+    },
+    {
+      "path": "tests/test_phase6_observability.py",
+      "bytes": 3761,
+      "sha256": "253d629419c67a2e02ef2e1b5e4f9e265a0e39b5eaa19460984c707fc0eea2d1"
+    },
+    {
+      "path": "tests/test_phase6_outbox_relay.py",
+      "bytes": 16301,
+      "sha256": "f68ad364a208e07356ddf3e7ceba3826310880ae9186d3800ba684862b599d9e"
+    },
+    {
+      "path": "tests/test_phase6_privacy_wiring.py",
+      "bytes": 15929,
+      "sha256": "d4d97e4bbdfddc6b92948650a45d984b767a52517697fd7a8f2c96d3df5a36b8"
+    },
+    {
+      "path": "tests/test_phase6_product_wiring.py",
+      "bytes": 5829,
+      "sha256": "6af84d6f5fb9bb0c9e3e52e0a849691e45af2708054409afaff8b2098ea126e6"
+    },
+    {
+      "path": "tests/test_phase6_relay_loop.py",
+      "bytes": 13963,
+      "sha256": "f1d096c31481bfed9546eca8d9027edadea00ac035b722956ad9f3f793f86612"
+    },
+    {
+      "path": "tests/test_phase6_retrieval.py",
+      "bytes": 5493,
+      "sha256": "4a7146b0c5c90c031fe20c3ba8888231eeb5a59a656c219dba4a067e6a95c340"
+    },
+    {
+      "path": "tests/test_phase6_retrieval_benchmark.py",
+      "bytes": 9597,
+      "sha256": "301fa571b043804540e01a84b0fd025ca7585923389ce037f4010ed7caadd681"
+    },
+    {
+      "path": "tests/test_phase6_retrieval_metadata_first.py",
+      "bytes": 12761,
+      "sha256": "4524ecb2abb7e82326e74685ed237b4534d75e434cd446509c8ab5fbdfd93ca4"
+    },
+    {
+      "path": "tests/test_phase6_retrieval_reranker.py",
+      "bytes": 10169,
+      "sha256": "c30bfe38601c9c8ca826ea416055ea68e3f7e37bfba3c22e25ab7a7c19dda082"
+    },
+    {
+      "path": "tests/test_product_app.py",
+      "bytes": 8661,
+      "sha256": "e1a9c337bf9f9b5b95f9e5782d77c896a3fa69572ef16bc873b57a3663b84068"
+    },
+    {
+      "path": "tests/test_product_app_sqlite.py",
+      "bytes": 4194,
+      "sha256": "43b46379d86d06a68d8e84734f13d06fc755524deb33e8666c99c75dfc351146"
+    },
+    {
+      "path": "tests/test_release_config.py",
+      "bytes": 2044,
+      "sha256": "2fb1b0a24afec1013c5818e425bc5b3ce405825a1865851eeb34c916902c1714"
+    },
+    {
+      "path": "tests/test_release_probe.py",
+      "bytes": 1299,
+      "sha256": "68049beb55e553fa623af1c9ef7eb589e5c322dd43265fe3691ddaddd79a15a6"
+    },
+    {
+      "path": "tests/test_retrieval_policy.py",
+      "bytes": 3657,
+      "sha256": "c591c5fb7d24e85475c98359d09209e1558ce6f68fcb9f775b4208e5a9ed422e"
+    },
+    {
+      "path": "tests/test_security_settings.py",
+      "bytes": 2746,
+      "sha256": "30ac9ccdcac59e30faf2c45fb509e6ed435adda1af4f29b717908afee7a89b6a"
+    },
+    {
+      "path": "tests/test_service.py",
+      "bytes": 4869,
+      "sha256": "057f0a599aa79c98e21c9e48d1b70875d78dfe1c0be1c95d72faf41bee79f03d"
+    },
+    {
+      "path": "tests/test_solver_verifier.py",
+      "bytes": 11232,
+      "sha256": "64c86f10b78a076f6d065f86bf61dcfacd6f5b3b63a4e731ee89725662c9065f"
+    },
+    {
+      "path": "tests/test_standalone_decoupling.py",
+      "bytes": 6705,
+      "sha256": "e2c79bd06c806b0f5d432f6294a864b2164e45042aa302294a813eece5f9a988"
+    },
+    {
+      "path": "tests/test_state_machine.py",
+      "bytes": 7008,
+      "sha256": "b19ac5f61f620f290c1c0c0bab247aaee624a1e73e6423ae18f33180e7c6ab9c"
+    },
+    {
+      "path": "tests/test_verifier_worker.py",
+      "bytes": 10195,
+      "sha256": "0e5974681660eba1760833a86ffe6548551dae556b6eea1bd5839003b789f13b"
+    },
+    {
+      "path": "web/.prettierignore",
+      "bytes": 394,
+      "sha256": "efc64ffca6ec009ea9a31e121ccc890f3a396f73c95bce4974420398c29255e1"
+    },
+    {
+      "path": "web/.prettierrc.json",
+      "bytes": 244,
+      "sha256": "92f9efc0d2de90badb25a71c02def85e099942dfe2f173d8a1a45af9166fa814"
+    },
+    {
+      "path": "web/app/(auth)/layout.tsx",
+      "bytes": 225,
+      "sha256": "ddff766a96f72f2ff9e7fe66400c43ee0816fa81768dbb009f3bec626b0fca46"
+    },
+    {
+      "path": "web/app/(auth)/login/page.tsx",
+      "bytes": 5625,
+      "sha256": "cf573f14c6794c19fb895ea934c90c3a187da5fbeb7a08fdb69b1f6d5c658fa8"
+    },
+    {
+      "path": "web/app/(auth)/register/page.tsx",
+      "bytes": 6676,
+      "sha256": "14272c997e8ed110dc27a080a2487f826f32674cd2daf64fd2772933f3d0ffa7"
+    },
+    {
+      "path": "web/app/(workspace)/math-tutor/documents/page.tsx",
+      "bytes": 169,
+      "sha256": "88349afed45c7c8783184369d3e87a601520c2c95da941f880291c6dc0169264"
+    },
+    {
+      "path": "web/app/(workspace)/math-tutor/layout.tsx",
+      "bytes": 490,
+      "sha256": "4f7921732b6f0fdeec67711aed4827e1bdc979f21e490edada6f21e836d48964"
+    },
+    {
+      "path": "web/app/(workspace)/math-tutor/memory/page.tsx",
+      "bytes": 157,
+      "sha256": "43b1a727a0ad7adaebbf983a8cff7758e286618e697e85c9bea859c5a0dec3ab"
+    },
+    {
+      "path": "web/app/(workspace)/math-tutor/offers/page.tsx",
+      "bytes": 157,
+      "sha256": "83109c5e291f630848d21b21196d6758f807b871e420356a4c74e52ba62cd77a"
+    },
+    {
+      "path": "web/app/(workspace)/math-tutor/page.tsx",
+      "bytes": 363,
+      "sha256": "584e65f45253c4030c71bf35ed7d2c2d4209b39ca17939b59f255ee25b454526"
+    },
+    {
+      "path": "web/app/(workspace)/math-tutor/settings/page.tsx",
+      "bytes": 165,
+      "sha256": "1cc899ebafba253d9f97c4efb4fe3ff102f32f521ae2e8c5e5870fdd91faf99c"
+    },
+    {
+      "path": "web/app/globals.css",
+      "bytes": 21553,
+      "sha256": "99df96df0ce5ba1cce71ce2a9a658adb48a926584da96c209a193664796e6b9e"
+    },
+    {
+      "path": "web/app/layout.tsx",
+      "bytes": 410,
+      "sha256": "14fa326418558c8168d75cbfaa2f80a79a88d0644128700936f1c8b2759c6635"
+    },
+    {
+      "path": "web/app/page.tsx",
+      "bytes": 108,
+      "sha256": "e71cb9c357d8554cf8cc953ec12065e9db781213af913158173921ec0f68e11b"
+    },
+    {
+      "path": "web/components/common/MarkdownRenderer.tsx",
+      "bytes": 665,
+      "sha256": "050683765a51ff8b8cc3f2d42d1dfcae8de512fc5e8e5c264b4fc70b1596ecde"
+    },
+    {
+      "path": "web/eslint.config.mjs",
+      "bytes": 519,
+      "sha256": "5290bb735c945598a94dcf4055d1bf8f900636e9a5353290fc7c5c4e18d39997"
+    },
+    {
+      "path": "web/features/math-tutor/components/ActionBar.tsx",
+      "bytes": 3558,
+      "sha256": "0ddeaec0628cc3993c63d14e9fae23f712154a227db021d876b3562a1be872b4"
+    },
+    {
+      "path": "web/features/math-tutor/components/AttemptComposer.tsx",
+      "bytes": 3310,
+      "sha256": "e7b6656424802096ae0027142ed18a95fe9726567cfdea95eee81630f5485312"
+    },
+    {
+      "path": "web/features/math-tutor/components/ConnectionStatus.tsx",
+      "bytes": 2093,
+      "sha256": "07c95581dd0dd68e5c844951ec6f65ea50e5f8e0a59514df7eed798fd15b2b92"
+    },
+    {
+      "path": "web/features/math-tutor/components/HintLadder.tsx",
+      "bytes": 2550,
+      "sha256": "52e8db1c45bc4be494a51757489757289e059f6037d5a3ddc8bc70030f74a111"
+    },
+    {
+      "path": "web/features/math-tutor/components/MathTutorPage.tsx",
+      "bytes": 5857,
+      "sha256": "64d245e371527f154b5a798f07ace82b8806d3fcef19c3a4cd588c8811333a60"
+    },
+    {
+      "path": "web/features/math-tutor/components/ProblemCard.tsx",
+      "bytes": 1405,
+      "sha256": "bb2e627be6cada5d04c25a9c4ac5498862d84cd9ad76acd632ca9a99b4288121"
+    },
+    {
+      "path": "web/features/math-tutor/components/ProblemComposer.tsx",
+      "bytes": 4481,
+      "sha256": "ccc0e872ae57c03f255d52cc827d677608389036b6aa5138be266c4c119783cb"
+    },
+    {
+      "path": "web/features/math-tutor/components/TutorActionCard.tsx",
+      "bytes": 2282,
+      "sha256": "1155f5b3d1b0b951c3fedd493235bc50fad9c9de08a5e7ac2e665d213b9519e3"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/BackupPanel.tsx",
+      "bytes": 14051,
+      "sha256": "1942cc48657fe83bd673c015fac6302839b3fcdf8b20342c91b23a659ffba9e9"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/BootstrapStatus.tsx",
+      "bytes": 10094,
+      "sha256": "184847f28b7626c3d1a3eba6dad2c668617568398c74568211c3bed352785e7a"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/DesktopShell.tsx",
+      "bytes": 4461,
+      "sha256": "66e6938fa8dff171494eca14a82b990a45cd9b87d0bc0da2d099df0c7370d36c"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/DocumentRow.tsx",
+      "bytes": 4742,
+      "sha256": "147fca89e23cbcffb1673aa372a7be91f7bd2b48e725f039d7c21ea4ff6f685e"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/DocumentsPanel.tsx",
+      "bytes": 7604,
+      "sha256": "b888eb7823e6eb36e86600e46158caa5475591f945f6521ad0e9b3101f3e5a88"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/MemoryPanel.tsx",
+      "bytes": 12315,
+      "sha256": "578598fde9b13efc8e8164895ba2f3243fc3152f37596c705cdfa1f8647c162f"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/MemoryRow.tsx",
+      "bytes": 8672,
+      "sha256": "f9101340c580489bc3396365fac3b0d66712394e58971d568ddf4253c317d46c"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/OffersPanel.tsx",
+      "bytes": 5116,
+      "sha256": "2fa2a4ef731faff6d7d28d8d22e8f6c16714cd42c3ea76a597520835be5adee0"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/PracticeOfferCard.tsx",
+      "bytes": 4143,
+      "sha256": "ae2e4acf43b9b89b01b905650fc5da28547572c765f7a81f2dcd67b06cf9fdef"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/PrivacyPanel.tsx",
+      "bytes": 25367,
+      "sha256": "05d5a7ca1b2f24d5eeb55b89b077f00548c16e7bfa67b519b76c7083516b9ac5"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/ReadinessBadge.tsx",
+      "bytes": 3757,
+      "sha256": "d096b516092175405c046f27f10b218c10bc2d7fa26b9f8e1116917e1924fe96"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/SettingsPanel.tsx",
+      "bytes": 18946,
+      "sha256": "51ca288966d982122767ed290af769bf2ada1af8a7aa3e0d7bce296a72d4a913"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/WelcomePanel.tsx",
+      "bytes": 15126,
+      "sha256": "38b95d352523b474b2808394697c0659ee1f64b8a31c5d74eb5391a9966919e2"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/hooks/useOfferAccept.ts",
+      "bytes": 6412,
+      "sha256": "e8b07fc5f7f6ff3495830731d5605f39cec0f8403246eb1504ad295c75aaebfb"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/lib/desktop-api.ts",
+      "bytes": 14610,
+      "sha256": "923702830fd7ffe48ce9de7b5c7468ad5a2a3b499277afffdab8050e792d6fbf"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/lib/labels.ts",
+      "bytes": 3447,
+      "sha256": "af59c868f43c243f449d0814770f85e2d46fc43eeef0707c8c25fdedb0c31d9b"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/lib/offer-navigation.ts",
+      "bytes": 2325,
+      "sha256": "738f99b1bd98d9a2b2e5c9d680452b562702e3986a5f4cd064cb175918c10ffc"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/types.ts",
+      "bytes": 7215,
+      "sha256": "873b5f9030a202f5fb44a071e41009f14b571ee04cd5fe48a051a8e446ec91c5"
+    },
+    {
+      "path": "web/features/math-tutor/hooks/useMathTutorSession.ts",
+      "bytes": 8506,
+      "sha256": "b571b96db280ae433c8d913eca5b99ad72a3e3deb6fe7915e556ab7c0bb0cb0d"
+    },
+    {
+      "path": "web/features/math-tutor/lib/protocol.ts",
+      "bytes": 10552,
+      "sha256": "23dbdd93655aee9c71c662c18c0631e5f1cc53410c48f766c6086d19ce2ecc75"
+    },
+    {
+      "path": "web/features/math-tutor/lib/reducer.ts",
+      "bytes": 5540,
+      "sha256": "72fc820ab5252702c955a7dd92e3c604b7e8975e2a71355499a4a485aaf4cef6"
+    },
+    {
+      "path": "web/features/math-tutor/types.ts",
+      "bytes": 3534,
+      "sha256": "3bb3b7ab076824e1e85e527e75f71352273bec1db277d8749e33e14eb1d67f2d"
+    },
+    {
+      "path": "web/lib/api.ts",
+      "bytes": 3776,
+      "sha256": "469e2b8ef5b5f8b15a34776591fb4de95328ce74de82b4a3fe777b928623e64c"
+    },
+    {
+      "path": "web/lib/auth.ts",
+      "bytes": 4330,
+      "sha256": "5c47caa6a6671c0aeece8514ddef572d3669dc240ff7d79538316a98a7a6d4c9"
+    },
+    {
+      "path": "web/next-env.d.ts",
+      "bytes": 308,
+      "sha256": "527ba63baa0da092f4d6c593fa3502170d3242c6767a7c0dbcc8af9fc1b8f38b"
+    },
+    {
+      "path": "web/next.config.js",
+      "bytes": 912,
+      "sha256": "31a81d9945234a4acf8b7491479b6aaef492b5d7e4aae2366605dd75f479b820"
+    },
+    {
+      "path": "web/package-lock.json",
+      "bytes": 129368,
+      "sha256": "3f421ceeb628714e1437ab5917ebbac7aefc3e7909f7c07fe55ba69695bf3981"
+    },
+    {
+      "path": "web/package.json",
+      "bytes": 627,
+      "sha256": "ec8f5db7a1df0ae71f67e963212f065962736d863e6ecb877c1941c04754f8a7"
+    },
+    {
+      "path": "web/postcss.config.js",
+      "bytes": 83,
+      "sha256": "fa650b380adfabb151a0b352f7135e107e6352345f899060f1c5c231228f94bf"
+    },
+    {
+      "path": "web/proxy.ts",
+      "bytes": 698,
+      "sha256": "92cf50c28a5ff00b3a6e62472174830c5d14f39f689d0dbed34b20b41423939d"
+    },
+    {
+      "path": "web/scripts/register-node-test-aliases.cjs",
+      "bytes": 570,
+      "sha256": "005c93862a4a0c2f657b173e5bf1177a177ae1b041c8a9b3c7a203b963de3903"
+    },
+    {
+      "path": "web/scripts/run-node-tests.mjs",
+      "bytes": 1496,
+      "sha256": "f67c84ce249ae9cfa6607038f6be0cad0a8428aa90186df0dcc69f8870681f74"
+    },
+    {
+      "path": "web/tailwind.config.js",
+      "bytes": 1783,
+      "sha256": "5290ddab8780e05a2019f0a93d1772b6b3e6e03d9c10c9083f70545447715349"
+    },
+    {
+      "path": "web/tests/math-tutor-desktop-lists.test.tsx",
+      "bytes": 4686,
+      "sha256": "69a622f808987431b67fffa55e90c310c5b41ee93d4db63daff9339e58b3fc9c"
+    },
+    {
+      "path": "web/tests/math-tutor-desktop-panels.test.tsx",
+      "bytes": 18812,
+      "sha256": "97bb25fd66087b84101768ec2ba760099f26c50f950f65f012d91c1ebd8ca7c3"
+    },
+    {
+      "path": "web/tests/math-tutor-desktop-settings.test.tsx",
+      "bytes": 4594,
+      "sha256": "313cdcb97dbaca9889358ef6b42bce6ee502f4ba7f6fa7e20daa4a521cfaa994"
+    },
+    {
+      "path": "web/tests/math-tutor-no-secret-storage.test.tsx",
+      "bytes": 3001,
+      "sha256": "fc97734d70c3c2cbb99372511c994a3923fc54adbd88a61463de76a3ffd3f496"
+    },
+    {
+      "path": "web/tests/math-tutor-offer-navigation.test.tsx",
+      "bytes": 2867,
+      "sha256": "a1c28594968d641f50d4c2c92548ee291854b4eaab1433d87f3c6996aaea98e1"
+    },
+    {
+      "path": "web/tests/math-tutor-practice-offer.test.tsx",
+      "bytes": 3877,
+      "sha256": "e655f224b0ac425186115e622a42e20e6726d061a446076bafb9723b249113b1"
+    },
+    {
+      "path": "web/tests/math-tutor-protocol.test.ts",
+      "bytes": 15167,
+      "sha256": "a3e18069963d8b08d65341b0240a481c809e3b389efef86be2cbc27bdfd25840"
+    },
+    {
+      "path": "web/tsconfig.json",
+      "bytes": 715,
+      "sha256": "cbee36b78f0021379c55e9fcf4b47efded2050554f0300129ac192677f9aa2b3"
+    },
+    {
+      "path": "web/tsconfig.node-tests.json",
+      "bytes": 335,
+      "sha256": "b8db8c702138d4c6556256a7a11553266fa21c899e7734074b8d2a1fcaf2f1df"
+    }
+  ]
+}

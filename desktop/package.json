@@ -1,0 +1,23 @@
+{
+  "name": "math-tutor-desktop",
+  "version": "0.2.0",
+  "private": true,
+  "description": "K12 MathTutor desktop shell (Electron) — native window + file dialogs only; all business logic lives in the local Python product service and the Next.js frontend.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "smoke-full": "electron . --smoke-full",
+    "test:distribution": "node --test tests/distribution.test.js",
+    "smoke:packaged:mac": "node scripts/run-packaged-smoke.js",
+    "manifest:mac": "node scripts/generate-macos-release-manifest.js",
+    "package:mac:unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
+    "package:mac:release": "MATHTUTOR_PUBLIC_RELEASE=1 electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
+    "package:win": "electron-builder --config electron-builder.config.cjs --win nsis --x64",
+    "package:linux": "electron-builder --config electron-builder.config.cjs --linux AppImage --x64"
+  },
+  "devDependencies": {
+    "electron": "^43.4.1",
+    "electron-builder": "^26.0.12"
+  }
+}

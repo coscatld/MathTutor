@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mathtutor"
+version = "0.2.0"
+description = "Standalone K12 MathTutor product runtime"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "aiosqlite>=0.19",
+  "alembic>=1.13",
+  "bcrypt>=4.0",
+  "fastapi>=0.100",
+  "httpx>=0.27",
+  "pydantic>=2.0",
+  "pypdf>=4.0",
+  "python-jose[cryptography]>=3.3",
+  "python-multipart>=0.0.6",
+  "sqlalchemy[asyncio]>=2.0",
+  "uvicorn[standard]>=0.24",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+mathtutor = "mathtutor.standalone:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["mathtutor*"]
+
+[tool.setuptools.package-data]
+"mathtutor" = [
+  "infrastructure/migrations/env.py",
+  "infrastructure/migrations/script.py.mako",
+  "infrastructure/migrations/versions/*.py",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["compat_deeptutor"]
+asyncio_mode = "auto"
+addopts = "-ra"

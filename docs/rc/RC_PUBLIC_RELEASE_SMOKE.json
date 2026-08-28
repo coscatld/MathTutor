@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "spec_id": "RC_PUBLIC_RELEASE_SMOKE",
+  "spec_version": "1.0.0",
+  "status_rule": "PASS only when every required assertion is PASS on the named target machine and artifact hash",
+  "required_steps": [
+    {"id": "launch_app", "ordinal": 1, "assertion": "installed artifact launches outside the checkout"},
+    {"id": "bootstrap", "ordinal": 2, "assertion": "bootstrap returns READY or documented DEGRADED, never an unexplained BLOCKED"},
+    {"id": "database_migration", "ordinal": 3, "assertion": "database reaches the frozen migration head"},
+    {"id": "secret_store_sentinel", "ordinal": 4, "assertion": "random sentinel write/read/delete succeeds and a final read is missing"},
+    {"id": "submit_problem", "ordinal": 5, "assertion": "supported problem is accepted through the product surface"},
+    {"id": "verifier_worker", "ordinal": 6, "assertion": "spawn worker is healthy and produces the bound authoritative decision"},
+    {"id": "correct_attempt", "ordinal": 7, "assertion": "correct attempt is assessed correctly"},
+    {"id": "incorrect_or_partial_attempt", "ordinal": 8, "assertion": "incorrect or partial attempt is assessed without solution leakage"},
+    {"id": "practice_offer", "ordinal": 9, "assertion": "verified parent cycle produces an active practice offer"},
+    {"id": "accept_practice", "ordinal": 10, "assertion": "active offer accepts exactly once"},
+    {"id": "child_cycle", "ordinal": 11, "assertion": "accepted offer creates and judges the bound child cycle"},
+    {"id": "explicit_document_import", "ordinal": 12, "assertion": "an explicitly selected test document imports without directory scanning"},
+    {"id": "document_retrieval", "ordinal": 13, "assertion": "imported document is retrieved through the lexical baseline"},
+    {"id": "memory_crud", "ordinal": 14, "assertion": "memory create/read/update-or-disable/delete semantics are verified"},
+    {"id": "backup", "ordinal": 15, "assertion": "backup is created and verified"},
+    {"id": "restart", "ordinal": 16, "assertion": "backend and worker restart and prior state remains durable"},
+    {"id": "restore", "ordinal": 17, "assertion": "verified restore succeeds under the maintenance gate"},
+    {"id": "post_restore_solve", "ordinal": 18, "assertion": "a new supported problem solves after restore"},
+    {"id": "clean_shutdown", "ordinal": 19, "assertion": "frontend, backend, verifier worker and picker exit without an orphan process"}
+  ],
+  "shared_business_driver": "desktop/scripts/rc-public-release-smoke.js",
+  "platform_adapters": {
+    "macos_arm64": "desktop/scripts/run-macos-public-release-smoke.js",
+    "windows_x64": "desktop/scripts/run-windows-release-smoke.ps1",
+    "linux_x64": "desktop/scripts/run-linux-release-smoke.sh"
+  },
+  "report_schema": "docs/rc/RC_PUBLIC_RELEASE_SMOKE_REPORT.schema.json"
+}

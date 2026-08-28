@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-08-26",
+  "authority": "target-machine evidence only; configuration does not imply support",
+  "allowed_statuses": [
+    "PASS",
+    "FAIL",
+    "PARTIAL",
+    "UNTESTED",
+    "UNSUPPORTED"
+  ],
+  "platforms": {
+    "macos_arm64": {
+      "public_release_status": "PARTIAL",
+      "target_machine": "Darwin arm64",
+      "capabilities": {
+        "Build": {"status": "PASS", "reason_code": "LOCAL_BUILD_EVIDENCE"},
+        "Package": {"status": "PASS", "reason_code": "DMG_ARTIFACT_EVIDENCE"},
+        "Install": {"status": "PASS", "reason_code": "READONLY_DMG_MOUNT_EVIDENCE"},
+        "Launch": {"status": "PASS", "reason_code": "PACKAGED_SMOKE_17_OF_17"},
+        "SecretStore": {"status": "PASS", "reason_code": "REAL_KEYCHAIN_SENTINEL_WRITE_READ_DELETE"},
+        "Verifier Worker": {"status": "PASS", "reason_code": "PACKAGED_PRODUCT_FLOW_EVIDENCE"},
+        "SQLite": {"status": "PASS", "reason_code": "PACKAGED_RESTART_RESTORE_EVIDENCE"},
+        "Native File Picker": {"status": "PARTIAL", "reason_code": "STATIC_AND_UNIT_EVIDENCE_ONLY"},
+        "Document Import": {"status": "PASS", "reason_code": "PACKAGED_SMOKE_EVIDENCE"},
+        "Model Config": {"status": "PASS", "reason_code": "LOCAL_PROVIDER_PACKAGED_SMOKE"},
+        "Backup": {"status": "PASS", "reason_code": "PACKAGED_SMOKE_EVIDENCE"},
+        "Restore": {"status": "PASS", "reason_code": "PACKAGED_SMOKE_EVIDENCE"},
+        "Restart": {"status": "PASS", "reason_code": "PACKAGED_SMOKE_EVIDENCE"},
+        "Practice E2E": {"status": "PASS", "reason_code": "PACKAGED_SMOKE_EVIDENCE"},
+        "Uninstall": {"status": "UNTESTED", "reason_code": "NO_INSTALLER_UNINSTALL_EVIDENCE"},
+        "Upgrade": {"status": "PASS", "reason_code": "FROZEN_PRE_RC_DMG_TO_FINAL_RC_PROFILE_EVIDENCE"}
+      },
+      "signing": {"status": "UNTESTED", "reason_code": "MISSING_EXTERNAL_CREDENTIAL"},
+      "notarization": {"status": "UNTESTED", "reason_code": "MISSING_EXTERNAL_CREDENTIAL"}
+    },
+    "windows_x64": {
+      "public_release_status": "UNTESTED",
+      "target_machine": null,
+      "implementation": {
+        "artifact": "NSIS",
+        "package_script": "npm run package:win",
+        "signing_pipeline": "electron-builder Authenticode discovery; no credential supplied or executed",
+        "secret_store": "Windows Credential Manager via advapi32",
+        "worker_start_method": "spawn"
+      },
+      "capabilities": {
+        "Build": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Package": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Install": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Launch": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "SecretStore": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Verifier Worker": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "SQLite": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Native File Picker": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Document Import": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Model Config": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Backup": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Restore": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Restart": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Practice E2E": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Uninstall": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Upgrade": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"}
+      },
+      "authenticode": {"status": "UNTESTED", "reason_code": "MISSING_EXTERNAL_CREDENTIAL"}
+    },
+    "linux_x64": {
+      "public_release_status": "UNTESTED",
+      "target_machine": null,
+      "implementation": {
+        "artifact": "AppImage",
+        "package_script": "npm run package:linux",
+        "secret_store": "freedesktop Secret Service via secret-tool",
+        "secret_tool_absent_expected_readiness": "DEGRADED",
+        "plaintext_fallback": false
+      },
+      "capabilities": {
+        "Build": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Package": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Install": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Launch": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "SecretStore": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Verifier Worker": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "SQLite": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Native File Picker": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Document Import": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Model Config": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Backup": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Restore": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Restart": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Practice E2E": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Uninstall": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"},
+        "Upgrade": {"status": "UNTESTED", "reason_code": "NO_TARGET_MACHINE"}
+      },
+      "artifact_signing": {"status": "UNSUPPORTED", "reason_code": "NO_RELEASE_SIGNING_POLICY"}
+    }
+  },
+  "evidence": {
+    "macos_package_smoke": "desktop/dist/package-smoke-evidence.json",
+    "desktop_distribution_tests": "desktop/tests/distribution.test.js",
+    "cross_platform_static_tests": "desktop/tests/platform-release.test.js",
+    "public_smoke_spec": "docs/rc/RC_PUBLIC_RELEASE_SMOKE.json",
+    "macos_public_smoke_19_of_19": "desktop/dist/release-manifest/rc-public-release-smoke-macos.json",
+    "macos_upgrade": "desktop/dist/release-manifest/macos-upgrade-report.json",
+    "macos_no_api_key": "desktop/dist/release-manifest/no-api-key-smoke-macos.json",
+    "package_surface": "desktop/dist/release-manifest/package-surface-audit.json",
+    "windows_linux_audit": "docs/rc/WINDOWS_LINUX_RELEASE_AUDIT.json"
+  }
+}

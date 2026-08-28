@@ -1,0 +1,206 @@
+"use client";
+
+import { FilePlus2, FolderOpen, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  deleteDocument,
+  DesktopApiError,
+  fetchDocuments,
+  importDocumentFile,
+  nativePickAndImport,
+  toggleDocumentRetrieval,
+} from "../lib/desktop-api";
+import type { DesktopDocument } from "../types";
+import DocumentRow from "./DocumentRow";
+
+/**
+ * 我的资料 — user documents. Entry paths are strictly user-initiated:
+ * native picker (Electron shell) with a browser file-input fallback. The
+ * picker flow never scans user directories — only the file the user picks.
+ */
+export default function DocumentsPanel({
+  fetchDocumentsFn = fetchDocuments,
+  nativePickAndImportFn = nativePickAndImport,
+  importDocumentFileFn = importDocumentFile,
+}: {
+  fetchDocumentsFn?: typeof fetchDocuments;
+  nativePickAndImportFn?: typeof nativePickAndImport;
+  importDocumentFileFn?: typeof importDocumentFile;
+}) {
+  const [documents, setDocuments] = useState<DesktopDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [picking, setPicking] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      setDocuments(await fetchDocumentsFn());
+      setMessage(null);
+    } catch (err) {
+      setMessage({
+        kind: "error",
+        text: err instanceof DesktopApiError ? err.message : "读取资料列表失败，请稍后再试。",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchDocumentsFn]);
+
+  useEffect(() => {
+    refresh().catch(() => undefined);
+  }, [refresh]);
+
+  const handleNativePick = async () => {
+    setPicking(true);
+    setMessage(null);
+    try {
+      const doc = await nativePickAndImportFn();
+      if (doc) {
+        setMessage({ kind: "ok", text: `已导入「${doc.filename}」` });
+        await refresh();
+      }
+    } catch (err) {
+      // Shell absent → fall back to the browser file input.
+      setMessage({
+        kind: "error",
+        text: err instanceof DesktopApiError ? err.message : "无法打开文件选择器。",
+      });
+      fileInputRef.current?.click();
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const handleFileChosen = async (file: File | null) => {
+    if (!file) return;
+    setPicking(true);
+    setMessage(null);
+    try {
+      const doc = await importDocumentFileFn(file);
+      setMessage({ kind: "ok", text: `已导入「${doc.filename}」` });
+      await refresh();
+    } catch (err) {
+      setMessage({
+        kind: "error",
+        text: err instanceof DesktopApiError ? err.message : "导入失败，请稍后再试。",
+      });
+    } finally {
+      setPicking(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleToggle = async (doc: DesktopDocument, enabled: boolean) => {
+    setBusyId(doc.document_id);
+    try {
+      const updated = await toggleDocumentRetrieval(doc.document_id, enabled);
+      setDocuments((list) => list.map((d) => (d.document_id === updated.document_id ? updated : d)));
+    } catch (err) {
+      setMessage({
+        kind: "error",
+        text: err instanceof DesktopApiError ? err.message : "更新失败，请稍后再试。",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (doc: DesktopDocument) => {
+    setBusyId(doc.document_id);
+    try {
+      await deleteDocument(doc.document_id);
+      setDocuments((list) => list.filter((d) => d.document_id !== doc.document_id));
+      setMessage({ kind: "ok", text: `已删除「${doc.filename}」` });
+    } catch (err) {
+      setMessage({
+        kind: "error",
+        text: err instanceof DesktopApiError ? err.message : "删除失败，请稍后再试。",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleUpdated = (doc: DesktopDocument) => {
+    setDocuments((list) => list.map((d) => (d.document_id === doc.document_id ? doc : d)));
+  };
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--foreground)]">
+            <FolderOpen className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
+            我的资料
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            上传学习资料（TXT / Markdown / TeX / PDF，单个不超过 20MB），用于生成针对性练习。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleNativePick}
+          disabled={picking}
+          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {picking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FilePlus2 className="h-4 w-4" aria-hidden="true" />}
+          {picking ? "正在导入…" : "添加资料"}
+        </button>
+        {/* Browser fallback picker (only opened on explicit click above). */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.markdown,.tex,.pdf,text/plain,text/markdown,application/pdf"
+          className="hidden"
+          aria-hidden="true"
+          tabIndex={-1}
+          onChange={(e) => handleFileChosen(e.target.files?.[0] ?? null)}
+        />
+      </div>
+
+      {message && (
+        <p
+          role="status"
+          className={`rounded-xl px-3 py-2 text-sm ${
+            message.kind === "ok"
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+              : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+          }`}
+        >
+          {message.text}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="flex items-center gap-2 py-10 text-sm text-[var(--muted-foreground)]">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          正在加载资料…
+        </p>
+      ) : documents.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] px-6 py-12 text-center">
+          <FolderOpen className="h-8 w-8 text-[var(--muted-foreground)]" aria-hidden="true" />
+          <p className="text-sm font-medium text-[var(--foreground)]">还没有学习资料</p>
+          <p className="max-w-sm text-sm leading-relaxed text-[var(--muted-foreground)]">
+            点击右上角「添加资料」选择文件。资料只会按你选择的文件导入，不会扫描你的电脑文件夹。
+          </p>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {documents.map((doc) => (
+            <DocumentRow
+              key={doc.document_id}
+              document={doc}
+              busy={busyId === doc.document_id}
+              onToggleRetrieval={(enabled) => handleToggle(doc, enabled)}
+              onDelete={() => handleDelete(doc)}
+              onUpdated={handleUpdated}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "product": "MathTutor Desktop",
+  "policy": "default-deny distribution-time source assembly",
+  "production_entrypoints": [
+    "mathtutor.standalone:create_standalone_app",
+    "mathtutor.api.product_app:create_math_tutor_app_from_runtime",
+    "mathtutor.infrastructure.verifier_worker",
+    "mathtutor.release_probe"
+  ],
+  "python_source": {
+    "root": "src/mathtutor",
+    "include": [
+      "__init__.py",
+      "standalone.py",
+      "release_config.py",
+      "release_probe.py",
+      "api/**/*.py",
+      "application/**/*.py",
+      "domain/**/*.py",
+      "infrastructure/**/*.py",
+      "learning/**/*.py",
+      "pedagogy/**/*.py",
+      "repositories/**/*.py",
+      "security/**/*.py",
+      "solving/**/*.py",
+      "infrastructure/migrations/script.py.mako"
+    ],
+    "exclude": [
+      "**/__pycache__",
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/*.pyo",
+      "tests",
+      "tests/**",
+      "data",
+      "data/**",
+      "capabilities/**",
+      "legacy/**",
+      "application/lexical_reranker.py",
+      "application/retrieval_router.py",
+      "infrastructure/sqlite_vec_index.py"
+    ],
+    "required_runtime_assets": [
+      "infrastructure/migrations/env.py",
+      "infrastructure/migrations/script.py.mako",
+      "infrastructure/migrations/versions/*.py",
+      "application/practice_release.py",
+      "infrastructure/verifier_worker.py",
+      "release_probe.py"
+    ],
+    "retained_platform_core": []
+  },
+  "python_runtime": {
+    "strategy": "retain relocatable base runtime; remove bytecode, editable checkout hooks, dev metadata, and audited feature-only packages",
+    "required_import_roots": [
+      "aiosqlite",
+      "alembic",
+      "bcrypt",
+      "fastapi",
+      "httpx",
+      "jose",
+      "mako",
+      "multipart",
+      "pydantic",
+      "pypdf",
+      "sqlalchemy",
+      "starlette",
+      "uvicorn"
+    ],
+    "forbidden_feature_packages": [
+      "anthropic",
+      "anthropic-*.dist-info",
+      "arxiv",
+      "arxiv-*.dist-info",
+      "bm25s",
+      "bm25s-*.dist-info",
+      "dashscope",
+      "dashscope-*.dist-info",
+      "ddgs",
+      "ddgs-*.dist-info",
+      "faiss",
+      "faiss_cpu-*.dist-info",
+      "llama_agents",
+      "llama_index",
+      "llama_index*.dist-info",
+      "llama_index_instrumentation",
+      "openai",
+      "openai-*.dist-info",
+      "perplexity",
+      "perplexityai-*.dist-info"
+    ]
+  },
+  "web": {
+    "root": "web/.next-mathtutor/standalone",
+    "retain": [
+      "server.js",
+      "package.json",
+      "node_modules/**",
+      ".next-mathtutor/BUILD_ID",
+      ".next-mathtutor/*.json",
+      ".next-mathtutor/server/chunks/**",
+      ".next-mathtutor/server/pages/**",
+      ".next-mathtutor/server/app/(auth)/**",
+      ".next-mathtutor/server/app/(workspace)/math-tutor/**",
+      ".next-mathtutor/server/app/_global-error*",
+      ".next-mathtutor/server/app/_not-found*",
+      ".next-mathtutor/server/app/login*",
+      ".next-mathtutor/server/app/register*",
+      ".next-mathtutor/server/app/math-tutor*"
+    ],
+    "exclude_generated_routes": [
+      "**/.next-mathtutor/server/app/(admin)/**",
+      "**/.next-mathtutor/server/app/(utility)/**",
+      "**/.next-mathtutor/server/app/(workspace)/book/**",
+      "**/.next-mathtutor/server/app/(workspace)/co-writer/**",
+      "**/.next-mathtutor/server/app/(workspace)/home/**",
+      "**/.next-mathtutor/server/app/(workspace)/partners/**",
+      "**/.next-mathtutor/server/app/(workspace)/playground/**",
+      "**/.next-mathtutor/server/app/(workspace)/page/**",
+      "**/.next-mathtutor/server/app/admin*",
+      "**/.next-mathtutor/server/app/agents*",
+      "**/.next-mathtutor/server/app/book*",
+      "**/.next-mathtutor/server/app/co-writer*",
+      "**/.next-mathtutor/server/app/index*",
+      "**/.next-mathtutor/server/app/knowledge*",
+      "**/.next-mathtutor/server/app/memory*",
+      "**/.next-mathtutor/server/app/notebook*",
+      "**/.next-mathtutor/server/app/partners*",
+      "**/.next-mathtutor/server/app/playground*",
+      "**/.next-mathtutor/server/app/profile*",
+      "**/.next-mathtutor/server/app/settings*",
+      "**/.next-mathtutor/server/app/space*"
+    ],
+    "retained_shared_assets": [
+      ".next-mathtutor/server/chunks/**",
+      "node_modules/**"
+    ]
+  },
+  "desktop_runtime_assets": [
+    "desktop/main.js",
+    "desktop/preload.js",
+    "desktop/package.json",
+    "desktop/build/entitlements.mac.plist"
+  ],
+  "licenses": [
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "python-runtime/**/site-packages/*.dist-info/LICENSE*",
+    "web/**/node_modules/**/LICENSE*",
+    "Electron Framework/Resources/LICENSE.electron.txt",
+    "Electron Framework/Resources/LICENSES.chromium.html"
+  ],
+  "forbidden_artifact_paths": [
+    "python-app/deeptutor",
+    "python-app/mathtutor/capabilities",
+    "python-app/mathtutor/legacy",
+    "python-app/mathtutor/tests",
+    "python-app/mathtutor/data"
+  ]
+}

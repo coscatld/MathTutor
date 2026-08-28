@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mathtutor.local/schemas/rc-public-release-smoke-report-v1.json",
+  "title": "MathTutor RC public release smoke report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "spec_id",
+    "spec_version",
+    "platform",
+    "arch",
+    "target_machine",
+    "artifact",
+    "started_at",
+    "completed_at",
+    "status",
+    "steps",
+    "secret_store",
+    "platform_checks"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "spec_id": {"const": "RC_PUBLIC_RELEASE_SMOKE"},
+    "spec_version": {"type": "string"},
+    "platform": {"enum": ["win32", "linux", "darwin"]},
+    "arch": {"type": "string"},
+    "target_machine": {"const": true},
+    "artifact": {
+      "type": "object",
+      "required": ["path", "size_bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "container_artifact": {
+      "type": "object",
+      "required": ["path", "size_bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "started_at": {"type": "string"},
+    "completed_at": {"type": "string"},
+    "status": {"enum": ["PASS", "FAIL", "PARTIAL"]},
+    "steps": {
+      "type": "array",
+      "minItems": 19,
+      "maxItems": 19,
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "evidence"],
+        "properties": {
+          "id": {"type": "string"},
+          "status": {"enum": ["PASS", "FAIL", "PARTIAL", "UNTESTED", "BLOCKED"]},
+          "evidence": {"type": "string"},
+          "reason_code": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "secret_store": {
+      "type": "object",
+      "required": ["status", "plaintext_fallback"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL", "BLOCKED", "UNTESTED"]},
+        "reason_code": {"type": "string"},
+        "plaintext_fallback": {"const": false}
+      }
+    },
+    "platform_checks": {"type": "object"}
+  },
+  "additionalProperties": false
+}
