@@ -127,3 +127,16 @@ shasum -a 256 MathTutor-0.2.0-mac-arm64.dmg
 ```
 
 输出必须与 Release 描述中的 SHA-256 完全一致后再安装。
+
+### 卡在“正在验证登录状态”
+
+如果窗口长时间停在该画面，先退出 MathTutor，再核对下载文件的
+SHA-256。当前已修复安装包的 SHA-256 为：
+
+```text
+fb9c3a247f9243fe27bafb728ef6892e4fe09f3ffaa328d9baa452e37ea479a5
+```
+
+旧候选包曾遗漏 Next.js 浏览器静态资源，会导致页面 HTML 能打开，但
+JavaScript/CSS 返回 404，因而无法跳转到注册页。安装当前包时只需替换
+`/Applications/MathTutor.app`；不需要删除用户数据目录。

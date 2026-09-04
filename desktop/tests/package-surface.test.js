@@ -112,6 +112,7 @@ test("final artifact frontend uses the standalone v2 auth contract", {
     "Resources",
     "web",
     ".next-mathtutor",
+    "static",
   );
   const bundled = javascriptText(webBuild);
   assert.match(bundled, /\/api\/v2\/auth\/status/);

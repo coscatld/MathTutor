@@ -106,7 +106,7 @@ are in `TEST_MIGRATION_MATRIX.md`.
 | TypeScript | PASS |
 | Next production build | PASS |
 | Desktop Node contracts | 29 passed with final artifact enabled |
-| Final artifact surface | 5 passed |
+| Final artifact surface | 6 passed |
 | Packaged app / readonly DMG | 17/17 each |
 | Shared macOS public business smoke | 19/19 |
 | No-API-key degraded smoke | 9/9 |
@@ -123,15 +123,18 @@ operation.
 The local unsigned macOS arm64 artifact is:
 
 - `desktop/dist/MathTutor-0.2.0-mac-arm64.dmg`
-- 180,438,986 bytes
-- SHA-256 `37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`
+- 180,747,880 bytes
+- SHA-256 `fb9c3a247f9243fe27bafb728ef6892e4fe09f3ffaa328d9baa452e37ea479a5`
 
 This candidate includes the standalone auth hotfix: browser auth requests use
 the allowlisted `/api/v2/auth/*` routes, and the workspace waits for runtime
 auth status before mounting. A clean first-user register/login flow and an
 authenticated MathTutor WebSocket turn passed through the real frontend proxy.
+The package also copies the standalone build's browser static directory
+explicitly; app and readonly-DMG smoke fetched all 11 page-referenced JS/CSS
+assets before continuing.
 
-Readonly-DMG inventory: 8,845 regular files, 1,179 symlinks and 480,150,197
+Readonly-DMG inventory: 8,864 regular files, 1,179 symlinks and 481,069,312
 file bytes. The packaged Python application
 contains only `mathtutor` and no `deeptutor` path. No product-level generic
 chat, agent, research, tool/MCP, subagent, code-execution or shell route is

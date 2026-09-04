@@ -47,6 +47,10 @@ const nextStandalone = path.join(repoDir, "web", ".next-mathtutor", "standalone"
 if (!fs.existsSync(path.join(nextStandalone, "server.js"))) {
   throw new Error("Missing web/.next-mathtutor/standalone/server.js; build the production web app first.");
 }
+const nextStatic = path.join(repoDir, "web", ".next-mathtutor", "static");
+if (!fs.existsSync(nextStatic)) {
+  throw new Error("Missing web/.next-mathtutor/static; build the production web app first.");
+}
 
 module.exports = {
   appId: "com.mathtutor.product",
@@ -69,6 +73,10 @@ module.exports = {
         ...packageAllowlist.web.exclude_generated_routes.map(exclude),
       ],
     },
+    // Next's standalone output deliberately omits browser assets. They must
+    // be copied beside the standalone server at its configured distDir or the
+    // HTML loads while every client JS/CSS request returns 404.
+    { from: nextStatic, to: "web/.next-mathtutor/static" },
     // electron-builder intentionally filters a top-level directory named
     // node_modules from generic resources. Copy it under a neutral runtime
     // name and expose it through NODE_PATH in main.js.

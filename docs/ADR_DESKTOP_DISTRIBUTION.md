@@ -3,12 +3,14 @@
 - Core RC: **RC_READY**; macOS public release: **PARTIAL** only because real
   Developer ID signing, notarization/stapling and Gatekeeper validation lack
   external credentials.
-- Final unsigned macOS arm64 DMG: 180,438,986 bytes; SHA-256
-  `37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`.
+- Final unsigned macOS arm64 DMG: 180,747,880 bytes; SHA-256
+  `fb9c3a247f9243fe27bafb728ef6892e4fe09f3ffaa328d9baa452e37ea479a5`.
 - Final `.app` and readonly DMG smoke: 17/17 PASS; shared public-release smoke:
   19/19 PASS; real Keychain write/read/delete/final cleanup: PASS.
 - Standalone frontend auth uses `/api/v2/auth/*`; blank-profile first-user
   registration/login and the workspace runtime-auth gate are verified.
+- Next standalone browser JS/CSS is copied explicitly; both packaged-app and
+  readonly-DMG smoke fetched all 11 page-referenced static assets successfully.
 - Blank-profile production auth-on launch, no-API-key fallback 9/9, package
   surface deny scan, and frozen pre-RC → final RC upgrade all PASS.
 - Windows x64 and Linux x64 remain **UNTESTED — NO TARGET MACHINE**. Their
@@ -306,8 +308,8 @@ cleanup 与 smoke behavior 已复现一致。
 
 ### 最终 artifact 与自包含性
 
-- `desktop/dist/MathTutor-0.2.0-mac-arm64.dmg`：180,438,986 bytes，
-  SHA-256 `37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`。
+- `desktop/dist/MathTutor-0.2.0-mac-arm64.dmg`：180,747,880 bytes，
+  SHA-256 `fb9c3a247f9243fe27bafb728ef6892e4fe09f3ffaa328d9baa452e37ea479a5`。
 - 空白临时 user-data root、checkout 外 cwd、白名单环境下，production
   auth-on 首次注册/登录/readiness PASS；包内 `.app` 与 readonly DMG
   均 17/17 PASS。统一 `RC_PUBLIC_RELEASE_SMOKE` 19/19 PASS。

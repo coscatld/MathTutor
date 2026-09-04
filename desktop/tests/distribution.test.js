@@ -19,6 +19,7 @@ test("package contains standalone web, Python application and runtime", () => {
   const targets = config.extraResources.map((item) => item.to);
   assert.deepEqual(targets, [
     "web",
+    "web/.next-mathtutor/static",
     "web/vendor_modules",
     "python-app/mathtutor",
     "python-runtime",
@@ -27,6 +28,8 @@ test("package contains standalone web, Python application and runtime", () => {
   ]);
   assert.equal(config.asar, true);
   assert.ok(config.extraResources[0].filter.includes("!**/.next-mathtutor/node_modules/rimraf-*"));
+  assert.match(config.extraResources[1].from, /web[\/\\]\.next-mathtutor[\/\\]static$/);
+  assert.match(main, /verifyFrontendAssets\(`\$\{frontendUrl\}\/math-tutor`\)/);
 });
 
 test("platform targets stay intentionally narrow", () => {

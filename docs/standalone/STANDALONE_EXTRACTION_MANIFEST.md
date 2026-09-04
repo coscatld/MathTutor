@@ -87,7 +87,7 @@ frontend node tests: 67 passed
 frontend TypeScript: passed
 frontend Next production build: passed (9 product/static routes + proxy)
 desktop Node contracts: 29 passed with the final artifact enabled
-post-package artifact surface: 5 passed
+post-package artifact surface: 6 passed
 unsigned macOS arm64 package: built
 packaged production/auth smoke: passed
 packaged app + readonly-DMG full smoke: 17/17 passed each
@@ -97,8 +97,10 @@ frozen pre-RC data-root upgrade: passed
 artifact paths named deeptutor: 0
 ```
 
-The final unsigned local DMG is 180,438,986 bytes with SHA-256
-`37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`.
+The final unsigned local DMG is 180,747,880 bytes with SHA-256
+`fb9c3a247f9243fe27bafb728ef6892e4fe09f3ffaa328d9baa452e37ea479a5`.
+Its packaged-app and readonly-DMG smoke each fetched all 11 JS/CSS assets
+referenced by the rendered page before running the 17-step product flow.
 It remains test evidence, not a signed public release. Developer ID signing,
 notarization/Gatekeeper validation and Windows/Linux target-machine validation
 remain external gates. Independent standalone review completed with no P0/P1

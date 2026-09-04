@@ -398,6 +398,24 @@ async function waitForHttp(url, timeoutMs, what) {
   return false;
 }
 
+/** Prove the rendered page's browser JS/CSS is actually available. */
+async function verifyFrontendAssets(pageUrl) {
+  const page = await fetch(pageUrl);
+  if (!page.ok) throw new Error(`frontend page returned HTTP ${page.status}`);
+  const html = await page.text();
+  const paths = [...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"?#]+(?:\?[^"#]*)?)"/g)]
+    .map((match) => match[1]);
+  const unique = [...new Set(paths)];
+  if (unique.length === 0) throw new Error("frontend page referenced no Next.js static assets");
+  for (const assetPath of unique) {
+    const asset = await fetch(new URL(assetPath, pageUrl));
+    if (!asset.ok) {
+      throw new Error(`frontend asset ${assetPath} returned HTTP ${asset.status}`);
+    }
+  }
+  return unique.length;
+}
+
 // ---------------------------------------------------------------------------
 // --smoke-full: headless full-product E2E (no GUI window).
 // ---------------------------------------------------------------------------
@@ -741,6 +759,8 @@ async function runSmokeFull() {
   log(`smoke-full: METRIC backend_ready_ms=${Date.now() - coldStartAt}`);
   await waitForHttp(`${frontendUrl}/math-tutor`, FRONTEND_READY_TIMEOUT_MS, "前端页面");
   log(`smoke-full: METRIC frontend_ready_ms=${Date.now() - coldStartAt}`);
+  const frontendAssetCount = await verifyFrontendAssets(`${frontendUrl}/math-tutor`);
+  log(`smoke-full: ASSERT PASS frontend-assets — ${frontendAssetCount} files`);
 
   // 2. health.
   const health = await httpJson(`${backendUrl}/health`);
@@ -1156,6 +1176,7 @@ async function runSmokeProduction() {
   const backendMs = Date.now() - started;
   await waitForHttp(`${frontendUrl}/register`, FRONTEND_READY_TIMEOUT_MS, "production register UI");
   const frontendMs = Date.now() - started;
+  await verifyFrontendAssets(`${frontendUrl}/register`);
 
   const first = await httpJson(`${backendUrl}/api/v2/auth/is_first_user`);
   const username = `smoke_${Date.now()}`;
@@ -1323,6 +1344,7 @@ app.whenReady().then(async () => {
   // 5. Wait for readiness (backend first — the proxy needs it).
   await waitForHttp(`${backendUrl}/health`, BACKEND_READY_TIMEOUT_MS, "本地辅导服务");
   await waitForHttp(`${frontendUrl}/math-tutor`, FRONTEND_READY_TIMEOUT_MS, "前端页面");
+  await verifyFrontendAssets(`${frontendUrl}/math-tutor`);
 
   // 6. The window. Locked-down: no node integration, contextIsolation on,
   //    sandbox on — the renderer runs the unmodified web build.
