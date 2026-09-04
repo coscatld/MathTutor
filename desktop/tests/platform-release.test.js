@@ -40,15 +40,28 @@ test("machine matrix uses the closed status vocabulary and complete capability s
   }
 });
 
-test("Windows and Linux never derive support from packaging configuration", () => {
-  for (const name of ["windows_x64", "linux_x64"]) {
-    const platform = matrix.platforms[name];
-    assert.equal(platform.public_release_status, "UNTESTED");
-    assert.equal(platform.target_machine, null);
-    for (const cell of Object.values(platform.capabilities)) {
-      assert.deepEqual(cell, { status: "UNTESTED", reason_code: "NO_TARGET_MACHINE" });
-    }
+test("Linux never derives support from packaging configuration", () => {
+  const platform = matrix.platforms.linux_x64;
+  assert.equal(platform.public_release_status, "UNTESTED");
+  assert.equal(platform.target_machine, null);
+  for (const cell of Object.values(platform.capabilities)) {
+    assert.deepEqual(cell, { status: "UNTESTED", reason_code: "NO_TARGET_MACHINE" });
   }
+});
+
+test("Windows records target-machine smoke without claiming unsigned public readiness", () => {
+  const platform = matrix.platforms.windows_x64;
+  assert.equal(platform.public_release_status, "PARTIAL");
+  assert.match(platform.target_machine, /^Windows 11 .* x64$/);
+  for (const capability of [
+    "Build", "Package", "Install", "Launch", "SecretStore", "Verifier Worker",
+    "SQLite", "Document Import", "Model Config", "Backup", "Restore", "Restart",
+    "Practice E2E", "Uninstall",
+  ]) {
+    assert.equal(platform.capabilities[capability].status, "PASS", capability);
+  }
+  assert.equal(platform.capabilities["Native File Picker"].status, "PARTIAL");
+  assert.equal(platform.capabilities.Upgrade.status, "UNTESTED");
   assert.deepEqual(matrix.platforms.windows_x64.authenticode, {
     status: "UNTESTED", reason_code: "MISSING_EXTERNAL_CREDENTIAL",
   });
@@ -79,6 +92,7 @@ test("worker requests spawn and no fork-only desktop path is claimed", () => {
   assert.match(worker, /process\.kill\(\)/);
   assert.doesNotMatch(worker, /get_context\(["']fork["']\)/);
   assert.match(main, /child\.kill\("SIGTERM"\)/);
+  assert.match(main, /Number\.isInteger\(pid\) && pid > 0/);
 });
 
 test("Credential Manager and secret-tool contracts are fail closed and secret-free", () => {

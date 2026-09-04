@@ -85,7 +85,7 @@ async def test_policy_validation():
         interval_seconds=60.0,
     )
     assert policy.backup_dir is not None
-    assert str(policy.backup_dir) == "sub/bk"
+    assert policy.backup_dir == Path("sub/bk")
     assert BackupPolicy().mode == "manual"
 
 

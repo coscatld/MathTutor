@@ -33,6 +33,23 @@ _SOURCE = _REPO / "src" / "mathtutor"
 _EXTERNAL_PREFIXES = ("deeptutor",)
 
 
+def test_explicit_db_path_wins_over_inherited_data_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from mathtutor.standalone import (
+        resolve_standalone_data_root,
+        resolve_standalone_db_path,
+    )
+
+    inherited = tmp_path / "normal-user-data"
+    isolated_db = tmp_path / "release-smoke" / "isolated.db"
+    monkeypatch.setenv("MATHTUTOR_DATA_ROOT", str(inherited))
+    monkeypatch.setenv("MATHTUTOR_DB_PATH", str(isolated_db))
+
+    assert resolve_standalone_data_root() == isolated_db.parent.resolve()
+    assert resolve_standalone_db_path() == isolated_db.resolve()
+
+
 def _external_imports(path: Path) -> list[tuple[str, int, str]]:
     found: list[tuple[str, int, str]] = []
     for source in path.rglob("*.py"):
@@ -164,6 +181,14 @@ for name in ('ChatOrchestrator', 'CapabilityRegistry'):
         "MATHTUTOR_DATA_ROOT": str(data_root),
         "PATH": os.environ.get("PATH", ""),
     }
+    # CPython's Windows socket/overlapped initialization requires the system
+    # directory variables even in this intentionally minimal environment.
+    # Preserve only those OS runtime values; Python isolation is still
+    # enforced by `-I` and the staged source path above.
+    if os.name == "nt":
+        for name in ("SystemRoot", "WINDIR"):
+            if value := os.environ.get(name):
+                environment[name] = value
     completed = subprocess.run(
         [sys.executable, "-I", "-c", probe],
         cwd=tmp_path,

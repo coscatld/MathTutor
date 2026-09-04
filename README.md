@@ -140,3 +140,20 @@ fb9c3a247f9243fe27bafb728ef6892e4fe09f3ffaa328d9baa452e37ea479a5
 旧候选包曾遗漏 Next.js 浏览器静态资源，会导致页面 HTML 能打开，但
 JavaScript/CSS 返回 404，因而无法跳转到注册页。安装当前包时只需替换
 `/Applications/MathTutor.app`；不需要删除用户数据目录。
+
+## 构建 Windows x64 安装包
+
+在 Windows 10/11 x64 的 PowerShell 中执行：
+
+```powershell
+Set-Location web
+npm ci
+Set-Location ..\desktop
+npm ci
+npm run package:win
+```
+
+该命令会构建 Next.js standalone 前端、下载并校验 Python 3.12 x64
+embeddable runtime、只安装产品运行依赖，然后生成 NSIS 安装器。产物位于
+`desktop\dist\MathTutor-0.2.0-win-x64.exe`。本地构建默认不带 Authenticode
+签名；公开发布前应在受控签名环境中配置证书，并重新执行安装包 smoke。

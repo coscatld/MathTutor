@@ -99,6 +99,13 @@ def _keychain(monkeypatch, runner: FakeRunner) -> KeychainSecretStore:
         "mathtutor.infrastructure.keychain_secret_store.platform.system",
         lambda: "Darwin",
     )
+    # These tests inject a fake subprocess runner and exercise the macOS
+    # command contract on every host.  Do not require the real `security`
+    # executable to be present when the suite runs on Windows/Linux.
+    monkeypatch.setattr(
+        "mathtutor.infrastructure.keychain_secret_store._which",
+        lambda command: command == "security",
+    )
     return store
 
 

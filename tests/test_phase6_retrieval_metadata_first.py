@@ -243,6 +243,7 @@ def test_sqlite_vec_unavailable_path_degrades_cleanly():
     assert SqliteVecVectorIndex.probe(bogus) is False
 
 
+@requires_sqlite_vec
 async def test_sqlite_vec_rejects_invalid_entries():
     """维度不匹配/非有限值/重复标识 → ValueError（fail-closed，与
     validate_vector 同一纪律）。"""

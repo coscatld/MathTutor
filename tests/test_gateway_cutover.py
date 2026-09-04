@@ -22,6 +22,7 @@ HTTP is mocked via httpx.MockTransport (same pattern as test_gateway_secret)
 from __future__ import annotations
 
 import json
+import os
 
 import httpx
 import pytest
@@ -441,7 +442,11 @@ async def test_persisted_config_never_contains_key_field(tmp_path):
     assert data["base_url"] == _BASE_URL
     assert data["roles"] == ["tutor_writer", "practice_generator"]
     assert data["config_version"] == 1
-    assert (path.stat().st_mode & 0o777) == 0o600
+    # POSIX mode bits are not an access-control contract on Windows.  The
+    # Windows desktop stores only non-secret metadata here; the API key lives
+    # in Credential Manager and is asserted absent above.
+    if os.name != "nt":
+        assert (path.stat().st_mode & 0o777) == 0o600
 
 
 # ------------------------------------------------------------------- extras

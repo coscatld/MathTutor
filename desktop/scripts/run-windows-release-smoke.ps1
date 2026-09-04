@@ -7,6 +7,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-Sha256Hex([string]$Path) {
+  $Hasher = [System.Security.Cryptography.SHA256]::Create()
+  $Stream = [System.IO.File]::OpenRead($Path)
+  try {
+    return -join ($Hasher.ComputeHash($Stream) | ForEach-Object { $_.ToString("x2") })
+  } finally {
+    $Stream.Dispose()
+    $Hasher.Dispose()
+  }
+}
+
 if ($env:OS -ne "Windows_NT") {
   throw "UNTESTED — NO TARGET MACHINE: run-windows-release-smoke.ps1 requires Windows"
 }
@@ -26,7 +37,7 @@ $DataSentinel = Join-Path $DataRoot "uninstall-must-preserve.txt"
 try {
   # electron-builder NSIS is per-user (perMachine=false). /D must be the final
   # argument and exercises both spaces and Unicode in the install path.
-  $Install = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$InstallRoot") -Wait -PassThru
+  $Install = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$InstallRoot") -WindowStyle Hidden -Wait -PassThru
   if ($Install.ExitCode -ne 0) { throw "NSIS install failed: exit $($Install.ExitCode)" }
 
   $Executable = Join-Path $InstallRoot "MathTutor.exe"
@@ -68,10 +79,20 @@ try {
 
   $Uninstaller = Get-ChildItem -Path $InstallRoot -Filter "Uninstall*.exe" -File | Select-Object -First 1
   if ($null -eq $Uninstaller) { throw "NSIS uninstaller missing" }
-  $Uninstall = Start-Process -FilePath $Uninstaller.FullName -ArgumentList "/S" -Wait -PassThru
+  $Uninstall = Start-Process -FilePath $Uninstaller.FullName -ArgumentList "/S" -WindowStyle Hidden -Wait -PassThru
   $UninstallPass = $Uninstall.ExitCode -eq 0 -and (Test-Path $DataSentinel -PathType Leaf)
 
-  $Document = Get-Content -Raw -Path $Report | ConvertFrom-Json
+  # Windows PowerShell 5 defaults Get-Content to the active ANSI code page.
+  # Explicit UTF-8 is required because the artifact path intentionally
+  # contains non-ASCII characters.
+  $Document = [System.IO.File]::ReadAllText($Report, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+  $InstallerItem = Get-Item -LiteralPath $InstallerPath
+  $Document.artifact.path = "MathTutor.exe (installed from $($InstallerItem.Name))"
+  $Document | Add-Member -NotePropertyName container_artifact -NotePropertyValue ([ordered]@{
+    path = $InstallerItem.Name
+    size_bytes = $InstallerItem.Length
+    sha256 = Get-Sha256Hex $InstallerPath
+  })
   $Document.platform_checks | Add-Member -NotePropertyName nsis_install -NotePropertyValue $(if ($Install.ExitCode -eq 0) { "PASS" } else { "FAIL" })
   $Document.platform_checks | Add-Member -NotePropertyName unicode_and_space_install_path -NotePropertyValue "PASS"
   $Document.platform_checks | Add-Member -NotePropertyName unicode_username -NotePropertyValue ([ordered]@{ status = $UnicodeUsernameStatus; reason_code = $(if ($UnicodeUsernameStatus -eq "PASS") { "TARGET_USERNAME_NON_ASCII" } else { "TARGET_USERNAME_ASCII" }) })
@@ -79,9 +100,11 @@ try {
   $Document.platform_checks | Add-Member -NotePropertyName authenticode -NotePropertyValue ([ordered]@{ status = $SignatureStatus; reason_code = $SignatureReason })
   $Document.platform_checks | Add-Member -NotePropertyName secret_probe_exit_code -NotePropertyValue $SecretExit
   $Document.platform_checks | Add-Member -NotePropertyName uninstall_preserves_user_data -NotePropertyValue $(if ($UninstallPass) { "PASS" } else { "FAIL" })
-  $Document.platform_checks | Add-Member -NotePropertyName installer_sha256 -NotePropertyValue ((Get-FileHash -Algorithm SHA256 $InstallerPath).Hash.ToLowerInvariant())
+  $Document.platform_checks | Add-Member -NotePropertyName installer_sha256 -NotePropertyValue (Get-Sha256Hex $InstallerPath)
   if (-not $UninstallPass -or $SignatureStatus -eq "FAIL") { $Document.status = "FAIL" }
-  $Document | ConvertTo-Json -Depth 12 | Set-Content -Encoding UTF8 -Path $Report
+  $Json = ($Document | ConvertTo-Json -Depth 12) + "`n"
+  $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($Report, $Json, $Utf8NoBom)
 
   if ($Document.status -eq "PASS") { exit 0 }
   if ($Document.status -eq "PARTIAL") { exit 2 }

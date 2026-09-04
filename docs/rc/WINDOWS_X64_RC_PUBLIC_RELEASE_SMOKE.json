@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "spec_id": "RC_PUBLIC_RELEASE_SMOKE",
+  "spec_version": "1.0.0",
+  "platform": "win32",
+  "arch": "x64",
+  "target_machine": true,
+  "artifact": {
+    "path": "MathTutor.exe (installed from MathTutor-0.2.0-win-x64.exe)",
+    "size_bytes": 235533824,
+    "sha256": "88e8d28e4ce3493f818052246da0df276ef492d751a955c11481bfcca3b0e3eb"
+  },
+  "started_at": "2026-09-04T16:20:47.958Z",
+  "completed_at": "2026-09-04T16:21:04.343Z",
+  "status": "PASS",
+  "steps": [
+    {"id": "launch_app", "status": "PASS", "evidence": "production auth-on launch and shared product smoke exited 0"},
+    {"id": "bootstrap", "status": "PASS", "evidence": "shared smoke bootstrap assertion"},
+    {"id": "database_migration", "status": "PASS", "evidence": "frozen migration-head assertion"},
+    {"id": "secret_store_sentinel", "status": "PASS", "evidence": "platform sentinel write/read/delete/final-missing", "reason_code": "WRITE_READ_DELETE_FINAL_MISSING"},
+    {"id": "submit_problem", "status": "PASS", "evidence": "product cycle accepted a supported problem"},
+    {"id": "verifier_worker", "status": "PASS", "evidence": "mandatory worker-backed product flow completed"},
+    {"id": "correct_attempt", "status": "PASS", "evidence": "correct attempt reached solved state"},
+    {"id": "incorrect_or_partial_attempt", "status": "PASS", "evidence": "incorrect/partial assessment and non-leak assertion"},
+    {"id": "practice_offer", "status": "PASS", "evidence": "active offer emitted"},
+    {"id": "accept_practice", "status": "PASS", "evidence": "offer accepted"},
+    {"id": "child_cycle", "status": "PASS", "evidence": "child cycle created and judged"},
+    {"id": "explicit_document_import", "status": "PASS", "evidence": "explicit test document imported through product API"},
+    {"id": "document_retrieval", "status": "PASS", "evidence": "imported content retrieved through lexical baseline"},
+    {"id": "memory_crud", "status": "PASS", "evidence": "complete memory CRUD assertion"},
+    {"id": "backup", "status": "PASS", "evidence": "backup create and verify assertions"},
+    {"id": "restart", "status": "PASS", "evidence": "backend restart and durable state assertions"},
+    {"id": "restore", "status": "PASS", "evidence": "verified restore endpoint assertion"},
+    {"id": "post_restore_solve", "status": "PASS", "evidence": "new solve completed after restore"},
+    {"id": "clean_shutdown", "status": "PASS", "evidence": "all child processes exited and no orphan remained"}
+  ],
+  "secret_store": {
+    "status": "PASS",
+    "reason_code": "WRITE_READ_DELETE_FINAL_MISSING",
+    "plaintext_fallback": false
+  },
+  "platform_checks": {
+    "shared_driver": "desktop/scripts/rc-public-release-smoke.js",
+    "legacy_smoke_exit_code": 0,
+    "production_smoke_exit_code": 0,
+    "legacy_17_of_17_observed": true,
+    "nsis_install": "PASS",
+    "unicode_and_space_install_path": "PASS",
+    "unicode_username": {"status": "UNTESTED", "reason_code": "TARGET_USERNAME_ASCII"},
+    "non_admin_install": {"status": "PASS", "reason_code": "NON_ADMIN_TARGET_SESSION"},
+    "authenticode": {"status": "UNTESTED", "reason_code": "MISSING_EXTERNAL_CREDENTIAL"},
+    "secret_probe_exit_code": 0,
+    "uninstall_preserves_user_data": "PASS",
+    "installer_sha256": "efb4f775fb8e22f32564dd5170bd9f41c27f5fe62af00c3e90e8465c7f25df22"
+  },
+  "container_artifact": {
+    "path": "MathTutor-0.2.0-win-x64.exe",
+    "size_bytes": 130630054,
+    "sha256": "efb4f775fb8e22f32564dd5170bd9f41c27f5fe62af00c3e90e8465c7f25df22"
+  }
+}

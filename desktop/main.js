@@ -446,7 +446,10 @@ function descendantPids(rootPids) {
       timeout: 10000,
     });
     if (result.status !== 0) return [];
-    return result.stdout.split(/\s+/).map(Number).filter(Number.isInteger);
+    return result.stdout
+      .split(/\s+/)
+      .map(Number)
+      .filter((pid) => Number.isInteger(pid) && pid > 0);
   }
   const result = spawnSync("ps", ["-axo", "pid=,ppid="], { encoding: "utf8", timeout: 10000 });
   if (result.status !== 0) return [];
@@ -479,7 +482,7 @@ function processIsAlive(pid) {
 }
 
 async function waitForProcessesGone(pids, timeoutMs = 10000) {
-  const unique = [...new Set(pids.filter(Number.isInteger))];
+  const unique = [...new Set(pids.filter((pid) => Number.isInteger(pid) && pid > 0))];
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (unique.every((pid) => !processIsAlive(pid))) return true;

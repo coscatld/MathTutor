@@ -5,7 +5,10 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .venv/
+.runtime/
 build/
+!desktop/build/
+!desktop/build/entitlements.mac.plist
 dist/
 *.egg-info/
 data/

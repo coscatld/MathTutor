@@ -17,12 +17,15 @@ from mathtutor.security.settings import load_math_tutor_security_settings
 
 
 def resolve_standalone_data_root() -> Path:
-    explicit = os.environ.get("MATHTUTOR_DATA_ROOT", "").strip()
-    if explicit:
-        return Path(explicit).resolve()
+    # An explicit database path is the most specific override and must win
+    # over an inherited data root. This matches infrastructure.db and keeps
+    # release/smoke profiles isolated from a caller's normal user-data root.
     db_path = os.environ.get("MATHTUTOR_DB_PATH", "").strip()
     if db_path:
         return Path(db_path).resolve().parent
+    explicit = os.environ.get("MATHTUTOR_DATA_ROOT", "").strip()
+    if explicit:
+        return Path(explicit).resolve()
     # Deprecated one-release data-root alias for already installed 0.2.0
     # shells. New standalone launchers emit MATHTUTOR_DATA_ROOT only.
     legacy_home = os.environ.get("DEEPTUTOR_HOME", "").strip()
@@ -31,12 +34,21 @@ def resolve_standalone_data_root() -> Path:
     return (Path.cwd() / "data").resolve()
 
 
+def resolve_standalone_db_path(data_root: Path | None = None) -> Path:
+    if data_root is not None:
+        return data_root.resolve() / "math_tutor.db"
+    explicit = os.environ.get("MATHTUTOR_DB_PATH", "").strip()
+    if explicit:
+        return Path(explicit).resolve()
+    return resolve_standalone_data_root() / "math_tutor.db"
+
+
 def create_standalone_app(data_root: Path | None = None) -> FastAPI:
-    root = (data_root or resolve_standalone_data_root()).resolve()
-    root.mkdir(parents=True, exist_ok=True)
+    db_path = resolve_standalone_db_path(data_root)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     return create_math_tutor_app(
         settings=load_math_tutor_security_settings(),
-        db_path=str(root / "math_tutor.db"),
+        db_path=str(db_path),
     )
 
 
@@ -55,4 +67,9 @@ if __name__ == "__main__":  # pragma: no cover
     main()
 
 
-__all__ = ["create_standalone_app", "main", "resolve_standalone_data_root"]
+__all__ = [
+    "create_standalone_app",
+    "main",
+    "resolve_standalone_data_root",
+    "resolve_standalone_db_path",
+]
