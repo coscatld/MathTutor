@@ -4,8 +4,8 @@
   "python_namespace": "mathtutor",
   "distribution": "mathtutor",
   "source_repository_dependency": false,
-  "file_count": 291,
-  "content_bytes": 2672808,
+  "file_count": 293,
+  "content_bytes": 2682084,
   "files": [
     {
       "path": ".gitignore",
@@ -19,8 +19,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 695,
-      "sha256": "b153fb1b588f200527017a27825ba44580214f8383743daea636de4d5832846c"
+      "bytes": 4118,
+      "sha256": "ddae60abb22eeabd5b502e957bfa0d30c3f792358321c171d533f543cec4c393"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -144,8 +144,8 @@
     },
     {
       "path": "desktop/tests/package-surface.test.js",
-      "bytes": 3756,
-      "sha256": "0f2a7d65c3d0e2898b8dbeb4cd5b7fd53117eea8f3690374cae052b8023582cd"
+      "bytes": 4657,
+      "sha256": "211c7f62b436597eec8be7b90372e86f4eba4745ca5fcc38ad476a04202af12e"
     },
     {
       "path": "desktop/tests/platform-release.test.js",
@@ -169,8 +169,8 @@
     },
     {
       "path": "docs/ADR_DESKTOP_DISTRIBUTION.md",
-      "bytes": 22471,
-      "sha256": "40c8ba3a5419830e84ae745ad74a1551117c3453a24402330ae7430df5e9cea7"
+      "bytes": 22620,
+      "sha256": "94e7ebe0f0bf2579731974e5943cba4ae314a17aaa212c5f31d2ea5f41113f79"
     },
     {
       "path": "docs/ADR_EMBEDDING_DISTRIBUTION.md",
@@ -229,13 +229,13 @@
     },
     {
       "path": "docs/standalone/STANDALONE_EXTRACTION_MANIFEST.md",
-      "bytes": 4465,
-      "sha256": "89de3d6fb8d85c9995744f97858c6a1bd743db51fd669875f245044d3b434dc7"
+      "bytes": 4507,
+      "sha256": "efdfad4ad1156af6c9f003b92afd698797fdd4ff54cbef912e94d2f3aebd8957"
     },
     {
       "path": "docs/standalone/STANDALONE_RC_REPORT.md",
-      "bytes": 7515,
-      "sha256": "fec763b94a3a1c7a09f60b0d751f8535b9c2a073523531c179987e3fb21aaac0"
+      "bytes": 7795,
+      "sha256": "3672b8e9788a49c867845ac26cb9a2656fe8ccb3db5729c2c5836ddd9c0fd1fd"
     },
     {
       "path": "docs/standalone/TEST_MIGRATION_MATRIX.md",
@@ -1164,8 +1164,8 @@
     },
     {
       "path": "web/app/(workspace)/math-tutor/layout.tsx",
-      "bytes": 490,
-      "sha256": "4f7921732b6f0fdeec67711aed4827e1bdc979f21e490edada6f21e836d48964"
+      "bytes": 623,
+      "sha256": "de87c74b587be4c2cab3b5af1bae577436a685d87bca1dd8e8f5577da51e35e9"
     },
     {
       "path": "web/app/(workspace)/math-tutor/memory/page.tsx",
@@ -1251,6 +1251,11 @@
       "path": "web/features/math-tutor/components/TutorActionCard.tsx",
       "bytes": 2282,
       "sha256": "1155f5b3d1b0b951c3fedd493235bc50fad9c9de08a5e7ac2e665d213b9519e3"
+    },
+    {
+      "path": "web/features/math-tutor/desktop/components/AuthBoundary.tsx",
+      "bytes": 2524,
+      "sha256": "65e0b578d13e1cb43f411c0361bb8500b00500b3058786a99b7eb2e537b96f88"
     },
     {
       "path": "web/features/math-tutor/desktop/components/BackupPanel.tsx",
@@ -1369,8 +1374,8 @@
     },
     {
       "path": "web/lib/auth.ts",
-      "bytes": 4330,
-      "sha256": "5c47caa6a6671c0aeece8514ddef572d3669dc240ff7d79538316a98a7a6d4c9"
+      "bytes": 4344,
+      "sha256": "6b2a117b553e848e5f912b2a18713bd7598db449359573ac3480e10e9fcfcffa"
     },
     {
       "path": "web/next-env.d.ts",
@@ -1416,6 +1421,11 @@
       "path": "web/tailwind.config.js",
       "bytes": 1783,
       "sha256": "5290ddab8780e05a2019f0a93d1772b6b3e6e03d9c10c9083f70545447715349"
+    },
+    {
+      "path": "web/tests/math-tutor-auth.test.ts",
+      "bytes": 1810,
+      "sha256": "017dd476d6e2ea94327fa12b300a025b2bc8977a7319ce3b2d5f0c59b5bc22a0"
     },
     {
       "path": "web/tests/math-tutor-desktop-lists.test.tsx",

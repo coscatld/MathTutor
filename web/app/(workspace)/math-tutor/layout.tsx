@@ -1,4 +1,5 @@
 import DesktopShell from "@/features/math-tutor/desktop/components/DesktopShell";
+import AuthBoundary from "@/features/math-tutor/desktop/components/AuthBoundary";
 
 /**
  * MathTutor workspace shell — the product frame shared by the tutoring view,
@@ -11,5 +12,9 @@ export default function MathTutorLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <DesktopShell>{children}</DesktopShell>;
+  return (
+    <AuthBoundary>
+      <DesktopShell>{children}</DesktopShell>
+    </AuthBoundary>
+  );
 }

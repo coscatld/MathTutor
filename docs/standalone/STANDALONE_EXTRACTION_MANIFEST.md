@@ -1,7 +1,8 @@
 # Standalone Extraction Manifest
 
 Status: **PASS — final standalone RC candidate source inventory**  
-Date: 2026-08-28  
+Date: 2026-08-28; auth hotfix candidate verified 2026-09-04
+
 Target: `/Users/mingze/Desktop/大学生计算科学与智能创新/MathTutor`
 
 The authoritative machine inventory is
@@ -82,10 +83,10 @@ result.
 ## Frontend and desktop evidence
 
 ```text
-frontend node tests: 65 passed
+frontend node tests: 67 passed
 frontend TypeScript: passed
 frontend Next production build: passed (9 product/static routes + proxy)
-desktop Node contracts: 28 passed with the final artifact enabled
+desktop Node contracts: 29 passed with the final artifact enabled
 post-package artifact surface: 5 passed
 unsigned macOS arm64 package: built
 packaged production/auth smoke: passed
@@ -96,8 +97,8 @@ frozen pre-RC data-root upgrade: passed
 artifact paths named deeptutor: 0
 ```
 
-The final unsigned local DMG is 180,462,695 bytes with SHA-256
-`964e85a0ee7713850b0ccb8eb6d49b246e06dfe51c6e19b8f5a199f7a60e680e`.
+The final unsigned local DMG is 180,438,986 bytes with SHA-256
+`37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`.
 It remains test evidence, not a signed public release. Developer ID signing,
 notarization/Gatekeeper validation and Windows/Linux target-machine validation
 remain external gates. Independent standalone review completed with no P0/P1

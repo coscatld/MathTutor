@@ -19,6 +19,18 @@ function sourceSelected(relative) {
     && !negatives.some((pattern) => minimatch(relative, pattern));
 }
 
+function javascriptText(root) {
+  let combined = "";
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) combined += javascriptText(full);
+    else if (entry.isFile() && entry.name.endsWith(".js")) {
+      combined += fs.readFileSync(full, "utf8");
+    }
+  }
+  return combined;
+}
+
 test("package allowlist retains each production entrypoint and runtime asset", () => {
   const required = [
     "api/product_app.py",
@@ -89,4 +101,21 @@ test("final artifact has no forbidden source paths", {
   ]) {
     assert.equal(fs.existsSync(path.join(resources, required)), true, required);
   }
+});
+
+test("final artifact frontend uses the standalone v2 auth contract", {
+  skip: !process.env.MATHTUTOR_PACKAGE_APP,
+}, () => {
+  const webBuild = path.join(
+    process.env.MATHTUTOR_PACKAGE_APP,
+    "Contents",
+    "Resources",
+    "web",
+    ".next-mathtutor",
+  );
+  const bundled = javascriptText(webBuild);
+  assert.match(bundled, /\/api\/v2\/auth\/status/);
+  assert.match(bundled, /\/api\/v2\/auth\/register/);
+  assert.match(bundled, /\/api\/v2\/auth\/login/);
+  assert.doesNotMatch(bundled, /\/api\/v1\/auth\//);
 });

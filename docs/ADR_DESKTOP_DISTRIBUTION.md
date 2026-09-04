@@ -1,12 +1,14 @@
-# CURRENT STATE — 2026-08-28 STANDALONE RC FREEZE
+# CURRENT STATE — 2026-09-04 AUTH HOTFIX CANDIDATE
 
 - Core RC: **RC_READY**; macOS public release: **PARTIAL** only because real
   Developer ID signing, notarization/stapling and Gatekeeper validation lack
   external credentials.
-- Final unsigned macOS arm64 DMG: 180,462,695 bytes; SHA-256
-  `964e85a0ee7713850b0ccb8eb6d49b246e06dfe51c6e19b8f5a199f7a60e680e`.
+- Final unsigned macOS arm64 DMG: 180,438,986 bytes; SHA-256
+  `37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`.
 - Final `.app` and readonly DMG smoke: 17/17 PASS; shared public-release smoke:
   19/19 PASS; real Keychain write/read/delete/final cleanup: PASS.
+- Standalone frontend auth uses `/api/v2/auth/*`; blank-profile first-user
+  registration/login and the workspace runtime-auth gate are verified.
 - Blank-profile production auth-on launch, no-API-key fallback 9/9, package
   surface deny scan, and frozen pre-RC → final RC upgrade all PASS.
 - Windows x64 and Linux x64 remain **UNTESTED — NO TARGET MACHINE**. Their
@@ -300,12 +302,12 @@ raw text、Personal Memory value、hidden reasoning 或 attestation payload。DM
 不宣称 bit-reproducible；相同 version、migration 006、package policy、Keychain
 cleanup 与 smoke behavior 已复现一致。
 
-## 2026-08-28 Standalone RC freeze 最终证据
+## 2026-09-04 Standalone auth hotfix 最终证据
 
 ### 最终 artifact 与自包含性
 
-- `desktop/dist/MathTutor-0.2.0-mac-arm64.dmg`：180,462,695 bytes，
-  SHA-256 `964e85a0ee7713850b0ccb8eb6d49b246e06dfe51c6e19b8f5a199f7a60e680e`。
+- `desktop/dist/MathTutor-0.2.0-mac-arm64.dmg`：180,438,986 bytes，
+  SHA-256 `37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`。
 - 空白临时 user-data root、checkout 外 cwd、白名单环境下，production
   auth-on 首次注册/登录/readiness PASS；包内 `.app` 与 readonly DMG
   均 17/17 PASS。统一 `RC_PUBLIC_RELEASE_SMOKE` 19/19 PASS。

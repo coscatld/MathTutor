@@ -1,7 +1,7 @@
 # Standalone MathTutor RC Report
 
 Status: **STANDALONE RC READY — EXTERNAL DISTRIBUTION GATES PARTIAL**  
-Date: 2026-08-28
+Date: 2026-08-28; auth hotfix candidate verified 2026-09-04
 
 This report records the standalone extraction candidate after the ordered A-D
 stages and Main regression. It does not turn an unsigned local artifact into a
@@ -92,8 +92,9 @@ snapshot, backup verification and StudentState replay all passed.
 ## G. Test migration and regression
 
 The 50 original Python specification files are all classified: 41 `MOVED`, 9
-`COMPAT_ONLY`, zero silent removals. The seven MathTutor frontend specs moved
-and collect 65 assertions. Full details are in `TEST_MIGRATION_MATRIX.md`.
+`COMPAT_ONLY`, zero silent removals. The seven migrated MathTutor frontend specs
+plus the standalone auth regression spec collect 67 assertions. Full details
+are in `TEST_MIGRATION_MATRIX.md`.
 
 | Suite | Result |
 |---|---|
@@ -101,10 +102,10 @@ and collect 65 assertions. Full details are in `TEST_MIGRATION_MATRIX.md`.
 | Standalone clean wheel backend | 571 passed, 749 warnings |
 | Worker + backup/restore focused suite | 59 passed |
 | Desktop Python contracts | 3 passed |
-| Frontend Node | 65 passed |
+| Frontend Node | 67 passed |
 | TypeScript | PASS |
 | Next production build | PASS |
-| Desktop Node contracts | 28 passed with final artifact enabled |
+| Desktop Node contracts | 29 passed with final artifact enabled |
 | Final artifact surface | 5 passed |
 | Packaged app / readonly DMG | 17/17 each |
 | Shared macOS public business smoke | 19/19 |
@@ -122,12 +123,16 @@ operation.
 The local unsigned macOS arm64 artifact is:
 
 - `desktop/dist/MathTutor-0.2.0-mac-arm64.dmg`
-- 180,462,695 bytes
-- SHA-256 `964e85a0ee7713850b0ccb8eb6d49b246e06dfe51c6e19b8f5a199f7a60e680e`
+- 180,438,986 bytes
+- SHA-256 `37d33d8757267205565186e7a4ba03322ae6b7c624f38f7dbdb5d351aa69bbfb`
 
-Readonly-DMG inventory: 8,833 regular files, 1,179 symlinks and 480,140,750
-file bytes. Compared with the pre-extraction package-surface baseline, this is
--13,080 files and -92,382,483 artifact bytes. The packaged Python application
+This candidate includes the standalone auth hotfix: browser auth requests use
+the allowlisted `/api/v2/auth/*` routes, and the workspace waits for runtime
+auth status before mounting. A clean first-user register/login flow and an
+authenticated MathTutor WebSocket turn passed through the real frontend proxy.
+
+Readonly-DMG inventory: 8,845 regular files, 1,179 symlinks and 480,150,197
+file bytes. The packaged Python application
 contains only `mathtutor` and no `deeptutor` path. No product-level generic
 chat, agent, research, tool/MCP, subagent, code-execution or shell route is
 packaged or reachable from MathTutor. Third-party framework dependency closures
