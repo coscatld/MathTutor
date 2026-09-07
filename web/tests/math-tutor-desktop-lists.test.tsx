@@ -15,6 +15,11 @@ function makeDocument(overrides: Partial<DesktopDocument> = {}): DesktopDocument
     status: "ready",
     retrieval_enabled: true,
     size_bytes: 2048,
+    page_count: 0,
+    chunk_count: 2,
+    image_count: 0,
+    empty_page_count: 0,
+    parse_warning: null,
     created_at: "2026-08-01T10:00:00Z",
     error: null,
     ...overrides,
@@ -54,7 +59,50 @@ test("DocumentRow: ready document renders public projection", () => {
   assert.ok(html.includes("2.0 KB"), "shows human-readable size");
   assert.ok(html.includes("2026-08-01"), "shows import date");
   assert.ok(html.includes("参与个性化回忆"), "shows retrieval toggle");
+  assert.ok(html.includes("2 个分块"), "shows chunk count");
   assert.ok(!html.includes("重新解析"), "no reparse button for ready docs");
+});
+
+test("DocumentRow: scanned PDF is not labelled ready and cannot be retrieved", () => {
+  const doc = makeDocument({
+    filename: "scan.pdf",
+    mime_type: "application/pdf",
+    status: "needs_ocr",
+    retrieval_enabled: false,
+    page_count: 3,
+    chunk_count: 0,
+    empty_page_count: 3,
+    parse_warning: "未提取到文字层，可能是扫描件。当前版本不支持 OCR，无法用于检索。",
+    error: "未提取到文字层，可能是扫描件。当前版本不支持 OCR，无法用于检索。",
+  });
+  const html = renderToStaticMarkup(
+    <DocumentRow document={doc} busy={false} onToggleRetrieval={NOOP} onDelete={NOOP} onUpdated={() => undefined} />,
+  );
+  assert.ok(html.includes("无文字层"), "shows needs_ocr label");
+  assert.ok(!html.includes(DOCUMENT_STATUS_LABELS.ready), "must not show 已就绪");
+  assert.ok(html.includes("3 页"), "shows page count");
+  assert.ok(html.includes("0 个分块"), "shows zero chunks");
+  assert.ok(html.includes("未提取到文字层"), "shows zero-text warning");
+  assert.ok(html.includes("disabled"), "retrieval toggle is disabled");
+});
+
+test("DocumentRow: mixed PDF warning is visible while remaining retrievable", () => {
+  const doc = makeDocument({
+    filename: "mixed.pdf",
+    mime_type: "application/pdf",
+    status: "ready_with_warnings",
+    page_count: 4,
+    chunk_count: 1,
+    empty_page_count: 3,
+    parse_warning: "共 4 页，其中 3 页无文字，可能含扫描页。",
+  });
+  const html = renderToStaticMarkup(
+    <DocumentRow document={doc} busy={false} onToggleRetrieval={NOOP} onDelete={NOOP} onUpdated={() => undefined} />,
+  );
+  assert.ok(html.includes("已就绪（有空页）"), "shows warning status");
+  assert.ok(html.includes("共 4 页，其中 3 页无文字"), "shows empty-page warning");
+  assert.ok(html.includes("4 页"), "shows page count");
+  assert.ok(html.includes("1 个分块"), "shows chunk count");
 });
 
 test("DocumentRow: failed document shows only the friendly error and a reparse action", () => {

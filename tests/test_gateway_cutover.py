@@ -441,6 +441,7 @@ async def test_persisted_config_never_contains_key_field(tmp_path):
     assert data["model"] == "m"
     assert data["base_url"] == _BASE_URL
     assert data["roles"] == ["tutor_writer", "practice_generator"]
+    assert data["onboarding_completed"] is True
     assert data["config_version"] == 1
     # POSIX mode bits are not an access-control contract on Windows.  The
     # Windows desktop stores only non-secret metadata here; the API key lives
@@ -468,6 +469,7 @@ async def test_apply_config_returns_nonsensitive_config(tmp_path):
         "model": "m",
         "base_url": _BASE_URL,
         "roles": ["tutor_writer", "practice_generator"],
+        "onboarding_completed": True,
         "config_version": 1,
     }
     assert _SECRET not in json.dumps(config)

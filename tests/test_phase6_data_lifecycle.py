@@ -940,6 +940,7 @@ def test_schema_table_count_unchanged_and_migrations_are_explicit() -> None:
         "004_practice_release.py",
         "005_curriculum_and_outbox_relay.py",
         "006_evidence_identity.py",
+        "007_document_parse_stats.py",
     ]
 
 

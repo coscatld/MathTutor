@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import StartupBoundary from "@/features/math-tutor/desktop/components/StartupBoundary";
 
 export default function Home() {
-  redirect("/math-tutor");
+  return <StartupBoundary entry />;
 }
-

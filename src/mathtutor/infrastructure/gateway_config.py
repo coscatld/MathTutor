@@ -186,9 +186,20 @@ class GatewayConfigService:
             return  # corrupt/unreadable → start unconfigured (fail closed)
         if not isinstance(data, dict):
             return
+        onboarding_completed = bool(data.get("onboarding_completed", False))
         preset_id = data.get("preset_id")
         preset = PRESETS.get(preset_id)
         if preset is None:
+            # A user may explicitly finish onboarding in template-only mode.
+            # This marker is non-sensitive and must survive restarts even
+            # though there is intentionally no provider to register.
+            if onboarding_completed:
+                self._config = {
+                    "onboarding_completed": True,
+                    "config_version": int(
+                        data.get("config_version") or CONFIG_VERSION
+                    ),
+                }
             return  # unknown preset → ignore the file (fail closed)
         base_url = str(data.get("base_url") or "") or preset.base_url
         if not preset.custom and base_url != preset.base_url:
@@ -221,6 +232,9 @@ class GatewayConfigService:
             "model": model,
             "base_url": base_url,
             "roles": [role.value for role in roles],
+            # Existing provider configs predate this field. Treat them as a
+            # completed first run so upgrades never show onboarding again.
+            "onboarding_completed": True,
             "config_version": int(data.get("config_version") or CONFIG_VERSION),
         }
 
@@ -300,6 +314,7 @@ class GatewayConfigService:
             "model": effective_model,
             "base_url": effective_base_url,
             "roles": [role.value for role in ALL_ROLES],
+            "onboarding_completed": True,
             "config_version": CONFIG_VERSION,
         }
         self._persist(self._config)
@@ -348,6 +363,39 @@ class GatewayConfigService:
     def current_config(self) -> dict:
         """Non-sensitive config snapshot (no key, no key name)."""
         return dict(self._config)
+
+    async def has_api_key(self) -> bool:
+        """Return only whether the current provider's credential exists."""
+        if self._provider_id is None:
+            return False
+        try:
+            return bool(
+                await self._secret_store.get(secret_key_name(self._provider_id))
+            )
+        except Exception:
+            return False
+
+    def onboarding_completed(self) -> bool:
+        """Whether first-run provider onboarding was configured or skipped."""
+        return bool(self._config.get("onboarding_completed", False))
+
+    def mark_onboarding_completed(self) -> dict:
+        """Persist an explicit template-only onboarding choice."""
+        self._config["onboarding_completed"] = True
+        self._config.setdefault("config_version", CONFIG_VERSION)
+        self._persist(self._config)
+        return self.current_config()
+
+    async def remove_api_key(self) -> dict:
+        """Delete the current credential and leave template mode usable."""
+        if self._provider_id is not None:
+            await self._secret_store.delete(secret_key_name(self._provider_id))
+        for role in ALL_ROLES:
+            self._gateway.unregister(role)
+        self._config["onboarding_completed"] = True
+        self._config.setdefault("config_version", CONFIG_VERSION)
+        self._persist(self._config)
+        return self.current_config()
 
     def is_configured(self) -> bool:
         """True when the writer role has a provider with a usable model."""

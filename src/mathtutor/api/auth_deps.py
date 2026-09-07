@@ -30,13 +30,17 @@ def _extract_token(authorization: str | None, cookie: str | None) -> str | None:
     return cookie
 
 
-def _dev_owner_or_fail() -> StudentOwnerScope:
+def _local_owner_or_fail(provider: AuthProvider) -> StudentOwnerScope:
     settings = load_math_tutor_security_settings()
     if (
-        settings.environment in {"development", "test"}
+        (settings.environment in {"development", "test"} or settings.local_desktop)
         and settings.allow_loopback_without_auth
         and settings.is_loopback()
     ):
+        local_principal = getattr(provider, "local_principal", None)
+        principal = local_principal() if local_principal is not None else None
+        if principal is not None:
+            return StudentOwnerScope(principal=principal, student_id=principal.user_id)
         return dev_student_owner(settings)
     raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -67,7 +71,7 @@ async def require_student_owner(
 ) -> StudentOwnerScope:
     principal = await require_principal(request, authorization, dt_token)
     if principal is None:
-        return _dev_owner_or_fail()
+        return _local_owner_or_fail(_provider(request))
     return StudentOwnerScope(principal=principal, student_id=principal.user_id)
 
 
@@ -76,7 +80,7 @@ async def ws_require_student_owner(ws: WebSocket) -> StudentOwnerScope | None:
     provider = _provider(ws)
     if not provider.settings.enabled:
         try:
-            return _dev_owner_or_fail()
+            return _local_owner_or_fail(provider)
         except HTTPException:
             await ws.close(code=4001)
             return None

@@ -26,6 +26,10 @@ from mathtutor.domain.documents import (
     MAX_DOCUMENT_BYTES,
 )
 from mathtutor.infrastructure.chunking import TextChunker
+from mathtutor.infrastructure.document_parser import (
+    LocalDocumentParser,
+    NO_TEXT_LAYER_WARNING,
+)
 from mathtutor.infrastructure.document_storage import DocumentStorage
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
 from mathtutor.infrastructure.lexical import (
@@ -45,6 +49,69 @@ _TXT_CONTENT = (
     "一元二次方程 ax^2+bx+c=0 的求根公式：x = (-b ± √(b²-4ac)) / (2a)。\n"
     "当判别式 Δ = b²-4ac 大于零时，方程有两个不相等的实数根。"
 ).encode("utf-8")
+
+
+def _build_simple_pdf(page_texts: list[str]) -> bytes:
+    """Minimal PDF: empty string → blank page; non-empty → Helvetica text."""
+    n = len(page_texts)
+    catalog_id, pages_id = 1, 2
+    page_ids = list(range(3, 3 + n))
+    next_id = 3 + n
+    font_id = next_id
+    next_id += 1
+    content_ids: list[int | None] = []
+    streams: dict[int, str] = {}
+    for text in page_texts:
+        if text:
+            escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            stream = f"BT /F1 12 Tf 24 120 Td ({escaped}) Tj ET"
+            streams[next_id] = stream
+            content_ids.append(next_id)
+            next_id += 1
+        else:
+            content_ids.append(None)
+
+    bodies: dict[int, str] = {
+        catalog_id: f"<< /Type /Catalog /Pages {pages_id} 0 R >>",
+        pages_id: (
+            f"<< /Type /Pages /Kids [{' '.join(f'{pid} 0 R' for pid in page_ids)}] "
+            f"/Count {n} >>"
+        ),
+        font_id: "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    }
+    for page_id, content_id in zip(page_ids, content_ids):
+        content_ref = f"/Contents {content_id} 0 R" if content_id is not None else ""
+        bodies[page_id] = (
+            f"<< /Type /Page /Parent {pages_id} 0 R /MediaBox [0 0 300 200] "
+            f"/Resources << /Font << /F1 {font_id} 0 R >> >> {content_ref} >>"
+        )
+    for content_id, stream in streams.items():
+        payload = stream.encode("ascii")
+        bodies[content_id] = (
+            f"<< /Length {len(payload)} >>\nstream\n{stream}\nendstream"
+        )
+
+    chunks = [b"%PDF-1.4\n"]
+    offsets = {0: 0}
+    pos = len(chunks[0])
+    max_id = max(bodies)
+    for obj_id in range(1, max_id + 1):
+        offsets[obj_id] = pos
+        obj = f"{obj_id} 0 obj\n{bodies[obj_id]}\nendobj\n".encode("ascii")
+        chunks.append(obj)
+        pos += len(obj)
+    xref_lines = ["xref", f"0 {max_id + 1}", "0000000000 65535 f "]
+    for obj_id in range(1, max_id + 1):
+        xref_lines.append(f"{offsets[obj_id]:010d} 00000 n ")
+    xref = ("\n".join(xref_lines) + "\n").encode("ascii")
+    chunks.append(xref)
+    chunks.append(
+        (
+            f"trailer\n<< /Size {max_id + 1} /Root {catalog_id} 0 R >>\n"
+            f"startxref\n{pos}\n%%EOF\n"
+        ).encode("ascii")
+    )
+    return b"".join(chunks)
 
 
 @pytest_asyncio.fixture()
@@ -108,6 +175,8 @@ async def test_ingest_txt_ready_with_chunks(service):
 
     chunks = await service._repo.list_chunks(_STUDENT_A, doc.document_id)
     assert len(chunks) >= 1
+    assert doc.chunk_count == len(chunks)
+    assert doc.retrieval_enabled is True
     assert all(chunk.chunker_version == "mt-chunker-v1" for chunk in chunks)
     assert all(chunk.sequence == i for i, chunk in enumerate(chunks))
     # Stored under controlled storage.
@@ -129,6 +198,74 @@ async def test_failed_pdf_marks_failed_not_ready(service):
     assert doc.status == "failed"
     assert doc.parse_error
     assert await service.get_document(_STUDENT_A, doc.document_id) is not None
+
+
+async def test_blank_pdf_is_needs_ocr_not_ready_and_not_retrievable(service, tmp_path: Path):
+    parser = LocalDocumentParser()
+    blank = _build_simple_pdf(["", ""])
+    pdf_path = tmp_path / "blank.pdf"
+    pdf_path.write_bytes(blank)
+    parsed = await parser.parse(path=str(pdf_path))
+    assert parsed.blocks == ()
+    assert parsed.total_pages == 2
+    assert parsed.text_pages == 0
+    assert parsed.empty_pages == 2
+    assert parsed.extractable_chars == 0
+    assert parsed.parse_mode == "empty"
+    assert parsed.parse_warning
+
+    doc = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="scan.pdf", mime_type="application/pdf", data=blank),
+    )
+    assert doc.status == "needs_ocr"
+    assert doc.retrieval_enabled is False
+    assert doc.chunk_count == 0
+    assert doc.page_count == 2
+    assert doc.empty_page_count == 2
+    assert doc.image_count == 0
+    assert doc.parse_warning
+    assert NO_TEXT_LAYER_WARNING in doc.parse_error
+    assert doc.is_retrievable() is False
+    assert await service._repo.list_chunks(_STUDENT_A, doc.document_id) == []
+
+    enabled = await service.set_retrieval_enabled(_STUDENT_A, doc.document_id, True)
+    assert enabled.retrieval_enabled is False
+
+    result = await service._index.search(_STUDENT_A, query="quadratic")
+    assert result.hits == ()
+
+
+async def test_text_pdf_stays_ready(service):
+    payload = _build_simple_pdf(["quadratic formula discriminant"])
+    doc = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="notes.pdf", mime_type="application/pdf", data=payload),
+    )
+    assert doc.status == "ready"
+    assert doc.retrieval_enabled is True
+    assert doc.chunk_count >= 1
+    assert doc.page_count == 1
+    assert doc.empty_page_count == 0
+    result = await service._index.search(_STUDENT_A, query="quadratic")
+    assert len(result.hits) >= 1
+
+
+async def test_mixed_pdf_ready_with_warnings(service):
+    payload = _build_simple_pdf(["quadratic formula", "", ""])
+    doc = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="mixed.pdf", mime_type="application/pdf", data=payload),
+    )
+    assert doc.status == "ready_with_warnings"
+    assert doc.retrieval_enabled is True
+    assert doc.page_count == 3
+    assert doc.empty_page_count == 2
+    assert doc.chunk_count >= 1
+    assert "无文字" in doc.parse_warning
+    assert doc.is_retrievable() is True
+    result = await service._index.search(_STUDENT_A, query="quadratic")
+    assert len(result.hits) >= 1
 
 
 async def test_import_rejects_disallowed_extension(service):
@@ -237,6 +374,11 @@ async def test_sqlite_document_roundtrip_and_search(db, tmp_path: Path):
     )
     doc = await _ingest(svc, _STUDENT_A)
     assert doc.status == "ready"
+    assert doc.chunk_count >= 1
+    assert doc.image_count == 0
+    stored = await repo.get_document(_STUDENT_A, doc.document_id)
+    assert stored is not None
+    assert stored.chunk_count == doc.chunk_count
 
     result = await svc._index.search(_STUDENT_A, query="判别式")
     assert result.degraded is True

@@ -56,6 +56,27 @@ class TestProductionAuthGate:
             auth_secret="x" * 64,
         )
 
+    def test_packaged_local_desktop_auth_disabled_loopback_passes(self) -> None:
+        validate_math_tutor_security(
+            _settings(
+                environment="production",
+                local_desktop=True,
+                host="127.0.0.1",
+            ),
+            auth_enabled=False,
+        )
+
+    def test_packaged_local_desktop_auth_disabled_non_loopback_fails(self) -> None:
+        with pytest.raises(SecurityConfigurationError):
+            validate_math_tutor_security(
+                _settings(
+                    environment="production",
+                    local_desktop=True,
+                    host="0.0.0.0",
+                ),
+                auth_enabled=False,
+            )
+
     def test_short_secret_rejected_when_auth_enabled(self) -> None:
         with pytest.raises(SecurityConfigurationError):
             validate_math_tutor_security(

@@ -63,13 +63,14 @@ def _cookie_attrs(provider: AuthProvider) -> dict:
 async def auth_status(request: Request) -> dict:
     provider = _provider(request)
     if not provider.settings.enabled:
+        principal = provider.local_principal()
         return {
             "enabled": False,
             "authenticated": True,
-            "user_id": "local-admin",
-            "username": "local",
-            "role": "admin",
-            "is_admin": True,
+            "user_id": principal.user_id,
+            "username": principal.username,
+            "role": principal.role,
+            "is_admin": principal.role == "admin",
             "avatar": "",
         }
     authorization = request.headers.get("authorization")

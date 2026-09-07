@@ -18,6 +18,8 @@ const SETTINGS: DesktopSettings = {
   model: "gpt-4o-mini",
   base_url: "",
   is_configured: true,
+  onboarding_completed: true,
+  key_masked: "•••••••1234",
 };
 
 function renderForm(overrides: {
@@ -40,6 +42,8 @@ function renderForm(overrides: {
     saving: false,
     testing: false,
     discovering: false,
+    removing: false,
+    confirmingRemoval: false,
     testResult: null as TestConnectionResult | null,
     message: null,
   };
@@ -52,6 +56,9 @@ function renderForm(overrides: {
     onDiscoverModels: () => undefined,
     onSave: (e: React.FormEvent) => e.preventDefault(),
     onTest: () => undefined,
+    onAskRemove: () => undefined,
+    onCancelRemove: () => undefined,
+    onRemove: () => undefined,
   };
   return renderToStaticMarkup(<SettingsForm data={data} handlers={handlers} />);
 }
@@ -90,7 +97,14 @@ test("SettingsForm: advanced foldout (custom base_url/model) is hidden by defaul
 
 test("SettingsForm: connection test disabled while not configured", () => {
   const html = renderForm({
-    settings: { preset_id: "openai", model: "", base_url: "", is_configured: false },
+    settings: {
+      preset_id: "openai",
+      model: "",
+      base_url: "",
+      is_configured: false,
+      onboarding_completed: true,
+      key_masked: null,
+    },
   });
   assert.ok(/disabled/.test(html), "test button disabled when not configured");
 });

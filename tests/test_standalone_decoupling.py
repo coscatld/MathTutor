@@ -121,6 +121,79 @@ def test_local_auth_register_login_and_jwt(tmp_path: Path) -> None:
         provider.register_first_user("bob", "another-password")
 
 
+def test_login_free_desktop_reuses_historical_local_owner(tmp_path: Path) -> None:
+    provider = LocalAuthProvider(
+        AuthSettings(enabled=True, secret="s" * 64), tmp_path
+    )
+    original = provider.register_first_user("alice", "correct-horse")
+    login_free = LocalAuthProvider(AuthSettings(enabled=False), tmp_path)
+    assert login_free.local_principal().user_id == original.user_id
+    assert login_free.local_principal().username == "alice"
+
+
+def test_historical_account_learning_data_visible_without_desktop_login(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Upgrade keeps the original owner id; no SQLite rows are rewritten."""
+    db_path = tmp_path / "math_tutor.db"
+    secret = "production-auth-secret-" + "x" * 48
+    monkeypatch.setenv("MATHTUTOR_DATA_ROOT", str(tmp_path))
+    monkeypatch.setenv("MATHTUTOR_DESKTOP", "1")
+    monkeypatch.setenv("MATHTUTOR_ENVIRONMENT", "production")
+
+    reset_product_state()
+    authenticated_app = create_math_tutor_app(
+        MathTutorSecuritySettings(
+            environment="production", local_desktop=True, host="127.0.0.1"
+        ),
+        auth_enabled=True,
+        auth_secret=secret,
+        db_path=str(db_path),
+    )
+    with TestClient(authenticated_app) as client:
+        assert client.post(
+            "/api/v2/auth/register",
+            json={"username": "alice", "password": "correct-horse"},
+        ).status_code == 201
+        login = client.post(
+            "/api/v2/auth/login",
+            json={"username": "alice", "password": "correct-horse"},
+        )
+        cookie = login.cookies.get("dt_token")
+        with client.websocket_connect(
+            "/api/v2/math-tutor/ws", cookies={"dt_token": cookie}
+        ) as websocket:
+            websocket.send_text(
+                json.dumps(
+                    {
+                        "command": "submit_problem",
+                        "payload": {"text": "2x=4"},
+                        "session_id": "historical-session",
+                    }
+                )
+            )
+            while json.loads(websocket.receive_text()).get("event_type") != "turn_end":
+                pass
+
+    reset_product_state()
+    local_app = create_math_tutor_app(
+        MathTutorSecuritySettings(
+            environment="production", local_desktop=True, host="127.0.0.1"
+        ),
+        auth_enabled=False,
+        db_path=str(db_path),
+    )
+    with TestClient(local_app) as client:
+        status = client.get("/api/v2/auth/status").json()
+        assert status["enabled"] is False
+        assert status["username"] == "alice"
+        sessions = client.get("/api/v2/math-tutor/sessions").json()
+        assert [item["client_session_id"] for item in sessions] == [
+            "historical-session"
+        ]
+    reset_product_state()
+
+
 def test_production_auth_on_register_login_and_ws(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     reset_product_state()
     secret = "production-auth-secret-" + "x" * 48

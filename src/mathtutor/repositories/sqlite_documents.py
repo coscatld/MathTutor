@@ -2,8 +2,9 @@
 
 Same contract and invariants as repositories/document_repository.py:
 owner scope on every statement, retrieval reads see only
-``retrieval_enabled AND deleted_at IS NULL AND status='ready'``
-documents (user permission wins over the Router), chunk TEXT is a fact
+``retrieval_enabled AND deleted_at IS NULL AND status in
+('ready', 'ready_with_warnings')`` documents (user permission wins over
+the Router; needs_ocr / failed never match), chunk TEXT is a fact
 while vectors are a derived projection, and the index build row makes
 rebuild decisions deterministic.
 
@@ -27,6 +28,7 @@ from mathtutor.domain.documents import (
     DocumentChunk,
     DocumentQueryResult,
     IndexBuildRecord,
+    RETRIEVABLE_DOCUMENT_STATUSES,
     RetrievedChunk,
     UserDocument,
 )
@@ -72,6 +74,11 @@ def _document_from_row(row: Any) -> UserDocument:
         parser_version=row.parser_version or "",
         retrieval_enabled=bool(row.retrieval_enabled),
         parse_error=row.parse_error or "",
+        page_count=int(getattr(row, "page_count", 0) or 0),
+        chunk_count=int(getattr(row, "chunk_count", 0) or 0),
+        image_count=int(getattr(row, "image_count", 0) or 0),
+        empty_page_count=int(getattr(row, "empty_page_count", 0) or 0),
+        parse_warning=getattr(row, "parse_warning", None) or "",
         created_at=_parse_dt(row.created_at) or datetime.now(timezone.utc),
         deleted_at=_parse_dt(row.deleted_at),
     )
@@ -126,6 +133,11 @@ async def insert_user_document(
             parser_version=doc.parser_version,
             retrieval_enabled=1 if doc.retrieval_enabled else 0,
             parse_error=doc.parse_error,
+            page_count=doc.page_count,
+            chunk_count=doc.chunk_count,
+            image_count=doc.image_count,
+            empty_page_count=doc.empty_page_count,
+            parse_warning=doc.parse_warning,
             created_at=_now(),
             deleted_at=None,
         )
@@ -193,6 +205,11 @@ async def update_user_document(
             parser_version=doc.parser_version,
             retrieval_enabled=1 if doc.retrieval_enabled else 0,
             parse_error=doc.parse_error,
+            page_count=doc.page_count,
+            chunk_count=doc.chunk_count,
+            image_count=doc.image_count,
+            empty_page_count=doc.empty_page_count,
+            parse_warning=doc.parse_warning,
         )
     )
     if result.rowcount == 0:
@@ -401,7 +418,7 @@ async def search_document_chunks(
         (user_documents.c.student_id == student_id)
         & (user_documents.c.retrieval_enabled == 1)
         & (user_documents.c.deleted_at.is_(None))
-        & (user_documents.c.status == "ready")
+        & (user_documents.c.status.in_(tuple(RETRIEVABLE_DOCUMENT_STATUSES)))
     )
     if document_ids is not None:
         doc_where = doc_where & user_documents.c.document_id.in_(

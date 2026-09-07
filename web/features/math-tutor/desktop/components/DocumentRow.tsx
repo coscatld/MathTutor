@@ -8,10 +8,19 @@ import type { DesktopDocument } from "../types";
 
 const STATUS_DOT: Record<string, string> = {
   ready: "bg-emerald-500",
+  ready_with_warnings: "bg-amber-500",
   importing: "bg-blue-500",
   parsing: "bg-blue-500",
+  needs_ocr: "bg-orange-500",
   failed: "bg-red-500",
 };
+
+function canToggleRetrieval(document: DesktopDocument): boolean {
+  return (
+    (document.status === "ready" || document.status === "ready_with_warnings") &&
+    document.chunk_count > 0
+  );
+}
 
 export default function DocumentRow({
   document,
@@ -55,6 +64,8 @@ export default function DocumentRow({
                 <span className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[document.status] ?? "bg-[var(--muted-foreground)]"}`} aria-hidden="true" />
                 {documentStatusLabel(document.status)}
               </span>
+              {document.page_count > 0 ? <span>{document.page_count} 页</span> : null}
+              <span>{document.chunk_count} 个分块</span>
               <span>{formatBytes(document.size_bytes)}</span>
               <span>{formatDateTime(document.created_at)}</span>
             </p>
@@ -62,7 +73,7 @@ export default function DocumentRow({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          {document.status === "failed" && (
+          {(document.status === "failed" || document.status === "needs_ocr") && (
             <button
               type="button"
               onClick={handleReparse}
@@ -93,12 +104,19 @@ export default function DocumentRow({
         </p>
       )}
 
+      {!document.error && document.parse_warning && (
+        <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          {document.parse_warning}
+        </p>
+      )}
+
       <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 text-sm text-[var(--foreground)]">
         <input
           type="checkbox"
-          checked={document.retrieval_enabled}
+          checked={document.retrieval_enabled && canToggleRetrieval(document)}
           onChange={(e) => onToggleRetrieval(e.target.checked)}
-          disabled={busy || document.status !== "ready"}
+          disabled={busy || !canToggleRetrieval(document)}
           className="h-4 w-4 cursor-pointer accent-[#2563EB] disabled:cursor-not-allowed"
         />
         参与个性化回忆（用于生成针对性练习）

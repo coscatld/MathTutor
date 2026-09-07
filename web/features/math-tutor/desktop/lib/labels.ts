@@ -25,6 +25,8 @@ export const DOCUMENT_STATUS_LABELS: Record<string, string> = {
   importing: "导入中",
   parsing: "解析中",
   ready: "已就绪",
+  ready_with_warnings: "已就绪（有空页）",
+  needs_ocr: "无文字层",
   failed: "解析失败",
 };
 

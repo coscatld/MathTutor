@@ -67,10 +67,15 @@ test("API keys and embedding weights are not package resources", () => {
   assert.doesNotMatch(serialized, /api[_-]?key|secret|model.*weight|\.safetensors|\.onnx|\.gguf/);
 });
 
-test("normal GUI uses one auth value for Python and frontend", () => {
-  assert.match(main, /const authEnabled = process\.env\.MATHTUTOR_AUTH_ENABLED/);
+test("normal GUI is login-free by architecture for Python and frontend", () => {
+  assert.match(main, /const authEnabled = "0"/);
   assert.match(main, /\.\.\.authEnvironment\(authEnabled\)/);
   assert.match(main, /MATHTUTOR_AUTH_ENABLED: normalized, AUTH_ENABLED: normalized/);
+});
+
+test("runtime and data paths are centralized in the desktop infrastructure layer", () => {
+  assert.match(main, /require\("\.\/runtime\/paths"\)/);
+  assert.match(config.files.join("\n"), /runtime\/\*\*\/\*/);
 });
 
 test("package filters editable imports and bytecode caches", () => {

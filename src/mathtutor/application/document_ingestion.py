@@ -34,6 +34,8 @@ from mathtutor.domain.documents import (
     DocumentChunk,
     DocumentQueryResult,
     IndexBuildRecord,
+    ParsedTextDocument,
+    RETRIEVABLE_DOCUMENT_STATUSES,
     UserDocument,
 )
 from mathtutor.domain.embedding import EmbeddingUnavailableError, validate_vector
@@ -41,6 +43,8 @@ from mathtutor.infrastructure.chunking import CHUNKER_VERSION, TextChunker
 from mathtutor.infrastructure.document_parser import (
     DocumentParser,
     LocalDocumentParser,
+    NO_TEXT_FILE_WARNING,
+    NO_TEXT_LAYER_WARNING,
 )
 from mathtutor.infrastructure.document_storage import (
     DocumentStorage,
@@ -54,6 +58,52 @@ from mathtutor.security.scopes import student_uuid
 
 class DocumentValidationError(ValueError):
     """Import rejected by the security allowlist (fail closed)."""
+
+
+class DocumentBusyError(ValueError):
+    """Reparse refused because the document is still importing/parsing."""
+
+
+def ingest_outcome_from_parse(
+    parsed: ParsedTextDocument,
+    chunk_count: int,
+    *,
+    filename: str,
+) -> dict:
+    """Map parser stats onto persisted document fields.
+
+    extractable_chars == 0 (or zero chunks) is never ``ready``:
+    scanned PDFs become ``needs_ocr``, other empty files become ``failed``.
+    Mixed PDFs with a high empty-page ratio become ``ready_with_warnings``.
+    ``image_count`` is always 0 in this parser (no OCR / image pipeline).
+    """
+    warning = parsed.parse_warning
+    empty = parsed.extractable_chars <= 0 or chunk_count <= 0
+    if empty:
+        is_pdf = Path(filename).suffix.lower() == ".pdf"
+        status = "needs_ocr" if is_pdf else "failed"
+        message = warning or (NO_TEXT_LAYER_WARNING if is_pdf else NO_TEXT_FILE_WARNING)
+        return {
+            "status": status,
+            "retrieval_enabled": False,
+            "parse_error": message,
+            "page_count": parsed.total_pages,
+            "chunk_count": chunk_count,
+            "image_count": 0,
+            "empty_page_count": parsed.empty_pages,
+            "parse_warning": message,
+        }
+    status = "ready_with_warnings" if warning and parsed.parse_mode == "mixed" else "ready"
+    return {
+        "status": status,
+        "retrieval_enabled": True,
+        "parse_error": "",
+        "page_count": parsed.total_pages,
+        "chunk_count": chunk_count,
+        "image_count": 0,
+        "empty_page_count": parsed.empty_pages,
+        "parse_warning": warning,
+    }
 
 
 def validate_import(filename: str, mime_type: str, size_bytes: int) -> str:
@@ -133,40 +183,112 @@ class DocumentIngestionService:
         doc = await self._repo.add_document(student_id, doc)
 
         # Parse + chunk. A parse failure does NOT delete the import — the
-        # document stays visible as failed (user can delete it).
+        # document stays visible as failed (user can delete it). Empty
+        # extracts are persisted as needs_ocr/failed, never ready.
         try:
             await self._repo.update_document(
                 student_id, doc.model_copy(update={"status": "parsing"})
             )
             parsed = await self._parser.parse(path=str(self._storage.resolve(storage_ref)))
             chunks = self._build_chunks(student_id, document_id, parsed)
-            await self._repo.replace_chunks(student_id, document_id, chunks)
-            doc = await self._repo.update_document(
-                student_id,
-                doc.model_copy(
-                    update={
-                        "status": "ready",
-                        "parser_version": self._parser.parser_version(),
-                    }
-                ),
+            doc = await self._persist_parse_result(
+                student_id, doc, parsed, chunks, preserve_retrieval=False
             )
         except Exception as error:  # parse layer failure — mark, never crash the import
             doc = await self._repo.update_document(
                 student_id,
                 doc.model_copy(
-                    update={"status": "failed", "parse_error": str(error)[:500]}
+                    update={
+                        "status": "failed",
+                        "parse_error": str(error)[:500],
+                        "retrieval_enabled": False,
+                    }
                 ),
             )
             return doc
 
+        await self._maybe_build_index(student_id, document_id, doc)
+        return doc
+
+    async def reparse(self, student_id: str, document_id: UUID) -> UserDocument:
+        """Re-run parse + chunk on stored bytes (same status machine as ingest)."""
+        doc = await self._repo.get_document(student_id, document_id)
+        if doc is None:
+            raise ValueError(f"document not found: {document_id}")
+        if doc.status in {"importing", "parsing"}:
+            raise DocumentBusyError("文档正在处理中，请稍后再试。")
+
+        doc = await self._repo.update_document(
+            student_id, doc.model_copy(update={"status": "parsing"})
+        )
+        if doc is None:
+            raise ValueError(f"document not found: {document_id}")
+        try:
+            parsed = await self._parser.parse(
+                path=str(self._storage.resolve(doc.storage_ref))
+            )
+            chunks = self._build_chunks(student_id, document_id, parsed)
+            doc = await self._persist_parse_result(
+                student_id, doc, parsed, chunks, preserve_retrieval=True
+            )
+        except Exception as error:
+            doc = await self._repo.update_document(
+                student_id,
+                doc.model_copy(
+                    update={
+                        "status": "failed",
+                        "parse_error": str(error)[:500],
+                        "retrieval_enabled": False,
+                    }
+                ),
+            )
+            if doc is None:
+                raise ValueError(f"document not found: {document_id}") from error
+            return doc
+
+        await self._maybe_build_index(student_id, document_id, doc)
+        if doc is None:
+            raise ValueError(f"document not found: {document_id}")
+        return doc
+
+    async def _persist_parse_result(
+        self,
+        student_id: str,
+        doc: UserDocument,
+        parsed: ParsedTextDocument,
+        chunks: list[DocumentChunk],
+        *,
+        preserve_retrieval: bool,
+    ) -> UserDocument:
+        await self._repo.replace_chunks(student_id, doc.document_id, chunks)
+        outcome = ingest_outcome_from_parse(
+            parsed, len(chunks), filename=doc.filename
+        )
+        outcome["parser_version"] = self._parser.parser_version()
+        if (
+            preserve_retrieval
+            and outcome["status"] in RETRIEVABLE_DOCUMENT_STATUSES
+        ):
+            outcome["retrieval_enabled"] = doc.retrieval_enabled
+        updated = await self._repo.update_document(
+            student_id, doc.model_copy(update=outcome)
+        )
+        if updated is None:
+            raise ValueError(f"document not found: {doc.document_id}")
+        return updated
+
+    async def _maybe_build_index(
+        self, student_id: str, document_id: UUID, doc: UserDocument | None
+    ) -> None:
         # Vector index is OPTIONAL and best-effort: without an embedding
         # backend the document stays fully usable (lexical retrieval).
-        if self._index is not None and doc is not None:
-            try:
-                await self._index.build_index(student_id, document_id)
-            except EmbeddingUnavailableError:
-                pass  # degraded mode — no backend provisioned
-        return doc
+        # Zero-text documents are never indexed.
+        if self._index is None or doc is None or not doc.can_enable_retrieval():
+            return
+        try:
+            await self._index.build_index(student_id, document_id)
+        except EmbeddingUnavailableError:
+            pass  # degraded mode — no backend provisioned
 
     def _build_chunks(self, student_id: str, document_id: UUID, parsed) -> list[DocumentChunk]:
         drafts = self._chunker.chunk(parsed.blocks)
@@ -198,6 +320,11 @@ class DocumentIngestionService:
     async def set_retrieval_enabled(
         self, student_id: str, document_id: UUID, enabled: bool
     ) -> UserDocument:
+        current = await self._repo.get_document(student_id, document_id)
+        if current is None:
+            raise ValueError(f"document not found: {document_id}")
+        if enabled and not current.can_enable_retrieval():
+            enabled = False
         doc = await self._repo.set_retrieval_enabled(student_id, document_id, enabled)
         if doc is None:
             raise ValueError(f"document not found: {document_id}")
@@ -313,8 +440,8 @@ class DocumentIndexManager:
         """Lexical + optional vector search over the student's own documents.
 
         The metadata filter (owner + retrieval_enabled + not deleted +
-        ready) is enforced by the repository — user permission wins over
-        the Router at the data layer.
+        retrievable status) is enforced by the repository — user
+        permission wins over the Router at the data layer.
         """
         tokens = tokenize_lexical(query)
         vector = None
@@ -359,9 +486,11 @@ class DocumentSearchable(Protocol):
 
 
 __all__ = [
+    "DocumentBusyError",
     "DocumentIndexManager",
     "DocumentIngestionService",
     "DocumentSearchable",
     "DocumentValidationError",
+    "ingest_outcome_from_parse",
     "validate_import",
 ]

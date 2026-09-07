@@ -55,9 +55,11 @@ def validate_math_tutor_security(
 
     Rules (design doc §15, §26):
 
-    - production requires auth (fail closed);
+    - network production requires auth (fail closed);
+    - packaged local desktop may omit auth only on loopback;
     - weak/default secrets refuse startup whenever auth is enabled;
-    - auth-disabled is only allowed in development/test on loopback;
+    - auth-disabled is allowed only in development/test or the explicit
+      packaged-desktop profile, and always on loopback;
     - execution surfaces must be disabled in production;
     - the capability allowlist must contain ``math_tutor``.
     """
@@ -68,10 +70,15 @@ def validate_math_tutor_security(
         )
 
     if settings.in_production():
-        if not auth_enabled:
+        local_desktop_without_auth = (
+            settings.local_desktop
+            and settings.allow_loopback_without_auth
+            and settings.is_loopback()
+        )
+        if not auth_enabled and not local_desktop_without_auth:
             raise SecurityConfigurationError(
-                "production requires auth: auth.enabled=false is not allowed "
-                "in the MathTutor product app"
+                "network production requires auth: auth.enabled=false is only "
+                "allowed for the loopback-only packaged desktop"
             )
         if settings.execution_surfaces_enabled:
             raise SecurityConfigurationError(

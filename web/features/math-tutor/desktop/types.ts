@@ -11,6 +11,9 @@ export interface DesktopSettings {
   model: string;
   base_url: string;
   is_configured: boolean;
+  onboarding_completed: boolean;
+  /** Safe display tail only; the backend never returns the stored value. */
+  key_masked: string | null;
 }
 
 export interface ProviderPreset {
@@ -25,6 +28,8 @@ export interface SettingsSaveResult {
   base_url: string;
   /** Masked tail ("••••••••abcd") — the frontend never sees a full key. */
   key_masked: string | null;
+  is_configured: boolean;
+  onboarding_completed: boolean;
 }
 
 export interface TestConnectionResult {
@@ -44,7 +49,13 @@ export interface Readiness {
   reasons: Record<string, string>;
 }
 
-export type DocumentStatus = "importing" | "parsing" | "ready" | "failed";
+export type DocumentStatus =
+  | "importing"
+  | "parsing"
+  | "ready"
+  | "ready_with_warnings"
+  | "needs_ocr"
+  | "failed";
 
 export interface DesktopDocument {
   document_id: string;
@@ -53,8 +64,14 @@ export interface DesktopDocument {
   status: DocumentStatus;
   retrieval_enabled: boolean;
   size_bytes: number;
+  page_count: number;
+  chunk_count: number;
+  image_count: number;
+  empty_page_count: number;
+  /** Empty-page / no-text-layer warning; never raw parser internals. */
+  parse_warning: string | null;
   created_at: string;
-  /** Friendly parse error (only on failed docs) — never raw tracebacks. */
+  /** Friendly parse error (failed / needs_ocr) — never raw tracebacks. */
   error: string | null;
 }
 

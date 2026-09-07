@@ -8,24 +8,22 @@
 ### 环境要求
 
 - macOS、Linux 或 Windows（当前正式验证的桌面安装包为 macOS arm64）
-- Python 3.11–3.13
-- Node.js 20+
+- 标准开发环境：Python 3.12、Node.js 20
+- 发行包仍支持 `pyproject.toml` 中声明的 Python 3.11–3.13
 
-下面的源码命令以 macOS/Linux shell 为例；Windows PowerShell 中的虚拟环境
-可执行文件位于 `.venv\Scripts\`，环境变量使用 `$env:NAME="value"` 设置。
+Windows 与 macOS 使用同一份受 Git 管理的源码。文件系统、运行时和凭据库
+差异集中在桌面基础设施层，不复制业务模块。
 
 ### 1. 安装并启动后端
 
 在项目根目录执行：
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-
-MATHTUTOR_DATA_ROOT=/tmp/mathtutor-dev-data \
-MATHTUTOR_ENVIRONMENT=development \
-MATHTUTOR_AUTH_ENABLED=1 \
-.venv/bin/mathtutor
+python -m venv .venv
+# macOS/Linux：source .venv/bin/activate
+# Windows PowerShell：.venv\Scripts\Activate.ps1
+python -m pip install -e '.[dev]'
+python -m mathtutor
 ```
 
 后端默认监听 `http://127.0.0.1:8001`。`MATHTUTOR_DATA_ROOT` 中保存 SQLite、
@@ -39,16 +37,12 @@ MATHTUTOR_AUTH_ENABLED=1 \
 cd web
 npm ci
 
-MATHTUTOR_API_BASE_URL=http://127.0.0.1:8001 \
-MATHTUTOR_AUTH_ENABLED=1 \
 npm run dev
 ```
 
-浏览器访问 `http://127.0.0.1:3000/math-tutor`。全新数据目录会自动跳转到
-`/register`；创建第一个本地账户后登录即可进入工作台。
-
-仅做无账户的本机界面调试时，可将前后端的 `MATHTUTOR_AUTH_ENABLED` 都设为
-`0`；不要在公开监听或生产环境关闭认证。
+浏览器访问 `http://127.0.0.1:3000/`。本机开发默认为 loopback 单用户模式：
+首次启动进入 Provider/API Key 配置（也可跳过使用模板教学），之后直接进入
+工作台，不需要注册或登录。显式 auth-on 的远程/网络部署仍保留现有认证边界。
 
 ### 3. 运行源码版 Electron 桌面壳
 
@@ -70,18 +64,13 @@ Worker 和 Next.js 前端，无需手动保留前两节的进程。
 ### 4. 测试
 
 ```bash
-# 后端
-.venv/bin/pytest
-
-# 前端
-cd web
-npm test
-npm run build
-
-# Desktop contracts
-cd ../desktop
-npm run test:distribution
+# Windows/macOS/Linux 通用（需先安装上述依赖）
+python scripts/check.py
 ```
+
+该命令使用当前 Python 解释器运行后端与 Python 桌面契约测试，并依次执行前端
+测试、生产构建与 Node.js 桌面发行契约测试。CI 在 Windows、macOS 和 Linux 上
+用 Python 3.12 / Node.js 20 执行同一组验证。
 
 ## 使用 macOS DMG
 
@@ -102,12 +91,13 @@ npm run test:distribution
    监听 loopback。
 2. 应用创建本地数据目录并自动执行数据库 migration 001–006。macOS 数据通常
    位于 `~/Library/Application Support/MathTutor/`。
-3. 首次访问工作台会进入注册页；第一个本地账户具有管理员角色。
-4. 注册成功后进入登录页，登录后打开中文数学辅导工作台。
-5. 欢迎弹窗允许选择模型服务商并填写 API Key，也可以选择“跳过，使用模板教学”。
-6. API Key 只保存到 macOS 钥匙串；普通配置、SQLite、日志和前端存储不会保存
+3. 启动页检查本地配置。未配置时进入 `/onboarding/provider`；已配置或曾明确
+   跳过时直接进入 `/math-tutor`。普通桌面流程不显示注册或登录页。
+4. Onboarding 可选择模型服务商并填写 API Key，也可选择“暂时跳过，使用模板教学”。
+5. API Key 在 macOS 保存到 Keychain，在 Windows 保存到 Credential Manager；
+   平台差异封装在统一 `SecretStore` 之后。普通配置、SQLite、日志和前端存储不会保存
    明文密钥。
-7. 不配置 API Key 时，Parser、Solver、Verifier Worker、AttemptVerifier、
+6. 不配置 API Key 时，Parser、Solver、Verifier Worker、AttemptVerifier、
    StudentState、课程与模板辅导仍可使用；生成式个性化功能显示为降级状态。
 
 日常工作台包含“练习、练习邀请、我的资料、我的记忆、设置、我的数据”。提交
@@ -128,7 +118,7 @@ shasum -a 256 MathTutor-0.2.0-mac-arm64.dmg
 
 输出必须与 Release 描述中的 SHA-256 完全一致后再安装。
 
-### 卡在“正在验证登录状态”
+### 卡在“正在启动 MathTutor”
 
 如果窗口长时间停在该画面，先退出 MathTutor，再核对下载文件的
 SHA-256。当前已修复安装包的 SHA-256 为：
@@ -138,7 +128,7 @@ fb9c3a247f9243fe27bafb728ef6892e4fe09f3ffaa328d9baa452e37ea479a5
 ```
 
 旧候选包曾遗漏 Next.js 浏览器静态资源，会导致页面 HTML 能打开，但
-JavaScript/CSS 返回 404，因而无法跳转到注册页。安装当前包时只需替换
+JavaScript/CSS 返回 404，因而无法完成启动路由。安装当前包时只需替换
 `/Applications/MathTutor.app`；不需要删除用户数据目录。
 
 ## 构建 Windows x64 安装包

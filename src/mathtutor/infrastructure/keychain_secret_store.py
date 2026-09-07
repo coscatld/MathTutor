@@ -257,7 +257,7 @@ def _default_win32_backend() -> Win32CredBackend:
 
 
 class KeychainSecretStore:
-    """SecretStore backed by the OS credential store (macOS / Linux)."""
+    """SecretStore backed by the OS credential store on supported desktops."""
 
     store_id = "keychain"
 

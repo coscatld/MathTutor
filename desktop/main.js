@@ -33,14 +33,28 @@ const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
 const crypto = require("node:crypto");
+const {
+  BACKEND_ENTRY,
+  resolveDataLayoutPaths,
+  resolvePythonRuntime,
+  resolveResourceRoot,
+  resolveUserDataRoot,
+  resolveWebRoot,
+} = require("./runtime/paths");
 
 const DESKTOP_DIR = __dirname;
 const IS_PACKAGED = Boolean(app && app.isPackaged);
-const RESOURCES_DIR = IS_PACKAGED ? process.resourcesPath : path.resolve(DESKTOP_DIR, "..");
-const WEB_ROOT = path.resolve(
-  process.env.MATHTUTOR_WEB_ROOT ||
-    (IS_PACKAGED ? path.join(RESOURCES_DIR, "web") : path.join(DESKTOP_DIR, "..", "web")),
-);
+const RESOURCES_DIR = resolveResourceRoot({
+  isPackaged: IS_PACKAGED,
+  resourcesPath: process.resourcesPath,
+  desktopDir: DESKTOP_DIR,
+});
+const WEB_ROOT = resolveWebRoot({
+  explicitRoot: process.env.MATHTUTOR_WEB_ROOT,
+  isPackaged: IS_PACKAGED,
+  resourcesDir: RESOURCES_DIR,
+  desktopDir: DESKTOP_DIR,
+});
 const SERVICE_NAME = "com.mathtutor.product";
 
 const HOST = "127.0.0.1"; // loopback only — never a LAN interface
@@ -95,29 +109,25 @@ function sleep(ms) {
 
 /** Resolve the Python interpreter that runs the MathTutor product service. */
 function resolvePython() {
-  if (process.env.MATHTUTOR_PYTHON) {
-    return { python: process.env.MATHTUTOR_PYTHON, viaCondaRun: false };
-  }
-  if (IS_PACKAGED) {
-    const bundled = process.platform === "win32"
-      ? path.join(RESOURCES_DIR, "python-runtime", "python.exe")
-      : path.join(RESOURCES_DIR, "python-runtime", "bin", "python");
-    if (fs.existsSync(bundled)) return { python: bundled, viaCondaRun: false };
-    fail(`安装包缺少内置 Python runtime（${bundled}）。请重新安装完整发行包。`);
-  }
-  // Development uses only this standalone repository's virtual environment.
-  const candidates = [
-    path.join(DESKTOP_DIR, "..", ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python"),
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return { python: candidate, viaCondaRun: false };
-  }
-  fail("未找到 MathTutor Python：请在项目根目录创建 .venv，或设置 MATHTUTOR_PYTHON。");
+  const python = resolvePythonRuntime({
+    explicitPython: process.env.MATHTUTOR_PYTHON,
+    isPackaged: IS_PACKAGED,
+    platform: process.platform,
+    resourcesDir: RESOURCES_DIR,
+    desktopDir: DESKTOP_DIR,
+    exists: fs.existsSync,
+  });
+  if (python) return { python, viaCondaRun: false };
+  fail(
+    IS_PACKAGED
+      ? "安装包缺少内置 Python runtime。请重新安装完整发行包。"
+      : "未找到 MathTutor Python：请在项目根目录创建 .venv，或设置 MATHTUTOR_PYTHON。",
+  );
 }
 
 function backendCommand(python, port) {
   const args = ["-m", "uvicorn", "--factory",
-    "mathtutor.standalone:create_standalone_app",
+    BACKEND_ENTRY,
     "--host", HOST, "--port", String(port), "--log-level", "warning"];
   return { cmd: python.python, args };
 }
@@ -158,18 +168,12 @@ function frontendCommand(port) {
 
 /** Production data never lives in the app bundle/source tree. */
 function resolveDataLayout() {
-  const root = path.resolve(
-    process.env.MATHTUTOR_DATA_ROOT ||
-      (app ? app.getPath("userData") : path.join(os.tmpdir(), "MathTutor")),
-  );
-  const layout = {
-    root,
-    database: path.join(root, "math_tutor.db"),
-    uploads: path.join(root, "uploads"),
-    backups: path.join(root, "backups"),
-    config: path.join(root, "config"),
-    logs: path.join(root, "logs"),
-  };
+  const root = resolveUserDataRoot({
+    explicitRoot: process.env.MATHTUTOR_DATA_ROOT,
+    electronUserData: app ? app.getPath("userData") : "",
+    tempDir: os.tmpdir(),
+  });
+  const layout = resolveDataLayoutPaths(root);
   for (const directory of [root, layout.uploads, layout.backups, layout.config, layout.logs]) {
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   }
@@ -1318,10 +1322,9 @@ app.whenReady().then(async () => {
   const backend = backendCommand(python, backendPort);
   // MATHTUTOR_* is authoritative. The two older names are read-only aliases
   // for one upgrade cycle and are never emitted to child processes.
-  const authEnabled = process.env.MATHTUTOR_AUTH_ENABLED
-    || process.env.AUTH_ENABLED
-    || process.env.DEEPTUTOR_AUTH_ENABLED
-    || "1";
+  // Packaged/source Electron is the personal loopback desktop profile:
+  // account authentication is disabled by architecture, not by user setup.
+  const authEnabled = "0";
   log(`backend: ${backend.cmd} ${backend.args.join(" ")}`);
   startChild(backend.cmd, backend.args, backendEnvironment(dataLayout, {
     MATHTUTOR_DESKTOP: "1",

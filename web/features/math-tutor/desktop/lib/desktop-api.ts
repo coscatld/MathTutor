@@ -39,10 +39,10 @@ export const DESKTOP_PREFIX = "/api/v2/math-tutor/desktop";
 export class DesktopApiError extends Error {}
 
 /** Parse a backend error into a friendly message (detail or fallback). */
-function toFriendlyMessage(res: Response, fallback: string): string {
+async function toFriendlyMessage(res: Response, fallback: string): Promise<string> {
   let detail = "";
   try {
-    const body = res.json() as unknown as { detail?: unknown };
+    const body = (await res.json()) as { detail?: unknown };
     detail = typeof body.detail === "string" ? body.detail : "";
   } catch {
     detail = "";
@@ -59,7 +59,7 @@ async function desktopFetch<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    throw new DesktopApiError(toFriendlyMessage(res, "请求失败，请稍后再试。"));
+    throw new DesktopApiError(await toFriendlyMessage(res, "请求失败，请稍后再试。"));
   }
   return (await res.json()) as T;
 }
@@ -85,6 +85,22 @@ export async function saveSettings(input: {
   return desktopFetch<SettingsSaveResult>("/settings", {
     method: "PUT",
     body: JSON.stringify(input),
+  });
+}
+
+export async function skipProviderOnboarding(): Promise<{
+  ok: boolean;
+  onboarding_completed: boolean;
+}> {
+  return desktopFetch("/settings/onboarding/skip", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function removeApiKey(): Promise<DesktopSettings> {
+  return desktopFetch<DesktopSettings>("/settings/api-key", {
+    method: "DELETE",
   });
 }
 
@@ -222,7 +238,7 @@ export async function importDocumentFile(file: File): Promise<DesktopDocument> {
     body,
   });
   if (!res.ok) {
-    throw new DesktopApiError(toFriendlyMessage(res, "导入失败，请稍后再试。"));
+    throw new DesktopApiError(await toFriendlyMessage(res, "导入失败，请稍后再试。"));
   }
   return (await res.json()) as DesktopDocument;
 }
@@ -239,7 +255,7 @@ export async function nativePickAndImport(): Promise<DesktopDocument | null> {
     body: JSON.stringify({}),
   });
   if (!res.ok) {
-    throw new DesktopApiError(toFriendlyMessage(res, "无法打开文件选择器。"));
+    throw new DesktopApiError(await toFriendlyMessage(res, "无法打开文件选择器。"));
   }
   const body = (await res.json()) as { status?: string; document?: DesktopDocument };
   if (body.status === "cancelled") return null;

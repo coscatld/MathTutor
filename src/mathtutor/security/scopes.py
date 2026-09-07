@@ -1,7 +1,7 @@
 """Owner scopes for the MathTutor student product (design doc §11.1).
 
 ``PrincipalScope`` / ``StudentOwnerScope`` can ONLY be created by the auth
-layer (HTTP/WS dependency) or by the dev-mode fallback — never deserialized
+layer (HTTP/WS dependency) or by the trusted local fallback — never deserialized
 from a request body, query parameter, WS payload, LLM or tool.
 
 The capability and repositories accept a pre-built scope; the client can at
@@ -17,8 +17,8 @@ from uuid import UUID
 
 from mathtutor.security.settings import MathTutorSecuritySettings
 
-# Fixed, server-owned, loopback-only development identity.  These values are
-# frozen by MathTutor and require no multi-user/runtime package.
+# Fixed, server-owned, loopback-only fallback identity. These values are used
+# when a local install has no historical single-account owner to preserve.
 LOCAL_ADMIN_ID = "local-admin"
 LOCAL_ADMIN_USERNAME = "local"
 
@@ -67,11 +67,11 @@ def student_uuid(student_id: str) -> UUID:
 
 
 def dev_student_owner(settings: MathTutorSecuritySettings | None = None) -> StudentOwnerScope:
-    """Server-side dev identity for auth-disabled loopback development.
+    """Server-side fallback identity for an auth-disabled loopback runtime.
 
-    Allowed ONLY by the startup gate (development/test + loopback). It is a
-    fixed server-generated identity — the client can never choose it — and
-    matches DeepTutor's own local-admin identity for the same mode.
+    Allowed ONLY by the startup gate (development/test or explicit packaged
+    desktop + loopback). It is a fixed server-generated identity — the client
+    can never choose it — and matches the historical local-admin identity.
     """
     principal = PrincipalScope(
         user_id=DEV_STUDENT_ID, username=LOCAL_ADMIN_USERNAME, role="admin"
@@ -100,7 +100,7 @@ def resolve_student_owner(
 
     1. a pre-built :class:`StudentOwnerScope` placed in
        ``context.metadata["student_owner"]`` by the auth layer (product WS);
-    2. the fixed dev identity — only in development/test with loopback allowed.
+    2. the fixed local identity — only in a permitted loopback profile.
 
     A plain dict in metadata is NEVER accepted (identity objects must be
     constructed server-side); anything else fails closed.
@@ -122,7 +122,7 @@ def resolve_student_owner(
 
         settings = load_math_tutor_security_settings()
     if (
-        settings.environment in {"development", "test"}
+        (settings.environment in {"development", "test"} or settings.local_desktop)
         and settings.allow_loopback_without_auth
         and settings.is_loopback()
     ):

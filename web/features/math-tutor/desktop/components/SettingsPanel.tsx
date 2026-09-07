@@ -8,6 +8,7 @@ import {
   fetchPresets,
   fetchSettings,
   modelErrorCopy,
+  removeApiKey,
   saveSettings,
   testModelConnection,
 } from "../lib/desktop-api";
@@ -38,6 +39,8 @@ export interface SettingsFormData {
   saving: boolean;
   testing: boolean;
   discovering: boolean;
+  removing: boolean;
+  confirmingRemoval: boolean;
   testResult: TestConnectionResult | null;
   message: FormMessage | null;
 }
@@ -51,6 +54,9 @@ export interface SettingsFormHandlers {
   onDiscoverModels: () => void;
   onSave: (e: React.FormEvent) => void;
   onTest: () => void;
+  onAskRemove: () => void;
+  onCancelRemove: () => void;
+  onRemove: () => void;
 }
 
 /**
@@ -114,9 +120,31 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
           </div>
           <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
             {data.keyMasked
-              ? `当前密钥尾号 ${data.keyMasked}。密钥加密保存在本机安全存储中，不会在界面或浏览器存储中回显。`
-              : "密钥仅加密保存在本机安全存储（钥匙串）中，不会保存在浏览器存储里。"}
+              ? `当前密钥尾号 ${data.keyMasked}。密钥保存在系统安全凭据存储中，不会在界面或浏览器存储中回显。`
+              : "密钥仅保存在系统安全凭据存储中，不会保存在浏览器存储里。"}
           </p>
+          {data.settings?.is_configured ? (
+            data.confirmingRemoval ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                <span className="mr-auto">移除后将立即回到模板教学，学习数据不会被删除。</span>
+                <button type="button" onClick={handlers.onCancelRemove} disabled={data.removing} className="min-h-[40px] rounded-lg px-3 font-medium hover:bg-white/60">
+                  取消
+                </button>
+                <button type="button" onClick={handlers.onRemove} disabled={data.removing} className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-red-600 px-3 font-medium text-white disabled:opacity-50">
+                  {data.removing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                  确认移除
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handlers.onAskRemove}
+                className="min-h-[40px] w-fit text-sm font-medium text-red-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] dark:text-red-400"
+              >
+                移除已保存的 API Key
+              </button>
+            )
+          ) : null}
         </div>
       </div>
 
@@ -279,6 +307,7 @@ interface Props {
   saveSettingsFn?: typeof saveSettings;
   testModelConnectionFn?: typeof testModelConnection;
   fetchModelsFn?: typeof fetchModels;
+  removeApiKeyFn?: typeof removeApiKey;
 }
 
 /**
@@ -293,6 +322,7 @@ export default function SettingsPanel({
   saveSettingsFn = saveSettings,
   testModelConnectionFn = testModelConnection,
   fetchModelsFn = fetchModels,
+  removeApiKeyFn = removeApiKey,
 }: Props) {
   const [presets, setPresets] = useState<ProviderPreset[]>([]);
   const [settings, setSettings] = useState<DesktopSettings | null>(null);
@@ -307,6 +337,8 @@ export default function SettingsPanel({
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [discovering, setDiscovering] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const [modelTest, setModelTest] = useState<ModelTestResult | null>(null);
   const [message, setMessage] = useState<FormMessage | null>(null);
 
@@ -319,6 +351,7 @@ export default function SettingsPanel({
       setPresetId(s.preset_id);
       setBaseUrl(s.base_url);
       setModel(s.model);
+      setKeyMasked(s.key_masked);
     } catch (err) {
       setMessage({
         kind: "error",
@@ -350,6 +383,15 @@ export default function SettingsPanel({
       setApiKey("");
       setBaseUrl(result.base_url);
       setModel(result.model);
+      setSettings((current) => current ? {
+        ...current,
+        preset_id: result.preset_id,
+        base_url: result.base_url,
+        model: result.model,
+        is_configured: result.is_configured,
+        onboarding_completed: result.onboarding_completed,
+        key_masked: result.key_masked,
+      } : current);
       setMessage({ kind: "ok", text: currentPreset.custom ? "自定义模型已保存并生效。" : "模型设置已保存并生效。" });
     } catch (err) {
       setMessage({
@@ -392,6 +434,27 @@ export default function SettingsPanel({
     }
   };
 
+  const handleRemove = async () => {
+    setRemoving(true);
+    setMessage(null);
+    try {
+      const next = await removeApiKeyFn();
+      setSettings(next);
+      setKeyMasked(null);
+      setApiKey("");
+      setModelTest(null);
+      setConfirmingRemoval(false);
+      setMessage({ kind: "ok", text: "API Key 已移除，已切换为模板教学。" });
+    } catch (err) {
+      setMessage({
+        kind: "error",
+        text: err instanceof DesktopApiError ? err.message : "移除失败，请稍后再试。",
+      });
+    } finally {
+      setRemoving(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 md:px-6">
       <div>
@@ -422,12 +485,15 @@ export default function SettingsPanel({
             saving,
             testing,
             discovering,
+            removing,
+            confirmingRemoval,
             testResult: null,
             message,
           }}
           handlers={{
             onPresetChange: (id) => {
               setPresetId(id);
+              if (id !== settings?.preset_id) setKeyMasked(null);
               setMessage(null);
               setModelTest(null);
             },
@@ -438,6 +504,9 @@ export default function SettingsPanel({
             onDiscoverModels: handleDiscover,
             onSave: handleSave,
             onTest: handleTest,
+            onAskRemove: () => setConfirmingRemoval(true),
+            onCancelRemove: () => setConfirmingRemoval(false),
+            onRemove: handleRemove,
           }}
         />
       )}

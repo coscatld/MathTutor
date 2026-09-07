@@ -54,7 +54,7 @@ from mathtutor.application.controller import MathTutorController
 from mathtutor.domain.retrieval_policy import RetrievalSource
 from mathtutor.infrastructure.document_storage import DocumentStorage
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
-from mathtutor.infrastructure.gateway_config import build_tutor_writer
+from mathtutor.infrastructure.gateway_config import GatewayConfigService, build_tutor_writer
 from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway
 from mathtutor.infrastructure.secret_store import (
     InMemorySecretStore,
@@ -327,6 +327,15 @@ class ProductState:
         else:
             self._tmp_uploads = None
         self.document_storage = DocumentStorage(data_dir)
+        # One provider-config service owns restore, persistence and key
+        # references for the lifetime of the product.  Restoring here (before
+        # the controller writer is built) makes an existing secure provider
+        # configuration effective immediately after restart.
+        self.gateway_config = GatewayConfigService(
+            gateway=self.gateway,
+            secret_store=self.secret_store,
+            config_path=Path(data_dir) / "gateway.json",
+        )
 
         # Phase 6 (round 2): backup/restore surface. SQLite-only (the file
         # is the unit of backup). Policy: manual mode — the desktop UI
@@ -389,6 +398,10 @@ class ProductState:
     def capability(self) -> MathTutorController:
         """Deprecated name retained for read-only legacy callers/tests."""
         return self.controller
+
+    def refresh_model_writer(self) -> None:
+        """Rebind the tutor writer after provider credentials change."""
+        self.controller.writer = _build_writer(self.gateway)
 
     @property
     def data_lifecycle(self) -> DataLifecycleService:

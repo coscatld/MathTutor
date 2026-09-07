@@ -5,12 +5,10 @@ code, git, ordinary config JSON, or a plain SQLite business table. The
 business layer only ever receives a *credential reference* (secret key
 name); the secret itself is resolved through the store at call time.
 
-Desktop contract: the final adapter must back this Protocol with the OS
-credential store (macOS Keychain / Windows DPAPI / freedesktop Secret
-Service). The desktop framework (Tauri/Electron/…) is NOT chosen yet, so
-this round ships the Protocol + the in-memory implementation (dev/tests);
-the OS-backed implementation is explicitly PARTIAL until the framework
-decision.
+Desktop production backs this Protocol with the operating-system credential
+store (macOS Keychain / Windows Credential Manager / freedesktop Secret
+Service). The in-memory implementation remains limited to development and
+tests; callers never branch on the operating system.
 """
 
 from __future__ import annotations

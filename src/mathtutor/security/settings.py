@@ -20,8 +20,12 @@ class MathTutorSecuritySettings(BaseModel):
     """Unified, testable security configuration for the MathTutor product app."""
 
     environment: Environment = "development"
-    # Production always requires auth; development may run without it only
-    # on loopback (see the startup gate).
+    # Packaged Electron is a production build but remains a single-user,
+    # loopback-only local application.  This explicit mode is the only
+    # production profile allowed to run without account authentication.
+    local_desktop: bool = False
+    # Network production requires auth. Development/test and the explicit
+    # packaged-desktop profile may omit it only on loopback (startup gate).
     allow_loopback_without_auth: bool = True
     # The only capabilities the student product may route to.
     allowed_capabilities: frozenset[str] = frozenset({"math_tutor"})
@@ -50,6 +54,7 @@ def load_math_tutor_security_settings() -> MathTutorSecuritySettings:
 
     - ``MATHTUTOR_ENVIRONMENT``: development | test | production
       (``DEEPTUTOR_ENVIRONMENT`` is a deprecated one-release upgrade alias)
+    - ``MATHTUTOR_DESKTOP``: explicit packaged local-desktop profile
     - ``MATHTUTOR_ALLOW_LOOPBACK_WITHOUT_AUTH``: "true"/"false"
     - ``MATHTUTOR_EXECUTION_SURFACES``: "true"/"false"
     - ``MATHTUTOR_HOST``: bind host for the loopback gate
@@ -63,6 +68,10 @@ def load_math_tutor_security_settings() -> MathTutorSecuritySettings:
         environment = "development"
     return MathTutorSecuritySettings(
         environment=environment,  # type: ignore[arg-type]
+        local_desktop=os.environ.get("MATHTUTOR_DESKTOP", "false")
+        .strip()
+        .lower()
+        in {"1", "true", "yes", "on"},
         allow_loopback_without_auth=os.environ.get(
             "MATHTUTOR_ALLOW_LOOPBACK_WITHOUT_AUTH", "true"
         ).strip().lower() != "false",

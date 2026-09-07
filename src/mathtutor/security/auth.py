@@ -35,6 +35,7 @@ class AuthProvider(Protocol):
     def is_first_user(self) -> bool: ...
     def profile(self, username: str) -> dict | None: ...
     def set_avatar(self, username: str, avatar: str) -> bool: ...
+    def local_principal(self) -> PrincipalScope: ...
 
 
 def resolve_auth_data_root(db_path: str | None = None) -> Path:
@@ -139,6 +140,32 @@ class LocalAuthProvider:
 
     def is_first_user(self) -> bool:
         return not self._load_users()
+
+    def local_principal(self) -> PrincipalScope:
+        """Resolve the owner for local desktop mode without asking for login.
+
+        Older MathTutor releases allowed exactly one self-registered local
+        account.  Reusing that account's stable id keeps all owner-scoped
+        SQLite learning data visible after upgrading to login-free desktop
+        mode.  Fresh installs use the fixed local identity.
+        """
+        users = self._load_users()
+        if len(users) == 1:
+            username, record = next(iter(users.items()))
+            user_id = str(record.get("id") or "").strip()
+            if user_id:
+                return PrincipalScope(
+                    user_id=user_id,
+                    username=username,
+                    role=str(record.get("role") or "admin"),
+                )
+        from mathtutor.security.scopes import DEV_STUDENT_ID, LOCAL_ADMIN_USERNAME
+
+        return PrincipalScope(
+            user_id=DEV_STUDENT_ID,
+            username=LOCAL_ADMIN_USERNAME,
+            role="admin",
+        )
 
     def register_first_user(self, username: str, password: str) -> PrincipalScope:
         username = username.strip()

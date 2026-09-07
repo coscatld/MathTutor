@@ -59,7 +59,7 @@ module.exports = {
   artifactName: "${productName}-${version}-${os}-${arch}.${ext}",
   afterPack: "scripts/after-pack-macos.cjs",
   asar: true,
-  files: ["main.js", "preload.js", "package.json"],
+  files: ["main.js", "preload.js", "runtime/**/*", "package.json"],
   extraResources: [
     {
       from: nextStandalone,

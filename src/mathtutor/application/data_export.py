@@ -59,6 +59,11 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
             "status",
             "retrieval_enabled",
             "size_bytes",
+            "page_count",
+            "chunk_count",
+            "image_count",
+            "empty_page_count",
+            "parse_warning",
             "created_at",
             "error",
         }

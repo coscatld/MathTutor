@@ -49,12 +49,13 @@ test("standalone auth client uses only the allowlisted v2 API", async () => {
   ]);
 });
 
-test("workspace is mounted behind the runtime auth boundary", () => {
+test("workspace is mounted behind local startup routing, not login-first UX", () => {
   const layout = readFileSync(
     path.resolve(process.cwd(), "app/(workspace)/math-tutor/layout.tsx"),
     "utf8",
   );
   const authClient = readFileSync(path.resolve(process.cwd(), "lib/auth.ts"), "utf8");
-  assert.match(layout, /<AuthBoundary>/);
+  assert.match(layout, /<StartupBoundary>/);
+  assert.doesNotMatch(layout, /AuthBoundary/);
   assert.doesNotMatch(authClient, /\/api\/v1\/auth\//);
 });

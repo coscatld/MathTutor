@@ -32,7 +32,24 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
-DocumentStatus = Literal["importing", "parsing", "ready", "failed", "deleted"]
+DocumentStatus = Literal[
+    "importing",
+    "parsing",
+    "ready",
+    "ready_with_warnings",
+    "needs_ocr",
+    "failed",
+    "deleted",
+]
+
+# Statuses whose chunks may enter retrieval (owner + retrieval_enabled +
+# not-deleted still apply at the data layer). Zero-text / OCR-needed
+# documents are never in this set.
+RETRIEVABLE_DOCUMENT_STATUSES: frozenset[str] = frozenset(
+    {"ready", "ready_with_warnings"}
+)
+
+ParseMode = Literal["text_layer", "empty", "mixed"]
 
 # Extension allowlist (fail closed): plain-text and PDF text extraction only.
 # No executable formats, no Office macro carriers, no archives in the MVP.
@@ -70,11 +87,22 @@ class ParsedBlock(BaseModel):
 
 
 class ParsedTextDocument(BaseModel):
-    """Parser output: extracted text blocks. Parsing never executes files."""
+    """Parser output: extracted text blocks plus extractability stats.
+
+    Parsing never executes files and never runs OCR. Empty pages of a
+    scanned PDF contribute to ``empty_pages`` / ``parse_mode`` rather than
+    to ``blocks`` (chunking is unchanged).
+    """
 
     model_config = ConfigDict(frozen=True)
 
     blocks: tuple[ParsedBlock, ...]
+    total_pages: int = Field(ge=0, default=0)
+    text_pages: int = Field(ge=0, default=0)
+    empty_pages: int = Field(ge=0, default=0)
+    extractable_chars: int = Field(ge=0, default=0)
+    parse_mode: ParseMode = "empty"
+    parse_warning: str = ""
 
     def full_text(self) -> str:
         return "\n".join(block.text for block in self.blocks)
@@ -96,14 +124,31 @@ class UserDocument(BaseModel):
     parser_version: str = ""
     retrieval_enabled: bool = True
     parse_error: str = ""
+    page_count: int = Field(ge=0, default=0)
+    chunk_count: int = Field(ge=0, default=0)
+    image_count: int = Field(ge=0, default=0)
+    empty_page_count: int = Field(ge=0, default=0)
+    parse_warning: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     deleted_at: datetime | None = None
 
+    def can_enable_retrieval(self) -> bool:
+        """True when the document has extractable chunks and a ready status."""
+        return (
+            self.deleted_at is None
+            and self.status in RETRIEVABLE_DOCUMENT_STATUSES
+            and self.chunk_count > 0
+        )
+
     def is_retrievable(self) -> bool:
+        # Status is the retrieval gate (needs_ocr / failed never match).
+        # chunk_count is enforced at ingest and on the enable-toggle; search
+        # still uses status so seeded test documents without a persisted
+        # count remain visible when they actually have chunks.
         return (
             self.retrieval_enabled
             and self.deleted_at is None
-            and self.status == "ready"
+            and self.status in RETRIEVABLE_DOCUMENT_STATUSES
         )
 
 
@@ -205,8 +250,10 @@ __all__ = [
     "DocumentStatus",
     "IndexBuildRecord",
     "MAX_DOCUMENT_BYTES",
+    "ParseMode",
     "ParsedBlock",
     "ParsedTextDocument",
+    "RETRIEVABLE_DOCUMENT_STATUSES",
     "RetrievedChunk",
     "UserDocument",
 ]

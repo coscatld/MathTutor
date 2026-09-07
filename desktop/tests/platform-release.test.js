@@ -13,6 +13,7 @@ const spec = JSON.parse(read("docs", "rc", "RC_PUBLIC_RELEASE_SMOKE.json"));
 const schema = JSON.parse(read("docs", "rc", "RC_PUBLIC_RELEASE_SMOKE_REPORT.schema.json"));
 const config = require(path.join(desktop, "electron-builder.config.cjs"));
 const main = read("desktop", "main.js");
+const runtimePaths = read("desktop", "runtime", "paths.js");
 const worker = read("src", "mathtutor", "infrastructure", "verifier_worker.py");
 const keychain = read("src", "mathtutor", "infrastructure", "keychain_secret_store.py");
 const desktopApi = read("src", "mathtutor", "api", "desktop_api.py");
@@ -76,9 +77,10 @@ test("NSIS and AppImage are the only configured Windows/Linux artifacts", () => 
 });
 
 test("packaged runtime relocation is explicit but target validation remains external", () => {
-  assert.match(main, /process\.platform === "win32"/);
-  assert.match(main, /"python-runtime", "python\.exe"/);
-  assert.match(main, /"python-runtime", "bin", "python"/);
+  assert.match(main, /platform: process\.platform/);
+  assert.match(runtimePaths, /platform === "win32"/);
+  assert.match(runtimePaths, /"python-runtime", "python\.exe"/);
+  assert.match(runtimePaths, /"python-runtime", "bin", "python"/);
   assert.match(main, /PYTHONPATH: IS_PACKAGED \? path\.join\(RESOURCES_DIR, "python-app"\)/);
   assert.match(main, /packaged self-contained import failed/);
   assert.match(windowsAdapter, /Relocated Python missing/);

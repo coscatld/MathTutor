@@ -572,6 +572,8 @@ async def test_put_settings_never_returns_key_and_stores_it() -> None:
         assert body["key_masked"] == desktop_api.mask_secret(SECRET)
         assert body["key_masked"].endswith("1234")
         assert body["preset_id"] == "openai"
+        assert body["is_configured"] is True
+        assert body["onboarding_completed"] is True
 
         # The key landed ONLY in the SecretStore.
         state = get_product_state()
@@ -589,9 +591,50 @@ async def test_get_settings_has_no_key_material() -> None:
             "model",
             "base_url",
             "is_configured",
+            "onboarding_completed",
+            "key_masked",
         }
         assert "api_key" not in response.text
         assert SECRET not in response.text
+
+
+async def test_skip_onboarding_persists_template_mode_across_restart(tmp_path) -> None:
+    db_path = tmp_path / "math_tutor.db"
+    reset_product_state()
+    with _client(db_path=str(db_path)) as client:
+        response = client.post(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings/onboarding/skip"
+        )
+        assert response.status_code == 200
+        assert response.json()["onboarding_completed"] is True
+
+    reset_product_state()
+    with _client(db_path=str(db_path)) as client:
+        settings = client.get(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings"
+        ).json()
+        assert settings["onboarding_completed"] is True
+        assert settings["is_configured"] is False
+
+
+async def test_remove_api_key_falls_back_without_deleting_learning_data() -> None:
+    reset_product_state()
+    with _client() as client:
+        saved = client.put(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings",
+            json={"preset_id": "openai", "api_key": SECRET},
+        )
+        assert saved.status_code == 200
+        removed = client.delete(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings/api-key"
+        )
+        assert removed.status_code == 200
+        assert removed.json()["is_configured"] is False
+        assert removed.json()["onboarding_completed"] is True
+        assert removed.json()["key_masked"] is None
+        assert await get_product_state().secret_store.get(
+            "generative.api_key.openai"
+        ) is None
 
 
 async def test_settings_custom_preset_requires_base_url() -> None:
@@ -753,6 +796,40 @@ def test_document_rejected_type_is_friendly() -> None:
         )
         assert response.status_code == 422
         assert "不支持的文件类型" in response.json()["detail"]
+
+
+def test_blank_pdf_import_is_not_ready() -> None:
+    from io import BytesIO
+
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    reset_product_state()
+    with _client() as client:
+        response = client.post(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/documents/import",
+            files={
+                "file": (
+                    "scan.pdf",
+                    buffer.getvalue(),
+                    "application/pdf",
+                )
+            },
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["status"] == "needs_ocr"
+        assert body["retrieval_enabled"] is False
+        assert body["chunk_count"] == 0
+        assert body["page_count"] == 1
+        assert body["error"]
+        assert "已就绪" not in body["error"]
+        assert "storage_ref" not in body
+        assert "parse_error" not in body
 
 
 def test_document_parse_failure_shows_friendly_error_only() -> None:

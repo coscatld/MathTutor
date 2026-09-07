@@ -6,8 +6,9 @@ boundary, never a UI concern):
 - owner scope: every query carries the owner; another student's document
   or chunk is structurally unreachable;
 - retrieval reads only see documents with ``retrieval_enabled`` AND no
-  ``deleted_at`` AND ``status == ready`` — user permission wins over the
-  Router (a disabled document is never returned to the assembler);
+  ``deleted_at`` AND a retrievable status (``ready`` /
+  ``ready_with_warnings``) — user permission wins over the Router (a
+  disabled or zero-text document is never returned to the assembler);
 - chunk TEXT is a fact (append/replace only through the ingestion
   pipeline); vectors are a derived projection the index manager replaces;
 - duplicate-import semantics: (student_id, content_hash) is unique.

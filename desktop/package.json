@@ -8,7 +8,7 @@
     "start": "electron .",
     "smoke": "electron . --smoke",
     "smoke-full": "electron . --smoke-full",
-    "test:distribution": "node --test tests/distribution.test.js",
+    "test:distribution": "node --test tests/distribution.test.js tests/runtime-paths.test.js tests/platform-release.test.js tests/package-surface.test.js",
     "smoke:packaged:mac": "node scripts/run-packaged-smoke.js",
     "manifest:mac": "node scripts/generate-macos-release-manifest.js",
     "package:mac:unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.config.cjs --mac dmg --arm64",

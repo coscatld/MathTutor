@@ -3,10 +3,9 @@
 import { BookOpen, BrainCircuit, FileText, GraduationCap, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import BootstrapStatus from "./BootstrapStatus";
 import PrivacyPanel from "./PrivacyPanel";
-import WelcomePanel from "./WelcomePanel";
 
 const NAV_ITEMS = [
   { href: "/math-tutor", label: "练习", icon: GraduationCap },
@@ -24,15 +23,12 @@ const NAV_ITEMS = [
  *
  * Additional surfaces hosted here (no page routes needed):
  *  - 我的数据 → PrivacyPanel dialog (profile/memory/documents/summary);
- *  - first-run → WelcomePanel dialog on the tutoring page (never forced,
- *    auto-dismisses once an AI provider is configured).
+ * First-run routing is owned by StartupBoundary and the dedicated provider
+ * onboarding page, not by a workspace modal.
  */
 export default function DesktopShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const [privacyOpen, setPrivacyOpen] = useState(false);
-  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
-
-  const dismissWelcome = useCallback(() => setWelcomeDismissed(true), []);
 
   const current = pathname.startsWith("/math-tutor/settings")
     ? "/math-tutor/settings"
@@ -43,8 +39,6 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
         : pathname.startsWith("/math-tutor/offers")
           ? "/math-tutor/offers"
           : "/math-tutor";
-
-  const showWelcome = !welcomeDismissed && pathname === "/math-tutor";
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
@@ -85,9 +79,6 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
 
       {/* Page content */}
       <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
-
-      {/* First-run welcome (never forced; auto-dismisses once configured). */}
-      {showWelcome ? <WelcomePanel onDismiss={dismissWelcome} /> : null}
 
       {/* Privacy dialog (profile / memory / documents / read-only summary). */}
       {privacyOpen ? <PrivacyPanel onClose={() => setPrivacyOpen(false)} /> : null}

@@ -7,7 +7,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import BootstrapStatus, { BootstrapStatusControl, isFinal } from "../features/math-tutor/desktop/components/BootstrapStatus";
 import BackupPanel, { RestoreConfirmDialog } from "../features/math-tutor/desktop/components/BackupPanel";
 import PrivacyPanel, { ConfirmableDelete, PrivacySummary } from "../features/math-tutor/desktop/components/PrivacyPanel";
-import WelcomePanel from "../features/math-tutor/desktop/components/WelcomePanel";
 import { ModelTestCard } from "../features/math-tutor/desktop/components/SettingsPanel";
 import {
   MODEL_ERROR_COPY,
@@ -250,23 +249,18 @@ test("PrivacyPanel: read-only profile, double-confirm delete surfaces, no master
 });
 
 // ---------------------------------------------------------------------------
-// WelcomePanel — first-run is never forced; key handled safely.
+// Provider onboarding — first-run is focused and key handled safely.
 // ---------------------------------------------------------------------------
 
-test("WelcomePanel: welcome dialog renders synchronously; skip is never blocked", () => {
-  const html = renderToStaticMarkup(<WelcomePanel onDismiss={() => undefined} />);
-  assert.ok(/role="dialog"/.test(html), "dialog surface");
-  assert.ok(html.includes("欢迎使用 MathTutor 数学辅导"), "welcome title");
-  assert.ok(html.includes("正在准备…"), "initial prepare state");
-  // The skip path must always exist and must never be gated behind config:
-  // assert both at source level (effects don't run in static render).
+test("ProviderOnboarding: dedicated page has focused copy and safe skip", () => {
   const source = fs.readFileSync(
-    path.resolve(process.cwd(), "features", "math-tutor", "desktop", "components", "WelcomePanel.tsx"),
+    path.resolve(process.cwd(), "features", "math-tutor", "desktop", "components", "ProviderOnboarding.tsx"),
     "utf8",
   );
-  const skipMatch = source.match(/<button[^>]*onClick=\{onDismiss\}[^>]*>\s*跳过，使用模板教学\s*<\/button>/s);
-  assert.ok(skipMatch, "skip button calls onDismiss directly");
-  assert.ok(!/disabled/.test(skipMatch?.[0] ?? ""), "skip button is never disabled");
+  assert.ok(source.includes("配置你的 AI 数学辅导模型"), "focused onboarding title");
+  assert.ok(source.includes("正在加载本地配置…"), "initial local-config state");
+  assert.ok(source.includes("暂时跳过，使用模板教学"), "skip remains available");
+  assert.ok(source.includes("skipProviderOnboarding()"), "skip is persisted by the backend");
   assert.ok(/type="password"/.test(source), "API key input is type=password");
 });
 

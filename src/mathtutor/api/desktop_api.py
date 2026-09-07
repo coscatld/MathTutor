@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
-import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -63,12 +62,11 @@ from mathtutor.application.desktop_files import (
     PickTransportUnavailableError,
     PickedFile,
 )
+from mathtutor.application.document_ingestion import DocumentBusyError
 from mathtutor.domain.documents import (
-    DocumentChunk,
     MAX_DOCUMENT_BYTES,
 )
 from mathtutor.domain.memory import MemoryType, PersonalMemoryNode
-from mathtutor.infrastructure.chunking import CHUNKER_VERSION, TextChunker
 from mathtutor.infrastructure.gateway_config import secret_key_name
 from mathtutor.infrastructure.generative_gateway import (
     GenerativeConfigError,
@@ -129,21 +127,8 @@ def _desktop_secret_store() -> SecretStore:
 
 
 def _gateway_config_service():
-    """Lazy construction over the product state (SUBAGENT A contract).
-
-    ``config_path`` lives beside the controlled storage root (the data dir):
-    ``<data_dir>/gateway.json`` — non-sensitive fields only (the key never
-    enters that file; GatewayConfigService enforces it).
-    """
-    from mathtutor.infrastructure.gateway_config import GatewayConfigService
-
-    state = get_product_state()
-    data_dir = state.document_storage.uploads_root().parent
-    return GatewayConfigService(
-        gateway=state.gateway,
-        secret_store=_desktop_secret_store(),
-        config_path=data_dir / "gateway.json",
-    )
+    """Return the process-wide non-sensitive provider configuration service."""
+    return get_product_state().gateway_config
 
 
 def _friendly_config_error(preset_id: str, base_url: str, model: str) -> str | None:
@@ -167,11 +152,23 @@ async def get_settings(
     """Current non-sensitive configuration (never a key value)."""
     service = _gateway_config_service()
     config = service.current_config()
+    preset_id = str(config.get("preset_id") or "")
+    has_api_key = await service.has_api_key()
+    masked: str | None = None
+    if has_api_key and preset_id:
+        try:
+            stored = await _desktop_secret_store().get(secret_key_name(preset_id))
+        except Exception:
+            stored = None
+        if stored:
+            masked = mask_secret(stored)
     return {
-        "preset_id": str(config.get("preset_id") or ""),
+        "preset_id": preset_id,
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
-        "is_configured": bool(service.is_configured()),
+        "is_configured": bool(preset_id and has_api_key),
+        "onboarding_completed": service.onboarding_completed(),
+        "key_masked": masked,
     }
 
 
@@ -206,6 +203,8 @@ async def put_settings(
     except GenerativeConfigError as error:
         raise HTTPException(status_code=422, detail="配置无效，请检查填写内容。") from error
 
+    get_product_state().refresh_model_writer()
+
     # Masked tail only — the response never carries the key value.
     store = _desktop_secret_store()
     masked: str | None = None
@@ -223,6 +222,42 @@ async def put_settings(
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
         "key_masked": masked,
+        "is_configured": bool(await service.has_api_key()),
+        "onboarding_completed": service.onboarding_completed(),
+    }
+
+
+@router.post("/settings/onboarding/skip")
+async def skip_provider_onboarding(
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    """Remember the explicit choice to continue in template teaching mode."""
+    service = _gateway_config_service()
+    service.mark_onboarding_completed()
+    return {"ok": True, "onboarding_completed": True}
+
+
+@router.delete("/settings/api-key")
+async def delete_api_key(
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    """Remove the OS-stored credential and immediately fall back to templates."""
+    service = _gateway_config_service()
+    try:
+        config = await service.remove_api_key()
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="系统凭据库暂时无法删除 API Key，请稍后再试。",
+        ) from error
+    get_product_state().refresh_model_writer()
+    return {
+        "preset_id": str(config.get("preset_id") or ""),
+        "model": str(config.get("model") or ""),
+        "base_url": str(config.get("base_url") or ""),
+        "is_configured": False,
+        "onboarding_completed": True,
+        "key_masked": None,
     }
 
 
@@ -382,6 +417,8 @@ async def _secret_store_check(state) -> tuple[str, str]:
 
 async def _gateway_check(state) -> tuple[str, str]:
     """DEGRADED-level: unconfigured gateway → template writer still works."""
+    if not await state.gateway_config.has_api_key():
+        return "degraded", "未配置模型提供商（可继续使用模板辅导与词汇检索）"
     roles = state.gateway.configured_roles()
     if not roles:
         return "degraded", "未配置模型提供商（可继续使用模板辅导与词汇检索）"
@@ -1017,11 +1054,17 @@ async def student_summary(
 def _project_document(doc) -> dict:
     """User-facing document projection — never storage/internal fields."""
     friendly_error = None
-    if doc.status == "failed":
+    if doc.status == "needs_ocr":
+        friendly_error = (
+            doc.parse_warning
+            or "未提取到文字层，可能是扫描件。当前版本不支持 OCR，无法用于检索。"
+        )
+    elif doc.status == "failed":
         if Path(doc.filename).suffix.lower() == ".pdf":
             friendly_error = "无法解析此 PDF，请确认它是文本型 PDF（非扫描图片）。"
         else:
             friendly_error = "无法解析此文件，请确认内容是纯文本格式。"
+    warning = doc.parse_warning or None
     return {
         "document_id": str(doc.document_id),
         "filename": doc.filename,
@@ -1029,6 +1072,11 @@ def _project_document(doc) -> dict:
         "status": doc.status,
         "retrieval_enabled": doc.retrieval_enabled,
         "size_bytes": doc.size_bytes,
+        "page_count": doc.page_count,
+        "chunk_count": doc.chunk_count,
+        "image_count": doc.image_count,
+        "empty_page_count": doc.empty_page_count,
+        "parse_warning": warning,
         "created_at": doc.created_at.isoformat(),
         "error": friendly_error,
     }
@@ -1143,51 +1191,12 @@ async def reparse_document(
     doc = await state.documents.get_document(owner.student_id, doc_uuid)
     if doc is None or doc.deleted_at is not None:
         raise HTTPException(status_code=404, detail="文档不存在。")
-    if doc.status not in {"ready", "failed"}:
-        raise HTTPException(status_code=409, detail="文档正在处理中，请稍后再试。")
-
-    from mathtutor.infrastructure.document_parser import LocalDocumentParser
-
-    storage = state.document_storage
-    repo = state.document_repository
-    parser = LocalDocumentParser()
-    chunker = TextChunker()
-    doc = await repo.update_document(
-        owner.student_id, doc.model_copy(update={"status": "parsing"})
-    )
-    if doc is None:
-        raise HTTPException(status_code=404, detail="文档不存在。")
     try:
-        parsed = await parser.parse(path=str(storage.resolve(doc.storage_ref)))
-        drafts = chunker.chunk(parsed.blocks)
-        chunks = [
-            DocumentChunk(
-                document_id=doc.document_id,
-                student_id=doc.student_id,
-                sequence=index,
-                page=draft["page"],
-                section=draft["section"],
-                text=draft["text"],
-                content_hash=hashlib.sha256(draft["text"].encode("utf-8")).hexdigest(),
-                metadata_json={},
-                chunker_version=CHUNKER_VERSION,
-            )
-            for index, draft in enumerate(drafts)
-        ]
-        await repo.replace_chunks(owner.student_id, doc.document_id, chunks)
-        doc = await repo.update_document(
-            owner.student_id,
-            doc.model_copy(
-                update={"status": "ready", "parser_version": parser.parser_version()}
-            ),
-        )
-    except Exception as error:
-        doc = await repo.update_document(
-            owner.student_id,
-            doc.model_copy(update={"status": "failed", "parse_error": str(error)[:500]}),
-        )
-    if doc is None:
-        raise HTTPException(status_code=404, detail="文档不存在。")
+        doc = await state.documents.reparse(owner.student_id, doc_uuid)
+    except DocumentBusyError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail="文档不存在。") from error
     return _project_document(doc)
 
 
