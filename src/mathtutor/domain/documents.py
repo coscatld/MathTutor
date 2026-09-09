@@ -51,6 +51,10 @@ RETRIEVABLE_DOCUMENT_STATUSES: frozenset[str] = frozenset(
 
 ParseMode = Literal["text_layer", "empty", "mixed"]
 
+# Lean parse IR (not a full math-role taxonomy). Chunking still reads
+# page/section/text; extra fields travel with the block for later stages.
+ParsedElementType = Literal["heading", "paragraph", "formula", "table", "figure"]
+
 # Extension allowlist (fail closed): plain-text and PDF text extraction only.
 # No executable formats, no Office macro carriers, no archives in the MVP.
 ALLOWED_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
@@ -77,13 +81,23 @@ DOCUMENT_RETENTION_DELETE_IMMEDIATELY = "delete_immediately"
 
 
 class ParsedBlock(BaseModel):
-    """One extracted text block (page-aware for PDFs)."""
+    """One lean parse-IR element (page-aware for PDFs).
+
+    ``section`` is the leaf of ``heading_path`` so the existing chunker can
+    keep using page/section/text without a rewrite.
+    """
 
     model_config = ConfigDict(frozen=True)
 
+    type: ParsedElementType = "paragraph"
     page: int | None = None
     section: str = ""
-    text: str
+    text: str = ""
+    heading_path: tuple[str, ...] = ()
+    latex: str | None = None
+    image_path: str | None = None
+    caption: str | None = None
+    ocr_text: str | None = None
 
 
 class ParsedTextDocument(BaseModel):
@@ -103,6 +117,7 @@ class ParsedTextDocument(BaseModel):
     extractable_chars: int = Field(ge=0, default=0)
     parse_mode: ParseMode = "empty"
     parse_warning: str = ""
+    image_count: int = Field(ge=0, default=0)
 
     def full_text(self) -> str:
         return "\n".join(block.text for block in self.blocks)
@@ -170,8 +185,14 @@ class DocumentChunk(BaseModel):
     section: str = ""
     text: str
     content_hash: str
+    chunk_type: str = "paragraph"
+    heading_path: tuple[str, ...] = ()
+    page_start: int | None = None
+    page_end: int | None = None
+    parent_chunk_id: UUID | None = None
     metadata_json: dict = {}
     chunker_version: str = ""
+    fts_text: str = ""
 
 
 class RetrievedChunk(BaseModel):
@@ -252,6 +273,7 @@ __all__ = [
     "MAX_DOCUMENT_BYTES",
     "ParseMode",
     "ParsedBlock",
+    "ParsedElementType",
     "ParsedTextDocument",
     "RETRIEVABLE_DOCUMENT_STATUSES",
     "RetrievedChunk",

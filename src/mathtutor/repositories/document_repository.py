@@ -48,6 +48,9 @@ from mathtutor.security.scopes import student_uuid
 # backend exists. Tuned so a strong lexical match still wins over a weak
 # semantic one — math terms are keyword-dense by nature.
 VECTOR_FUSION_WEIGHT = 0.5
+# FTS5 bm25 mapped to (0, 1]; lexical remains the primary term so a
+# missing embedding backend never blocks ranking.
+FTS_FUSION_WEIGHT = 0.5
 
 
 def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
@@ -297,17 +300,26 @@ class InMemoryDocumentRepository:
         ]
         tokens = list(query_tokens)
         hits: list[RetrievedChunk] = []
+        used_any_vector = False
         for doc in visible:
             for chunk in self._chunks.get(doc.document_id, []):
-                lexical = _lexical_fraction(chunk.text, tokens)
+                blob = " ".join(part for part in (chunk.text, chunk.fts_text) if part)
+                lexical = _lexical_fraction(blob, tokens)
                 if lexical <= 0.0 and vector is None:
                     continue  # lexical-only mode: unmatched chunks are invisible
                 vector_score: float | None = None
                 if vector is not None:
                     stored = self._vectors.get(doc.document_id, {}).get(chunk.chunk_id)
                     if stored is not None:
-                        _, stored_vector = stored
-                        vector_score = cosine_similarity(vector, stored_vector)
+                        descriptor, stored_vector = stored
+                        if (
+                            descriptor.backend_id == embedding_backend_id
+                            and descriptor.dimension == len(vector)
+                        ):
+                            vector_score = cosine_similarity(vector, stored_vector)
+                            used_any_vector = True
+                if lexical <= 0.0 and vector_score is None:
+                    continue
                 hits.append(
                     RetrievedChunk(
                         chunk=chunk,
@@ -322,10 +334,10 @@ class InMemoryDocumentRepository:
         return DocumentQueryResult(
             query=query,
             hits=tuple(hits[:limit]),
-            vector_used=vector is not None,
+            vector_used=used_any_vector,
             embedding_backend_id=embedding_backend_id,
             index_version=index_version,
-            degraded=vector is None,
+            degraded=not used_any_vector,
         )
 
 
@@ -336,6 +348,7 @@ def _lexical_fraction(text: str, query_tokens: Sequence[str]) -> float:
 __all__ = [
     "DocumentRepository",
     "InMemoryDocumentRepository",
+    "FTS_FUSION_WEIGHT",
     "VECTOR_FUSION_WEIGHT",
     "cosine_similarity",
     "fuse_retrieval_scores",

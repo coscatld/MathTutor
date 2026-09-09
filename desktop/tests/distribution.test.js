@@ -38,6 +38,16 @@ test("platform targets stay intentionally narrow", () => {
   assert.equal(config.linux.target[0].target, "AppImage");
 });
 
+test("macOS package uses the MathTutor icon and a background-only frontend runtime", () => {
+  assert.equal(config.mac.icon, "build/icon.icns");
+  assert.equal(fs.existsSync(path.join(desktop, config.mac.icon)), true);
+  assert.match(main, /utilityProcess\.fork\(runner, \[server\]/);
+  assert.match(main, /serviceName: "MathTutor Web Runtime"/);
+  assert.match(main, /if \(IS_PACKAGED\) \{\s*startPackagedFrontend/);
+  const runner = fs.readFileSync(path.join(desktop, "runtime", "frontend-runner.js"), "utf8");
+  assert.match(runner, /Module\._initPaths\(\)/);
+});
+
 test("macOS hardened-runtime entitlements stay minimal", () => {
   const entitlements = fs.readFileSync(path.join(desktop, "build", "entitlements.mac.plist"), "utf8");
   assert.match(entitlements, /com\.apple\.security\.cs\.allow-jit/);

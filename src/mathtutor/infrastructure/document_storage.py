@@ -21,6 +21,7 @@ the path embeds both ids (both UUID strings, both validated).
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from uuid import UUID
 
@@ -69,6 +70,17 @@ class DocumentStorage:
     def uploads_root(self) -> Path:
         return self._uploads_root
 
+    def document_dir(self, student_id: UUID, document_id: UUID) -> Path:
+        """Directory that holds one document file plus its ``assets/``."""
+        placeholder = storage_ref_for(student_id, document_id, "_placeholder")
+        return self.resolve(placeholder).parent
+
+    def assets_dir(self, student_id: UUID, document_id: UUID) -> Path:
+        return self.document_dir(student_id, document_id) / "assets"
+
+    def assets_ref_prefix(self, student_id: UUID, document_id: UUID) -> str:
+        return f"{UPLOADS_DIRNAME}/{student_id}/{document_id}/assets"
+
     def ref_for(self, student_id: UUID, document_id: UUID, filename: str) -> str:
         safe = sanitize_filename(filename)
         if not safe:
@@ -102,6 +114,9 @@ class DocumentStorage:
     async def remove(self, storage_ref: str) -> bool:
         """Delete the file; prune empty owner dirs. Returns whether it existed."""
         path = self.resolve(storage_ref)
+        assets = path.parent / "assets"
+        if assets.is_dir():
+            shutil.rmtree(assets, ignore_errors=True)
         if not path.exists():
             return False
         path.unlink()

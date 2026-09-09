@@ -143,6 +143,13 @@ def create_math_tutor_app(
     app.add_middleware(_MaintenanceGateMiddleware)
 
     @app.on_event("startup")
+    async def _resolve_embedding_settings() -> None:
+        # Cloud credentials are async-resolved from the OS key store. A
+        # missing/unavailable key leaves the runtime empty and lexical-ready.
+        state = get_product_state(None if db_path is None else Path(db_path))
+        await state.refresh_embedding_runtime()
+
+    @app.on_event("startup")
     async def _start_verifier_worker() -> None:
         """Production hard gate: the isolated verifier must be healthy.
 

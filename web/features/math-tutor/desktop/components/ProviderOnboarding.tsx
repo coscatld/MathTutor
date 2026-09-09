@@ -45,6 +45,7 @@ export default function ProviderOnboarding() {
       settings.preset_id === presetId &&
       settings.key_masked,
   );
+  const requiresApiKey = currentPreset?.requires_api_key !== false;
 
   useEffect(() => {
     (async () => {
@@ -77,7 +78,7 @@ export default function ProviderOnboarding() {
       setError("请选择一个模型服务商。");
       return;
     }
-    if (!apiKey.trim() && !keepingExistingKey) {
+    if (requiresApiKey && !apiKey.trim() && !keepingExistingKey) {
       setError("请填写 API Key，或选择“暂时跳过”使用模板教学。");
       return;
     }
@@ -90,8 +91,8 @@ export default function ProviderOnboarding() {
       await saveSettings({
         preset_id: currentPreset.preset_id,
         api_key: apiKey.trim() || undefined,
-        base_url: currentPreset.custom ? baseUrl.trim() : undefined,
-        model: currentPreset.custom ? model.trim() : undefined,
+        base_url: currentPreset.editable_base_url ? baseUrl.trim() : undefined,
+        model: model.trim() || undefined,
       });
       setApiKey("");
       router.replace("/math-tutor");
@@ -165,7 +166,7 @@ export default function ProviderOnboarding() {
                 配置你的 AI 数学辅导模型
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[#6c7280]">
-                选择模型服务商并填写 API Key。学习记录、资料和个人记忆始终保存在这台电脑上。
+                选择云端服务商并填写 API Key，或使用本机 Ollama。学习记录、资料和个人记忆始终保存在这台电脑上。
               </p>
             </div>
           </div>
@@ -179,7 +180,7 @@ export default function ProviderOnboarding() {
             <form onSubmit={handleSave} className="mt-8 space-y-6" aria-label="AI 模型首次配置">
               <fieldset>
                 <legend className="text-sm font-semibold text-[#293247]">选择模型服务商</legend>
-                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
                   {presets.map((preset) => {
                     const selected = preset.preset_id === presetId;
                     return (
@@ -190,8 +191,11 @@ export default function ProviderOnboarding() {
                         aria-checked={selected}
                         onClick={() => {
                           setPresetId(preset.preset_id);
+                          const profile = settings?.provider_configs?.[preset.preset_id];
+                          setBaseUrl(profile?.base_url ?? preset.base_url ?? "");
+                          setModel(profile?.model ?? preset.default_model ?? "");
                           setError("");
-                          if (preset.custom) setAdvancedOpen(true);
+                          if (preset.custom || preset.local) setAdvancedOpen(true);
                         }}
                         className={`relative min-h-[54px] rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] ${
                           selected
@@ -209,7 +213,7 @@ export default function ProviderOnboarding() {
                 </div>
               </fieldset>
 
-              <div>
+              {requiresApiKey ? <div>
                 <label htmlFor="onboarding-api-key" className="text-sm font-semibold text-[#293247]">
                   API Key
                 </label>
@@ -230,7 +234,7 @@ export default function ProviderOnboarding() {
                   <LockKeyhole className="h-3.5 w-3.5 text-[#2563EB]" aria-hidden="true" />
                   API Key 使用系统安全凭据存储，不会写入学习数据库或浏览器存储。
                 </p>
-              </div>
+              </div> : <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Ollama 在本机运行，不需要 API Key。</p>}
 
               <div>
                 <button
@@ -250,7 +254,7 @@ export default function ProviderOnboarding() {
                         type="url"
                         value={baseUrl}
                         onChange={(event) => setBaseUrl(event.target.value)}
-                        disabled={!currentPreset?.custom}
+                        disabled={!currentPreset?.editable_base_url}
                         placeholder="https://api.example.com/v1"
                         className="mt-1.5 h-11 w-full rounded-xl border border-[#dfe2e8] bg-white px-3 font-normal outline-none focus:border-[#2563EB] disabled:opacity-55"
                       />
@@ -261,7 +265,6 @@ export default function ProviderOnboarding() {
                         type="text"
                         value={model}
                         onChange={(event) => setModel(event.target.value)}
-                        disabled={!currentPreset?.custom}
                         placeholder="留空则自动发现"
                         className="mt-1.5 h-11 w-full rounded-xl border border-[#dfe2e8] bg-white px-3 font-normal outline-none focus:border-[#2563EB] disabled:opacity-55"
                       />

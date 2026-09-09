@@ -28,6 +28,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from mathtutor.application.context_assembler import ContextAssembler
+from mathtutor.application.retrieval_query import build_retrieval_query
 from mathtutor.domain.assembled_context import (
     AssembledContext,
     ContextProvenance,
@@ -160,15 +161,18 @@ class AdaptivePracticeService:
         target_concept_ids: Sequence[str] = (),
         count: int = 1,
         query_hint: str = "",
+        problem_text: str = "",
+        misconception_ids: Sequence[str] = (),
     ) -> list[CandidateExercise]:
         """Assemble the REQUIRED+OPTIONAL context and hand it to the generator."""
-        node_ids = list(target_skill_ids) + list(target_concept_ids)
-        hint = query_hint or " ".join(node_ids)
-        assembled = await self._assembler.assemble(
-            student_id=student_id,
+        assembled = await self.assemble_for_intent(
+            student_id,
             intent=RetrievalIntent.GENERATE_PRACTICE,
-            query_hint=hint,
-            node_ids=node_ids or None,
+            skill_ids=target_skill_ids,
+            concept_ids=target_concept_ids,
+            query_hint=query_hint,
+            problem_text=problem_text,
+            misconception_ids=misconception_ids,
         )
         context = practice_context_from_assembled(
             assembled,
@@ -177,6 +181,36 @@ class AdaptivePracticeService:
             desired_difficulty=self._desired_difficulty,
         )
         return await self._generator.generate(context, count=count)
+
+    async def assemble_for_intent(
+        self,
+        student_id: str,
+        *,
+        intent: RetrievalIntent,
+        skill_ids: Sequence[str] = (),
+        concept_ids: Sequence[str] = (),
+        query_hint: str = "",
+        problem_text: str = "",
+        misconception_ids: Sequence[str] = (),
+    ) -> AssembledContext:
+        """Build the Chinese retrieval query and run the assembler.
+
+        Skill codes stay on ``node_ids`` (curriculum filter). The lexical
+        query is titles + aliases + the student's problem / misconceptions.
+        """
+        node_ids = list(skill_ids) + list(concept_ids)
+        hint = query_hint.strip() or build_retrieval_query(
+            skill_ids=skill_ids,
+            concept_ids=concept_ids,
+            problem_text=problem_text,
+            misconception_ids=misconception_ids,
+        )
+        return await self._assembler.assemble(
+            student_id=student_id,
+            intent=intent,
+            query_hint=hint,
+            node_ids=node_ids or None,
+        )
 
     async def prepare_offer(
         self,
@@ -187,6 +221,9 @@ class AdaptivePracticeService:
         target_concept_ids: Sequence[str] = (),
         count: int = 1,
         ttl: "Any | None" = None,
+        problem_text: str = "",
+        misconception_ids: Sequence[str] = (),
+        query_hint: str = "",
     ) -> Any:
         """Prepare ONE ACTIVE practice offer (§7.5).
 
@@ -218,6 +255,9 @@ class AdaptivePracticeService:
             target_skill_ids=target_skill_ids,
             target_concept_ids=target_concept_ids,
             count=count,
+            query_hint=query_hint,
+            problem_text=problem_text,
+            misconception_ids=misconception_ids,
         )
         if not candidates:
             raise PracticeOfferError("无法生成候选练习题")
@@ -349,9 +389,7 @@ def practice_context_from_assembled(
             )
         )
 
-    document_context: DocumentContextSelection | None = (
-        assembled.user_documents[0] if assembled.user_documents else None
-    )
+    document_context = _merged_document_context(assembled.user_documents)
 
     return PracticeGenerationContext(
         student_id=assembled.student_id,
@@ -365,6 +403,27 @@ def practice_context_from_assembled(
         personal_preferences=preferences,
         document_context=document_context,
         provenance=assembled.provenance,
+    )
+
+
+def _merged_document_context(
+    selections: tuple[DocumentContextSelection, ...],
+) -> DocumentContextSelection | None:
+    """Flatten assembler selections; keep filename/page/sequence/score on chunks."""
+    if not selections:
+        return None
+    chunks = []
+    for selection in selections:
+        for chunk in selection.chunks:
+            filename = chunk.filename or selection.filename
+            chunks.append(
+                chunk if chunk.filename == filename else chunk.model_copy(update={"filename": filename})
+            )
+    first = selections[0]
+    return DocumentContextSelection(
+        document_id=first.document_id,
+        filename=first.filename,
+        chunks=tuple(chunks),
     )
 
 

@@ -843,3 +843,24 @@ body[data-picker-open] .dt-mark-pulse {
     animation: none !important;
   }
 }
+
+/* Shared user/Tutor Markdown core; role colors inherit from the bubble. */
+.markdown-message { overflow-wrap: anywhere; }
+.markdown-message > :first-child { margin-top: 0; }
+.markdown-message > :last-child { margin-bottom: 0; }
+.markdown-message p, .markdown-message pre, .markdown-message blockquote,
+.markdown-message ul, .markdown-message ol { margin: .65em 0; }
+.markdown-message h1, .markdown-message h2, .markdown-message h3 { font-weight: 650; margin: .9em 0 .4em; line-height: 1.35; }
+.markdown-message h1 { font-size: 1.35em; }
+.markdown-message h2 { font-size: 1.2em; }
+.markdown-message h3 { font-size: 1.1em; }
+.markdown-message ul { list-style: disc; padding-left: 1.5em; }
+.markdown-message ol { list-style: decimal; padding-left: 1.5em; }
+.markdown-message blockquote { border-left: 3px solid currentColor; padding-left: .8em; opacity: .85; }
+.markdown-message a { text-decoration: underline; text-underline-offset: 3px; }
+.markdown-message code { font-size: .9em; background: rgb(127 127 127 / .13); padding: .1em .25em; border-radius: 4px; }
+.markdown-message pre { overflow-x: auto; padding: .8em; background: rgb(127 127 127 / .1); border-radius: 8px; }
+.markdown-message pre code { padding: 0; background: transparent; }
+.markdown-message .katex-display { overflow-x: auto; overflow-y: hidden; padding: .25em 0; }
+.markdown-message table { display: block; overflow-x: auto; border-collapse: collapse; margin: .8em 0; }
+.markdown-message th, .markdown-message td { border: 1px solid rgb(127 127 127 / .35); padding: .35em .65em; }

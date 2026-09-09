@@ -2,6 +2,9 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { normalizeMath } from "./math-normalization";
 
 export interface MarkdownRendererProps {
   content: string;
@@ -15,10 +18,10 @@ export interface MarkdownRendererProps {
 }
 
 /** Narrow standalone renderer for the MathTutor student surface. */
-export default function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
+export default function MarkdownRenderer({ content, className = "", enableMath = true }: MarkdownRendererProps) {
   return (
-    <div className={className}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    <div className={`markdown-message ${className}`}>
+      <ReactMarkdown skipHtml remarkPlugins={enableMath ? [remarkGfm, remarkMath] : [remarkGfm]} rehypePlugins={enableMath ? [[rehypeKatex, { strict: false, trust: false, throwOnError: false }]] : []}>{enableMath ? normalizeMath(content) : content}</ReactMarkdown>
     </div>
   );
 }

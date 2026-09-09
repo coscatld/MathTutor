@@ -40,7 +40,7 @@ const STATUS_NOTES: Record<ConnectionStatus, string> = {
   error: "无法连接辅导服务",
 };
 
-export function useMathTutorSession() {
+export function useMathTutorSession(explicitSessionId?: string) {
   // Child-cycle navigation support: an explicit ?session= query param opens
   // that server session instead of a fresh one (used by practice-offer
   // accepts to jump straight into the child cycle view).
@@ -49,13 +49,14 @@ export function useMathTutorSession() {
       ? new URLSearchParams(window.location.search).get("session")
       : null;
   const sessionIdRef = useRef<string>(
-    initialSessionId && initialSessionId.trim() ? initialSessionId.trim() : makeSessionId(),
+    explicitSessionId?.trim() || (initialSessionId && initialSessionId.trim() ? initialSessionId.trim() : makeSessionId()),
   );
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const manuallyClosedRef = useRef(false);
   const resyncInFlightRef = useRef(false);
+  const sendInFlightRef = useRef(false);
 
   const [state, dispatch] = useReducer(
     mathTutorReducer,
@@ -82,11 +83,13 @@ export function useMathTutorSession() {
   const resync = useCallback(async (): Promise<boolean> => {
     if (resyncInFlightRef.current) return false;
     resyncInFlightRef.current = true;
+    const requestedSession = sessionIdRef.current;
     try {
       const res = await apiFetch(
-        apiUrl(`/api/v2/math-tutor/sessions/${encodeURIComponent(sessionIdRef.current)}`),
+        apiUrl(`/api/v2/math-tutor/sessions/${encodeURIComponent(requestedSession)}`),
         { skipAuthRedirect: true },
       );
+      if (requestedSession !== sessionIdRef.current || sendInFlightRef.current) return false;
       if (res.status === 401) {
         dispatch({
           type: "connection",
@@ -112,6 +115,7 @@ export function useMathTutorSession() {
         return false;
       }
       const summary = (await res.json()) as SessionSummary;
+      if (requestedSession !== sessionIdRef.current || sendInFlightRef.current) return false;
       dispatch({ type: "restore", summary });
       return true;
     } catch {
@@ -180,11 +184,18 @@ export function useMathTutorSession() {
         return; // ignore malformed frames — the server contract is JSON
       }
       const frame = projectStudentFrame(raw as never);
-      if (!frame) return;
+      if (!frame || (frame.payload.conversation_id && frame.payload.conversation_id !== sessionIdRef.current)) return;
       dispatch({ type: "frame", frame });
+      if (["turn_end", "turn_error", "assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)) {
+        sendInFlightRef.current = false;
+      }
+      if (frame.event_type === "turn_end") {
+        window.dispatchEvent(new Event("mathtutor-conversations-changed"));
+      }
     };
 
     ws.onclose = () => {
+      sendInFlightRef.current = false;
       if (wsRef.current === ws) wsRef.current = null;
       scheduleReconnectRef.current();
     };
@@ -207,14 +218,24 @@ export function useMathTutorSession() {
         });
         return false;
       }
+      if (sendInFlightRef.current && command !== "cancel_turn") {
+        return false;
+      }
+      sendInFlightRef.current = true;
       const envelope = buildEnvelope(command, payload, sessionIdRef.current, {
         idempotencyKey: makeSessionId(),
         // Optimistic concurrency: the server rejects commands that race ahead
         // of the version the client has seen.
         expectedCycleVersion: stateRef.current.seenVersion,
       });
-      ws.send(envelope);
-      dispatch({ type: "command_sent", command });
+      try {
+        ws.send(envelope);
+      } catch {
+        sendInFlightRef.current = false;
+        return false;
+      }
+      const visibleText = payload.text || payload.answer || ({ request_hint: "给我一点提示", request_explanation: "讲解这个知识点", request_example: "给我一个类似例子", request_solution: "查看完整答案" } as Record<string, string>)[command];
+      dispatch({ type: "command_sent", command, text: visibleText });
       return true;
     },
     [],
@@ -223,6 +244,7 @@ export function useMathTutorSession() {
   /** Start a brand-new tutoring problem (fresh client session id). */
   const newProblem = useCallback(() => {
     sessionIdRef.current = makeSessionId();
+    sendInFlightRef.current = false;
     dispatch({ type: "new_session", sessionId: sessionIdRef.current });
     void resync();
   }, [resync]);

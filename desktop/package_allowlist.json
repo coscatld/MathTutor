@@ -88,7 +88,21 @@
       "openai",
       "openai-*.dist-info",
       "perplexity",
-      "perplexityai-*.dist-info"
+      "perplexityai-*.dist-info",
+      "torch",
+      "torch-*.dist-info",
+      "transformers",
+      "transformers-*.dist-info",
+      "sentence_transformers",
+      "sentence_transformers-*.dist-info",
+      "modelscope",
+      "modelscope-*.dist-info",
+      "scipy",
+      "scipy-*.dist-info",
+      "sklearn",
+      "scikit_learn-*.dist-info",
+      "huggingface_hub",
+      "huggingface_hub-*.dist-info"
     ]
   },
   "web": {

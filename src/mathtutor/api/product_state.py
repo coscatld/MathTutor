@@ -15,9 +15,9 @@ Construction rules:
 - the generative gateway is built over the SecretStore; NO API key ever
   appears in this module (keys live in the store — OS credential store
   in the shipped desktop app);
-- the embedding runtime starts WITHOUT a backend (distribution strategy
-  DEFERRED): documents still import/parse/search lexically; vector
-  indexing is optional and best-effort;
+- the embedding runtime starts WITHOUT a backend; an explicitly enabled,
+  complete local/cloud setting may attach one later. Documents always retain
+  lexical retrieval and vector indexing remains optional/best-effort;
 - SQLite mode wires the knowledge repositories to the same database;
   in-memory mode keeps process-local implementations;
 - the ContextAssembler is the ONLY path from these repositories to LLM
@@ -55,7 +55,7 @@ from mathtutor.domain.retrieval_policy import RetrievalSource
 from mathtutor.infrastructure.document_storage import DocumentStorage
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
 from mathtutor.infrastructure.gateway_config import GatewayConfigService, build_tutor_writer
-from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway
+from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway, ModelRole
 from mathtutor.infrastructure.secret_store import (
     InMemorySecretStore,
     SecretStore,
@@ -63,6 +63,7 @@ from mathtutor.infrastructure.secret_store import (
 from mathtutor.pedagogy.writer_settings import (
     load_math_tutor_writer_settings,
 )
+from mathtutor.infrastructure.tutor_chat import TutorChatResponder
 from mathtutor.repositories.document_repository import InMemoryDocumentRepository
 from mathtutor.repositories.memory_repository import InMemoryMemoryRepository
 from mathtutor.repositories.session_store import (
@@ -71,7 +72,7 @@ from mathtutor.repositories.session_store import (
 )
 
 
-def _build_writer(gateway: GenerativeModelGateway):
+def _build_writer(gateway: GenerativeModelGateway, personality_instruction: str = ""):
     """LLM writer through the generative gateway; template otherwise.
 
     Fail-closed (Phase 5 cutover): the writer is built only when the
@@ -81,6 +82,10 @@ def _build_writer(gateway: GenerativeModelGateway):
     writer (model problems can never break the teaching flow, Phase 3 A3).
     """
     settings = load_math_tutor_writer_settings()
+    provider = gateway.provider_for(ModelRole.TUTOR_WRITER)
+    if provider is not None and provider.model:
+        settings = settings.model_copy(update={"enabled": True, "model": provider.model})
+    settings = settings.model_copy(update={"personality_instruction": personality_instruction})
     return build_tutor_writer(gateway, settings)
 
 
@@ -216,8 +221,8 @@ class ProductState:
         # resolved through it (TUTOR_WRITER role; fail-closed template).
         self.secret_store: SecretStore = secret_store or _default_secret_store()
         self.gateway = GenerativeModelGateway(self.secret_store)
-        # No embedding backend by default: distribution strategy DEFERRED.
-        # Documents stay fully usable (lexical); indexing is best-effort.
+        # No embedding backend by default. User settings may replace it only
+        # after an explicitly selected local/cloud configuration is ready.
         self.embedding_runtime = embedding_runtime or EmbeddingRuntime()
         # Durable/product mode uses one killable verifier process.  The
         # in-process backend is an explicit development/test profile only;
@@ -262,6 +267,7 @@ class ProductState:
                 SQLitePracticeRepository,
             )
             from mathtutor.repositories.uow import MathTutorUow
+            from mathtutor.repositories.conversation_repository import SQLiteConversationRepository
 
             # The UoW wakes the resident outbox relay after every committed
             # transaction (best-effort accelerator; the loop also polls).
@@ -272,6 +278,7 @@ class ProductState:
             self.document_repository = SQLiteDocumentRepository(engine)
             self.practice_repository = SQLitePracticeRepository(self.uow)
             self.curriculum_repository = SQLiteCurriculumRepository(self.uow)
+            self.conversations = SQLiteConversationRepository(engine)
         else:
             from mathtutor.repositories.practice_repository import (
                 InMemoryPracticeRepository,
@@ -279,12 +286,14 @@ class ProductState:
             from mathtutor.repositories.sqlite_curriculum import (
                 InMemoryCurriculumRepository,
             )
+            from mathtutor.repositories.conversation_repository import InMemoryConversationRepository
 
             self.uow = None
             self.memory_repository = InMemoryMemoryRepository()
             self.document_repository = InMemoryDocumentRepository()
             self.practice_repository = InMemoryPracticeRepository()
             self.curriculum_repository = InMemoryCurriculumRepository()
+            self.conversations = InMemoryConversationRepository()
 
         # Phase 5 verified-release catalog: offers/accepts go through this
         # repository ONLY (the store's accept transaction re-validates the
@@ -336,6 +345,16 @@ class ProductState:
             secret_store=self.secret_store,
             config_path=Path(data_dir) / "gateway.json",
         )
+        from mathtutor.infrastructure.embedding_config import EmbeddingConfigService
+
+        self.embedding_config = EmbeddingConfigService(
+            data_dir=Path(data_dir),
+            secret_store=self.secret_store,
+            runtime=self.embedding_runtime,
+        )
+        from mathtutor.infrastructure.tutor_preferences import TutorPreferenceService
+
+        self.tutor_preferences = TutorPreferenceService(Path(data_dir) / "tutor.json")
 
         # Phase 6 (round 2): backup/restore surface. SQLite-only (the file
         # is the unit of backup). Policy: manual mode — the desktop UI
@@ -389,9 +408,12 @@ class ProductState:
         self.controller = MathTutorController(
             store=self.store,
             service=service,
-            writer=_build_writer(self.gateway),
+            writer=_build_writer(self.gateway, self.tutor_preferences.instruction()),
             practice_repository=self.practice_repository,
             practice_service=self.adaptive_practice,
+            chat_responder=TutorChatResponder(
+                self.gateway, self.tutor_preferences.instruction()
+            ),
         )
 
     @property
@@ -401,7 +423,16 @@ class ProductState:
 
     def refresh_model_writer(self) -> None:
         """Rebind the tutor writer after provider credentials change."""
-        self.controller.writer = _build_writer(self.gateway)
+        self.controller.writer = _build_writer(
+            self.gateway, self.tutor_preferences.instruction()
+        )
+        self.controller.chat_responder = TutorChatResponder(
+            self.gateway, self.tutor_preferences.instruction()
+        )
+
+    async def refresh_embedding_runtime(self) -> None:
+        """Resolve the opt-in embedding backend from persisted settings."""
+        await self.embedding_config.refresh_runtime()
 
     @property
     def data_lifecycle(self) -> DataLifecycleService:

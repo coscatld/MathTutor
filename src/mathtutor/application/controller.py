@@ -1,7 +1,7 @@
 """MathTutor-owned controller — the single student-facing business entry.
 
-Command envelope (§13.2) arrives as the user message (JSON; plain text is
-accepted as a ``submit_problem`` shorthand):
+Command envelope (§13.2) arrives as the user message. Free text enters an
+intent boundary first; only concrete math input reaches ``submit_problem``:
 
 .. code-block:: json
 
@@ -29,6 +29,7 @@ The controller has no tool/capability/runtime surface.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
@@ -43,6 +44,7 @@ from mathtutor.application.state_machine import (
     CycleCommand,
     CycleState,
     InvalidTransitionError,
+    STUDENT_TRANSITION_FAILURE,
     TutoringSession,
     VersionConflictError,
     allowed_next_commands,
@@ -66,6 +68,20 @@ from mathtutor.pedagogy.stage_policy import PRIMARY_POLICY, StagePolicy
 from mathtutor.pedagogy.tutor_writer import (
     PublicProblemView,
     TemplateTutorWriter,
+)
+from mathtutor.application.constraint_layer import (
+    ConstraintResult,
+    ConstraintStatus,
+    evaluate_constraints,
+)
+from mathtutor.application.message_intent import (
+    ConversationIntent,
+    classify_user_message,
+    fallback_tutor_reply,
+)
+from mathtutor.application.message_projection import (
+    project_assistant_message,
+    project_turn_error,
 )
 from mathtutor.repositories.session_store import (
     InMemorySessionStore,
@@ -96,6 +112,8 @@ USER_COMMANDS: dict[str, CycleCommand] = {
 }
 
 _STUDENT_COMMAND_VALUES = frozenset(c.value for c in USER_COMMANDS.values())
+SEND_MESSAGE_COMMAND = "send_message"
+logger = logging.getLogger(__name__)
 
 
 def student_allowed_inputs(state: CycleState) -> list[str]:
@@ -177,6 +195,7 @@ class MathTutorRequest:
     session_id: str
     user_message: str
     owner: StudentOwnerScope
+    conversation_messages: tuple[dict[str, Any], ...] = ()
 
 
 class MathTutorEventType(str, Enum):
@@ -229,7 +248,7 @@ class MathTutorController:
         name="math_tutor",
         description=(
             "K12 数学辅导：支持整数/分数运算、多项式化简、一元一次/二次方程。"
-            "确定性解析-求解-验证管线，不支持通用聊天。"
+            "普通对话走生成模型；具体题目走确定性解析-求解-验证管线。"
         ),
         stages=(
             "parse",
@@ -253,6 +272,7 @@ class MathTutorController:
         guard: TutorOutputGuard | None = None,
         practice_repository: Any | None = None,
         practice_service: Any | None = None,  # AdaptivePracticeService | None
+        chat_responder: Any | None = None,
     ) -> None:
         self.service = service or MathTutorApplicationService()
         self.sessions: SessionStoreProtocol = store or InMemorySessionStore()
@@ -283,6 +303,7 @@ class MathTutorController:
         self.projector = projector or SolutionDisclosureProjector()
         self.writer = writer or TemplateTutorWriter()
         self.guard = guard or TutorOutputGuard()
+        self.chat_responder = chat_responder
 
     # ------------------------------------------------------------- run entry
 
@@ -291,31 +312,33 @@ class MathTutorController:
 
         The auth layer has already resolved a trusted owner.  The controller
         never consults process-global auth context and never accepts identity
-        fields from the client envelope.
+        fields from the client envelope. Free-text ``send_message`` is
+        classified before any math parser or cycle command is applied.
         """
         owner = request.owner
-        # READ phase: load the persisted cycle snapshot (or create the
-        # initial row) — one short transaction, then compute in memory.
+        try:
+            command, envelope = _parse_envelope(request.user_message)
+        except ValueError as exc:
+            await stream.error(project_turn_error(str(exc)), source=self.manifest.name)
+            return
+
         session = await self.sessions.load(owner.student_id, request.session_id)
+        payload = envelope.get("payload") or {}
+        if command == SEND_MESSAGE_COMMAND:
+            await self._route_send_message(request, session, payload, envelope, stream)
+            return
+
         if session is None:
             session = await self.sessions.create(owner.student_id, request.session_id)
-        # Phase 3 restart-safety: restore the pedagogy state (verified chain
-        # + assistance ledger) from the store — never from process memory.
         verified = await self.sessions.load_verified(
             owner.student_id, session.cycle.cycle_id
         )
         assistance = await self.sessions.load_assistance(
             owner.student_id, session.cycle.cycle_id
         )
-        try:
-            command, envelope = _parse_envelope(request.user_message)
-        except ValueError as exc:
-            await stream.error(str(exc), source=self.manifest.name)
-            return
 
         expected_version = envelope.get("expected_cycle_version")
         idempotency_key = str(envelope.get("idempotency_key", ""))
-        payload = envelope.get("payload") or {}
         try:
             await self._dispatch(
                 session,
@@ -329,14 +352,305 @@ class MathTutorController:
                 assistance,
                 stream,
             )
-        except (InvalidTransitionError, VersionConflictError) as exc:
+        except InvalidTransitionError as exc:
+            logger.error(
+                "InvalidTransition conversation_id=%s state=%s command=%s",
+                request.session_id,
+                exc.state.value,
+                exc.command.value,
+            )
             await stream.error(
-                str(exc),
+                project_turn_error(exc.student_message),
+                source=self.manifest.name,
+                metadata={"cycle_state": session.state.value, "cycle_state_version": session.version},
+            )
+        except VersionConflictError as exc:
+            logger.error(
+                "VersionConflict conversation_id=%s expected=%s actual=%s",
+                request.session_id,
+                exc.expected,
+                exc.actual,
+            )
+            await stream.error(
+                project_turn_error(STUDENT_TRANSITION_FAILURE),
                 source=self.manifest.name,
                 metadata={"cycle_state": session.state.value, "cycle_state_version": session.version},
             )
         except Exception as exc:  # fail closed: no state mutation, clear error
-            await stream.error(f"内部错误: {exc}", source=self.manifest.name)
+            logger.exception("tutor turn failed conversation_id=%s", request.session_id)
+            await stream.error(project_turn_error(f"内部错误: {exc}"), source=self.manifest.name)
+
+    async def _route_send_message(
+        self,
+        request: MathTutorRequest,
+        session: TutoringSession | None,
+        payload: dict[str, Any],
+        envelope: dict[str, Any],
+        stream: MathTutorEventSink,
+    ) -> None:
+        text = str(payload.get("text", ""))
+        previous = next((m for m in reversed(request.conversation_messages) if m.get("role") == "tutor"), None)
+        if text.strip() == "继续" and previous and previous.get("status") == "PARTIAL":
+            if previous.get("action") == "TUTOR_CHAT":
+                await self._chat_message(session, text, request.conversation_messages, stream,
+                                         owner_id=request.owner.student_id, follow_up=True)
+                return
+            context = json.loads(previous.get("continuation_context") or "{}")
+            if session is not None and context.get("cycle_id") == str(session.cycle.cycle_id) and context.get("action"):
+                from mathtutor.domain.tutoring import TutorAction
+                from mathtutor.application.tutor_runtime import continuation_text
+                action = TutorAction.model_validate(context["action"])
+                verified = await self.sessions.load_verified(request.owner.student_id, session.cycle.cycle_id)
+                token = continuation_text.set(str(previous.get("content") or ""))
+                try:
+                    utterance = await self._realize_utterance(session, verified, action)
+                finally:
+                    continuation_text.reset(token)
+                await stream.emit(MathTutorEvent(type=MathTutorEventType.CONTENT, content=utterance.text,
+                    source=self.manifest.name, metadata={"event_type": "tutor_message", "action": utterance.action,
+                    "effective_assistance_level": utterance.assistance_level,
+                    "cycle_state": session.state.value, "cycle_state_version": session.version}))
+                return
+        routed = classify_user_message(
+            text, cycle_state=session.state if session is not None else None
+        )
+        logger.info(
+            "tutor_orchestration conversation_id=%s intent=%s mode=%s state=%s",
+            request.session_id,
+            routed.intent.value,
+            routed.mode.value,
+            session.state.value if session is not None else "",
+        )
+        if routed.intent is ConversationIntent.GENERAL_CHAT:
+            await self._chat_message(
+                session,
+                text,
+                request.conversation_messages,
+                stream,
+                owner_id=request.owner.student_id,
+            )
+            return
+        if routed.intent is ConversationIntent.PROBLEM_CONTINUATION:
+            await self._continue_active_problem(request, session, text, envelope, stream)
+            return
+        await self._begin_or_replace_problem(request, session, text, envelope, stream)
+
+    async def _continue_active_problem(
+        self,
+        request: MathTutorRequest,
+        session: TutoringSession | None,
+        text: str,
+        envelope: dict[str, Any],
+        stream: MathTutorEventSink,
+    ) -> None:
+        if session is None:
+            await self._chat_message(
+                None,
+                text,
+                request.conversation_messages,
+                stream,
+                owner_id=request.owner.student_id,
+            )
+            return
+        allowed = set(student_allowed_inputs(session.state))
+        if "request_explanation" in allowed:
+            await self._run_explicit(
+                request, session, "request_explanation", {}, envelope, stream
+            )
+            return
+        if "request_hint" in allowed:
+            await self._run_explicit(
+                request, session, "request_hint", {}, envelope, stream
+            )
+            return
+        await self._chat_message(
+            session,
+            text,
+            request.conversation_messages,
+            stream,
+            owner_id=request.owner.student_id,
+            follow_up=True,
+        )
+
+    async def _begin_or_replace_problem(
+        self,
+        request: MathTutorRequest,
+        session: TutoringSession | None,
+        text: str,
+        envelope: dict[str, Any],
+        stream: MathTutorEventSink,
+    ) -> None:
+        constraint = evaluate_constraints(text)
+        logger.info(
+            "tutor_orchestration conversation_id=%s constraint=%s reason=%s",
+            request.session_id,
+            constraint.status.value,
+            constraint.reason,
+        )
+        if constraint.status is ConstraintStatus.HARD_FAIL:
+            await self._chat_message(
+                session,
+                text,
+                request.conversation_messages,
+                stream,
+                owner_id=request.owner.student_id,
+            )
+            return
+        if constraint.status is ConstraintStatus.SOFT_FAIL and constraint.reason != "unsupported_family":
+            await self._chat_message(
+                session,
+                constraint.raw_text,
+                request.conversation_messages,
+                stream,
+                owner_id=request.owner.student_id,
+                unstructured_math=True,
+            )
+            return
+        owner_id = request.owner.student_id
+        payload = {"text": constraint.solver_text}
+        idempotency_key = str(envelope.get("idempotency_key", ""))
+        if session is None:
+            session = await self.sessions.create(owner_id, request.session_id)
+            await self._submit_problem(
+                session, owner_id, payload, None, idempotency_key, stream, constraint=constraint
+            )
+            return
+        if session.state == CycleState.PROBLEM_RECEIVED:
+            await self._submit_problem(
+                session, owner_id, payload, None, idempotency_key, stream, constraint=constraint
+            )
+            return
+        if session.state == CycleState.GROUNDING:
+            logger.info(
+                "tutor_orchestration conversation_id=%s recover_grounding command=problem_complete",
+                request.session_id,
+            )
+            await self._ground_problem(session, owner_id, text, stream, constraint=constraint)
+            return
+        if session.state == CycleState.AWAITING_CLARIFICATION:
+            await self._clarify_and_ground(
+                session, owner_id, text, None, idempotency_key, stream, constraint=constraint
+            )
+            return
+        session = await self._replace_cycle(session, owner_id, request.session_id)
+        await self._submit_problem(
+            session, owner_id, payload, None, idempotency_key, stream, constraint=constraint
+        )
+
+    async def _replace_cycle(
+        self,
+        session: TutoringSession,
+        owner_id: str,
+        client_session_id: str,
+    ) -> TutoringSession:
+        if CycleCommand.CANCEL_TURN in allowed_next_commands(session.state):
+            try:
+                await self._step(owner_id, session, CycleCommand.CANCEL_TURN)
+            except (InvalidTransitionError, VersionConflictError):
+                logger.warning(
+                    "tutor_orchestration could not close prior cycle state=%s",
+                    session.state.value,
+                )
+        starter = getattr(self.sessions, "start_new_cycle", None)
+        if starter is not None:
+            return await starter(owner_id, client_session_id)
+        return await self.sessions.create(owner_id, client_session_id)
+
+    async def _run_explicit(
+        self,
+        request: MathTutorRequest,
+        session: TutoringSession,
+        command: str,
+        payload: dict[str, Any],
+        envelope: dict[str, Any],
+        stream: MathTutorEventSink,
+    ) -> None:
+        verified = await self.sessions.load_verified(
+            request.owner.student_id, session.cycle.cycle_id
+        )
+        assistance = await self.sessions.load_assistance(
+            request.owner.student_id, session.cycle.cycle_id
+        )
+        try:
+            await self._dispatch(
+                session,
+                request.owner.student_id,
+                request.session_id,
+                command,
+                payload,
+                None,
+                str(envelope.get("idempotency_key", "")),
+                verified,
+                assistance,
+                stream,
+            )
+        except InvalidTransitionError as exc:
+            logger.error(
+                "InvalidTransition conversation_id=%s state=%s command=%s",
+                request.session_id,
+                exc.state.value,
+                exc.command.value,
+            )
+            await stream.error(
+                project_turn_error(exc.student_message),
+                source=self.manifest.name,
+                metadata={"cycle_state": session.state.value, "cycle_state_version": session.version},
+            )
+
+    async def _chat_message(
+        self,
+        session: TutoringSession | None,
+        text: str,
+        history: tuple[dict[str, Any], ...],
+        stream: MathTutorEventSink,
+        *,
+        owner_id: str | None = None,
+        follow_up: bool = False,
+        unstructured_math: bool = False,
+    ) -> None:
+        responder = self.chat_responder
+        problem_context = ""
+        if follow_up and session is not None and owner_id:
+            verified = await self.sessions.load_verified(
+                owner_id, session.cycle.cycle_id
+            )
+            if verified is not None:
+                problem_context = getattr(verified[0], "display_latex", "") or ""
+        provider_result = "fallback"
+        if responder is None:
+            message = fallback_tutor_reply(text)
+        else:
+            try:
+                message = await responder.respond(
+                    text,
+                    history=history,
+                    problem_context=problem_context,
+                    unstructured_math=unstructured_math,
+                )
+                provider_result = "success"
+            except TypeError:
+                message = await responder.respond(text, history=history)
+                provider_result = "success"
+        logger.info(
+            "tutor_orchestration intent=general_chat provider_result=%s state=%s",
+            provider_result,
+            session.state.value if session is not None else "",
+        )
+        visible = project_assistant_message(message) or fallback_tutor_reply(text)
+        await stream.emit(
+            MathTutorEvent(
+                type=MathTutorEventType.CONTENT,
+                content=visible,
+                source=self.manifest.name,
+                metadata={
+                    "event_type": "tutor_message",
+                    "action": "TUTOR_CHAT",
+                    "cycle_state": session.state.value if session is not None else "",
+                    "cycle_state_version": session.version if session is not None else 0,
+                    "allowed_next_inputs": student_allowed_inputs(session.state) if session is not None else [],
+                },
+            )
+        )
 
     # ------------------------------------------------------------- dispatch
 
@@ -416,14 +730,26 @@ class MathTutorController:
             await self._decline_practice_offer(
                 session, owner_id, payload, expected_version, idempotency_key, stream,
             )
+        elif command == "clarify_problem":
+            await self._clarify_and_ground(
+                session,
+                owner_id,
+                str(payload.get("text", "")),
+                expected_version,
+                idempotency_key,
+                stream,
+            )
         elif command in (
-            "clarify_problem",
             "clarify_attempt",
             "cancel_turn",
         ):
             await self._simple_step(session, owner_id, command, expected_version, idempotency_key, stream)
         else:
-            raise InvalidTransitionError(session.state, CycleCommand.SUBMIT_PROBLEM)
+            try:
+                rejected = CycleCommand(command)
+            except ValueError:
+                rejected = CycleCommand.SUBMIT_PROBLEM
+            raise InvalidTransitionError(session.state, rejected)
 
     async def _submit_problem(
         self,
@@ -433,7 +759,40 @@ class MathTutorController:
         expected_version: int | None,
         idempotency_key: str,
         stream: MathTutorEventSink,
+        constraint: ConstraintResult | None = None,
     ) -> None:
+        text = str(payload.get("text", ""))
+        constraint = constraint or evaluate_constraints(text)
+        if (
+            constraint.status is ConstraintStatus.SOFT_FAIL
+            and constraint.reason != "unsupported_family"
+            and session.state == CycleState.PROBLEM_RECEIVED
+        ):
+            await self._chat_message(
+                session,
+                constraint.raw_text,
+                (),
+                stream,
+                owner_id=owner_id,
+                unstructured_math=True,
+            )
+            return
+        if session.state == CycleState.GROUNDING:
+            await self._ground_problem(
+                session, owner_id, text, stream, constraint=constraint
+            )
+            return
+        if session.state == CycleState.AWAITING_CLARIFICATION:
+            await self._clarify_and_ground(
+                session,
+                owner_id,
+                text,
+                expected_version,
+                idempotency_key,
+                stream,
+                constraint=constraint,
+            )
+            return
         await self._step(
             owner_id,
             session,
@@ -441,48 +800,169 @@ class MathTutorController:
             expected_version=expected_version,
             idempotency_key=idempotency_key,
         )
-        # COMPUTE phase: deterministic parse → solve → verify (no DB work).
-        result = await self.service.submit_problem(str(payload.get("text", "")))
-        if result.kind == "ambiguous":
+        await self._ground_problem(
+            session, owner_id, text, stream, constraint=constraint
+        )
+
+    async def _clarify_and_ground(
+        self,
+        session: TutoringSession,
+        owner_id: str,
+        text: str,
+        expected_version: int | None,
+        idempotency_key: str,
+        stream: MathTutorEventSink,
+        constraint: ConstraintResult | None = None,
+    ) -> None:
+        await self._step(
+            owner_id,
+            session,
+            CycleCommand.CLARIFY_PROBLEM,
+            expected_version=expected_version,
+            idempotency_key=idempotency_key,
+        )
+        await self._ground_problem(
+            session, owner_id, text, stream, constraint=constraint
+        )
+
+    async def _ground_problem(
+        self,
+        session: TutoringSession,
+        owner_id: str,
+        text: str,
+        stream: MathTutorEventSink,
+        constraint: ConstraintResult | None = None,
+    ) -> None:
+        """Complete GROUNDING in the same turn: parse is a tool, not a wait state."""
+        if session.state != CycleState.GROUNDING:
+            raise InvalidTransitionError(session.state, CycleCommand.GROUNDING_OK)
+        constraint = constraint or evaluate_constraints(text)
+        logger.info(
+            "tutor_orchestration state=grounding constraint=%s reason=%s",
+            constraint.status.value,
+            constraint.reason,
+        )
+        if constraint.status is ConstraintStatus.NEED_CLARIFICATION:
             transition = await self._step(owner_id, session, CycleCommand.GROUNDING_AMBIGUOUS)
-            await self._emit(stream, session, transition, "题目有歧义，请澄清", detail=result.reason)
-        elif result.kind == "unsupported":
-            transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
-            await self._emit(stream, session, transition, "暂不支持这类题目", detail=result.reason)
-        elif result.kind == "unverified_blocked":
-            transition = await self._step(owner_id, session, CycleCommand.VERIFICATION_FAILED)
-            await self._emit(stream, session, transition, "题目未通过独立验证", detail=result.reason)
-        else:
-            await self._step(owner_id, session, CycleCommand.GROUNDING_OK)
-            assert result.problem is not None
-            session.problem_id = result.problem.problem_id
-            transition = await self._step(
-                owner_id,
-                session,
-                CycleCommand.VERIFICATION_VERIFIED,
-                problem_id=result.problem.problem_id,
-            )
-            # Persist the verified chain for restart-safe teaching control
-            # (SQLite already holds the attestation from the service commit;
-            # the in-memory store caches it per cycle).
-            await self.sessions.store_verified(
-                owner_id,
-                session.cycle.cycle_id,
-                (result.problem, result.candidate, result.verified_ref),
-            )
             await self._emit(
                 stream,
                 session,
                 transition,
-                f"题目已解析并验证：{result.problem.display_latex}",
-                detail="verified",
-                extra={
-                    # Structured problem surface for the UI (contract gap #1
-                    # fixed): no string-prefix parsing of tutor text.
-                    "problem_latex": result.problem.display_latex,
-                    "problem_type": result.problem.problem_type,
-                },
+                constraint.clarification_prompt,
+                extra={"action": "ambiguous"},
             )
+            return
+        if (
+            constraint.status is ConstraintStatus.SOFT_FAIL
+            and constraint.reason != "unsupported_family"
+        ):
+            if CycleCommand.CANCEL_TURN in allowed_next_commands(session.state):
+                await self._step(owner_id, session, CycleCommand.CANCEL_TURN)
+            await self._chat_message(
+                session,
+                constraint.raw_text,
+                (),
+                stream,
+                owner_id=owner_id,
+                unstructured_math=True,
+            )
+            return
+        if (
+            constraint.status is ConstraintStatus.SOFT_FAIL
+            and constraint.reason == "unsupported_family"
+        ) or (
+            constraint.parse is not None and constraint.parse.kind == "unsupported"
+        ):
+            transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+            await self._emit(
+                stream,
+                session,
+                transition,
+                "这道题目前还没法按步骤带你做，换一道同类的方程或计算题试试。",
+                extra={"action": "unsupported"},
+            )
+            return
+        if constraint.status is ConstraintStatus.HARD_FAIL:
+            transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+            await self._emit(
+                stream,
+                session,
+                transition,
+                "请发一道题目，或问一个数学问题。",
+                extra={"action": "unsupported"},
+            )
+            return
+        result = await self.service.submit_problem(constraint.solver_text)
+        logger.info(
+            "tutor_orchestration state=grounding parser_kind=%s next_command=%s",
+            result.kind,
+            {
+                "verified": "problem_complete",
+                "ambiguous": "request_clarification",
+                "unsupported": "grounding_unsupported",
+                "unverified_blocked": "verification_failed",
+                "unparseable": "soft_fail",
+            }.get(result.kind, result.kind),
+        )
+        if result.kind in {"ambiguous", "unparseable"}:
+            if CycleCommand.CANCEL_TURN in allowed_next_commands(session.state):
+                await self._step(owner_id, session, CycleCommand.CANCEL_TURN)
+            await self._chat_message(
+                session,
+                constraint.raw_text,
+                (),
+                stream,
+                owner_id=owner_id,
+                unstructured_math=True,
+            )
+            return
+        if result.kind == "unsupported":
+            logger.info("problem_grounding unsupported reason=%s", result.reason)
+            transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+            await self._emit(
+                stream,
+                session,
+                transition,
+                "这道题目前还没法按步骤带你做，换一道同类的方程或计算题试试。",
+                extra={"action": "unsupported"},
+            )
+            return
+        if result.kind == "unverified_blocked":
+            logger.info("problem_grounding unverified reason=%s", result.reason)
+            transition = await self._step(owner_id, session, CycleCommand.VERIFICATION_FAILED)
+            await self._emit(
+                stream,
+                session,
+                transition,
+                "这道题没有通过独立验证，暂时不能继续辅导。",
+                extra={"action": "unverified"},
+            )
+            return
+        await self._step(owner_id, session, CycleCommand.GROUNDING_OK)
+        assert result.problem is not None
+        session.problem_id = result.problem.problem_id
+        transition = await self._step(
+            owner_id,
+            session,
+            CycleCommand.VERIFICATION_VERIFIED,
+            problem_id=result.problem.problem_id,
+        )
+        await self.sessions.store_verified(
+            owner_id,
+            session.cycle.cycle_id,
+            (result.problem, result.candidate, result.verified_ref),
+        )
+        await self._emit(
+            stream,
+            session,
+            transition,
+            f"题目已解析并验证：{result.problem.display_latex}",
+            extra={
+                "action": "verified",
+                "problem_latex": result.problem.display_latex,
+                "problem_type": result.problem.problem_type,
+            },
+        )
 
     async def _submit_attempt(
         self,
@@ -693,6 +1173,7 @@ class MathTutorController:
                 owner_id,
                 skill_id=skill_for_problem(problem),
                 stream=stream,
+                problem_text=problem.display_latex,
             )
 
     # ------------------------------------------------- practice offer flow
@@ -705,6 +1186,7 @@ class MathTutorController:
         skill_id: str | None,
         stream: MathTutorEventSink,
         reflected: bool = False,
+        problem_text: str = "",
     ) -> None:
         """Server-driven practice offer after a solved cycle (§7.5 E2E).
 
@@ -732,6 +1214,7 @@ class MathTutorController:
                 owner_id,
                 parent_cycle_id=session.cycle.cycle_id,
                 target_skill_ids=(skill_id,) if skill_id else (),
+                problem_text=problem_text,
             )
         except Exception:  # practice is best-effort; the cycle must advance
             offer = None
@@ -845,6 +1328,7 @@ class MathTutorController:
                 skill_id=skill_for_problem(problem) if problem is not None else None,
                 stream=stream,
                 reflected=True,
+                problem_text=problem.display_latex if problem is not None else "",
             )
         else:
             await self._emit_state(stream, session)
@@ -874,11 +1358,19 @@ class MathTutorController:
         problem_view = (
             PublicProblemView.of(problem) if problem is not None else None
         )
+        document_context = await self._document_context_for_action(
+            session, action, problem
+        )
+        from mathtutor.application.tutor_runtime import current_turn
+        turn = current_turn.get()
+        if turn is not None:
+            turn.continuation_context = json.dumps({"cycle_id": str(session.cycle.cycle_id), "action": action.model_dump(mode="json")})
         candidate_text = await self.writer.write(
             problem_view=problem_view,
             disclosure=disclosure,
             policy=self.policy,
             action=action,
+            document_context=document_context,
         )
         utterance = self.guard.guard_or_fallback(
             candidate=candidate_text,
@@ -887,6 +1379,48 @@ class MathTutorController:
             action=action,
         )
         return utterance
+
+    async def _document_context_for_action(self, session, action, problem):
+        """Assemble USER_DOCUMENTS for hint/explain when the policy allows it.
+
+        REQUEST_HINT / EXPLAIN_CONCEPT already list documents as OPTIONAL in
+        RetrievalPolicy. Practice generation already goes through the
+        assembler; this reuses the same Chinese query pack so tutoring
+        language can cite the student's notes too.
+        """
+        if self.practice_service is None:
+            return None
+        action_name = getattr(action, "action", "")
+        if action_name not in {"GIVE_HINT", "EXPLAIN_CONCEPT"}:
+            return None
+        from mathtutor.domain.retrieval_policy import RetrievalIntent
+
+        intent = (
+            RetrievalIntent.REQUEST_HINT
+            if action_name == "GIVE_HINT"
+            else RetrievalIntent.EXPLAIN_CONCEPT
+        )
+        skill_ids = ()
+        problem_text = ""
+        if problem is not None:
+            try:
+                skill_ids = (skill_for_problem(problem),)
+            except ValueError:
+                skill_ids = ()
+            problem_text = getattr(problem, "display_latex", "") or ""
+        try:
+            assembled = await self.practice_service.assemble_for_intent(
+                str(session.student_id),
+                intent=intent,
+                skill_ids=skill_ids,
+                problem_text=problem_text,
+            )
+        except Exception:
+            return None
+        docs = assembled.user_documents
+        if not docs:
+            return None
+        return docs if len(docs) > 1 else docs[0]
 
     async def _simple_step(
         self,
@@ -904,7 +1438,17 @@ class MathTutorController:
             expected_version=expected_version,
             idempotency_key=idempotency_key,
         )
-        await self._emit(stream, session, transition, f"命令 {command} 已确认")
+        student_text = {
+            "cancel_turn": "本题先停在这里。你可以直接发新题目，或继续提问。",
+            "clarify_attempt": "你的作答我还没看懂，可以再写清楚一点吗？",
+        }.get(command, "好的，我们继续。")
+        await self._emit(
+            stream,
+            session,
+            transition,
+            student_text,
+            extra={"action": "ASK_STUDENT" if command == "clarify_attempt" else "TUTOR_CHAT"},
+        )
 
     # --------------------------------------------- practice offer (§7.7/§7.8)
 
@@ -1151,8 +1695,12 @@ class MathTutorController:
         }
         if extra:
             metadata.update(extra)
+        visible = project_assistant_message(message)
+        if visible is None:
+            await self._emit_state(stream, session)
+            return
         await stream.content(
-            message,
+            visible,
             source=self.manifest.name,
             stage=transition.to_state,
             metadata=metadata,
@@ -1178,20 +1726,20 @@ class MathTutorController:
 
 
 def _parse_envelope(user_message: str) -> tuple[str, dict[str, Any]]:
-    """Parse the command envelope; plain text defaults to submit_problem."""
+    """Parse the command envelope; plain text enters the intent router."""
     text = user_message.strip()
     if not text:
-        return ("submit_problem", {"payload": {"text": ""}})
+        return (SEND_MESSAGE_COMMAND, {"payload": {"text": ""}})
     if text.startswith("{"):
         try:
             envelope = json.loads(text)
         except json.JSONDecodeError as exc:
             raise ValueError(f"命令 envelope 不是合法 JSON: {exc}") from exc
-        command = str(envelope.get("command") or "submit_problem")
-        if command not in USER_COMMANDS:
+        command = str(envelope.get("command") or SEND_MESSAGE_COMMAND)
+        if command not in USER_COMMANDS and command != SEND_MESSAGE_COMMAND:
             raise ValueError(f"未知命令: {command}")
         return (command, envelope)
-    return ("submit_problem", {"payload": {"text": text}})
+    return (SEND_MESSAGE_COMMAND, {"payload": {"text": text}})
 
 
 __all__ = [

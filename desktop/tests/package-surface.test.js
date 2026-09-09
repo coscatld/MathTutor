@@ -38,7 +38,8 @@ test("package allowlist retains each production entrypoint and runtime asset", (
     "release_probe.py",
     "infrastructure/migrations/env.py",
     "infrastructure/migrations/script.py.mako",
-    "infrastructure/migrations/versions/006_evidence_identity.py",
+    "infrastructure/migrations/versions/008_document_chunk_fts.py",
+    "infrastructure/migrations/versions/009_conversation_workspace.py",
     "application/practice_release.py",
   ];
   for (const relative of required) {
@@ -95,7 +96,8 @@ test("final artifact has no forbidden source paths", {
   for (const required of [
     "python-app/mathtutor/api/product_app.py",
     "python-app/mathtutor/infrastructure/verifier_worker.py",
-    "python-app/mathtutor/infrastructure/migrations/versions/006_evidence_identity.py",
+    "python-app/mathtutor/infrastructure/migrations/versions/008_document_chunk_fts.py",
+    "python-app/mathtutor/infrastructure/migrations/versions/009_conversation_workspace.py",
     "licenses/LICENSE",
     "licenses/THIRD_PARTY_NOTICES.md",
   ]) {

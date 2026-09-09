@@ -7,7 +7,8 @@ const os = require("node:os");
 const path = require("node:path");
 
 const desktop = path.resolve(__dirname, "..");
-const dmg = path.resolve(process.argv[2] || path.join(desktop, "dist", "MathTutor-0.2.0-mac-arm64.dmg"));
+const pkg = JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8"));
+const dmg = path.resolve(process.argv[2] || path.join(desktop, "dist", `MathTutor-${pkg.version}-mac-arm64.dmg`));
 const report = path.resolve(
   process.argv[3] || path.join(desktop, "dist", "release-manifest", "no-api-key-smoke-macos.json"),
 );

@@ -255,6 +255,7 @@ async def test_gateway_resolve_model_preset_default_then_first_discovered():
         return httpx.Response(200, json={"data": [{"id": "z-model"}, {"id": "a-model"}]})
 
     provider._transport = httpx.MockTransport(handler2)
+    provider._model = ""  # simulate a fresh unresolved binding
     assert await gateway.resolve_model("deepseek") == "a-model"
 
 

@@ -77,6 +77,8 @@ class SessionStoreProtocol(Protocol):
 
     async def create(self, student_id: str, client_session_id: str) -> TutoringSession: ...
 
+    async def start_new_cycle(self, student_id: str, client_session_id: str) -> TutoringSession: ...
+
     async def persist_transition(
         self,
         student_id: str,
@@ -177,6 +179,9 @@ class InMemorySessionStore:
         session = TutoringSession(session_id=uuid4(), student_id=student_uuid(student_id))
         self._sessions[(student_id, client_session_id)] = session
         return session
+
+    async def start_new_cycle(self, student_id: str, client_session_id: str) -> TutoringSession:
+        return await self.create(student_id, client_session_id)
 
     async def persist_transition(
         self,

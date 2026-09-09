@@ -61,6 +61,22 @@ class SQLiteSessionStore:
             )
         return _restore(snapshot, student_id)
 
+    async def start_new_cycle(self, student_id: str, client_session_id: str) -> TutoringSession:
+        async with self.uow.transaction() as conn:
+            await rt.ensure_student(conn, student_id=student_id)
+            existing = await rt.load_cycle(
+                conn, student_id=student_id, client_session_id=client_session_id
+            )
+            if existing is None:
+                snapshot = await rt.create_cycle(
+                    conn, student_id=student_id, client_session_id=client_session_id
+                )
+            else:
+                snapshot = await rt.create_successor_cycle(
+                    conn, student_id=student_id, parent=existing
+                )
+        return _restore(snapshot, student_id)
+
     async def persist_transition(
         self,
         student_id: str,

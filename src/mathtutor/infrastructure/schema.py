@@ -61,6 +61,47 @@ learning_sessions = Table(
     UniqueConstraint("student_id", "client_session_id", name="uq_session_owner_client"),
 )
 
+# ------------------------------------------------ conversation workspace (009)
+
+conversations = Table(
+    "conversations",
+    metadata,
+    Column("conversation_id", String(128), primary_key=True),
+    Column("student_id", String(64), ForeignKey("student_profiles.student_id"), nullable=False),
+    Column("title", String(160), nullable=False, default="新对话"),
+    Column("created_at", Text, nullable=False),
+    Column("updated_at", Text, nullable=False),
+    UniqueConstraint("student_id", "conversation_id", name="uq_conversation_owner_id"),
+)
+
+conversation_messages = Table(
+    "conversation_messages",
+    metadata,
+    Column("message_id", String(64), primary_key=True),
+    Column("conversation_id", String(128), ForeignKey("conversations.conversation_id"), nullable=False),
+    Column("student_id", String(64), ForeignKey("student_profiles.student_id"), nullable=False),
+    Column("role", String(16), nullable=False),
+    Column("status", String(16), nullable=False, server_default="COMPLETED"),
+    Column("finish_reason", String(32), nullable=False, server_default="FINAL_ANSWER"),
+    Column("turn_id", String(160), nullable=False, server_default=""),
+    Column("continuation_context", Text, nullable=False, server_default=""),
+    Column("content", Text, nullable=False),
+    Column("action", String(48), nullable=False, default=""),
+    Column("assistance_level", Integer, nullable=False, default=0),
+    Column("event_key", String(160), nullable=False, default=""),
+    Column("created_at", Text, nullable=False),
+    UniqueConstraint("student_id", "conversation_id", "event_key", name="uq_conversation_message_event"),
+)
+
+conversation_documents = Table(
+    "conversation_documents",
+    metadata,
+    Column("conversation_id", String(128), ForeignKey("conversations.conversation_id"), primary_key=True),
+    Column("document_id", String(64), ForeignKey("user_documents.document_id"), primary_key=True),
+    Column("student_id", String(64), ForeignKey("student_profiles.student_id"), nullable=False),
+    Column("created_at", Text, nullable=False),
+)
+
 tutoring_cycles = Table(
     "tutoring_cycles",
     metadata,
@@ -493,6 +534,7 @@ document_chunks = Table(
     Column("content_hash", String(64), nullable=False),
     Column("metadata_json", JSON, nullable=False),
     Column("chunker_version", Text, nullable=False),
+    Column("fts_text", Text, nullable=False, default=""),
     UniqueConstraint("document_id", "sequence", name="uq_chunk_document_seq"),
 )
 
@@ -543,6 +585,9 @@ __all__ = [
     "curriculum_nodes",
     "curriculum_versions",
     "cycle_transitions",
+    "conversation_documents",
+    "conversation_messages",
+    "conversations",
     "document_chunk_vectors",
     "document_chunks",
     "document_index_builds",

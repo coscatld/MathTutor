@@ -11,7 +11,8 @@ const path = require("node:path");
 
 const desktop = path.resolve(__dirname, "..");
 const oldDmg = path.join(desktop, "dist", "pre-rc", "MathTutor-0.2.0-pre-rc-9cde02bd.dmg");
-const newDmg = path.join(desktop, "dist", "MathTutor-0.2.0-mac-arm64.dmg");
+const pkg = JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8"));
+const newDmg = path.join(desktop, "dist", `MathTutor-${pkg.version}-mac-arm64.dmg`);
 const probe = path.join(desktop, "scripts", "macos-upgrade-probe.py");
 const reportPath = path.join(desktop, "dist", "release-manifest", "macos-upgrade-report.json");
 const expectedOldHash = "9cde02bd7f997438b854949e1b5c8d959b9d63b6947e18ac006da446c9718670";

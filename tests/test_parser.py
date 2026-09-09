@@ -25,6 +25,8 @@ class TestFamilies:
             "(-2)^2",
             "\\frac{1}{2} + \\frac{1}{3}",
             "1/2 \\cdot 2/3",
+            "2+2=?",
+            "2+2=",
         ],
     )
     def test_arithmetic(self, text: str) -> None:
@@ -61,6 +63,7 @@ class TestFamilies:
             "2x^2 + 4x - 6 = 0",
             "x^2 - 2x - 4 = 0",
             "x^2 + 5x = -6",
+            "求 x^2 + 2x + 1 = 0",
         ],
     )
     def test_quadratic(self, text: str) -> None:
@@ -85,12 +88,18 @@ class TestCanonicalEquality:
 
 
 class TestAmbiguous:
-    @pytest.mark.parametrize("text", ["", "2 3", "x y", "xy = 2", "x +", "1..2", "2 = = 2"])
+    @pytest.mark.parametrize("text", ["2 3", "x y", "xy = 2"])
     def test_ambiguous(self, text: str) -> None:
         assert parse_problem(text).kind == "ambiguous"
 
     def test_ambiguous_has_reason(self) -> None:
         assert parse_problem("2 3").reason
+
+
+class TestUnparseable:
+    @pytest.mark.parametrize("text", ["", "x +", "1..2", "2 = = 2"])
+    def test_unparseable(self, text: str) -> None:
+        assert parse_problem(text).kind == "unparseable", text
 
 
 class TestUnsupported:

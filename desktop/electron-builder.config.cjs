@@ -115,6 +115,7 @@ module.exports = {
     },
   ],
   mac: {
+    icon: "build/icon.icns",
     target: [{ target: "dmg", arch: ["arm64"] }],
     category: "public.app-category.education",
     hardenedRuntime: true,

@@ -101,6 +101,28 @@ class SettingsUpdate(BaseModel):
     model: str = ""
 
 
+class EmbeddingSettingsUpdate(BaseModel):
+    enabled: bool = False
+    provider: str = "local"
+    local_model_id: str = "bge-small-zh-v1.5"
+    cloud_base_url: str = ""
+    cloud_api_key: str | None = Field(default=None, max_length=8192)
+    cloud_model: str = ""
+
+
+class LocalEmbeddingDownloadRequest(BaseModel):
+    model_id: str = "bge-small-zh-v1.5"
+
+
+class DocumentRename(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+
+
+class TutorSettingsUpdate(BaseModel):
+    personality: str = "patient"
+    custom_instruction: str = Field(default="", max_length=1000)
+
+
 def mask_secret(value: str) -> str:
     """Mask a secret for display: bullets + the last 4 characters.
 
@@ -140,8 +162,10 @@ def _friendly_config_error(preset_id: str, base_url: str, model: str) -> str | N
         if not base_url:
             return "自定义提供商需要填写 API 地址（Base URL）。"
         return None
-    if base_url or model:
-        return "该提供商使用预设地址与模型，无需填写。"
+    if preset.local:
+        return None
+    if base_url and base_url != preset.base_url:
+        return "该服务商使用固定服务地址；模型名称可在高级选项中修改。"
     return None
 
 
@@ -162,13 +186,31 @@ async def get_settings(
             stored = None
         if stored:
             masked = mask_secret(stored)
+    profiles: dict[str, dict] = {}
+    for profile_id, profile in service.provider_profiles().items():
+        has_profile_key = await service.has_api_key(profile_id)
+        profile_masked = None
+        if has_profile_key:
+            try:
+                stored = await _desktop_secret_store().get(secret_key_name(profile_id))
+            except Exception:
+                stored = None
+            if stored:
+                profile_masked = mask_secret(stored)
+        profiles[profile_id] = {
+            **profile,
+            "has_api_key": has_profile_key,
+            "key_masked": profile_masked,
+        }
     return {
         "preset_id": preset_id,
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
-        "is_configured": bool(preset_id and has_api_key),
+        "is_configured": await service.is_ready(),
         "onboarding_completed": service.onboarding_completed(),
         "key_masked": masked,
+        "connection_status": service.connection_status(),
+        "provider_configs": profiles,
     }
 
 
@@ -178,9 +220,39 @@ async def list_presets(
 ) -> list[dict]:
     """User-selectable provider presets (label + custom flag only)."""
     return [
-        {"preset_id": preset.preset_id, "label": preset.label, "custom": preset.custom}
+        {
+            "preset_id": preset.preset_id,
+            "label": preset.label,
+            "custom": preset.custom,
+            "default_model": preset.default_model,
+            "base_url": preset.base_url,
+            "requires_api_key": preset.requires_api_key,
+            "editable_base_url": preset.editable_base_url,
+            "local": preset.local,
+        }
         for preset in PRESETS.values()
     ]
+
+
+@router.get("/settings/tutor")
+async def get_tutor_settings(
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    return get_product_state().tutor_preferences.public_settings()
+
+
+@router.put("/settings/tutor")
+async def put_tutor_settings(
+    update: TutorSettingsUpdate,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    state = get_product_state()
+    try:
+        result = state.tutor_preferences.update(update.personality, update.custom_instruction)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    state.refresh_model_writer()
+    return result
 
 
 @router.put("/settings")
@@ -222,8 +294,9 @@ async def put_settings(
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
         "key_masked": masked,
-        "is_configured": bool(await service.has_api_key()),
+        "is_configured": await service.is_ready(),
         "onboarding_completed": service.onboarding_completed(),
+        "connection_status": service.connection_status(),
     }
 
 
@@ -243,6 +316,9 @@ async def delete_api_key(
 ) -> dict:
     """Remove the OS-stored credential and immediately fall back to templates."""
     service = _gateway_config_service()
+    active = str(service.current_config().get("preset_id") or "")
+    if active and not PRESETS[active].requires_api_key:
+        raise HTTPException(status_code=422, detail="本地 Ollama 不使用 API Key。")
     try:
         config = await service.remove_api_key()
     except Exception as error:
@@ -258,7 +334,96 @@ async def delete_api_key(
         "is_configured": False,
         "onboarding_completed": True,
         "key_masked": None,
+        "connection_status": service.connection_status(),
     }
+
+
+# ---------------------------------------------------------------------------
+# Settings — opt-in document Embedding. Deliberately separate from the
+# generative-model key/configuration above.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/settings/embedding")
+async def get_embedding_settings(
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    state = get_product_state()
+    await state.refresh_embedding_runtime()
+    return await state.embedding_config.public_settings()
+
+
+@router.put("/settings/embedding")
+async def put_embedding_settings(
+    update: EmbeddingSettingsUpdate,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    state = get_product_state()
+    try:
+        return await state.embedding_config.update(
+            enabled=update.enabled,
+            provider=update.provider,
+            local_model_id=update.local_model_id,
+            cloud_base_url=update.cloud_base_url,
+            cloud_model=update.cloud_model,
+            cloud_api_key=update.cloud_api_key or None,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Embedding 设置暂时无法保存，请稍后重试。",
+        ) from error
+
+
+@router.delete("/settings/embedding/api-key")
+async def delete_embedding_api_key(
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    try:
+        return await get_product_state().embedding_config.remove_cloud_key()
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="系统凭据库暂时无法删除 Embedding API Key。",
+        ) from error
+
+
+@router.post("/settings/embedding/test")
+async def test_embedding_connection(
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    # Failure is a normal, friendly result; it never crashes the settings UI.
+    return await get_product_state().embedding_config.test_cloud()
+
+
+@router.post("/settings/embedding/local/download", status_code=202)
+async def download_local_embedding_model(
+    request: LocalEmbeddingDownloadRequest,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    try:
+        return await get_product_state().embedding_config.start_download(
+            request.model_id
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@router.delete("/settings/embedding/local/{model_id}")
+async def delete_local_embedding_model(
+    model_id: str,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    try:
+        return await get_product_state().embedding_config.delete_local_model(model_id)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @router.post("/settings/test-connection")
@@ -269,6 +434,7 @@ async def test_connection(
     service = _gateway_config_service()
     result = await service.test_connection()
     if result.status == "ok":
+        get_product_state().refresh_model_writer()
         message = result.message or "连接成功，模型可正常调用。"
         return {
             "status": "ok",
@@ -298,8 +464,14 @@ async def list_models(
             raise HTTPException(
                 status_code=409, detail="尚未配置模型提供商，请先保存 API Key。"
             )
+        provider_id = str(service.current_config().get("preset_id") or "")
         raise HTTPException(
-            status_code=502, detail="模型发现失败，请检查连接与 API Key。"
+            status_code=502,
+            detail=(
+                "Ollama 服务暂时不可用，请确认本地服务已启动。"
+                if provider_id == "ollama"
+                else "模型发现失败，请检查连接与 API Key。"
+            ),
         )
     return list(result)
 
@@ -417,7 +589,9 @@ async def _secret_store_check(state) -> tuple[str, str]:
 
 async def _gateway_check(state) -> tuple[str, str]:
     """DEGRADED-level: unconfigured gateway → template writer still works."""
-    if not await state.gateway_config.has_api_key():
+    if not await state.gateway_config.is_ready():
+        if state.gateway_config.current_config().get("preset_id") == "ollama":
+            return "degraded", "Ollama 已选择，但尚未选定本机模型（模板辅导仍可用）"
         return "degraded", "未配置模型提供商（可继续使用模板辅导与词汇检索）"
     roles = state.gateway.configured_roles()
     if not roles:
@@ -633,16 +807,23 @@ async def test_model(
     service = _gateway_config_service()
     result = await service.test_connection()
     if result.status == "ok":
+        get_product_state().refresh_model_writer()
+        provider_id = str(service.current_config().get("preset_id") or "")
         return {
             "ok": True,
             "error_kind": None,
-            "message": "连接成功，模型可正常调用。",
+            "message": "已连接到本地 Ollama。" if provider_id == "ollama" else "连接成功，模型可正常调用。",
+            "resolved_model": result.resolved_model,
         }
     kind = result.error_kind or "provider_unsupported"
+    provider_id = str(service.current_config().get("preset_id") or "")
+    message = _MODEL_TEST_MESSAGES.get(kind, "连接失败，请稍后重试。")
+    if provider_id == "ollama" and kind == "network_unavailable":
+        message = "Ollama 服务暂时不可用，请确认本地服务已启动。"
     return {
         "ok": False,
         "error_kind": kind,
-        "message": _MODEL_TEST_MESSAGES.get(kind, "连接失败，请稍后重试。"),
+        "message": message,
     }
 
 
@@ -1099,25 +1280,40 @@ def _validate_or_422(picked: PickedFile) -> None:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-async def _ingest(owner: StudentOwnerScope, picked: PickedFile) -> dict:
+async def _ingest(owner: StudentOwnerScope, picked: PickedFile, *, conversation_id: str = "") -> dict:
     state = get_product_state()
     doc = await state.documents.ingest(owner.student_id, picked)
+    if conversation_id.strip():
+        await state.conversations.attach_document(
+            owner.student_id, conversation_id.strip(), doc.document_id
+        )
     return _project_document(doc)
 
 
 @router.get("/documents")
 async def list_documents(
+    conversation_id: str = "",
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> list[dict]:
     state = get_product_state()
     docs = await state.documents.list_documents(owner.student_id)
+    if conversation_id.strip():
+        allowed = set(await state.conversations.document_ids(owner.student_id, conversation_id.strip()))
+        docs = [doc for doc in docs if doc.document_id in allowed]
     docs = sorted(docs, key=lambda d: d.created_at, reverse=True)
-    return [_project_document(doc) for doc in docs]
+    result = []
+    for doc in docs:
+        result.append({
+            **_project_document(doc),
+            "conversation_ids": await state.conversations.conversation_ids_for_document(owner.student_id, doc.document_id),
+        })
+    return result
 
 
 @router.post("/documents/import")
 async def import_document(
     file: UploadFile = File(...),
+    conversation_id: str = "",
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
     """Import one explicitly uploaded file (browser fallback / Electron)."""
@@ -1134,11 +1330,12 @@ async def import_document(
         original_path="",
     )
     _validate_or_422(picked)
-    return await _ingest(owner, picked)
+    return await _ingest(owner, picked, conversation_id=conversation_id)
 
 
 @router.post("/documents/pick")
 async def pick_document(
+    conversation_id: str = "",
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
     """Ask the desktop shell for ONE explicit user-picked file, then import.
@@ -1156,7 +1353,7 @@ async def pick_document(
     if picked is None:
         return {"status": "cancelled"}
     _validate_or_422(picked)
-    document = await _ingest(owner, picked)
+    document = await _ingest(owner, picked, conversation_id=conversation_id)
     return {"status": "imported", "document": document}
 
 
@@ -1179,6 +1376,55 @@ async def get_document(
     if doc is None or doc.deleted_at is not None:
         raise HTTPException(status_code=404, detail="文档不存在。")
     return _project_document(doc)
+
+
+@router.patch("/documents/{document_id}")
+async def rename_document(
+    document_id: str,
+    update: DocumentRename,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    state, doc_uuid = _require_document(owner, document_id)
+    doc = await state.document_repository.get_document(owner.student_id, doc_uuid)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="文档不存在。")
+    from mathtutor.infrastructure.document_storage import sanitize_filename
+
+    safe_name = sanitize_filename(update.filename.strip())
+    if not safe_name:
+        raise HTTPException(status_code=422, detail="资料名称不能为空。")
+    renamed = await state.document_repository.update_document(
+        owner.student_id, doc.model_copy(update={"filename": safe_name})
+    )
+    if renamed is None:
+        raise HTTPException(status_code=404, detail="文档不存在。")
+    return _project_document(renamed)
+
+
+@router.post("/conversations/{conversation_id}/documents/{document_id}")
+async def attach_conversation_document(
+    conversation_id: str,
+    document_id: str,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    state, doc_uuid = _require_document(owner, document_id)
+    if await state.document_repository.get_document(owner.student_id, doc_uuid) is None:
+        raise HTTPException(status_code=404, detail="文档不存在。")
+    await state.conversations.attach_document(owner.student_id, conversation_id, doc_uuid)
+    return {"ok": True}
+
+
+@router.delete("/conversations/{conversation_id}/documents/{document_id}")
+async def detach_conversation_document(
+    conversation_id: str,
+    document_id: str,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    try:
+        doc_uuid = UUID(document_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail="文档不存在。") from error
+    return {"ok": await get_product_state().conversations.detach_document(owner.student_id, conversation_id, doc_uuid)}
 
 
 @router.put("/documents/{document_id}")
@@ -1499,6 +1745,11 @@ async def rebuild_indexes(
     results = await state.data_lifecycle.rebuild_derived_indexes(
         str(owner.student_id)
     )
+    if all(
+        value.get("status") in {"rebuilt", "no_chunks"}
+        for value in results.values()
+    ):
+        state.embedding_config.mark_reindexed()
     return {"ok": True, "documents": results}
 
 

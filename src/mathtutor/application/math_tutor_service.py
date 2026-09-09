@@ -33,7 +33,9 @@ from mathtutor.application.verification_backend import (
 )
 from mathtutor.solving import parse_problem, solve_problem
 
-SubmitResultKind = Literal["verified", "unverified_blocked", "unsupported", "ambiguous"]
+SubmitResultKind = Literal[
+    "verified", "unverified_blocked", "unsupported", "ambiguous", "unparseable"
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +71,8 @@ class MathTutorApplicationService:
         outcome = parse_problem(text)
         if outcome.kind == "ambiguous":
             return SubmitProblemResult("ambiguous", reason=outcome.reason)
+        if outcome.kind == "unparseable":
+            return SubmitProblemResult("unparseable", reason=outcome.reason)
         if outcome.kind == "unsupported":
             return SubmitProblemResult("unsupported", reason=outcome.reason)
         parsed = outcome.problem

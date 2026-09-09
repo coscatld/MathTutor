@@ -20,7 +20,7 @@
  * the bytes of the single file the user picked.
  */
 
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, utilityProcess } = require("electron");
 // Under plain node (or with ELECTRON_RUN_AS_NODE=1, which some dev shells
 // export) require("electron") returns the binary path string and the API
 // objects are undefined. Headless modes (--smoke / --smoke-full) still work
@@ -241,11 +241,24 @@ function startMockProvider(port) {
       return;
     }
     if (req.method === "POST" && req.url === "/v1/chat/completions") {
-      req.resume();
+      let body = "";
+      req.setEncoding("utf8");
+      req.on("data", (chunk) => { body += chunk; });
       req.on("end", () => {
+        let practiceGenerator = false;
+        try {
+          const payload = JSON.parse(body);
+          practiceGenerator = Array.isArray(payload.messages) && payload.messages.some(
+            (message) => typeof message.content === "string" &&
+              message.content.includes("K12 数学练习题生成器"),
+          );
+        } catch {}
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
-          choices: [{ message: { content: "本地 mock 表达。" }, finish_reason: "stop" }],
+          choices: [{
+            message: { content: practiceGenerator ? '["2x + 1 = 5"]' : "本地 mock 表达。" },
+            finish_reason: "stop",
+          }],
         }));
       });
       return;
@@ -377,10 +390,41 @@ function startChild(cmd, args, env, cwd) {
   return child;
 }
 
+/** Run the packaged Next server as a Chromium utility process.
+ *
+ * Spawning process.execPath directly starts the executable inside the .app a
+ * second time. macOS may then surface that background server as an extra
+ * generic "exec" application icon. UtilityProcess uses Electron's dedicated
+ * helper service, which stays background-only while preserving the Node
+ * runtime Next standalone needs.
+ */
+function startPackagedFrontend(server, env, cwd) {
+  if (!utilityProcess) fail("Electron utility process API unavailable.");
+  const runner = path.join(DESKTOP_DIR, "runtime", "frontend-runner.js");
+  const child = utilityProcess.fork(runner, [server], {
+    env: { ...process.env, ...env, MATHTUTOR_WEB_CWD: cwd },
+    cwd,
+    stdio: "pipe",
+    serviceName: "MathTutor Web Runtime",
+  });
+  children.push(child);
+  child.stdout?.on("data", (d) => process.stdout.write(`[child] ${String(d)}`));
+  child.stderr?.on("data", (d) => process.stderr.write(`[child] ${String(d)}`));
+  child.on("exit", (code) => {
+    const idx = children.indexOf(child);
+    if (idx >= 0) children.splice(idx, 1);
+    if ((!app || !app.isQuitting) && code !== 0) {
+      log(`frontend utility process exited unexpectedly (code=${code})`);
+    }
+  });
+  return child;
+}
+
 function stopChildren() {
   for (const child of children) {
     try {
-      child.kill("SIGTERM");
+      if ("spawnfile" in child) child.kill("SIGTERM");
+      else child.kill();
     } catch {
       /* already gone */
     }
@@ -827,7 +871,7 @@ async function runSmokeFull() {
     const frozen = version.body && version.body.release_config && version.body.release_config.migration_head;
     assertNamed(
       "database-migration",
-      version.status === 200 && frozen === "006" && live.head === frozen,
+      version.status === 200 && frozen === "010" && live.head === frozen,
       `frozen=${frozen || "missing"}, live=${live.head || "missing"}`,
     );
   }
@@ -1339,13 +1383,20 @@ app.whenReady().then(async () => {
   //    cwd = web/ so it finds next.config and the .next build.
   const frontend = frontendCommand(frontendPort);
   log(`frontend: ${frontend.cmd} ${frontend.args.join(" ")}`);
-  startChild(frontend.cmd, frontend.args, {
+  const frontendEnv = {
     ...frontend.env,
     MATHTUTOR_API_BASE_URL: backendUrl,
     ...authEnvironment(authEnabled),
-    // process.execPath is the Electron binary; run the next CLI as plain Node.
-    ELECTRON_RUN_AS_NODE: "1",
-  }, frontend.cwd);
+  };
+  if (IS_PACKAGED) {
+    startPackagedFrontend(frontend.args[0], frontendEnv, frontend.cwd);
+  } else {
+    // Development still invokes Next's CLI through Electron's Node mode.
+    startChild(frontend.cmd, frontend.args, {
+      ...frontendEnv,
+      ELECTRON_RUN_AS_NODE: "1",
+    }, frontend.cwd);
+  }
 
   // 5. Wait for readiness (backend first — the proxy needs it).
   await waitForHttp(`${backendUrl}/health`, BACKEND_READY_TIMEOUT_MS, "本地辅导服务");

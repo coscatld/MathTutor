@@ -17,6 +17,7 @@ Security invariants asserted here:
 from __future__ import annotations
 
 import base64
+import json
 from pathlib import Path
 
 import httpx
@@ -41,6 +42,7 @@ from mathtutor.infrastructure.embedding_runtime import (
     EmbeddingRuntime,
     FakeEmbeddingBackend,
 )
+from mathtutor.infrastructure.generative_gateway import ModelRole
 from mathtutor.infrastructure.keychain_secret_store import (
     KeychainSecretStore,
     KeychainSecretStoreError,
@@ -581,6 +583,51 @@ async def test_put_settings_never_returns_key_and_stores_it() -> None:
         assert stored == SECRET
 
 
+async def test_configured_provider_handles_normal_chat_before_math_parser() -> None:
+    reset_product_state()
+    seen: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        return httpx.Response(200, json={
+            "choices": [{
+                "message": {"role": "assistant", "content": "你好，同学！"},
+                "finish_reason": "stop",
+            }]
+        })
+
+    with _client() as client:
+        saved = client.put(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings",
+            json={
+                "preset_id": "custom",
+                "api_key": SECRET,
+                "base_url": "https://provider.example/v1",
+                "model": "chat-model",
+            },
+        )
+        assert saved.status_code == 200
+        provider = get_product_state().gateway.provider_for(ModelRole.TUTOR_WRITER)
+        assert provider is not None
+        provider._transport = httpx.MockTransport(handler)
+        with client.websocket_connect("/api/v2/math-tutor/ws") as websocket:
+            websocket.send_text(json.dumps({
+                "command": "send_message",
+                "payload": {"text": "你好"},
+                "session_id": "provider-chat",
+            }, ensure_ascii=False))
+            frames = []
+            while True:
+                frame = json.loads(websocket.receive_text())
+                frames.append(frame)
+                if frame["event_type"] == "turn_end":
+                    break
+        assert seen == ["/v1/chat/completions"]
+        chat = next(frame for frame in frames if frame["event_type"] == "tutor_message")
+        assert chat["payload"]["student_message"] == "你好，同学！"
+        assert "题目有歧义" not in json.dumps(frames, ensure_ascii=False)
+
+
 async def test_get_settings_has_no_key_material() -> None:
     reset_product_state()
     with _client() as client:
@@ -593,9 +640,56 @@ async def test_get_settings_has_no_key_material() -> None:
             "is_configured",
             "onboarding_completed",
             "key_masked",
+            "connection_status",
+            "provider_configs",
         }
         assert "api_key" not in response.text
         assert SECRET not in response.text
+
+
+async def test_embedding_settings_default_off_and_cloud_empty_key_degrades() -> None:
+    reset_product_state()
+    with _client() as client:
+        prefix = desktop_api.DESKTOP_ROUTER_PREFIX
+        initial = client.get(f"{prefix}/settings/embedding")
+        assert initial.status_code == 200
+        assert initial.json()["enabled"] is False
+        assert initial.json()["status"] == "disabled"
+
+        updated = client.put(
+            f"{prefix}/settings/embedding",
+            json={
+                "enabled": True,
+                "provider": "cloud",
+                "local_model_id": "bge-small-zh-v1.5",
+                "cloud_base_url": "https://embedding.example/v1",
+                "cloud_model": "embedding-zh",
+            },
+        )
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["status"] == "incomplete"
+        assert get_product_state().embedding_runtime.backend() is None
+
+
+async def test_embedding_api_key_is_masked_and_only_in_secret_store() -> None:
+    reset_product_state()
+    with _client() as client:
+        prefix = desktop_api.DESKTOP_ROUTER_PREFIX
+        response = client.put(
+            f"{prefix}/settings/embedding",
+            json={
+                "enabled": True,
+                "provider": "cloud",
+                "local_model_id": "bge-small-zh-v1.5",
+                "cloud_base_url": "https://embedding.example/v1",
+                "cloud_model": "embedding-zh",
+                "cloud_api_key": SECRET,
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert SECRET not in response.text
+        assert response.json()["cloud_key_masked"].endswith("1234")
+        assert await get_product_state().secret_store.get("embedding.api_key") == SECRET
 
 
 async def test_skip_onboarding_persists_template_mode_across_restart(tmp_path) -> None:
@@ -733,6 +827,12 @@ async def test_connection_success_resolves_model(monkeypatch) -> None:
         "mathtutor.infrastructure.generative_gateway.OpenAICompatibleProvider.fetch_models",
         fake_fetch_models,
     )
+    async def fake_complete(self, *args, **kwargs):
+        return None
+    monkeypatch.setattr(
+        "mathtutor.infrastructure.generative_gateway.GenerativeModelGateway.complete",
+        fake_complete,
+    )
     with _client() as client:
         put = client.put(
             f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings",
@@ -754,9 +854,40 @@ async def test_presets_listing() -> None:
         response = client.get(f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings/presets")
         assert response.status_code == 200
         ids = [p["preset_id"] for p in response.json()]
-        assert ids == ["openai", "deepseek", "moonshot", "custom"]
+        assert ids == ["openai", "deepseek", "moonshot", "custom", "ollama"]
         custom = next(p for p in response.json() if p["preset_id"] == "custom")
         assert custom["custom"] is True
+        ollama = next(p for p in response.json() if p["preset_id"] == "ollama")
+        assert ollama["requires_api_key"] is False
+        assert ollama["local"] is True
+
+
+async def test_ollama_settings_require_no_key_and_offline_error_is_specific(monkeypatch) -> None:
+    reset_product_state()
+
+    async def offline(self):
+        raise RuntimeError("provider 'ollama' transport error: connection refused")
+
+    monkeypatch.setattr(
+        "mathtutor.infrastructure.generative_gateway.OllamaProviderAdapter.fetch_models",
+        offline,
+    )
+    with _client() as client:
+        saved = client.put(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings",
+            json={
+                "preset_id": "ollama",
+                "base_url": "http://127.0.0.1:11434",
+                "model": "qwen3",
+            },
+        )
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["key_masked"] is None
+        assert saved.json()["is_configured"] is True
+        tested = client.post(f"{desktop_api.DESKTOP_ROUTER_PREFIX}/model/test")
+        assert tested.status_code == 200
+        assert tested.json()["ok"] is False
+        assert tested.json()["message"] == "Ollama 服务暂时不可用，请确认本地服务已启动。"
 
 
 # ---------------------------------------------------------------------------
@@ -785,6 +916,28 @@ def test_document_import_and_projection() -> None:
         assert listing.status_code == 200
         assert len(listing.json()) == 1
         assert all("storage_ref" not in d and "content_hash" not in d for d in listing.json())
+
+
+def test_document_membership_is_scoped_to_one_conversation() -> None:
+    reset_product_state()
+    with _client() as client:
+        for conversation_id in ("conversation-a", "conversation-b"):
+            created = client.post(
+                "/api/v2/math-tutor/sessions",
+                json={"conversation_id": conversation_id},
+            )
+            assert created.status_code == 201
+        imported = client.post(
+            f"{desktop_api.DESKTOP_ROUTER_PREFIX}/documents/import?conversation_id=conversation-a",
+            files={"file": ("notes.txt", b"quadratic formula and discriminant", "text/plain")},
+        )
+        assert imported.status_code == 200
+        document_id = imported.json()["document_id"]
+        assert [item["document_id"] for item in client.get(f"{desktop_api.DESKTOP_ROUTER_PREFIX}/documents?conversation_id=conversation-a").json()] == [document_id]
+        assert client.get(f"{desktop_api.DESKTOP_ROUTER_PREFIX}/documents?conversation_id=conversation-b").json() == []
+        attached = client.post(f"{desktop_api.DESKTOP_ROUTER_PREFIX}/conversations/conversation-b/documents/{document_id}")
+        assert attached.status_code == 200
+        assert [item["document_id"] for item in client.get(f"{desktop_api.DESKTOP_ROUTER_PREFIX}/documents?conversation_id=conversation-b").json()] == [document_id]
 
 
 def test_document_rejected_type_is_friendly() -> None:
@@ -1047,6 +1200,12 @@ def test_readiness_ready_when_fully_configured(monkeypatch) -> None:
     monkeypatch.setattr(
         "mathtutor.infrastructure.generative_gateway.OpenAICompatibleProvider.fetch_models",
         fake_fetch_models,
+    )
+    async def fake_complete(self, *args, **kwargs):
+        return None
+    monkeypatch.setattr(
+        "mathtutor.infrastructure.generative_gateway.GenerativeModelGateway.complete",
+        fake_complete,
     )
     with _client() as client:
         prefix = desktop_api.DESKTOP_ROUTER_PREFIX

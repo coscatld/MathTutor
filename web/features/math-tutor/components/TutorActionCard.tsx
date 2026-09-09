@@ -10,7 +10,10 @@ import type { TutorMessage } from "../types";
  * effective assistance level — never internal fields, IDs, or codes.
  * turn_error frames render as a distinct error card.
  */
-export default function TutorActionCard({ message }: { message: TutorMessage }) {
+export default function TutorActionCard({ message, onContinue }: { message: TutorMessage; onContinue?: () => void }) {
+  if (message.kind === "student") {
+    return <div className="flex justify-end"><div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-[#1d5fd1] px-4 py-3 text-[15px] leading-relaxed text-white shadow-sm"><MarkdownRenderer content={message.text} enableMath /></div></div>;
+  }
   if (message.kind === "error") {
     return (
       <div
@@ -51,6 +54,8 @@ export default function TutorActionCard({ message }: { message: TutorMessage }) 
         </div>
         <div className="text-[15px] leading-relaxed text-[var(--foreground)]">
           <MarkdownRenderer content={message.text} enableMath />
+          {message.status === "PARTIAL" && <div className="mt-3 text-sm text-slate-500">这次回答没有完整生成。{onContinue && <button className="ml-2 text-blue-600 underline" onClick={onContinue}>继续生成</button>}</div>}
+          {message.status === "FAILED" && <p className="mt-3 text-sm text-slate-500">这次回答未能生成，请重试。</p>}
         </div>
       </div>
     </div>

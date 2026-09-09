@@ -1,8 +1,8 @@
 "use client";
 
-import { FileText, Loader2, RefreshCw, Trash2, TriangleAlert } from "lucide-react";
+import { Check, FileText, Loader2, Pencil, RefreshCw, Trash2, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { formatBytes, formatDateTime, reparseDocument } from "../lib/desktop-api";
+import { formatBytes, formatDateTime, renameDocument, reparseDocument } from "../lib/desktop-api";
 import { documentStatusLabel } from "../lib/labels";
 import type { DesktopDocument } from "../types";
 
@@ -36,6 +36,8 @@ export default function DocumentRow({
   onUpdated: (doc: DesktopDocument) => void;
 }) {
   const [busyReparse, setBusyReparse] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(document.filename);
 
   const handleReparse = async () => {
     setBusyReparse(true);
@@ -56,9 +58,7 @@ export default function DocumentRow({
             <FileText className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[var(--foreground)]" title={document.filename}>
-              {document.filename}
-            </p>
+            {editing ? <div className="flex items-center gap-1"><input aria-label="资料名称" value={name} onChange={(event) => setName(event.target.value)} className="h-8 min-w-0 rounded-lg border border-[#9db8df] bg-transparent px-2 text-sm outline-none" /><button type="button" aria-label="保存名称" onClick={async () => { if (!name.trim()) return; onUpdated(await renameDocument(document.document_id, name)); setEditing(false); }} className="rounded-md p-1 text-emerald-600"><Check className="h-4 w-4" /></button><button type="button" aria-label="取消重命名" onClick={() => { setName(document.filename); setEditing(false); }} className="rounded-md p-1 text-slate-500"><X className="h-4 w-4" /></button></div> : <div className="flex items-center gap-1"><p className="truncate text-sm font-medium text-[var(--foreground)]" title={document.filename}>{document.filename}</p><button type="button" onClick={() => setEditing(true)} aria-label={`重命名 ${document.filename}`} className="rounded p-1 text-slate-400 hover:text-[#1d5fd1]"><Pencil className="h-3.5 w-3.5" /></button></div>}
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--muted-foreground)]">
               <span className="inline-flex items-center gap-1">
                 <span className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[document.status] ?? "bg-[var(--muted-foreground)]"}`} aria-hidden="true" />
@@ -68,6 +68,7 @@ export default function DocumentRow({
               <span>{document.chunk_count} 个分块</span>
               <span>{formatBytes(document.size_bytes)}</span>
               <span>{formatDateTime(document.created_at)}</span>
+              {document.conversation_ids?.length ? <span>关联 {document.conversation_ids.length} 个对话</span> : <span>未关联对话</span>}
             </p>
           </div>
         </div>

@@ -130,6 +130,9 @@ DATA_CATEGORIES: dict[str, str] = {
     # user-controlled content — the student's own documents and memories.
     "user_documents": CATEGORY_USER_CONTROLLED,
     "document_chunks": CATEGORY_USER_CONTROLLED,
+    "conversations": CATEGORY_USER_CONTROLLED,
+    "conversation_messages": CATEGORY_USER_CONTROLLED,
+    "conversation_documents": CATEGORY_USER_CONTROLLED,
     "personal_memory_nodes": CATEGORY_USER_CONTROLLED,
     "personal_memory_edges": CATEGORY_USER_CONTROLLED,
     # system ledgers and shared catalogs.
@@ -166,6 +169,9 @@ DATA_CATEGORY_REASONS: dict[str, str] = {
     "document_index_builds": "索引构建生命周期行（派生的构建签名）",
     "user_documents": "学生导入的文档元数据（用户自有权，软删语义）",
     "document_chunks": "chunk 文本事实（用户内容；随文档删除真实清理）",
+    "conversations": "学生创建的对话标题与时间信息（用户可控工作区数据）",
+    "conversation_messages": "学生与 Tutor 的可恢复对话记录（用户可控内容）",
+    "conversation_documents": "对话与资料的用户显式关联（用户可控边界）",
     "personal_memory_nodes": "个人记忆 KG 节点（USER_CONTROLLED，软删）",
     "personal_memory_edges": "个人记忆 KG 边（节点附属结构）",
     "domain_outbox": "事件审计/传输台账（append-only）",

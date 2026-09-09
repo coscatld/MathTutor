@@ -21,6 +21,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 const PAYLOAD_KEYS: ReadonlyArray<keyof StudentPayload> = [
+  "message_id", "turn_id", "conversation_id", "status", "finish_reason", "final_text",
   "action",
   "effective_assistance_level",
   "student_message",
@@ -30,9 +31,11 @@ const PAYLOAD_KEYS: ReadonlyArray<keyof StudentPayload> = [
 
 const EVENT_TYPES: ReadonlySet<string> = new Set<MathTutorEventType>([
   "tutor_action_committed",
+  "tutor_message",
   "cycle_state_committed",
   "turn_error",
   "turn_end",
+  "assistant_start", "assistant_delta", "assistant_complete", "assistant_partial", "assistant_error",
 ]);
 
 function asStringList(value: unknown): string[] {
@@ -88,7 +91,8 @@ export function projectStudentFrame(raw: RawStudentFrame): StudentFrame | null {
 // ---------------------------------------------------------------------------
 
 export function isStaleFrame(frame: StudentFrame, seenVersion: number): boolean {
-  if (frame.event_type === "turn_error" || frame.event_type === "turn_end") {
+  if (frame.event_type.startsWith("assistant_")) return false;
+  if (frame.event_type === "turn_error" || frame.event_type === "turn_end" || frame.event_type === "tutor_message") {
     return false;
   }
   if (seenVersion <= 0) return false;
@@ -126,6 +130,7 @@ export function buildEnvelope(
 /** Commands that must carry free-text input from a composer. */
 export function commandNeedsText(command: MathTutorCommand): boolean {
   return (
+    command === "send_message" ||
     command === "submit_problem" ||
     command === "clarify_problem" ||
     command === "clarify_attempt"
@@ -283,6 +288,7 @@ export function normalizeAssistanceLevel(level: number): number {
 // ---------------------------------------------------------------------------
 
 const ACTION_LABELS: Readonly<Record<string, string>> = {
+  TUTOR_CHAT: "Tutor",
   ASK_STUDENT: "提问",
   GIVE_HINT: "提示",
   EXPLAIN_CONCEPT: "讲解",
@@ -300,7 +306,31 @@ const ACTION_LABELS: Readonly<Record<string, string>> = {
 export function actionLabel(action: string): string {
   const trimmed = String(action ?? "").trim();
   if (!trimmed) return "";
-  return ACTION_LABELS[trimmed] ?? trimmed;
+  if (ACTION_LABELS[trimmed]) return ACTION_LABELS[trimmed];
+  if (/^(submit_problem|clarify_problem|clarify_attempt|grounding|cycle_state)/i.test(trimmed)) {
+    return "";
+  }
+  return trimmed;
+}
+
+const STUDENT_STEP_FAILED = "刚才这一步没有处理成功，请再试一次。";
+
+/** Drop internal command acknowledgements; they are not assistant utterances. */
+export function shouldRenderTutorText(text: string): boolean {
+  const compact = String(text ?? "").trim();
+  if (!compact) return false;
+  return !/^命令\s+\w+\s+已确认/.test(compact);
+}
+
+/** Project a turn_error string onto student-safe copy. */
+export function projectTurnError(text: string): string {
+  const compact = String(text ?? "").trim();
+  if (!compact) return STUDENT_STEP_FAILED;
+  if (/状态\s+\w+\s+不接受命令/.test(compact)) return STUDENT_STEP_FAILED;
+  if (/(submit_problem|clarify_problem|clarify_attempt|grounding_ok|cycle_state)/i.test(compact)) {
+    return STUDENT_STEP_FAILED;
+  }
+  return compact;
 }
 
 /** Frame detail used to seed a new session id (pure, testable fallback). */

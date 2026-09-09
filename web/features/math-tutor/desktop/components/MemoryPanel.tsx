@@ -13,6 +13,7 @@ import {
 import { MEMORY_TYPE_LABELS } from "../lib/labels";
 import type { DesktopMemory } from "../types";
 import MemoryRow from "./MemoryRow";
+import { useToast } from "./ToastProvider";
 
 /** Category tabs: user-entered types + the AI-inferred category. */
 const FILTER_TABS: { key: string; label: string; ai?: boolean }[] = [
@@ -37,6 +38,7 @@ export default function MemoryPanel({
   createMemoryFn?: typeof createMemory;
   confirmMemoryFn?: typeof confirmMemory;
 }) {
+  const toast = useToast();
   const [memories, setMemories] = useState<DesktopMemory[]>([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -95,11 +97,11 @@ export default function MemoryPanel({
       setAdding(false);
       setFilter(created.memory_type);
       setMessage({ kind: "ok", text: "记忆已保存。" });
+      toast({ title: "记忆已保存", tone: "success" });
     } catch (err) {
-      setMessage({
-        kind: "error",
-        text: err instanceof DesktopApiError ? err.message : "保存失败，请稍后再试。",
-      });
+      const text = err instanceof DesktopApiError ? err.message : "保存失败，请稍后再试。";
+      setMessage({ kind: "error", text });
+      toast({ title: "保存记忆失败", description: text, tone: "error" });
     } finally {
       setSaving(false);
     }
@@ -111,10 +113,9 @@ export default function MemoryPanel({
       const updated = await toggleMemoryRetrieval(memory.memory_id, enabled);
       setMemories((list) => list.map((m) => (m.memory_id === updated.memory_id ? updated : m)));
     } catch (err) {
-      setMessage({
-        kind: "error",
-        text: err instanceof DesktopApiError ? err.message : "更新失败，请稍后再试。",
-      });
+      const text = err instanceof DesktopApiError ? err.message : "更新失败，请稍后再试。";
+      setMessage({ kind: "error", text });
+      toast({ title: "更新记忆失败", description: text, tone: "error" });
     } finally {
       setBusyId(null);
     }
@@ -126,11 +127,11 @@ export default function MemoryPanel({
       await deleteMemory(memory.memory_id);
       setMemories((list) => list.filter((m) => m.memory_id !== memory.memory_id));
       setMessage({ kind: "ok", text: "已删除这条记忆。" });
+      toast({ title: "记忆已删除", tone: "success" });
     } catch (err) {
-      setMessage({
-        kind: "error",
-        text: err instanceof DesktopApiError ? err.message : "删除失败，请稍后再试。",
-      });
+      const text = err instanceof DesktopApiError ? err.message : "删除失败，请稍后再试。";
+      setMessage({ kind: "error", text });
+      toast({ title: "删除记忆失败", description: text, tone: "error" });
     } finally {
       setBusyId(null);
     }
@@ -142,11 +143,11 @@ export default function MemoryPanel({
       const updated = await confirmMemoryFn(memory.memory_id);
       setMemories((list) => list.map((m) => (m.memory_id === updated.memory_id ? updated : m)));
       setMessage({ kind: "ok", text: "已确认这条 AI 推测，将参与个性化回忆。" });
+      toast({ title: "AI 推测已确认", description: "这条记忆将参与个性化回忆。", tone: "success" });
     } catch (err) {
-      setMessage({
-        kind: "error",
-        text: err instanceof DesktopApiError ? err.message : "确认失败，请稍后再试。",
-      });
+      const text = err instanceof DesktopApiError ? err.message : "确认失败，请稍后再试。";
+      setMessage({ kind: "error", text });
+      toast({ title: "确认失败", description: text, tone: "error" });
     } finally {
       setBusyId(null);
     }

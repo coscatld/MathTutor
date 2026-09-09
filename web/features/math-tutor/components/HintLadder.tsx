@@ -7,7 +7,7 @@ interface HintLadderProps {
   level: number;
 }
 
-const LEVEL_NAMES = ["第 1 级", "第 2 级", "第 3 级", "第 4 级", "第 5 级"];
+const LEVEL_NAMES = ["方向", "方法", "下一步", "校正", "完整解答"];
 
 /**
  * Visual ladder of the tutoring hint levels (1-5). Purely informational:
@@ -18,13 +18,14 @@ export default function HintLadder({ level }: HintLadderProps) {
 
   return (
     <section
-      className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm"
+      className="rounded-2xl border border-[#deddd7] bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
       aria-label="提示等级阶梯"
     >
       <h2 className="mb-3 text-sm font-semibold text-[var(--foreground)]">
         提示阶梯
       </h2>
-      <ol className="flex flex-col gap-1.5" aria-label={current > 0 ? `当前提示等级：第 ${current} 级` : "尚未使用提示"}>
+      <div className="mb-3 flex items-center gap-2"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-amber-500 transition-[width]" style={{ width: `${current * 20}%` }} /></div><span className="text-xs font-semibold text-amber-700">L{current}</span></div>
+      <ol className="flex flex-col gap-1" aria-label={current > 0 ? `当前提示等级：第 ${current} 级` : "尚未使用提示"}>
         {Array.from({ length: HINT_LADDER_MAX }, (_, index) => {
           const step = index + 1;
           const active = current > 0 && step <= current;
@@ -32,7 +33,7 @@ export default function HintLadder({ level }: HintLadderProps) {
           return (
             <li
               key={step}
-              className={`flex min-h-[36px] items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm transition-colors duration-200 ${
+              className={`flex min-h-[30px] items-center gap-2 rounded-lg px-2 py-1 text-xs transition-colors duration-200 ${
                 isCurrent
                   ? "bg-amber-500/15 font-semibold text-amber-800 dark:text-amber-300"
                   : active
@@ -42,7 +43,7 @@ export default function HintLadder({ level }: HintLadderProps) {
               aria-current={isCurrent ? "step" : undefined}
             >
               <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
                   isCurrent
                     ? "bg-amber-500 text-white"
                     : active
@@ -53,13 +54,13 @@ export default function HintLadder({ level }: HintLadderProps) {
               >
                 {step}
               </span>
-              <span>{LEVEL_NAMES[index]}</span>
+              <span>L{step} · {LEVEL_NAMES[index]}</span>
             </li>
           );
         })}
       </ol>
       <p className="mt-2.5 text-xs leading-relaxed text-[var(--muted-foreground)]">
-        提示会随着你的请求逐级递进，每级只比上一级多给一点帮助。
+        每次只多给一点帮助，直到你真正需要完整解答。
       </p>
     </section>
   );

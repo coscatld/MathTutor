@@ -1,6 +1,6 @@
 {
   "name": "math-tutor-desktop",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "private": true,
   "description": "K12 MathTutor desktop shell (Electron) — native window + file dialogs only; all business logic lives in the local Python product service and the Next.js frontend.",
   "main": "main.js",

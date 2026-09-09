@@ -42,6 +42,7 @@ from mathtutor.infrastructure.generative_gateway import (
     PRESETS,
 )
 from mathtutor.infrastructure.secret_store import InMemorySecretStore
+from mathtutor.infrastructure.tutor_chat import TutorChatResponder
 from mathtutor.pedagogy.disclosure import DisclosedSolutionContext
 from mathtutor.pedagogy.stage_policy import MIDDLE_POLICY
 from mathtutor.pedagogy.tutor_writer import (
@@ -151,6 +152,21 @@ async def test_writer_uses_tutor_writer_role(tmp_path):
     assert seen == ["/v1/chat/completions"]
 
 
+async def test_normal_tutor_chat_uses_current_gateway_provider(tmp_path):
+    _, gateway, _, _ = await _configured(
+        tmp_path, preset="custom", base_url=_BASE_URL, model="chat-model"
+    )
+    seen: list[str] = []
+    _inject(gateway, _route(chat_text="你好，同学！", seen=seen))
+    responder = TutorChatResponder(gateway)
+    reply = await responder.respond(
+        "你好",
+        history=({"role": "student", "content": "你好"},),
+    )
+    assert reply == "你好，同学！"
+    assert seen == ["/v1/chat/completions"]
+
+
 async def test_practice_generator_uses_its_role(tmp_path):
     _, gateway, _, _ = await _configured(
         tmp_path, preset="custom", base_url=_BASE_URL, model="my-model"
@@ -172,7 +188,9 @@ async def test_configured_model_preferred(tmp_path):
     )
 
     async def forbidden(request: httpx.Request) -> httpx.Response:
-        raise AssertionError("model discovery must not run when a model is configured")
+        if request.url.path.endswith("/models"):
+            raise AssertionError("model discovery must not run when a model is configured")
+        return httpx.Response(200, json=_CHAT_OK)
 
     _inject(gateway, forbidden)
     result = await service.test_connection()
@@ -193,7 +211,7 @@ async def test_preset_default_model_preferred(tmp_path):
 
 async def test_discovered_first_model_fallback(tmp_path):
     """preset default absent → sorted-first discovered model."""
-    _, gateway, service, _ = await _configured(tmp_path, preset="deepseek")
+    _, gateway, service, _ = await _configured(tmp_path, preset="custom", base_url=_BASE_URL)
     _inject(gateway, _route(models=["z-model", "a-model"]))
     result = await service.test_connection()
     assert result.status == "ok"
@@ -220,8 +238,9 @@ async def test_models_error_is_not_swallowed(tmp_path):
     assert "500" in result.message
     result2 = await service.test_connection()
     assert result2.status == "error"
-    assert service.is_configured() is False
-    assert isinstance(build_tutor_writer(gateway, _settings()), TemplateTutorWriter)
+    assert service.connection_status() == "failure"
+    assert service.is_configured() is True
+    assert isinstance(build_tutor_writer(gateway, _settings()), LLMTutorWriter)
 
 
 async def test_secret_missing_fails_closed(tmp_path):
@@ -233,8 +252,9 @@ async def test_secret_missing_fails_closed(tmp_path):
     assert result.status == "error"
     assert "deepseek" in result.message
     assert _SECRET not in result.message
-    assert service.is_configured() is False
-    assert isinstance(build_tutor_writer(gateway, _settings()), TemplateTutorWriter)
+    assert service.connection_status() == "failure"
+    assert service.is_configured() is True
+    assert isinstance(build_tutor_writer(gateway, _settings()), LLMTutorWriter)
 
 
 async def test_error_message_never_echoes_key_value(tmp_path):
@@ -359,18 +379,18 @@ async def test_preset_endpoint_works(tmp_path):
 # ---------------------------------------------------------- config validation (13)
 
 
-async def test_preset_rejects_base_url_and_model(tmp_path):
+async def test_preset_rejects_base_url_but_accepts_user_model(tmp_path):
     gateway = GenerativeModelGateway(InMemorySecretStore())
     service = GatewayConfigService(gateway, InMemorySecretStore())
     with pytest.raises(GenerativeConfigError):
         await service.apply_config(preset_id="openai", api_key=_SECRET, base_url="https://evil.example/v1")
-    with pytest.raises(GenerativeConfigError):
-        await service.apply_config(preset_id="openai", api_key=_SECRET, model="gpt-x")
+    configured = await service.apply_config(preset_id="openai", api_key=_SECRET, model="gpt-x")
+    assert configured["model"] == "gpt-x"
     with pytest.raises(GenerativeConfigError):
         await service.apply_config(preset_id="unknown-vendor", api_key=_SECRET)
     with pytest.raises(GenerativeConfigError):
         await service.apply_config(preset_id="custom", api_key=_SECRET)  # needs base_url
-    assert gateway.configured_roles() == []
+    assert set(gateway.configured_roles()) == set(ModelRole)
 
 
 # -------------------------------------------------------------- wiring + restore (14)
@@ -387,13 +407,14 @@ async def test_build_tutor_writer_selection(tmp_path):
     assert isinstance(build_tutor_writer(empty, _settings(enabled=True)), TemplateTutorWriter)
     # enabled + configured + resolved model → LLMTutorWriter
     assert isinstance(build_tutor_writer(gateway, _settings(enabled=True)), LLMTutorWriter)
-    # preset registered but model not yet resolved → template
+    # fixed presets carry a real adapter default immediately.
     store = InMemorySecretStore()
     gw = GenerativeModelGateway(store)
     svc = GatewayConfigService(gw, store)
     await svc.apply_config(preset_id="deepseek", api_key=_SECRET)
-    assert svc.is_configured() is False
-    assert isinstance(build_tutor_writer(gw, _settings(enabled=True)), TemplateTutorWriter)
+    assert svc.is_configured() is True
+    assert gw.provider_for(ModelRole.TUTOR_WRITER).model == PRESETS["deepseek"].default_model
+    assert isinstance(build_tutor_writer(gw, _settings(enabled=True)), LLMTutorWriter)
 
 
 async def test_config_path_restore_reenables_writer(tmp_path):
@@ -402,7 +423,7 @@ async def test_config_path_restore_reenables_writer(tmp_path):
     gateway = GenerativeModelGateway(store)
     service = GatewayConfigService(gateway, store, config_path=path)
     await service.apply_config(preset_id="deepseek", api_key=_SECRET)
-    assert service.is_configured() is False  # model not resolved yet
+    assert service.is_configured() is True
     _inject(gateway, _route(models=[PRESETS["deepseek"].default_model]))
     result = await service.test_connection()
     assert result.status == "ok"
@@ -442,7 +463,8 @@ async def test_persisted_config_never_contains_key_field(tmp_path):
     assert data["base_url"] == _BASE_URL
     assert data["roles"] == ["tutor_writer", "practice_generator"]
     assert data["onboarding_completed"] is True
-    assert data["config_version"] == 1
+    assert data["config_version"] == 2
+    assert data["provider_configs"]["custom"]["model"] == "m"
     # POSIX mode bits are not an access-control contract on Windows.  The
     # Windows desktop stores only non-secret metadata here; the API key lives
     # in Credential Manager and is asserted absent above.
@@ -469,10 +491,75 @@ async def test_apply_config_returns_nonsensitive_config(tmp_path):
         "model": "m",
         "base_url": _BASE_URL,
         "roles": ["tutor_writer", "practice_generator"],
+        "provider_configs": {
+            "custom": {"model": "m", "base_url": _BASE_URL},
+        },
         "onboarding_completed": True,
-        "config_version": 1,
+        "config_version": 2,
     }
     assert _SECRET not in json.dumps(config)
+
+
+async def test_saved_preset_model_survives_restart_and_beats_default(tmp_path):
+    path = tmp_path / "gateway.json"
+    store = InMemorySecretStore()
+    gateway = GenerativeModelGateway(store)
+    service = GatewayConfigService(gateway, store, config_path=path)
+    await service.apply_config(
+        preset_id="deepseek", api_key=_SECRET, model="deepseek-user-model"
+    )
+
+    restored_gateway = GenerativeModelGateway(store)
+    restored = GatewayConfigService(restored_gateway, store, config_path=path)
+    assert restored.current_config()["model"] == "deepseek-user-model"
+    assert restored_gateway.provider_for(ModelRole.TUTOR_WRITER).model == "deepseek-user-model"
+
+
+async def test_provider_profiles_restore_each_provider_model(tmp_path):
+    path = tmp_path / "gateway.json"
+    store = InMemorySecretStore()
+    gateway = GenerativeModelGateway(store)
+    service = GatewayConfigService(gateway, store, config_path=path)
+    await service.apply_config(preset_id="openai", api_key=_SECRET, model="openai-a")
+    await service.apply_config(preset_id="deepseek", api_key=_SECRET, model="deepseek-b")
+    profiles = service.provider_profiles()
+    assert profiles["openai"]["model"] == "openai-a"
+    assert profiles["deepseek"]["model"] == "deepseek-b"
+
+
+async def test_ollama_needs_no_key_and_validates_installed_model(tmp_path):
+    _, gateway, service, _ = await _configured(
+        tmp_path,
+        preset="ollama",
+        api_key="",
+        base_url="http://127.0.0.1:11434",
+        model="qwen3:latest",
+    )
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/tags":
+            return httpx.Response(200, json={"models": [{"name": "qwen3:latest"}]})
+        assert request.url.path == "/api/chat"
+        assert request.headers.get("authorization") is None
+        return httpx.Response(200, json={"message": {"content": "连接成功"}, "done_reason": "stop"})
+
+    _inject(gateway, handler)
+    assert await service.has_api_key() is False
+    assert await service.is_ready() is True
+    result = await service.test_connection()
+    assert result.status == "ok"
+    assert result.resolved_model == "qwen3:latest"
+    assert result.message == "已连接到本地 Ollama。"
+
+
+async def test_ollama_rejects_non_loopback_service_url():
+    service = GatewayConfigService(
+        GenerativeModelGateway(InMemorySecretStore()), InMemorySecretStore()
+    )
+    with pytest.raises(GenerativeConfigError):
+        await service.apply_config(
+            preset_id="ollama", base_url="https://remote.example", model="qwen3"
+        )
 
 
 async def test_corrupt_config_file_fails_closed(tmp_path):

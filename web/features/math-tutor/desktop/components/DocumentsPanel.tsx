@@ -6,12 +6,15 @@ import {
   deleteDocument,
   DesktopApiError,
   fetchDocuments,
+  fetchEmbeddingSettings,
   importDocumentFile,
   nativePickAndImport,
   toggleDocumentRetrieval,
 } from "../lib/desktop-api";
-import type { DesktopDocument } from "../types";
+import type { DesktopDocument, EmbeddingSettings } from "../types";
 import DocumentRow from "./DocumentRow";
+import EmbeddingStatusBadge from "./EmbeddingStatusBadge";
+import { useToast } from "./ToastProvider";
 
 /**
  * 我的资料 — user documents. Entry paths are strictly user-initiated:
@@ -20,24 +23,33 @@ import DocumentRow from "./DocumentRow";
  */
 export default function DocumentsPanel({
   fetchDocumentsFn = fetchDocuments,
+  fetchEmbeddingSettingsFn = fetchEmbeddingSettings,
   nativePickAndImportFn = nativePickAndImport,
   importDocumentFileFn = importDocumentFile,
 }: {
   fetchDocumentsFn?: typeof fetchDocuments;
+  fetchEmbeddingSettingsFn?: typeof fetchEmbeddingSettings;
   nativePickAndImportFn?: typeof nativePickAndImport;
   importDocumentFileFn?: typeof importDocumentFile;
 }) {
   const [documents, setDocuments] = useState<DesktopDocument[]>([]);
+  const [embeddingSettings, setEmbeddingSettings] = useState<EmbeddingSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [picking, setPicking] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      setDocuments(await fetchDocumentsFn());
+      const [nextDocuments, nextEmbedding] = await Promise.all([
+        fetchDocumentsFn(),
+        fetchEmbeddingSettingsFn().catch(() => null),
+      ]);
+      setDocuments(nextDocuments);
+      setEmbeddingSettings(nextEmbedding);
       setMessage(null);
     } catch (err) {
       setMessage({
@@ -47,7 +59,7 @@ export default function DocumentsPanel({
     } finally {
       setLoading(false);
     }
-  }, [fetchDocumentsFn]);
+  }, [fetchDocumentsFn, fetchEmbeddingSettingsFn]);
 
   useEffect(() => {
     refresh().catch(() => undefined);
@@ -59,7 +71,7 @@ export default function DocumentsPanel({
     try {
       const doc = await nativePickAndImportFn();
       if (doc) {
-        setMessage({ kind: "ok", text: `已导入「${doc.filename}」` });
+        toast({ title: "资料已导入", description: `《${doc.filename}》已经可以管理与检索。` });
         await refresh();
       }
     } catch (err) {
@@ -80,7 +92,7 @@ export default function DocumentsPanel({
     setMessage(null);
     try {
       const doc = await importDocumentFileFn(file);
-      setMessage({ kind: "ok", text: `已导入「${doc.filename}」` });
+      toast({ title: "资料已导入", description: `《${doc.filename}》已经可以管理与检索。` });
       await refresh();
     } catch (err) {
       setMessage({
@@ -113,7 +125,7 @@ export default function DocumentsPanel({
     try {
       await deleteDocument(doc.document_id);
       setDocuments((list) => list.filter((d) => d.document_id !== doc.document_id));
-      setMessage({ kind: "ok", text: `已删除「${doc.filename}」` });
+      toast({ title: "资料已删除", description: `《${doc.filename}》不会再被检索或召回。` });
     } catch (err) {
       setMessage({
         kind: "error",
@@ -139,6 +151,7 @@ export default function DocumentsPanel({
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
             上传学习资料（TXT / Markdown / TeX / PDF，单个不超过 20MB），用于生成针对性练习。
           </p>
+          {embeddingSettings ? <span className="mt-2 block"><EmbeddingStatusBadge settings={embeddingSettings} /></span> : null}
         </div>
         <button
           type="button"

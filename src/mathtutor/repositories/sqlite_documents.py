@@ -8,10 +8,12 @@ the Router; needs_ocr / failed never match), chunk TEXT is a fact
 while vectors are a derived projection, and the index build row makes
 rebuild decisions deterministic.
 
-Retrieval runs metadata-filtered SQL first (owner + visibility), scores
-candidates in pure Python (lexical fraction + optional cosine fusion) —
-no vector-DB extension, no network. With ``vector=None`` the search is
-lexical-only (degraded mode: no embedding backend required).
+Retrieval runs metadata-filtered SQL first (owner + visibility), then
+FTS5 over pre-tokenized ``fts_text`` as the lexical candidate source
+(LIKE is only a last resort when this SQLite build has no FTS5). Scores
+combine FTS bm25 with ``lexical_score`` and optional cosine fusion.
+With ``vector=None`` the search is lexical-only (degraded mode: no
+embedding backend required).
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Any, Sequence
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from mathtutor.domain.documents import (
@@ -36,7 +38,18 @@ from mathtutor.domain.embedding import (
     EmbeddingDescriptor,
     EmbeddingVector,
 )
-from mathtutor.infrastructure.lexical import lexical_score
+from mathtutor.infrastructure.document_fts import (
+    FTS_TABLE,
+    ensure_document_chunks_fts,
+    sync_document_chunks_fts,
+)
+from mathtutor.infrastructure.lexical import (
+    build_fts_text,
+    fts_match_query,
+    fts_query_tokens,
+    fts_rank_component,
+    lexical_score,
+)
 from mathtutor.infrastructure.schema import (
     document_chunk_vectors,
     document_chunks,
@@ -44,6 +57,7 @@ from mathtutor.infrastructure.schema import (
     user_documents,
 )
 from mathtutor.repositories.document_repository import (
+    FTS_FUSION_WEIGHT,
     cosine_similarity,
     fuse_retrieval_scores,
 )
@@ -85,6 +99,12 @@ def _document_from_row(row: Any) -> UserDocument:
 
 
 def _chunk_from_row(row: Any) -> DocumentChunk:
+    metadata = row.metadata_json or {}
+    heading = metadata.get("heading_path") or []
+    parent_raw = metadata.get("parent_chunk_id")
+    parent_id = UUID(str(parent_raw)) if parent_raw else None
+    page_start = metadata.get("page_start", row.page)
+    page_end = metadata.get("page_end", page_start)
     return DocumentChunk(
         chunk_id=UUID(row.chunk_id),
         document_id=UUID(row.document_id),
@@ -94,8 +114,14 @@ def _chunk_from_row(row: Any) -> DocumentChunk:
         section=row.section or "",
         text=row.text,
         content_hash=row.content_hash,
-        metadata_json=row.metadata_json or {},
+        chunk_type=str(metadata.get("chunk_type") or "paragraph"),
+        heading_path=tuple(heading) if isinstance(heading, list) else (),
+        page_start=page_start,
+        page_end=page_end,
+        parent_chunk_id=parent_id,
+        metadata_json=metadata,
         chunker_version=row.chunker_version or "",
+        fts_text=getattr(row, "fts_text", None) or "",
     )
 
 
@@ -279,8 +305,10 @@ async def replace_document_chunks(
                 content_hash=chunk.content_hash,
                 metadata_json=chunk.metadata_json,
                 chunker_version=chunk.chunker_version,
+                fts_text=_stored_fts_text(chunk),
             )
         )
+    await sync_document_chunks_fts(conn)
 
 
 async def list_document_chunks(
@@ -296,6 +324,17 @@ async def list_document_chunks(
     )
     rows = (await conn.execute(stmt)).all()
     return [_chunk_from_row(row) for row in rows]
+
+
+def _stored_fts_text(chunk: DocumentChunk) -> str:
+    if chunk.fts_text:
+        return chunk.fts_text
+    return build_fts_text(
+        chunk.text,
+        heading_path=chunk.heading_path,
+        section=chunk.section,
+        metadata=chunk.metadata_json,
+    )
 
 
 # ---------------------------------------------------------------- vectors
@@ -412,7 +451,9 @@ async def search_document_chunks(
     fine for the local desktop MVP; a future retrieval-infrastructure
     round may add an ANN index behind the same contract).
     """
-    tokens = list(query_tokens)
+    tokens = list(query_tokens) or fts_query_tokens(query)
+    fts_tokens = fts_query_tokens(query) or tokens
+    match = fts_match_query(fts_tokens)
 
     doc_where = (
         (user_documents.c.student_id == student_id)
@@ -430,17 +471,37 @@ async def search_document_chunks(
         .subquery()
     )
 
+    fts_ranks: dict[UUID, float] = {}
+    used_fts = False
+    if vector is None and match:
+        used_fts = await _fts_candidate_ids(conn, student_id, match, fts_ranks)
     chunk_stmt = (
         select(document_chunks, visible.c.filename)
         .join(visible, document_chunks.c.document_id == visible.c.document_id)
         .where(document_chunks.c.student_id == student_id)
     )
     if vector is None and tokens:
-        # Lexical pre-filter: at least one query token present.
-        conditions = []
-        for token in tokens:
-            conditions.append(document_chunks.c.text.like(f"%{token}%"))
-        chunk_stmt = chunk_stmt.where(or_(*conditions))
+        if used_fts and fts_ranks:
+            chunk_stmt = chunk_stmt.where(
+                document_chunks.c.chunk_id.in_([str(cid) for cid in fts_ranks])
+            )
+        elif not used_fts:
+            # FTS5 unavailable in this SQLite build — last-resort LIKE.
+            conditions = []
+            for token in tokens:
+                conditions.append(document_chunks.c.text.like(f"%{token}%"))
+                conditions.append(document_chunks.c.fts_text.like(f"%{token}%"))
+            chunk_stmt = chunk_stmt.where(or_(*conditions))
+        else:
+            # FTS ran and matched nothing — do not fall back to LIKE.
+            return DocumentQueryResult(
+                query=query,
+                hits=(),
+                vector_used=False,
+                embedding_backend_id=embedding_backend_id,
+                index_version=index_version,
+                degraded=True,
+            )
     rows = (await conn.execute(chunk_stmt)).all()
 
     # Vectors for every visible document involved (when fusing).
@@ -464,23 +525,36 @@ async def search_document_chunks(
                 vectors_by_chunk[UUID(vrow.chunk_id)] = (descriptor, stored_vector)
 
     hits: list[RetrievedChunk] = []
+    used_any_vector = False
     for row in rows:
         chunk = _chunk_from_row(row)
-        lexical = lexical_score(chunk.text, tokens)
-        if lexical <= 0.0 and vector is None:
-            continue  # lexical-only mode: unmatched chunks are invisible
+        scored_blob = " ".join(part for part in (chunk.text, chunk.fts_text) if part)
+        lexical = lexical_score(scored_blob, tokens)
+        if lexical <= 0.0 and vector is None and chunk.chunk_id not in fts_ranks:
+            continue
         vector_score: float | None = None
         if vector is not None:
             stored = vectors_by_chunk.get(chunk.chunk_id)
             if stored is not None:
-                _, stored_vector = stored
-                vector_score = cosine_similarity(vector, stored_vector)
+                descriptor, stored_vector = stored
+                if (
+                    descriptor.backend_id == embedding_backend_id
+                    and descriptor.dimension == len(vector)
+                ):
+                    vector_score = cosine_similarity(vector, stored_vector)
+                    used_any_vector = True
+        if lexical <= 0.0 and vector_score is None and chunk.chunk_id not in fts_ranks:
+            continue
+        score = fuse_retrieval_scores(lexical, vector_score)
+        bm25 = fts_ranks.get(chunk.chunk_id)
+        if bm25 is not None:
+            score += FTS_FUSION_WEIGHT * fts_rank_component(bm25)
         hits.append(
             RetrievedChunk(
                 chunk=chunk,
                 document_id=chunk.document_id,
                 filename=row.filename,
-                score=fuse_retrieval_scores(lexical, vector_score),
+                score=score,
                 lexical_score=lexical,
                 vector_score=vector_score,
             )
@@ -489,11 +563,39 @@ async def search_document_chunks(
     return DocumentQueryResult(
         query=query,
         hits=tuple(hits[:limit]),
-        vector_used=vector is not None,
+        vector_used=used_any_vector,
         embedding_backend_id=embedding_backend_id,
         index_version=index_version,
-        degraded=vector is None,
+        degraded=not used_any_vector,
     )
+
+
+async def _fts_candidate_ids(
+    conn: AsyncConnection,
+    student_id: str,
+    match: str,
+    fts_ranks: dict[UUID, float],
+) -> bool:
+    """Fill ``fts_ranks`` from FTS5. True when the FTS table was queried."""
+    if not match or not await ensure_document_chunks_fts(conn):
+        return False
+    try:
+        result = await conn.execute(
+            text(
+                f"SELECT chunk_id, bm25({FTS_TABLE}) AS fts_rank "
+                f"FROM {FTS_TABLE} "
+                f"WHERE {FTS_TABLE} MATCH :match AND student_id = :sid"
+            ),
+            {"match": match, "sid": student_id},
+        )
+    except Exception:
+        return False
+    for row in result:
+        try:
+            fts_ranks[UUID(str(row.chunk_id))] = float(row.fts_rank)
+        except (TypeError, ValueError):
+            continue
+    return True
 
 
 __all__ = [

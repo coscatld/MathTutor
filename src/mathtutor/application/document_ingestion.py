@@ -40,6 +40,7 @@ from mathtutor.domain.documents import (
 )
 from mathtutor.domain.embedding import EmbeddingUnavailableError, validate_vector
 from mathtutor.infrastructure.chunking import CHUNKER_VERSION, TextChunker
+from mathtutor.infrastructure.lexical import build_fts_text
 from mathtutor.infrastructure.document_parser import (
     DocumentParser,
     LocalDocumentParser,
@@ -75,10 +76,12 @@ def ingest_outcome_from_parse(
     extractable_chars == 0 (or zero chunks) is never ``ready``:
     scanned PDFs become ``needs_ocr``, other empty files become ``failed``.
     Mixed PDFs with a high empty-page ratio become ``ready_with_warnings``.
-    ``image_count`` is always 0 in this parser (no OCR / image pipeline).
+    ``image_count`` is the number of extracted original images (0 when
+    none were saved). Empty text still never becomes ``ready``.
     """
     warning = parsed.parse_warning
     empty = parsed.extractable_chars <= 0 or chunk_count <= 0
+    image_count = parsed.image_count
     if empty:
         is_pdf = Path(filename).suffix.lower() == ".pdf"
         status = "needs_ocr" if is_pdf else "failed"
@@ -89,7 +92,7 @@ def ingest_outcome_from_parse(
             "parse_error": message,
             "page_count": parsed.total_pages,
             "chunk_count": chunk_count,
-            "image_count": 0,
+            "image_count": image_count,
             "empty_page_count": parsed.empty_pages,
             "parse_warning": message,
         }
@@ -100,7 +103,7 @@ def ingest_outcome_from_parse(
         "parse_error": "",
         "page_count": parsed.total_pages,
         "chunk_count": chunk_count,
-        "image_count": 0,
+        "image_count": image_count,
         "empty_page_count": parsed.empty_pages,
         "parse_warning": warning,
     }
@@ -136,6 +139,21 @@ def _content_hash(data: bytes) -> str:
 
 def _chunk_text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _metadata_from_draft(draft: dict, *, parent_chunk_id) -> dict:
+    """Always persist a non-empty metadata_json with structure fields."""
+    metadata = dict(draft.get("metadata") or {})
+    metadata["chunk_type"] = draft.get("chunk_type") or metadata.get("chunk_type") or "paragraph"
+    heading = draft.get("heading_path")
+    if heading is None:
+        heading = metadata.get("heading_path") or []
+    metadata["heading_path"] = list(heading)
+    metadata["page_start"] = draft.get("page_start", metadata.get("page_start"))
+    metadata["page_end"] = draft.get("page_end", metadata.get("page_end"))
+    if parent_chunk_id is not None:
+        metadata["parent_chunk_id"] = str(parent_chunk_id)
+    return metadata
 
 
 class DocumentIngestionService:
@@ -189,7 +207,7 @@ class DocumentIngestionService:
             await self._repo.update_document(
                 student_id, doc.model_copy(update={"status": "parsing"})
             )
-            parsed = await self._parser.parse(path=str(self._storage.resolve(storage_ref)))
+            parsed = await self._parse_stored(student_id, document_id, storage_ref)
             chunks = self._build_chunks(student_id, document_id, parsed)
             doc = await self._persist_parse_result(
                 student_id, doc, parsed, chunks, preserve_retrieval=False
@@ -224,9 +242,7 @@ class DocumentIngestionService:
         if doc is None:
             raise ValueError(f"document not found: {document_id}")
         try:
-            parsed = await self._parser.parse(
-                path=str(self._storage.resolve(doc.storage_ref))
-            )
+            parsed = await self._parse_stored(student_id, document_id, doc.storage_ref)
             chunks = self._build_chunks(student_id, document_id, parsed)
             doc = await self._persist_parse_result(
                 student_id, doc, parsed, chunks, preserve_retrieval=True
@@ -287,25 +303,64 @@ class DocumentIngestionService:
             return
         try:
             await self._index.build_index(student_id, document_id)
-        except EmbeddingUnavailableError:
+        except (EmbeddingUnavailableError, ValueError):
             pass  # degraded mode — no backend provisioned
+
+    async def _parse_stored(
+        self, student_id: str, document_id: UUID, storage_ref: str
+    ) -> ParsedTextDocument:
+        owner = student_uuid(student_id)
+        asset_dir = self._storage.assets_dir(owner, document_id)
+        prefix = self._storage.assets_ref_prefix(owner, document_id)
+        return await self._parser.parse(
+            path=str(self._storage.resolve(storage_ref)),
+            asset_dir=str(asset_dir),
+            asset_ref_prefix=prefix,
+        )
 
     def _build_chunks(self, student_id: str, document_id: UUID, parsed) -> list[DocumentChunk]:
         drafts = self._chunker.chunk(parsed.blocks)
-        return [
-            DocumentChunk(
-                document_id=document_id,
-                student_id=student_uuid(student_id),
-                sequence=index,
-                page=draft["page"],
-                section=draft["section"],
-                text=draft["text"],
-                content_hash=_chunk_text_hash(draft["text"]),
-                metadata_json={},
-                chunker_version=CHUNKER_VERSION,
+        chunk_ids = [uuid4() for _ in drafts]
+        chunks: list[DocumentChunk] = []
+        for index, draft in enumerate(drafts):
+            parent_index = draft.get("parent_index")
+            parent_id = (
+                chunk_ids[parent_index]
+                if isinstance(parent_index, int) and 0 <= parent_index < len(chunk_ids)
+                else None
             )
-            for index, draft in enumerate(drafts)
-        ]
+            heading = tuple(draft.get("heading_path") or ())
+            page_start = draft.get("page_start", draft.get("page"))
+            page_end = draft.get("page_end", page_start)
+            metadata = _metadata_from_draft(draft, parent_chunk_id=parent_id)
+            section = draft.get("section") or (heading[-1] if heading else "")
+            body = draft["text"]
+            chunks.append(
+                DocumentChunk(
+                    chunk_id=chunk_ids[index],
+                    document_id=document_id,
+                    student_id=student_uuid(student_id),
+                    sequence=index,
+                    page=page_start,
+                    section=section,
+                    text=body,
+                    content_hash=_chunk_text_hash(body),
+                    chunk_type=str(draft.get("chunk_type") or "paragraph"),
+                    heading_path=heading,
+                    page_start=page_start,
+                    page_end=page_end,
+                    parent_chunk_id=parent_id,
+                    metadata_json=metadata,
+                    chunker_version=CHUNKER_VERSION,
+                    fts_text=build_fts_text(
+                        body,
+                        heading_path=heading,
+                        section=section,
+                        metadata=metadata,
+                    ),
+                )
+            )
+        return chunks
 
     async def delete(self, student_id: str, document_id: UUID) -> bool:
         """Soft delete + controlled-storage removal (immediate retention)."""
@@ -405,6 +460,13 @@ class DocumentIndexManager:
             return existing  # idempotent — nothing changed
 
         vectors = await self._runtime.embed_texts([chunk.text for chunk in chunks])
+        # A remote OpenAI-compatible model may discover its dimension on the
+        # first response. Re-read the descriptor before validation/persist so
+        # a placeholder dimension can never be written into the index.
+        refreshed = self._runtime.status()
+        if not refreshed.available or refreshed.descriptor is None:
+            raise EmbeddingUnavailableError(refreshed.reason)
+        descriptor = refreshed.descriptor
         for vector in vectors:
             validate_vector(descriptor, vector)  # fail closed on mismatches
         await self._repo.replace_vectors(
@@ -451,7 +513,11 @@ class DocumentIndexManager:
         if status.available:
             try:
                 vector = await self._runtime.embed_query(query)
-                backend_id = status.descriptor.backend_id
+                refreshed = self._runtime.status()
+                if not refreshed.available or refreshed.descriptor is None:
+                    raise EmbeddingUnavailableError(refreshed.reason)
+                validate_vector(refreshed.descriptor, vector)
+                backend_id = refreshed.descriptor.backend_id
                 if document_ids is not None and len(document_ids) == 1:
                     build = await self._repo.get_index_build(
                         student_id, document_ids[0]

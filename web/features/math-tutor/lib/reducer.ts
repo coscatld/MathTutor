@@ -18,13 +18,15 @@ import {
   extractDisplayLatex,
   isStaleFrame,
   normalizeAssistanceLevel,
+  projectTurnError,
+  shouldRenderTutorText,
 } from "./protocol";
 
 export type MathTutorAction =
   | { type: "connection"; status: ConnectionStatus; note: string }
   | { type: "frame"; frame: StudentFrame }
   | { type: "restore"; summary: SessionSummary }
-  | { type: "command_sent"; command: MathTutorCommand }
+  | { type: "command_sent"; command: MathTutorCommand; text?: string }
   | { type: "new_session"; sessionId: string };
 
 export function initialMathTutorState(sessionId: string): MathTutorUIState {
@@ -63,6 +65,7 @@ function appendMessage(
  * turn_error and turn_end always apply.
  */
 function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUIState {
+  if (frame.payload.conversation_id && frame.payload.conversation_id !== state.sessionId) return state;
   if (isStaleFrame(frame, state.seenVersion)) {
     return state;
   }
@@ -84,8 +87,35 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
     next.assistanceLevel = 0;
   }
 
+  if (frame.event_type === "assistant_start") return next;
+  if (frame.event_type === "assistant_delta") {
+    const text = frame.payload.student_message || "";
+    if (shouldRenderTutorText(text)) {
+      const id = frame.payload.message_id || frame.payload.turn_id;
+      const existing = state.messages.find(m => m.id === id && m.status === "STREAMING");
+      next.messages = existing ? state.messages.map(m => m === existing ? { ...m, text: m.text + text } : m)
+        : [...state.messages, { id: id || nextMessageId(), kind: "tutor", text, status: "STREAMING",
+          turnId: frame.payload.turn_id, action: frame.payload.action || "",
+          assistanceLevel: normalizeAssistanceLevel(frame.payload.effective_assistance_level || 0), version: next.seenVersion }].slice(-100) as TutorMessage[];
+    }
+    return next;
+  }
+  if (["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)) {
+    const status = frame.event_type === "assistant_complete" ? "COMPLETED" : frame.event_type === "assistant_partial" ? "PARTIAL" : frame.payload.status === "CANCELLED" ? "CANCELLED" : "FAILED";
+    next.messages = state.messages.map(m => m.turnId === frame.payload.turn_id ? { ...m, status, finishReason: frame.payload.finish_reason } : m);
+    const matching = next.messages.filter(m => m.turnId === frame.payload.turn_id);
+    if (matching.length === 1 && shouldRenderTutorText(frame.payload.final_text || "")) {
+      next.messages = next.messages.map(m => m === matching[0] ? { ...m, text: frame.payload.final_text! } : m);
+    }
+    if (frame.event_type === "assistant_error" && !next.messages.some(m => m.turnId === frame.payload.turn_id)) {
+      next.messages = appendMessage(next, { kind: "tutor", text: status === "CANCELLED" ? "已停止生成。" : "这次回答未能生成，请重试。", status, turnId: frame.payload.turn_id, action: "", assistanceLevel: 0, version: next.seenVersion });
+    }
+    next.pendingCommand = null;
+    return next;
+  }
+
   if (frame.event_type === "turn_error") {
-    const text = frame.payload.error?.trim() || "出错了，请重试。";
+    const text = projectTurnError(frame.payload.error?.trim() || "出错了，请重试。");
     next.pendingCommand = null;
     next.messages = appendMessage(state, {
       kind: "error",
@@ -98,11 +128,12 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
   }
 
   if (frame.event_type === "turn_end") {
+    next.messages = state.messages.map(m => m.status === "STREAMING" ? { ...m, status: "PARTIAL", finishReason: "STREAM_INTERRUPTED" } : m);
     next.pendingCommand = null;
     return next;
   }
 
-  // tutor_action_committed / cycle_state_committed
+  // tutor_action_committed / tutor_message / cycle_state_committed
   const action = frame.payload.action ?? "";
   const message = frame.payload.student_message ?? "";
   const level = normalizeAssistanceLevel(frame.payload.effective_assistance_level ?? 0);
@@ -111,11 +142,13 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
     next.assistanceLevel = level;
   }
   // cycle_state_committed is state-only; it never carries a student message.
-  if (frame.event_type === "tutor_action_committed") {
-    if (message.trim()) {
+  if (frame.event_type === "tutor_action_committed" || frame.event_type === "tutor_message") {
+    if (!frame.payload.turn_id && shouldRenderTutorText(message)) {
       next.messages = appendMessage(state, {
         kind: "tutor",
-        text: message,
+        status: "STREAMING",
+        turnId: frame.payload.turn_id,
+        text: message.trim(),
         action,
         assistanceLevel: level,
         version: frame.cycle_state_version,
@@ -150,6 +183,16 @@ function applyRestore(
     : [];
   const restoredState = String(summary.state ?? "");
   const active = restoredState !== "" && restoredState !== "closed";
+  const restoredMessages = Array.isArray(summary.messages)
+    ? summary.messages.flatMap((message) => {
+        const text = String(message.content ?? "").trim();
+        if (!text) return [];
+        const kind = message.role === "student" ? "student" : message.role === "error" ? "error" : "tutor";
+        if (kind !== "student" && !shouldRenderTutorText(text)) return [];
+        const visible = kind === "error" ? projectTurnError(text) : text;
+        return [{ status: message.status || "COMPLETED", turnId: message.turn_id, finishReason: message.finish_reason, id: message.message_id || nextMessageId(), kind, text: visible, action: String(message.action ?? ""), assistanceLevel: normalizeAssistanceLevel(Number(message.assistance_level ?? 0)), version: stateVersion } satisfies TutorMessage];
+      })
+    : null;
   return {
     ...state,
     cycleState: restoredState,
@@ -157,6 +200,7 @@ function applyRestore(
     allowedNextInputs: allowed.length > 0 ? allowed : state.allowedNextInputs,
     problemActive: active || state.problemActive,
     pendingCommand: null,
+    messages: restoredMessages ?? state.messages,
   };
 }
 
@@ -166,13 +210,29 @@ export function mathTutorReducer(
 ): MathTutorUIState {
   switch (action.type) {
     case "connection":
-      return { ...state, connectionStatus: action.status, connectionNote: action.note };
+      return { ...state, connectionStatus: action.status, connectionNote: action.note,
+        pendingCommand: action.status === "connected" ? state.pendingCommand : null,
+        messages: action.status === "connected" ? state.messages : state.messages.map(m => m.status === "STREAMING" ? { ...m, status: "PARTIAL", finishReason: "STREAM_INTERRUPTED" } : m) };
     case "frame":
       return applyFrame(state, action.frame);
     case "restore":
       return applyRestore(state, action.summary);
-    case "command_sent":
-      return { ...state, pendingCommand: action.command };
+    case "command_sent": {
+      const text = action.text?.trim() ?? "";
+      const last = state.messages[state.messages.length - 1];
+      const duplicate =
+        Boolean(text) &&
+        state.pendingCommand !== null &&
+        last?.kind === "student" &&
+        last.text === text;
+      return {
+        ...state,
+        pendingCommand: action.command,
+        messages: text && !duplicate
+          ? appendMessage(state, { kind: "student", text, action: action.command, assistanceLevel: 0, version: state.seenVersion })
+          : state.messages,
+      };
+    }
     case "new_session": {
       const fresh = initialMathTutorState(action.sessionId);
       return { ...fresh, connectionStatus: state.connectionStatus, connectionNote: state.connectionNote };

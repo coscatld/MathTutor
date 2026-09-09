@@ -117,6 +117,41 @@ async def create_cycle(
     )
 
 
+async def create_successor_cycle(
+    conn: AsyncConnection, *, student_id: str, parent: CycleSnapshot
+) -> CycleSnapshot:
+    """Start a new PROBLEM_RECEIVED cycle on the same learning session.
+
+    ``learning_sessions`` is unique per owner+client session, so a later
+    problem in the same conversation cannot insert another session row.
+    """
+    from uuid import uuid4
+
+    cycle_id = uuid4()
+    await conn.execute(
+        tutoring_cycles.insert().values(
+            cycle_id=str(cycle_id),
+            session_id=str(parent.session_id),
+            student_id=student_id,
+            state="problem_received",
+            state_version=0,
+            problem_id=None,
+            practice_offer_id=None,
+            created_at=_now(),
+            closed_at=None,
+        )
+    )
+    return CycleSnapshot(
+        cycle_id=cycle_id,
+        session_id=parent.session_id,
+        client_session_id=parent.client_session_id,
+        state="problem_received",
+        state_version=0,
+        problem_id=None,
+        practice_offer_id=None,
+    )
+
+
 async def create_practice_child_cycle(
     conn: AsyncConnection,
     *,

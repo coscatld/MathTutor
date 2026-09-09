@@ -1,151 +1,55 @@
 "use client";
 
-import { GraduationCap, MessageSquareHeart, PlusCircle } from "lucide-react";
+import { BrainCircuit, FolderOpen, GraduationCap, Lightbulb, PanelRightClose } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMathTutorSession } from "../hooks/useMathTutorSession";
-import { allowsAttempt } from "../lib/protocol";
-import type { MathTutorCommand } from "../types";
-import ActionBar from "./ActionBar";
-import AttemptComposer from "./AttemptComposer";
+import { makeSessionId } from "../lib/protocol";
+import Tooltip from "../desktop/components/Tooltip";
+import ChatComposer from "./ChatComposer";
 import ConnectionStatus from "./ConnectionStatus";
-import HintLadder from "./HintLadder";
-import ProblemCard from "./ProblemCard";
-import ProblemComposer from "./ProblemComposer";
 import TutorActionCard from "./TutorActionCard";
+import TutorToolsPanel, { type ToolView } from "./TutorToolsPanel";
 
-/**
- * Guided math tutoring workspace (student-facing, Chinese UI).
- *
- * Layout: problem area + tutor messages + answer area on the left, and the
- * hint ladder + server-granted actions on the right. All capabilities come
- * from allowed_next_inputs — this page maintains NO second state machine.
- */
 export default function MathTutorPage() {
-  const { state, send, newProblem, reconnect } = useMathTutorSession();
+  const search = useSearchParams();
+  const router = useRouter();
+  const generated = useMemo(() => makeSessionId(), []);
+  const sessionId = search.get("session")?.trim() || generated;
+  useEffect(() => { if (!search.get("session")) router.replace(`/math-tutor?session=${encodeURIComponent(sessionId)}`); }, [router, search, sessionId]);
+  return <TutorConversation key={sessionId} sessionId={sessionId} />;
+}
 
+function TutorConversation({ sessionId }: { sessionId: string }) {
+  const { state, send, reconnect } = useMathTutorSession(sessionId);
+  const [tool, setTool] = useState<ToolView | null>(null);
+  const logEnd = useRef<HTMLDivElement>(null);
+  useEffect(() => { logEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [state.messages, state.pendingCommand]);
   const busy = state.pendingCommand !== null;
   const connected = state.connectionStatus === "connected";
-  const blocked = !connected || busy;
-
-  const attemptAllowed = allowsAttempt(state.allowedNextInputs);
-  const clarifyCommand: MathTutorCommand | null = state.allowedNextInputs.includes(
-    "clarify_problem",
-  )
-    ? "clarify_problem"
-    : state.allowedNextInputs.includes("clarify_attempt")
-      ? "clarify_attempt"
-      : null;
-
-  const handleCommand = (command: MathTutorCommand) => {
-    send(command);
+  const submitText = (text: string) => {
+    send("send_message", { text });
   };
-
-  return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1200px] flex-col gap-4 p-4 md:p-6">
-      {/* Header */}
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10"
-            aria-hidden="true"
-          >
-            <GraduationCap className="h-5 w-5 text-[#1D4ED8] dark:text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-[var(--foreground)] sm:text-xl">
-              数学辅导
-            </h1>
-            <p className="text-xs text-[var(--muted-foreground)] sm:text-sm">
-              一步一步来，我不会直接告诉你答案。
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {state.problemActive && (
-            <button
-              type="button"
-              onClick={newProblem}
-              className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
-            >
-              <PlusCircle className="h-4 w-4" aria-hidden="true" />
-              新题目
-            </button>
-          )}
-          <ConnectionStatus
-            status={state.connectionStatus}
-            note={state.connectionNote}
-            onReconnect={reconnect}
-          />
+  const toggleTool = (next: ToolView) => setTool((current) => current === next ? null : next);
+  return <div className="flex h-full min-h-0 bg-[#faf9f5] dark:bg-[#111619]">
+    <section className="flex min-w-0 flex-1 flex-col">
+      <header className="relative flex h-16 shrink-0 items-center justify-end border-b border-[#e3e1da] px-5 dark:border-slate-800">
+        <div className="pointer-events-none absolute left-1/2 flex min-w-0 -translate-x-1/2 items-center gap-2 text-center"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e1ebfa] text-[#1d5fd1] dark:bg-blue-950"><GraduationCap className="h-4 w-4" /></div><div className="min-w-0"><h1 className="truncate font-serif text-base font-bold">Tutor</h1><p className="hidden text-xs text-slate-500 xl:block">一起拆解问题，理解比答案更重要</p></div></div>
+        <div className="flex items-center gap-1"><ConnectionStatus status={state.connectionStatus} note={state.connectionNote} onReconnect={reconnect} />
+          <Tooltip label="渐进提示与可用操作"><button type="button" onClick={() => toggleTool("hints")} aria-pressed={tool === "hints"} className={`rounded-lg p-2.5 ${tool === "hints" ? "bg-amber-100 text-amber-700 dark:bg-amber-950" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}><Lightbulb className="h-4 w-4" /></button></Tooltip>
+          <Tooltip label="当前对话的学习资料"><button type="button" onClick={() => toggleTool("documents")} aria-pressed={tool === "documents"} className={`rounded-lg p-2.5 ${tool === "documents" ? "bg-blue-100 text-blue-700 dark:bg-blue-950" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}><FolderOpen className="h-4 w-4" /></button></Tooltip>
+          <Tooltip label="查看 Tutor 使用的学习记忆"><button type="button" onClick={() => toggleTool("memory")} aria-pressed={tool === "memory"} className={`rounded-lg p-2.5 ${tool === "memory" ? "bg-violet-100 text-violet-700 dark:bg-violet-950" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}><BrainCircuit className="h-4 w-4" /></button></Tooltip>
+          {tool ? <Tooltip label="收起右侧工具"><button type="button" onClick={() => setTool(null)} className="rounded-lg p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><PanelRightClose className="h-4 w-4" /></button></Tooltip> : null}
         </div>
       </header>
-
-      {/* Workspace */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        {/* Left: problem + conversation + answer */}
-        <div className="flex min-h-0 flex-col gap-4">
-          {state.problemActive && state.problemLatex ? (
-            <ProblemCard latex={state.problemLatex} />
-          ) : (
-            <ProblemComposer
-              disabled={!connected}
-              busy={busy}
-              onSubmit={(text) => send("submit_problem", { text })}
-            />
-          )}
-
-          <div
-            className="flex min-h-[200px] flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--background)]/40 p-4"
-            role="log"
-            aria-live="polite"
-            aria-label="辅导对话"
-          >
-            {state.messages.length === 0 ? (
-              <div className="flex h-full min-h-[160px] flex-col items-center justify-center gap-2 text-center">
-                <MessageSquareHeart
-                  className="h-8 w-8 text-[var(--muted-foreground)]"
-                  aria-hidden="true"
-                />
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  提交一道题目，辅导就从这里开始。
-                </p>
-              </div>
-            ) : (
-              state.messages.map((message) => (
-                <TutorActionCard key={message.id} message={message} />
-              ))
-            )}
-          </div>
-
-          {attemptAllowed && (
-            <AttemptComposer
-              disabled={!connected}
-              busy={busy}
-              onSubmit={(answer) => send("submit_attempt", { answer })}
-            />
-          )}
-          {!attemptAllowed && clarifyCommand && (
-            <AttemptComposer
-              disabled={!connected}
-              busy={busy}
-              heading="补充说明"
-              placeholder="刚才的意思可以再说清楚一点吗？"
-              submitLabel="发送说明"
-              helperText="辅导老师没太理解你的意思，请再解释一下。"
-              onSubmit={(text) => send(clarifyCommand, { text })}
-            />
-          )}
-        </div>
-
-        {/* Right: hint ladder + server-granted actions */}
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pb-1">
-          <HintLadder level={state.assistanceLevel} />
-          <ActionBar
-            allowed={state.allowedNextInputs}
-            busy={busy}
-            disabled={!connected}
-            onCommand={handleCommand}
-          />
+      <div role="log" aria-live="polite" aria-label="辅导对话" className="min-h-0 flex-1 overflow-y-auto px-5 py-8">
+        <div className="mx-auto flex max-w-3xl flex-col gap-5">
+          {state.messages.length === 0 ? <div className="flex min-h-[52vh] flex-col items-center justify-center text-center"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e5ecf7] text-[#1d5fd1] dark:bg-blue-950"><GraduationCap className="h-7 w-7" /></div><h2 className="mt-5 font-serif text-2xl font-bold">今天想一起解决什么？</h2><p className="mt-2 max-w-md text-sm leading-6 text-slate-500">直接输入题目、你的解题步骤，或者问一个概念。需要时，可从输入框旁把资料加入当前对话。</p></div> : state.messages.map((message) => <TutorActionCard key={message.id} message={message} onContinue={message.id === state.messages[state.messages.length - 1]?.id && !state.pendingCommand ? () => send("send_message", { text: "继续" }) : undefined} />)}
+          {busy ? <div className="flex items-center gap-2 text-xs text-slate-400"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1d5fd1]" />Tutor 正在思考下一步…</div> : null}<div ref={logEnd} />
         </div>
       </div>
-    </div>
-  );
+      <ChatComposer onCancel={() => send("cancel_turn")} busy={busy} disabled={!connected} onSend={submitText} onAddMaterial={() => setTool("documents")} />
+    </section>
+    {tool ? <TutorToolsPanel view={tool} onClose={() => setTool(null)} sessionId={sessionId} level={state.assistanceLevel} allowed={state.allowedNextInputs} busy={busy} disabled={!connected} onCommand={(command) => send(command)} /> : null}
+  </div>;
 }

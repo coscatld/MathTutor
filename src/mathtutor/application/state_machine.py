@@ -73,11 +73,18 @@ class CycleCommand(StrEnum):
     PRACTICE_OFFERED = "practice_offered"
 
 
+STUDENT_TRANSITION_FAILURE = "刚才这一步没有处理成功，请再试一次。"
+
+
 class InvalidTransitionError(Exception):
     def __init__(self, state: CycleState, command: CycleCommand) -> None:
         super().__init__(f"状态 {state.value} 不接受命令 {command.value}")
         self.state = state
         self.command = command
+
+    @property
+    def student_message(self) -> str:
+        return STUDENT_TRANSITION_FAILURE
 
 
 class VersionConflictError(Exception):
@@ -100,6 +107,21 @@ def _action(action: str, level: int, visibility: str = "none") -> TutorAction:
     )
 
 
+# Visible student loop vs internal processing:
+#
+#   PROBLEM_RECEIVED --submit_problem--> GROUNDING
+#        GROUNDING is internal. The same turn must emit grounding_ok /
+#        grounding_ambiguous / grounding_unsupported. Students never send
+#        submit_problem while the cycle is already in GROUNDING.
+#   GROUNDING --grounding_ok--> SOLUTION_VERIFYING --verification_verified--> AWAITING_ATTEMPT
+#   GROUNDING --grounding_ambiguous--> AWAITING_CLARIFICATION --clarify_problem--> GROUNDING
+#   GROUNDING --grounding_unsupported--> UNSUPPORTED
+#   AWAITING_ATTEMPT --submit_attempt--> DIAGNOSING
+#                  --request_hint--> HINTED --hint_delivered--> AWAITING_ATTEMPT
+#                  --request_explanation/example--> EXPLAINING --explanation_delivered--> AWAITING_ATTEMPT
+#   DIAGNOSING --diagnosis_correct--> SOLVED --reflected--> REFLECTION --practice_offered--> PRACTICE_OFFERED
+#   cancel_turn closes every non-terminal state.
+#
 # Transition table: state -> command -> (next state, optional TutorAction).
 _TRANSITIONS: dict[CycleState, dict[CycleCommand, tuple[CycleState, TutorAction | None]]] = {
     CycleState.PROBLEM_RECEIVED: {
@@ -277,10 +299,26 @@ class TutoringSession:
         return transition
 
 
+# States the student is not supposed to target with a new submit_problem.
+INTERNAL_PROCESSING_STATES = frozenset(
+    {
+        CycleState.GROUNDING,
+        CycleState.SOLUTION_VERIFYING,
+        CycleState.DIAGNOSING,
+        CycleState.HINTED,
+        CycleState.EXPLAINING,
+        CycleState.SOLVED,
+        CycleState.REFLECTION,
+    }
+)
+
+
 __all__ = [
     "CycleCommand",
     "CycleState",
+    "INTERNAL_PROCESSING_STATES",
     "InvalidTransitionError",
+    "STUDENT_TRANSITION_FAILURE",
     "TutoringSession",
     "VersionConflictError",
     "allowed_next_commands",

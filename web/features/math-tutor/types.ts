@@ -9,12 +9,20 @@
 
 export type MathTutorEventType =
   | "tutor_action_committed"
+  | "tutor_message"
   | "cycle_state_committed"
   | "turn_error"
-  | "turn_end";
+  | "turn_end"
+  | "assistant_start" | "assistant_delta" | "assistant_complete" | "assistant_partial" | "assistant_error";
 
 /** Public payload of a student frame (projected server-side). */
 export interface StudentPayload {
+  message_id?: string;
+  turn_id?: string;
+  conversation_id?: string;
+  status?: string;
+  finish_reason?: string;
+  final_text?: string;
   action?: string;
   effective_assistance_level?: number;
   student_message?: string;
@@ -49,6 +57,7 @@ export interface StudentFrame {
  * solution-disclosure input names the contract reserves for the future).
  */
 export type MathTutorCommand =
+  | "send_message"
   | "submit_problem"
   | "submit_attempt"
   | "request_hint"
@@ -79,6 +88,19 @@ export interface SessionSummary {
   state?: string;
   state_version?: number;
   allowed_next_inputs?: string[];
+  title?: string;
+  document_ids?: string[];
+  messages?: Array<{
+    message_id?: string;
+    status?: string;
+    turn_id?: string;
+    finish_reason?: string;
+    role?: "student" | "tutor" | "error";
+    content?: string;
+    action?: string;
+    assistance_level?: number;
+    created_at?: string;
+  }>;
 }
 
 export type ConnectionStatus =
@@ -90,8 +112,11 @@ export type ConnectionStatus =
 
 /** A rendered tutor message (from tutor_action_committed / turn_error). */
 export interface TutorMessage {
+  status?: string;
+  turnId?: string;
+  finishReason?: string;
   id: string;
-  kind: "tutor" | "error";
+  kind: "student" | "tutor" | "error";
   text: string;
   action: string;
   assistanceLevel: number;

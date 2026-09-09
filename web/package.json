@@ -1,6 +1,6 @@
 {
   "name": "mathtutor-web",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,12 +9,15 @@
     "test": "node ./scripts/run-node-tests.mjs"
   },
   "dependencies": {
+    "katex": "^0.18.7",
     "lucide-react": "^0.562.0",
     "next": "^16.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.0"
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^25",
@@ -26,4 +29,3 @@
     "typescript": "^5"
   }
 }
-

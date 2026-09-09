@@ -6,6 +6,12 @@ __pycache__/
 .mypy_cache/
 .venv/
 .runtime/
+.env
+.env.*
+!.env.example
+weights/
+uploads/
+*.dmg
 build/
 !desktop/build/
 !desktop/build/entitlements.mac.plist

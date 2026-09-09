@@ -14,12 +14,30 @@ export interface DesktopSettings {
   onboarding_completed: boolean;
   /** Safe display tail only; the backend never returns the stored value. */
   key_masked: string | null;
+  connection_status?: "unconfigured" | "configured" | "connecting" | "success" | "failure";
+  provider_configs?: Record<string, {
+    model: string;
+    base_url: string;
+    has_api_key: boolean;
+    key_masked: string | null;
+  }>;
 }
 
 export interface ProviderPreset {
   preset_id: string;
   label: string;
   custom: boolean;
+  default_model?: string;
+  base_url?: string;
+  requires_api_key?: boolean;
+  editable_base_url?: boolean;
+  local?: boolean;
+}
+
+export interface TutorSettings {
+  personality: string;
+  custom_instruction: string;
+  presets: Array<{ id: string; label: string }>;
 }
 
 export interface SettingsSaveResult {
@@ -30,6 +48,41 @@ export interface SettingsSaveResult {
   key_masked: string | null;
   is_configured: boolean;
   onboarding_completed: boolean;
+  connection_status?: "unconfigured" | "configured" | "connecting" | "success" | "failure";
+}
+
+export type EmbeddingProvider = "local" | "cloud";
+export type EmbeddingStatus = "disabled" | "local_ready" | "cloud_configured" | "incomplete";
+export type LocalEmbeddingDownloadStatus = "not_downloaded" | "downloading" | "ready" | "failed";
+
+export interface LocalEmbeddingModel {
+  model_id: string;
+  label: string;
+  dimension: number;
+  size_label: string;
+  source: string;
+}
+
+export interface EmbeddingSettings {
+  enabled: boolean;
+  provider: EmbeddingProvider;
+  local_model_id: string;
+  local_models: LocalEmbeddingModel[];
+  local_download_status: LocalEmbeddingDownloadStatus;
+  local_download_error: string | null;
+  cloud_base_url: string;
+  cloud_model: string;
+  cloud_has_api_key: boolean;
+  cloud_key_masked: string | null;
+  status: EmbeddingStatus;
+  status_label: string;
+  runtime_reason: string | null;
+  reindex_required: boolean;
+}
+
+export interface EmbeddingTestResult {
+  ok: boolean;
+  message: string;
 }
 
 export interface TestConnectionResult {
@@ -73,6 +126,7 @@ export interface DesktopDocument {
   created_at: string;
   /** Friendly parse error (failed / needs_ocr) — never raw tracebacks. */
   error: string | null;
+  conversation_ids?: string[];
 }
 
 export type MemorySourceType = "USER_EXPLICIT" | "MODEL_INFERRED" | "USER_CONFIRMED";
@@ -146,6 +200,7 @@ export interface ModelTestResult {
   error_kind: ModelErrorKind | null;
   /** Friendly Chinese message only — never raw tracebacks or headers. */
   message: string | null;
+  resolved_model?: string;
 }
 
 // ---------------------------------------------------------------------------

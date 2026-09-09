@@ -60,9 +60,11 @@ class StudentPublicEvent(BaseModel):
 
     event_type: Literal[
         "tutor_action_committed",
+        "tutor_message",
         "cycle_state_committed",
         "turn_error",
         "turn_end",
+        "assistant_start", "assistant_delta", "assistant_complete", "assistant_partial", "assistant_error",
     ]
     audience: Literal["student"] = "student"
     cycle_id: str = ""

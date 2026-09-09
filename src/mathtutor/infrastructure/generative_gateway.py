@@ -62,6 +62,9 @@ class CompletionResult(BaseModel):
     provider_id: str
     model: str
     finish_reason: str = ""
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    turn_result: dict | None = None
 
 
 class ProviderPreset(BaseModel):
@@ -77,7 +80,10 @@ class ProviderPreset(BaseModel):
     label: str
     base_url: str
     default_model: str
-    custom: bool = False  # True → the ONLY preset asking for base_url+model
+    custom: bool = False
+    requires_api_key: bool = True
+    editable_base_url: bool = False
+    local: bool = False
 
 
 PRESETS: dict[str, ProviderPreset] = {
@@ -107,6 +113,16 @@ PRESETS: dict[str, ProviderPreset] = {
             base_url="",
             default_model="",
             custom=True,
+            editable_base_url=True,
+        ),
+        ProviderPreset(
+            preset_id="ollama",
+            label="Ollama",
+            base_url="http://127.0.0.1:11434",
+            default_model="",
+            requires_api_key=False,
+            editable_base_url=True,
+            local=True,
         ),
     )
 }
@@ -134,6 +150,8 @@ class GenerativeModelProvider(Protocol):
     ) -> CompletionResult: ...
 
     async def fetch_models(self) -> list[str]: ...
+
+    def set_model(self, model: str) -> None: ...
 
 
 class OpenAICompatibleProvider:
@@ -174,6 +192,9 @@ class OpenAICompatibleProvider:
     @property
     def model(self) -> str:
         return self._model
+
+    def set_model(self, model: str) -> None:
+        self._model = model
 
     async def _key(self) -> str:
         key = await self._api_key_resolver()
@@ -256,6 +277,8 @@ class OpenAICompatibleProvider:
             provider_id=self.provider_id,
             model=self._model,
             finish_reason=finish_reason,
+            input_tokens=(data.get("usage") or {}).get("prompt_tokens"),
+            output_tokens=(data.get("usage") or {}).get("completion_tokens"),
         )
 
     async def fetch_models(self) -> list[str]:
@@ -281,6 +304,115 @@ class OpenAICompatibleProvider:
             ) from error
 
 
+class OllamaProviderAdapter:
+    """Native Ollama adapter.
+
+    Ollama is intentionally not disguised as a credentialed cloud provider:
+    it uses ``/api/tags`` for the machine's installed models and
+    ``/api/chat`` for generation, and never asks the SecretStore for a key.
+    """
+
+    provider_id = "ollama"
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        model: str = "",
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        if not base_url:
+            raise GenerativeConfigError("base_url is required for Ollama")
+        self._base_url = base_url.rstrip("/")
+        self._model = model
+        self._timeout = httpx.Timeout(timeout_seconds)
+        self._transport = transport
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def set_model(self, model: str) -> None:
+        self._model = model
+
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
+
+    async def fetch_models(self) -> list[str]:
+        try:
+            async with self._client() as client:
+                response = await client.get(f"{self._base_url}/api/tags")
+        except httpx.HTTPError as error:
+            raise GenerativeProviderError(
+                f"provider 'ollama' transport error: {error}"
+            ) from error
+        if response.status_code != 200:
+            raise GenerativeProviderError(
+                f"provider 'ollama' HTTP {response.status_code}: {response.text[:300]}"
+            )
+        try:
+            entries = response.json()["models"]
+            names = {
+                str(entry.get("name") or entry.get("model") or "").strip()
+                for entry in entries
+                if isinstance(entry, dict)
+            }
+        except (KeyError, TypeError, ValueError) as error:
+            raise GenerativeProviderError("provider 'ollama' malformed /api/tags response") from error
+        return sorted(name for name in names if name)
+
+    async def complete(
+        self,
+        messages: Sequence[dict],
+        *,
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+        max_retries: int = 0,
+    ) -> CompletionResult:
+        if not self._model:
+            raise GenerativeConfigError(
+                "provider 'ollama' has no model resolved — select an installed model"
+            )
+        options: dict[str, int | float] = {"temperature": temperature}
+        if max_tokens is not None:
+            options["num_predict"] = max_tokens
+        payload = {
+            "model": self._model,
+            "messages": list(messages),
+            "stream": False,
+            "options": options,
+        }
+        last_error: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                async with self._client() as client:
+                    response = await client.post(f"{self._base_url}/api/chat", json=payload)
+                if response.status_code != 200:
+                    raise GenerativeProviderError(
+                        f"provider 'ollama' HTTP {response.status_code}: {response.text[:300]}"
+                    )
+                data = response.json()
+                text = data["message"]["content"]
+                if not isinstance(text, str) or not text.strip():
+                    raise GenerativeProviderError("provider 'ollama' returned empty content")
+                return CompletionResult(
+                    text=text,
+                    provider_id=self.provider_id,
+                    model=self._model,
+                    finish_reason=str(data.get("done_reason") or ""),
+                    input_tokens=data.get("prompt_eval_count"),
+                    output_tokens=data.get("eval_count"),
+                )
+            except (httpx.HTTPError, KeyError, TypeError, ValueError, GenerativeProviderError) as error:
+                last_error = error
+                if attempt < max_retries:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+        if isinstance(last_error, GenerativeProviderError):
+            raise last_error
+        raise GenerativeProviderError(f"provider 'ollama' transport error: {last_error}")
+
+
 class GatewayRoleClient:
     """Adapter to the legacy ``LLMClient`` calling convention.
 
@@ -294,27 +426,20 @@ class GatewayRoleClient:
         self._gateway = gateway
         self._role = role
 
-    async def complete(
-        self,
-        *,
-        prompt: str,
-        system_prompt: str = "",
-        temperature: float = 0.4,
-        max_tokens: int | None = None,
-        max_retries: int = 0,
-    ) -> str:
-        messages: list[dict] = []
+    async def complete_result(
+        self, *, prompt: str, system_prompt: str = "", temperature: float = 0.4,
+        max_tokens: int | None = None, max_retries: int = 0,
+    ) -> CompletionResult:
+        messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        result = await self._gateway.complete(
-            self._role,
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            max_retries=max_retries,
-        )
-        return result.text
+        return await self._gateway.complete(self._role, messages, temperature=temperature,
+            max_tokens=max_tokens, max_retries=max_retries)
+
+    async def complete(self, **kwargs) -> str:
+        """Compatibility adapter for non-tutor consumers; TutorWriter uses complete_result."""
+        return (await self.complete_result(**kwargs)).text
 
 
 class GenerativeModelGateway:
@@ -327,15 +452,15 @@ class GenerativeModelGateway:
 
     def __init__(self, secret_store: SecretStore | None = None) -> None:
         self._secret_store = secret_store
-        self._by_role: dict[ModelRole, OpenAICompatibleProvider] = {}
-        self._by_id: dict[str, OpenAICompatibleProvider] = {}
+        self._by_role: dict[ModelRole, GenerativeModelProvider] = {}
+        self._by_id: dict[str, GenerativeModelProvider] = {}
 
     # ------------------------------------------------------- registration
 
     def register_provider(
         self,
         role: ModelRole,
-        provider: OpenAICompatibleProvider,
+        provider: GenerativeModelProvider,
     ) -> None:
         """Bind a role to a provider (overwrites any previous binding)."""
         self._by_role[role] = provider
@@ -375,12 +500,28 @@ class GenerativeModelGateway:
         self.register_provider(role, provider)
         return provider
 
+    def register_ollama(
+        self,
+        role: ModelRole,
+        *,
+        base_url: str,
+        model: str,
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    ) -> OllamaProviderAdapter:
+        provider = OllamaProviderAdapter(
+            base_url=base_url,
+            model=model,
+            timeout_seconds=timeout_seconds,
+        )
+        self.register_provider(role, provider)
+        return provider
+
     def unregister(self, role: ModelRole) -> None:
         self._by_role.pop(role, None)
 
     # ------------------------------------------------------------- queries
 
-    def provider_for(self, role: ModelRole) -> OpenAICompatibleProvider | None:
+    def provider_for(self, role: ModelRole) -> GenerativeModelProvider | None:
         return self._by_role.get(role)
 
     def client_for(self, role: ModelRole) -> GatewayRoleClient | None:
@@ -405,12 +546,12 @@ class GenerativeModelGateway:
         provider = self._by_role.get(role)
         if provider is None:
             raise GenerativeConfigError(f"no generative provider for role {role.value!r}")
-        return await provider.complete(
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            max_retries=max_retries,
-        )
+        if role == ModelRole.TUTOR_WRITER:
+            from mathtutor.application.tutor_runtime import complete_tutor
+            return await complete_tutor(provider, messages, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries)
+        from mathtutor.application.tutor_runtime import complete_auxiliary
+        return await complete_auxiliary(provider, messages, temperature=temperature,
+            max_tokens=max_tokens, max_retries=max_retries)
 
     # ---------------------------------------------------------- discovery
 
@@ -432,12 +573,19 @@ class GenerativeModelGateway:
         preset = PRESETS.get(provider_id)
         models = await provider.fetch_models()
         if preset and preset.default_model in models:
-            return preset.default_model
-        if models:
-            return models[0]
-        raise GenerativeConfigError(
-            f"provider {provider_id!r} exposes no models and none is configured"
-        )
+            resolved = preset.default_model
+        elif models:
+            resolved = models[0]
+        else:
+            raise GenerativeConfigError(
+                f"provider {provider_id!r} exposes no models and none is configured"
+            )
+        # Materialize the discovery result on every role binding without
+        # rebuilding providers (preserves transports, timeouts and clients).
+        for bound in self._by_role.values():
+            if bound.provider_id == provider_id:
+                bound.set_model(resolved)
+        return resolved
 
 
 __all__ = [
@@ -450,6 +598,7 @@ __all__ = [
     "GatewayRoleClient",
     "ModelRole",
     "OpenAICompatibleProvider",
+    "OllamaProviderAdapter",
     "PRESETS",
     "ProviderPreset",
 ]

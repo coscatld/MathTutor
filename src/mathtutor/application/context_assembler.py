@@ -430,8 +430,16 @@ class UserDocumentsSourceProvider(BaseContextSourceProvider):
     ) -> LoadOutcome:
         if not query_hint.strip():
             return LoadOutcome(detail="no query hint")
+        from mathtutor.application.conversation_scope import current_document_scope
+
+        document_ids = current_document_scope()
+        if document_ids is not None and not document_ids:
+            return LoadOutcome(empty_data=True, detail="conversation has no documents")
         result = await self._searchable.search(
-            student_id, query=query_hint, limit=MAX_DOCUMENT_CHUNKS
+            student_id,
+            query=query_hint,
+            limit=MAX_DOCUMENT_CHUNKS,
+            document_ids=document_ids,
         )
         if not result.hits:
             return LoadOutcome(empty_data=True, detail="no document hits")
@@ -445,6 +453,7 @@ class UserDocumentsSourceProvider(BaseContextSourceProvider):
                     document_id=hit.document_id,
                     sequence=hit.chunk.sequence,
                     page=hit.chunk.page,
+                    filename=hit.filename,
                     text=hit.chunk.text[:MAX_PROJECTED_CHUNK_CHARS],
                     score=hit.score,
                     retriever=retriever,

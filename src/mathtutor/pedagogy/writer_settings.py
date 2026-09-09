@@ -35,6 +35,7 @@ class MathTutorWriterSettings(BaseModel):
     timeout_seconds: float = Field(default=120.0, gt=0)
     # Response token budget passed through to the provider.
     max_tokens: int = Field(default=1024, gt=0)
+    personality_instruction: str = Field(default="", max_length=1000)
 
     @field_validator("model", mode="after")
     @classmethod

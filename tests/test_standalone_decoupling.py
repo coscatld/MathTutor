@@ -98,6 +98,43 @@ async def test_controller_accepts_trusted_request_and_typed_sink() -> None:
     assert {event.type.value for event in events} <= {"content", "error"}
 
 
+@pytest.mark.asyncio
+async def test_non_math_message_routes_to_tutor_chat_before_math_parser() -> None:
+    owner = StudentOwnerScope(
+        principal=PrincipalScope(user_id="u1", username="alice", role="user"),
+        student_id="u1",
+    )
+
+    class ChatResponder:
+        calls: list[str] = []
+
+        async def respond(self, text: str, *, history=()) -> str:
+            self.calls.append(text)
+            return "你好，我们今天想学什么？"
+
+    responder = ChatResponder()
+    controller = MathTutorController(chat_responder=responder)
+    stream = MathTutorEventStream()
+    await controller.run(
+        MathTutorRequest(
+            session_id="chat-only",
+            user_message=json.dumps({
+                "command": "send_message",
+                "payload": {"text": "你好"},
+                "session_id": "chat-only",
+            }, ensure_ascii=False),
+            owner=owner,
+        ),
+        stream,
+    )
+    await stream.close()
+    events = [event async for event in stream.subscribe()]
+    assert responder.calls == ["你好"]
+    assert events[0].metadata["event_type"] == "tutor_message"
+    assert events[0].content == "你好，我们今天想学什么？"
+    assert await controller.sessions.load(owner.student_id, "chat-only") is None
+
+
 def test_auth_environment_alias_precedence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTH_ENABLED", "1")
     monkeypatch.setenv("DEEPTUTOR_AUTH_ENABLED", "1")

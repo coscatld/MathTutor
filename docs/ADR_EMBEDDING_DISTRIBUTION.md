@@ -1,4 +1,14 @@
-# CURRENT STATE — DEFERRED
+# CURRENT STATE — DEFAULT OFF; USER OPT-IN IMPLEMENTED
+
+> 2026-09-07 addendum: the original 2026-08-26 decision below remains the
+> historical basis for keeping Embedding out of the installer and disabled by
+> default. Product approval now permits an explicit settings flow: the user may
+> download `bge-small-zh-v1.5` from ModelScope into the application data
+> directory, or configure an OpenAI-compatible endpoint whose key stays in the
+> OS credential store. No first-run download, bundled weight, fake production
+> backend, or mandatory API was introduced. Implementation and current runtime
+> rules are recorded in the RAG development note
+> `frontend-settings-embedding.md`.
 
 RC 仍使用 lexical-first；没有 concrete embedding model 被安装、下载、
 bundle 或设为默认。Optional signed resource pack 只是推荐的候选分发
@@ -7,7 +17,7 @@ bundle 或设为默认。Optional signed resource pack 只是推荐的候选分�
 
 # ADR: MathTutor Embedding 分发策略
 
-- 状态：**PROPOSED / DEFERRED**
+- 状态：**PARTIALLY SUPERSEDED**（默认/打包仍 deferred，用户显式 opt-in 已实现）
 - 日期：2026-08-26
 - 范围：embedding 模型获取、本地/远程运行与桌面分发；同时记录但不捆绑 sqlite-vec 索引决策
 - 前身：docs/ADR_EMBEDDING_DISTRIBUTION_DRAFT.md（本文取代该草稿作为当前决策记录）

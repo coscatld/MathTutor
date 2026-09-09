@@ -72,9 +72,41 @@ async def test_ws_turn_durable_across_restart(tmp_path: Path) -> None:
         assert sessions[0]["client_session_id"] == "durable-1"
         assert sessions[0]["state"] == "awaiting_attempt"
         assert sessions[0]["state_version"] == 3
+        assert sessions[0]["title"] == "2x + 3 = 7"
+        restored = client.get("/api/v2/math-tutor/sessions/durable-1").json()
+        assert [message["role"] for message in restored["messages"]] == ["student", "tutor"]
+        assert restored["messages"][0]["content"] == "2x + 3 = 7"
 
     reset_product_state()
 
+
+async def test_first_chat_message_persists_one_conversation_across_restart(tmp_path: Path) -> None:
+    db_file = tmp_path / "math_tutor.db"
+    reset_product_state()
+
+    with _client(db_file) as client:
+        assert client.get("/api/v2/math-tutor/sessions").json() == []
+        with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+            ws.send_text(json.dumps({
+                "command": "send_message",
+                "payload": {"text": "你好"},
+                "session_id": "draft-becomes-one",
+            }, ensure_ascii=False))
+            events = _collect(ws)
+        assert any(event["event_type"] == "tutor_message" for event in events)
+        assert all("题目有歧义" not in str(event) for event in events)
+        sessions = client.get("/api/v2/math-tutor/sessions").json()
+        assert len(sessions) == 1
+        assert sessions[0]["title"] == "你好"
+
+    reset_product_state()
+    with _client(db_file) as client:
+        sessions = client.get("/api/v2/math-tutor/sessions").json()
+        assert [item["conversation_id"] for item in sessions] == ["draft-becomes-one"]
+        restored = client.get("/api/v2/math-tutor/sessions/draft-becomes-one").json()
+        assert [message["role"] for message in restored["messages"]] == ["student", "tutor"]
+
+    reset_product_state()
 
 async def test_ws_attempt_after_restart(tmp_path: Path) -> None:
     """Continue the SAME cycle after a restart: submit_attempt resumes from

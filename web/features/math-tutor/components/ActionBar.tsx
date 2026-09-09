@@ -58,22 +58,12 @@ export default function ActionBar({ allowed, busy, disabled, onCommand }: Action
   const buttons = allowedInputsToButtons(allowed);
 
   if (buttons.length === 0) {
-    return (
-      <section
-        className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-4"
-        aria-label="可用操作"
-      >
-        <h2 className="mb-1 text-sm font-semibold text-[var(--foreground)]">可用操作</h2>
-        <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
-          当前没有可用的操作。提交题目或答案后，这里会出现可以选择的帮助。
-        </p>
-      </section>
-    );
+    return null;
   }
 
   return (
     <section
-      className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm"
+      className="rounded-2xl border border-[#deddd7] bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
       aria-label="可用操作"
     >
       <h2 className="mb-2.5 text-sm font-semibold text-[var(--foreground)]">可用操作</h2>

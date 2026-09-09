@@ -9,12 +9,17 @@ with PostgreSQL composite-FK owner constraints.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.product_state import get_product_state
 from mathtutor.security.scopes import StudentOwnerScope
 
 router = APIRouter()
+
+
+class ConversationCreate(BaseModel):
+    conversation_id: str = Field(min_length=1, max_length=128)
 
 
 def _session_summary(client_session_id: str, session) -> dict:
@@ -35,11 +40,25 @@ def _session_summary(client_session_id: str, session) -> dict:
 async def list_sessions(
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> list[dict]:
-    store = get_product_state().store
-    return [
-        _session_summary(client_session_id, s)
-        for client_session_id, s in await store.iter_for_student(owner.student_id)
-    ]
+    state = get_product_state()
+    live = {
+        client_session_id: _session_summary(client_session_id, session)
+        for client_session_id, session in await state.store.iter_for_student(owner.student_id)
+    }
+    result = []
+    for conversation in await state.conversations.list(owner.student_id):
+        result.append({**live.get(conversation["conversation_id"], {"client_session_id": conversation["conversation_id"], "state": "", "state_version": 0, "allowed_next_inputs": []}), **conversation})
+    return result
+
+
+@router.post("/sessions", status_code=201)
+async def create_session(
+    payload: ConversationCreate,
+    owner: StudentOwnerScope = Depends(require_student_owner),
+) -> dict:
+    return await get_product_state().conversations.ensure(
+        owner.student_id, payload.conversation_id.strip()
+    )
 
 
 @router.get("/sessions/{session_id}")
@@ -47,11 +66,24 @@ async def get_session(
     session_id: str,
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
-    store = get_product_state().store
-    session = await store.load(owner.student_id, session_id)
-    if session is None:
+    state = get_product_state()
+    conversation = await state.conversations.get(owner.student_id, session_id)
+    session = await state.store.load(owner.student_id, session_id)
+    if session is None and conversation is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    return _session_summary(session_id, session)
+    summary = _session_summary(session_id, session) if session is not None else {
+        "client_session_id": session_id,
+        "state": "",
+        "state_version": 0,
+        "allowed_next_inputs": [],
+    }
+    return {
+        **summary,
+        **(conversation or {}),
+        "messages": [{key: value for key, value in message.items() if key != "continuation_context"}
+                     for message in await state.conversations.messages(owner.student_id, session_id)],
+        "document_ids": [str(value) for value in await state.conversations.document_ids(owner.student_id, session_id)],
+    }
 
 
 @router.get("/cycles/{cycle_id}")

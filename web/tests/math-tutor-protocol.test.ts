@@ -5,6 +5,8 @@ import path from "node:path";
 import {
   actionLabel,
   allowedInputsToButtons,
+  projectTurnError,
+  shouldRenderTutorText,
   allowsAttempt,
   allowsProblemSubmission,
   buildEnvelope,
@@ -341,6 +343,70 @@ test("restore adopts the server summary as the only authority", () => {
   assert.equal(state.cycleState, "awaiting_retry");
   assert.equal(state.seenVersion, 12);
   assert.deepEqual(state.allowedNextInputs, ["submit_attempt", "request_hint"]);
+});
+
+test("conversation transcript restores both student and tutor messages", () => {
+  let state = mathTutorReducer(initialMathTutorState("conversation-1"), {
+    type: "command_sent",
+    command: "submit_problem",
+    text: "怎样解 2x + 3 = 7？",
+  });
+  assert.equal(state.messages[0]?.kind, "student");
+  state = mathTutorReducer(state, {
+    type: "restore",
+    summary: {
+      state: "awaiting_attempt",
+      state_version: 3,
+      messages: [
+        { message_id: "m1", role: "student", content: "怎样解 2x + 3 = 7？" },
+        { message_id: "m2", role: "tutor", content: "先想想移项。", action: "GIVE_HINT", assistance_level: 1 },
+      ],
+    },
+  });
+  assert.deepEqual(state.messages.map((message) => message.kind), ["student", "tutor"]);
+  assert.equal(state.messages[1]?.assistanceLevel, 1);
+});
+
+test("protocol helpers hide internal command and transition leaks", () => {
+  assert.equal(shouldRenderTutorText("命令 clarify_problem 已确认"), false);
+  assert.equal(
+    projectTurnError("状态 grounding 不接受命令 submit_problem"),
+    "刚才这一步没有处理成功，请再试一次。",
+  );
+});
+
+test("single submit creates a single user message even if command_sent repeats", () => {
+  let state = initialMathTutorState("s-dup");
+  state = mathTutorReducer(state, { type: "command_sent", command: "send_message", text: "2+2=?" });
+  state = mathTutorReducer(state, { type: "command_sent", command: "send_message", text: "2+2=?" });
+  assert.equal(state.messages.filter((message) => message.kind === "student").length, 1);
+});
+
+test("internal command acknowledgement is not rendered", () => {
+  let state = initialMathTutorState("s-ack");
+  state = mathTutorReducer(state, {
+    type: "frame",
+    frame: frame({
+      event_type: "tutor_action_committed",
+      payload: { action: "clarify_problem", student_message: "命令 clarify_problem 已确认" },
+    }),
+  });
+  assert.equal(state.messages.length, 0);
+});
+
+test("invalid transition is not exposed to the UI", () => {
+  let state = initialMathTutorState("s-err");
+  state = mathTutorReducer(state, {
+    type: "frame",
+    frame: frame({
+      event_type: "turn_error",
+      payload: { error: "状态 grounding 不接受命令 submit_problem" },
+    }),
+  });
+  assert.equal(state.messages.length, 1);
+  assert.equal(state.messages[0]?.kind, "error");
+  assert.equal(state.messages[0]?.text, "刚才这一步没有处理成功，请再试一次。");
+  assert.equal(state.messages[0]?.text.includes("grounding"), false);
 });
 
 // ---------------------------------------------------------------------------

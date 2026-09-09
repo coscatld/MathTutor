@@ -1,5 +1,6 @@
 import DesktopShell from "@/features/math-tutor/desktop/components/DesktopShell";
 import StartupBoundary from "@/features/math-tutor/desktop/components/StartupBoundary";
+import ToastProvider from "@/features/math-tutor/desktop/components/ToastProvider";
 
 /**
  * MathTutor workspace shell — the product frame shared by the tutoring view,
@@ -14,7 +15,7 @@ export default function MathTutorLayout({
 }>) {
   return (
     <StartupBoundary>
-      <DesktopShell>{children}</DesktopShell>
+      <ToastProvider><DesktopShell>{children}</DesktopShell></ToastProvider>
     </StartupBoundary>
   );
 }

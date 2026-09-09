@@ -415,6 +415,9 @@ async def test_document_selection_projected_ranked_and_capped():
     selections = context.user_documents
     assert [s.document_id for s in selections] == [doc_b, doc_a]  # ranked by max score
     assert selections[0].filename == "b.md"
+    assert selections[0].chunks[0].filename == "b.md"
+    assert selections[0].chunks[0].sequence == 0
+    assert selections[0].chunks[0].score == 0.9
     assert len(selections[1].chunks) == 2  # both chunks of doc a grouped
     # Per-chunk text projection is capped for LLM consumers.
     long_ref = selections[1].chunks[0]

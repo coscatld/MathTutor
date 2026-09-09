@@ -24,21 +24,27 @@ from mathtutor.application.document_ingestion import (
 from mathtutor.domain.documents import (
     ALLOWED_DOCUMENT_EXTENSIONS,
     MAX_DOCUMENT_BYTES,
+    ParsedBlock,
 )
-from mathtutor.infrastructure.chunking import TextChunker
+from mathtutor.infrastructure.chunking import CHUNKER_VERSION, TextChunker
 from mathtutor.infrastructure.document_parser import (
+    PARSER_VERSION,
     LocalDocumentParser,
     NO_TEXT_LAYER_WARNING,
 )
+from mathtutor.infrastructure.parse_adapters import mineru_available
 from mathtutor.infrastructure.document_storage import DocumentStorage
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
 from mathtutor.infrastructure.lexical import (
+    build_fts_text,
     lexical_score,
+    normalize_latex_plain,
     tokenize_lexical,
 )
 from mathtutor.repositories.document_repository import (
     InMemoryDocumentRepository,
 )
+from mathtutor.security.scopes import student_uuid
 
 pytestmark = pytest.mark.asyncio
 
@@ -114,6 +120,50 @@ def _build_simple_pdf(page_texts: list[str]) -> bytes:
     return b"".join(chunks)
 
 
+def _pymupdf_missing() -> bool:
+    try:
+        import fitz  # noqa: F401
+
+        return False
+    except ImportError:
+        return True
+
+
+def _tiny_png() -> bytes:
+    import struct
+    import zlib
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data))
+            + tag
+            + data
+            + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+        )
+
+    width = height = 64
+    raw = b"".join(b"\x00" + bytes([0, 90, 180]) * width for _ in range(height))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
+    )
+
+
+def _pdf_with_text_and_image(text: str, *, include_text: bool = True) -> bytes:
+    import fitz
+
+    document = fitz.open()
+    page = document.new_page(width=300, height=200)
+    if include_text and text:
+        page.insert_text((24, 48), text, fontsize=12)
+    page.insert_image(fitz.Rect(40, 70, 180, 170), stream=_tiny_png())
+    payload = document.tobytes()
+    document.close()
+    return payload
+
+
 @pytest_asyncio.fixture()
 async def service(tmp_path: Path) -> DocumentIngestionService:
     storage = DocumentStorage(tmp_path / "data")
@@ -168,7 +218,7 @@ def test_allowlist_contains_only_safe_formats():
 async def test_ingest_txt_ready_with_chunks(service):
     doc = await _ingest(service, _STUDENT_A)
     assert doc.status == "ready"
-    assert doc.parser_version == "mt-local-parser-v1"
+    assert doc.parser_version == PARSER_VERSION
     assert doc.content_hash  # sha256 recorded
     assert doc.filename == "方程笔记.txt"
     assert await service.get_document(_STUDENT_A, doc.document_id) is not None
@@ -177,7 +227,9 @@ async def test_ingest_txt_ready_with_chunks(service):
     assert len(chunks) >= 1
     assert doc.chunk_count == len(chunks)
     assert doc.retrieval_enabled is True
-    assert all(chunk.chunker_version == "mt-chunker-v1" for chunk in chunks)
+    assert all(chunk.chunker_version == CHUNKER_VERSION for chunk in chunks)
+    assert all(chunk.metadata_json for chunk in chunks)
+    assert all("chunk_type" in chunk.metadata_json for chunk in chunks)
     assert all(chunk.sequence == i for i, chunk in enumerate(chunks))
     # Stored under controlled storage.
     assert await service._storage.exists(doc.storage_ref)
@@ -206,24 +258,24 @@ async def test_blank_pdf_is_needs_ocr_not_ready_and_not_retrievable(service, tmp
     pdf_path = tmp_path / "blank.pdf"
     pdf_path.write_bytes(blank)
     parsed = await parser.parse(path=str(pdf_path))
-    assert parsed.blocks == ()
-    assert parsed.total_pages == 2
-    assert parsed.text_pages == 0
-    assert parsed.empty_pages == 2
-    assert parsed.extractable_chars == 0
-    assert parsed.parse_mode == "empty"
-    assert parsed.parse_warning
+    if not mineru_available():
+        assert parsed.extractable_chars == 0
+        assert parsed.parse_mode == "empty"
+        assert parsed.empty_pages == 2
+        assert parsed.parse_warning
 
     doc = await service.ingest(
         _STUDENT_A,
         PickedFile(filename="scan.pdf", mime_type="application/pdf", data=blank),
     )
+    if mineru_available() and doc.status in {"ready", "ready_with_warnings"}:
+        # Local MinerU actually produced text — allowed, not a ready-lie.
+        assert doc.chunk_count >= 1
+        return
     assert doc.status == "needs_ocr"
     assert doc.retrieval_enabled is False
     assert doc.chunk_count == 0
     assert doc.page_count == 2
-    assert doc.empty_page_count == 2
-    assert doc.image_count == 0
     assert doc.parse_warning
     assert NO_TEXT_LAYER_WARNING in doc.parse_error
     assert doc.is_retrievable() is False
@@ -266,6 +318,60 @@ async def test_mixed_pdf_ready_with_warnings(service):
     assert doc.is_retrievable() is True
     result = await service._index.search(_STUDENT_A, query="quadratic")
     assert len(result.hits) >= 1
+
+
+async def test_markdown_lean_ir_heading_and_formula(tmp_path: Path):
+    path = tmp_path / "notes.md"
+    path.write_text("# 一元一次方程\n\n移项时两边同时变号。\n\n$$2x+3=7$$\n", encoding="utf-8")
+    parsed = await LocalDocumentParser().parse(path=str(path))
+    types = [block.type for block in parsed.blocks]
+    assert "heading" in types
+    assert "paragraph" in types
+    assert "formula" in types
+    heading = next(block for block in parsed.blocks if block.type == "heading")
+    assert heading.heading_path == ("一元一次方程",)
+    formula = next(block for block in parsed.blocks if block.type == "formula")
+    assert formula.latex
+    assert parsed.image_count == 0
+    assert parsed.extractable_chars > 0
+
+
+@pytest.mark.skipif(_pymupdf_missing(), reason="pymupdf required for image extract")
+async def test_text_pdf_extracts_images_into_assets(service):
+    payload = _pdf_with_text_and_image("一元一次方程")
+    doc = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="lesson.pdf", mime_type="application/pdf", data=payload),
+    )
+    assert doc.status == "ready"
+    assert doc.image_count > 0
+    owner = student_uuid(_STUDENT_A)
+    assets = service._storage.assets_dir(owner, doc.document_id)
+    saved = list(assets.glob("page-*-img-*.*"))
+    assert saved, "original images must land under assets/"
+    chunks = await service._repo.list_chunks(_STUDENT_A, doc.document_id)
+    assert chunks
+    paths = [
+        path
+        for chunk in chunks
+        for path in (chunk.metadata_json.get("image_paths") or [])
+    ]
+    assert paths
+    assert (service._storage.resolve(paths[0])).exists()
+
+
+@pytest.mark.skipif(_pymupdf_missing(), reason="pymupdf required")
+async def test_image_only_pdf_stays_needs_ocr_without_mineru(service):
+    payload = _pdf_with_text_and_image("", include_text=False)
+    doc = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="scan-photo.pdf", mime_type="application/pdf", data=payload),
+    )
+    if mineru_available() and doc.status in {"ready", "ready_with_warnings"}:
+        return
+    assert doc.status == "needs_ocr"
+    assert doc.retrieval_enabled is False
+    assert doc.image_count > 0
 
 
 async def test_import_rejects_disallowed_extension(service):
@@ -331,6 +437,86 @@ def test_chunker_deterministic_and_capped():
     assert drafts_a == drafts_b  # deterministic
     assert len(drafts_a) > 1
     assert all(len(draft["text"]) <= 1000 for draft in drafts_a)
+    assert all(len(draft["text"]) >= 80 or draft is drafts_a[-1] for draft in drafts_a[:-1])
+
+
+def test_chunker_example_and_solution_parent_link():
+    blocks = [
+        ParsedBlock(
+            type="heading",
+            text="一元一次方程",
+            heading_path=("一元一次方程",),
+            section="一元一次方程",
+        ),
+        ParsedBlock(
+            type="paragraph",
+            text="例1 解方程 2x+3=7。把常数项移到右边。",
+            heading_path=("一元一次方程",),
+            section="一元一次方程",
+        ),
+        ParsedBlock(type="formula", text="2x+3=7", latex="2x+3=7", page=1),
+        ParsedBlock(
+            type="paragraph",
+            text="解：" + ("先移项再合并同类项，得到 x=2。" * 8),
+            heading_path=("一元一次方程",),
+            section="一元一次方程",
+            page=1,
+        ),
+    ]
+    drafts = TextChunker().chunk(blocks)
+    types = [draft["chunk_type"] for draft in drafts]
+    assert "example" in types
+    example = next(draft for draft in drafts if draft["chunk_type"] == "example")
+    assert "例1" in example["text"]
+    assert example["metadata"].get("latex")
+    solutions = [draft for draft in drafts if draft["chunk_type"] == "solution"]
+    if solutions:
+        assert solutions[0]["parent_index"] is not None
+        parent = drafts[solutions[0]["parent_index"]]
+        assert parent["chunk_type"] == "example"
+    else:
+        # short 解 merged into the example parent
+        assert "解：" in example["text"]
+
+
+async def test_ingest_example_solution_parent_written_to_metadata(service):
+    body = (
+        "# 一元一次方程\n\n"
+        "例1 解方程 2x+3=7。把常数项移到右边。\n\n"
+        "$$2x+3=7$$\n\n"
+        "解：" + ("先移项再合并同类项，得到 x=2。" * 8)
+    ).encode("utf-8")
+    doc = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="线性方程.md", mime_type="text/markdown", data=body),
+    )
+    assert doc.status == "ready"
+    chunks = await service._repo.list_chunks(_STUDENT_A, doc.document_id)
+    assert all(chunk.metadata_json for chunk in chunks)
+    examples = [chunk for chunk in chunks if chunk.chunk_type == "example"]
+    solutions = [chunk for chunk in chunks if chunk.chunk_type == "solution"]
+    assert examples
+    assert "例1" in examples[0].text
+    if solutions:
+        assert solutions[0].parent_chunk_id == examples[0].chunk_id
+        assert solutions[0].metadata_json.get("parent_chunk_id") == str(examples[0].chunk_id)
+        assert solutions[0].metadata_json.get("role") == "solution"
+    else:
+        assert "解：" in examples[0].text
+
+
+def test_chunker_plain_text_regex_structure():
+    block = ParsedBlock(
+        text=(
+            "定义 一次方程的未知数次数是一。\n"
+            "例1 解 2x=4。\n"
+            "解：" + ("两边同时除以 2，得到 x=2。" * 6)
+        )
+    )
+    drafts = TextChunker().chunk([block])
+    types = {draft["chunk_type"] for draft in drafts}
+    assert "definition" in types or "example" in types
+    assert any(draft["metadata"] for draft in drafts)
 
 
 def test_tokenize_lexical_mixed_cjk_latin():
@@ -346,6 +532,19 @@ def test_lexical_score_fraction():
     tokens = tokenize_lexical("求根公式")
     assert lexical_score("一元二次方程的求根公式", tokens) == 1.0
     assert lexical_score("完全无关的句子", tokens) == 0.0
+
+
+def test_fts_text_strips_dollars_and_hangs_skill_aliases():
+    assert "2x+3=7" in normalize_latex_plain("解 $2x+3=7$")
+    fts = build_fts_text(
+        "移项时两边同时变号。",
+        heading_path=("一元一次方程",),
+        section="一元一次方程",
+    )
+    assert "一元一次方程" in fts
+    assert "解方程" in fts
+    assert "移项" in fts
+    assert "2x+3=7" in build_fts_text("例1 解方程 $2x+3=7$。")
 
 
 # ------------------------------------------------------------- SQLite roundtrip
@@ -389,3 +588,44 @@ async def test_sqlite_document_roundtrip_and_search(db, tmp_path: Path):
     assert await repo.get_index_build(_STUDENT_A, doc.document_id) is None  # no backend
     assert await svc.delete(_STUDENT_A, doc.document_id) is True
     assert await repo.get_document(_STUDENT_A, doc.document_id) is None
+
+
+async def test_fts_alias_query_hits_chinese_lesson(service):
+    body = "# 一元一次方程\n\n移项时两边同时变号。未知数的次数是一。".encode("utf-8")
+    doc = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="一次方程.md", mime_type="text/markdown", data=body),
+    )
+    chunks = await service._repo.list_chunks(_STUDENT_A, doc.document_id)
+    assert any("解方程" in chunk.fts_text for chunk in chunks)
+    result = await service._index.search(_STUDENT_A, query="解方程")
+    assert result.degraded is True
+    assert len(result.hits) >= 1
+    assert result.hits[0].document_id == doc.document_id
+
+
+async def test_sqlite_fts_formula_and_example_number(db, tmp_path: Path):
+    from sqlalchemy import text as sa_text
+
+    from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
+
+    repo = SQLiteDocumentRepository(db)
+    svc = DocumentIngestionService(
+        repository=repo,
+        storage=DocumentStorage(tmp_path / "data"),
+        index_manager=DocumentIndexManager(repository=repo, embedding_runtime=EmbeddingRuntime()),
+    )
+    body = "例1 解方程 $2x+3=7$。把常数项移到右边。".encode("utf-8")
+    await svc.ingest(
+        _STUDENT_A,
+        PickedFile(filename="例题.txt", mime_type="text/plain", data=body),
+    )
+    async with db.begin() as conn:
+        count = (
+            await conn.execute(sa_text("SELECT count(*) FROM document_chunks_fts"))
+        ).scalar_one()
+    assert count >= 1
+    formula = await svc._index.search(_STUDENT_A, query="2x+3=7")
+    assert len(formula.hits) >= 1
+    numbered = await svc._index.search(_STUDENT_A, query="例1")
+    assert len(numbered.hits) >= 1

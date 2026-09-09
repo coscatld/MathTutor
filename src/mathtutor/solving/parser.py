@@ -12,8 +12,10 @@ number·group, closing-paren·primary):
 
 Outcomes (design doc §6.2 fail-closed semantics):
 
-- syntactically unparseable / genuinely ambiguous input (``2 3``, ``xy``,
-  empty input) -> :data:`ambiguous` (enters the clarification state);
+- juxtaposed same-kind primaries (``2 3``, ``x y``) -> :data:`ambiguous`
+  (true semantic ambiguity: two readings, two answers);
+- ill-formed / unknown characters / incomplete syntax -> :data:`unparseable`
+  (parser failure, NOT clarification);
 - parses but is outside the MVP families (square roots, degree > 2,
   multiple variables, a variable in a denominator, budget overflow) ->
   :data:`unsupported`.
@@ -25,6 +27,7 @@ application service on top of it.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import Any, Literal
@@ -33,11 +36,15 @@ from mathtutor.solving import nodes as n
 
 MAX_TOKENS = 256
 ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic"]
-ParseKind = Literal["parsed", "ambiguous", "unsupported"]
+ParseKind = Literal["parsed", "ambiguous", "unsupported", "unparseable"]
 
 
 class AmbiguityError(Exception):
-    """Input is unparseable or genuinely ambiguous — ask the student."""
+    """Two same-kind primaries are adjacent: the readings disagree on the answer."""
+
+
+class ParseError(Exception):
+    """The grammar cannot read this string. That is not semantic ambiguity."""
 
 
 class UnsupportedError(Exception):
@@ -72,6 +79,10 @@ class ParseOutcome:
     @classmethod
     def unsupported(cls, reason: str) -> "ParseOutcome":
         return cls("unsupported", None, reason)
+
+    @classmethod
+    def unparseable(cls, reason: str) -> "ParseOutcome":
+        return cls("unparseable", None, reason)
 
 
 # ---------------------------------------------------------------------------
@@ -111,7 +122,7 @@ class _Tokenizer:
             if ch.isdigit() or ch == ".":
                 self._number()
                 continue
-            if ch.isalpha():
+            if "a" <= ch.lower() <= "z":
                 self.tokens.append(_Token("var", ch, self.pos))
                 self.pos += 1
                 continue
@@ -119,15 +130,15 @@ class _Tokenizer:
                 self.tokens.append(_Token("plus", pos=self.pos))
                 self.pos += 1
                 continue
-            if ch == "-":
+            if ch in {"-", "\u2212"}:
                 self.tokens.append(_Token("minus", pos=self.pos))
                 self.pos += 1
                 continue
-            if ch == "*":
+            if ch in {"*", "\u00d7", "\u00b7", "\u22c5"}:
                 self.tokens.append(_Token("star", pos=self.pos))
                 self.pos += 1
                 continue
-            if ch == "/":
+            if ch in {"/", "\u00f7"}:
                 self.tokens.append(_Token("slash", pos=self.pos))
                 self.pos += 1
                 continue
@@ -147,7 +158,7 @@ class _Tokenizer:
                 self.tokens.append(_Token("rparen", pos=self.pos))
                 self.pos += 1
                 continue
-            raise AmbiguityError(f"无法识别的字符 {ch!r}（位置 {self.pos}）")
+            raise ParseError(f"无法识别的字符 {ch!r}（位置 {self.pos}）")
         return self.tokens
 
     def _number(self) -> None:
@@ -161,7 +172,7 @@ class _Tokenizer:
                 self.pos += 1
                 digits += 1
             if digits == 0:
-                raise AmbiguityError(f"小数格式不完整（位置 {start}）")
+                raise ParseError(f"小数格式不完整（位置 {start}）")
             value = Fraction(int(self.text[start : self.pos].replace(".", "")), 10**digits)
         else:
             value = Fraction(int(self.text[start : self.pos]), 1)
@@ -183,12 +194,14 @@ class _Tokenizer:
             self._push(_Token("sqrt", radicand_tokens, start))
         elif command in ("cdot", "times"):
             self.tokens.append(_Token("star", pos=start))
+        elif command == "div":
+            self.tokens.append(_Token("slash", pos=start))
         else:
-            raise AmbiguityError(f"不支持的 LaTeX 命令 \\{command}（位置 {start}）")
+            raise ParseError(f"不支持的 LaTeX 命令 \\{command}（位置 {start}）")
 
     def _braced_tokens(self) -> list[_Token]:
         if self.pos >= len(self.text) or self.text[self.pos] != "{":
-            raise AmbiguityError(f"缺少 {{ 匹配（位置 {self.pos}）")
+            raise ParseError(f"缺少 {{ 匹配（位置 {self.pos}）")
         self.pos += 1
         depth = 1
         body = ""
@@ -204,7 +217,7 @@ class _Tokenizer:
             body += ch
             self.pos += 1
         if depth != 0:
-            raise AmbiguityError(f"括号不匹配（位置 {self.pos}）")
+            raise ParseError(f"括号不匹配（位置 {self.pos}）")
         sub = _Tokenizer(body)
         return sub.tokenize()
 
@@ -231,7 +244,7 @@ class _Parser:
         token = self.peek()
         if token is None or token.kind != kind:
             found = token.kind if token else "输入结束"
-            raise AmbiguityError(f"语法错误：期望 {kind}，实际为 {found}")
+            raise ParseError(f"语法错误：期望 {kind}，实际为 {found}")
         return self.next()
 
     def at_end(self) -> bool:
@@ -289,7 +302,7 @@ class _Parser:
         """Unary signs, then power: exponentiation binds tighter than '-'."""
         token = self.peek()
         if token is None:
-            raise AmbiguityError("意外的输入结束")
+            raise ParseError("意外的输入结束")
         if token.kind == "minus":
             self.next()
             return n.mul(n.num(-1), self.parse_factor())
@@ -330,13 +343,13 @@ class _Parser:
             return n.div(numerator, denominator)
         if token.kind == "sqrt":
             raise UnsupportedError("√/\\sqrt 不在 MVP 题族范围内")
-        raise AmbiguityError(f"意外的记号 {token.kind}（位置 {token.pos}）")
+        raise ParseError(f"意外的记号 {token.kind}（位置 {token.pos}）")
 
     def _parse_sublist(self, tokens: list[_Token]) -> n.Node:
         inner = _Parser(tokens)
         node = inner.parse_expression()
         if not inner.at_end():
-            raise AmbiguityError("\\frac 内部存在多余的记号")
+            raise ParseError("\\frac 内部存在多余的记号")
         return node
 
 
@@ -385,8 +398,29 @@ def _classify_expression(expr: n.Node) -> tuple[ProblemType, n.Node, str | None]
     return ("polynomial", expr, variable)
 
 
+_TRAILING_QUESTION = re.compile(r"[?？]+$")
+_TRAILING_EQUALS = re.compile(r"=+\s*$")
+_LEADING_TASK = re.compile(
+    r"^(?:请|帮我)?(?:计算|求解|解方程|化简|因式分解|求根(?!号)|求值|求极限|证明|解不等式|展开|求(?!根号))\s*"
+)
+
+
+def normalize_math_problem_text(text: str) -> str:
+    """Strip interrogative wrappers so a complete problem is parseable.
+
+    ``2+2=?`` and ``2+2=`` are the same arithmetic problem as ``2+2``.
+    Leading task verbs (``求`` / ``解方程``) are wrappers, not tokens.
+    """
+    compact = " ".join(str(text or "").strip().split())
+    compact = _LEADING_TASK.sub("", compact).strip()
+    compact = _TRAILING_QUESTION.sub("", compact).strip()
+    compact = _TRAILING_EQUALS.sub("", compact).strip()
+    return compact
+
+
 def parse_problem(text: str) -> ParseOutcome:
     """Parse a single problem text into a canonical problem (or fail closed)."""
+    text = normalize_math_problem_text(text)
     try:
         tokens = _Tokenizer(text).tokenize()
         parser = _Parser(tokens)
@@ -396,17 +430,19 @@ def parse_problem(text: str) -> ParseOutcome:
             parser.next()
             rhs = parser.parse_expression()
             if not parser.at_end():
-                raise AmbiguityError("'=' 只能出现一次")
+                raise ParseError("'=' 只能出现一次")
             ast = n.eq(lhs, rhs)
             classified = _classify_equation(ast)
         else:
             if not parser.at_end():
                 remaining = parser.tokens[parser.pos].kind
-                raise AmbiguityError(f"表达式结束后仍有记号：{remaining}")
+                raise ParseError(f"表达式结束后仍有记号：{remaining}")
             ast = lhs
             classified = _classify_expression(ast)
     except AmbiguityError as exc:
         return ParseOutcome.ambiguous(str(exc))
+    except ParseError as exc:
+        return ParseOutcome.unparseable(str(exc))
     except UnsupportedError as exc:
         return ParseOutcome.unsupported(str(exc))
     except n.MathDomainError as exc:
@@ -429,4 +465,11 @@ def parse_problem(text: str) -> ParseOutcome:
     )
 
 
-__all__ = ["ParseOutcome", "ParsedProblem", "parse_problem"]
+__all__ = [
+    "AmbiguityError",
+    "ParseError",
+    "ParseOutcome",
+    "ParsedProblem",
+    "parse_problem",
+    "normalize_math_problem_text",
+]

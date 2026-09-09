@@ -154,7 +154,12 @@ class PersonalMemoryContext(BaseModel):
 
 
 class DocumentChunkRef(BaseModel):
-    """One retrieved chunk reference (source: user documents)."""
+    """One retrieved chunk reference (source: user documents).
+
+    ``filename`` / ``page`` / ``sequence`` / ``score`` are kept so a later
+    citation UI can point at the exact slice; this round does not render
+    citations in the student surface.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -162,6 +167,7 @@ class DocumentChunkRef(BaseModel):
     document_id: UUID
     sequence: int
     page: int | None = None
+    filename: str = ""
     text: str
     score: float = Field(ge=0.0)
     retriever: str = "lexical"  # lexical / lexical+vector

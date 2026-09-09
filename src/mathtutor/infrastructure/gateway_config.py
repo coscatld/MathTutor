@@ -1,9 +1,9 @@
 """Generative gateway configuration service — the desktop cutover surface (§6.4).
 
-Product story: an ordinary user picks a provider PRESET and pastes an API
-key — nothing else. Only the ``custom`` preset additionally accepts
-``base_url`` + ``model``. The SYSTEM owns model discovery (``GET /models``)
-and resolves the concrete model when none was configured.
+Product story: an ordinary user picks a provider and optionally overrides
+its model. Cloud credentials live in the OS store; Ollama is keyless and
+uses its native local API. Provider-specific model choices persist across
+switches and restarts.
 
 Security invariants enforced here (they also hold for the whole gateway):
 
@@ -30,6 +30,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict
 
@@ -49,7 +50,7 @@ from mathtutor.pedagogy.writer_settings import MathTutorWriterSettings
 
 logger = logging.getLogger(__name__)
 
-CONFIG_VERSION = 1
+CONFIG_VERSION = 2
 
 # One generative account serves every product role (system policy).
 ALL_ROLES = (ModelRole.TUTOR_WRITER, ModelRole.PRACTICE_GENERATOR)
@@ -91,6 +92,8 @@ def classify_gateway_error(message: str) -> ModelErrorKind:
         return "credential_invalid"
     if "http 404" in lowered:
         return "model_unavailable"
+    if "model unavailable" in lowered or "no models" in lowered:
+        return "model_unavailable"
     if "transport error" in lowered or "timeout" in lowered:
         return "network_unavailable"
     return "provider_unsupported"
@@ -131,6 +134,7 @@ class GatewayConfigService:
         self._config_path = config_path
         self._provider_id: str | None = None
         self._config: dict = {}
+        self._connection_status = "unconfigured"
         if config_path is not None and config_path.is_file():
             self._restore(config_path)
 
@@ -138,14 +142,40 @@ class GatewayConfigService:
 
     def _register(self, *, preset_id: str, base_url: str, model: str) -> None:
         """Bind BOTH product roles to one provider (system policy)."""
+        preset = PRESETS[preset_id]
         for role in ALL_ROLES:
-            self._gateway.register_openai_compatible(
-                role,
-                provider_id=preset_id,
-                base_url=base_url,
-                model=model,
-                secret_key=secret_key_name(preset_id),
-            )
+            if preset.local:
+                self._gateway.register_ollama(
+                    role, base_url=base_url, model=model
+                )
+            else:
+                self._gateway.register_openai_compatible(
+                    role,
+                    provider_id=preset_id,
+                    base_url=base_url,
+                    model=model,
+                    secret_key=secret_key_name(preset_id),
+                )
+
+    @staticmethod
+    def _valid_ollama_url(value: str) -> bool:
+        parsed = urlparse(value)
+        return (
+            parsed.scheme in {"http", "https"}
+            and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+            and not parsed.username
+            and not parsed.password
+            and parsed.path in {"", "/"}
+            and not parsed.query
+            and not parsed.fragment
+        )
+
+    def _profiles(self) -> dict[str, dict[str, str]]:
+        profiles = self._config.get("provider_configs")
+        if not isinstance(profiles, dict):
+            profiles = {}
+            self._config["provider_configs"] = profiles
+        return profiles
 
     def _persist(self, config: dict) -> None:
         """Best-effort write of the NON-sensitive config (0600 when possible).
@@ -201,11 +231,32 @@ class GatewayConfigService:
                     ),
                 }
             return  # unknown preset → ignore the file (fail closed)
-        base_url = str(data.get("base_url") or "") or preset.base_url
-        if not preset.custom and base_url != preset.base_url:
-            # Preset endpoints are fixed by policy; never trust an override.
+        raw_profiles = data.get("provider_configs")
+        profiles: dict[str, dict[str, str]] = {}
+        if isinstance(raw_profiles, dict):
+            for profile_id, raw in raw_profiles.items():
+                profile_preset = PRESETS.get(str(profile_id))
+                if profile_preset is None or not isinstance(raw, dict):
+                    continue
+                profile_base = str(raw.get("base_url") or "") or profile_preset.base_url
+                if not profile_preset.editable_base_url:
+                    profile_base = profile_preset.base_url
+                if profile_preset.local and not self._valid_ollama_url(profile_base):
+                    profile_base = profile_preset.base_url
+                profiles[str(profile_id)] = {
+                    "base_url": profile_base,
+                    "model": str(raw.get("model") or "") or profile_preset.default_model,
+                }
+        # Version-1 migration: promote the former single active config into
+        # the new provider profile map without changing the user's selection.
+        active_profile = profiles.get(str(preset_id), {})
+        base_url = str(active_profile.get("base_url") or data.get("base_url") or "") or preset.base_url
+        if not preset.editable_base_url:
             base_url = preset.base_url
-        model = str(data.get("model") or "")
+        if preset.local and not self._valid_ollama_url(base_url):
+            base_url = preset.base_url
+        model = str(active_profile.get("model") or data.get("model") or "") or preset.default_model
+        profiles[str(preset_id)] = {"base_url": base_url, "model": model}
         role_names = data.get("roles")
         if isinstance(role_names, list) and role_names:
             roles: list[ModelRole] = []
@@ -218,25 +269,22 @@ class GatewayConfigService:
             roles = list(ALL_ROLES)
         if not roles:
             return
-        for role in roles:
-            self._gateway.register_openai_compatible(
-                role,
-                provider_id=preset_id,
-                base_url=base_url,
-                model=model,
-                secret_key=secret_key_name(preset_id),
-            )
+        self._register(preset_id=str(preset_id), base_url=base_url, model=model)
         self._provider_id = preset_id
+        self._connection_status = "configured"
         self._config = {
             "preset_id": preset_id,
             "model": model,
             "base_url": base_url,
             "roles": [role.value for role in roles],
+            "provider_configs": profiles,
             # Existing provider configs predate this field. Treat them as a
             # completed first run so upgrades never show onboarding again.
             "onboarding_completed": True,
-            "config_version": int(data.get("config_version") or CONFIG_VERSION),
+            "config_version": CONFIG_VERSION,
         }
+        if int(data.get("config_version") or 1) < CONFIG_VERSION:
+            self._persist(self._config)
 
     async def _redact(self, message: str) -> str:
         """Strip any stored secret VALUE from an error message (defense in
@@ -259,6 +307,7 @@ class GatewayConfigService:
         shape decision, never derived from a key value.
         """
         redacted = await self._redact(message)
+        self._connection_status = "failure"
         return GatewayConnectionResult(
             status="error",
             message=redacted,
@@ -277,31 +326,37 @@ class GatewayConfigService:
     ) -> dict:
         """Apply a provider preset and bind every product role to it.
 
-        - ordinary presets are fixed: a non-empty ``base_url``/``model`` is
-          rejected (only the ``custom`` preset accepts them);
-        - ``custom`` requires ``base_url`` (model optional → discovery);
+        - every provider accepts an explicit model; defaults apply only when
+          the saved model is empty;
+        - only custom/Ollama endpoints are editable; Ollama stays loopback;
         - a non-empty ``api_key`` goes ONLY into the SecretStore;
         - the persisted JSON carries policy fields only — never the key.
         """
         preset = PRESETS.get(preset_id)
         if preset is None:
             raise GenerativeConfigError(f"unknown provider preset {preset_id!r}")
+        base_url = base_url.strip()
+        model = model.strip()
+        profiles = self._profiles()
+        prior = profiles.get(preset_id, {})
         if preset.custom:
             if not base_url:
                 raise GenerativeConfigError(
                     "the 'custom' preset requires base_url"
                 )
             effective_base_url = base_url
-            effective_model = model
+        elif preset.local:
+            effective_base_url = base_url or str(prior.get("base_url") or "") or preset.base_url
+            if not self._valid_ollama_url(effective_base_url):
+                raise GenerativeConfigError("Ollama base_url must be a loopback HTTP URL")
         else:
-            if base_url or model:
+            if base_url and base_url != preset.base_url:
                 raise GenerativeConfigError(
-                    f"preset {preset_id!r} is fixed: base_url/model are only "
-                    "configurable through the 'custom' preset"
+                    f"preset {preset_id!r} has a fixed base_url"
                 )
             effective_base_url = preset.base_url
-            effective_model = ""
-        if api_key:
+        effective_model = model or preset.default_model
+        if api_key and preset.requires_api_key:
             await self._secret_store.put(secret_key_name(preset_id), api_key)
         self._register(
             preset_id=preset_id,
@@ -309,11 +364,17 @@ class GatewayConfigService:
             model=effective_model,
         )
         self._provider_id = preset_id
+        self._connection_status = "configured"
+        profiles[preset_id] = {
+            "model": effective_model,
+            "base_url": effective_base_url,
+        }
         self._config = {
             "preset_id": preset_id,
             "model": effective_model,
             "base_url": effective_base_url,
             "roles": [role.value for role in ALL_ROLES],
+            "provider_configs": profiles,
             "onboarding_completed": True,
             "config_version": CONFIG_VERSION,
         }
@@ -346,31 +407,65 @@ class GatewayConfigService:
         provider_id = self._provider_id
         if provider_id is None:
             return await self._error_result("no provider configured")
+        self._connection_status = "connecting"
         try:
+            preset = PRESETS.get(provider_id)
+            if preset is not None and preset.local:
+                models = await self._gateway.fetch_models(provider_id)
+                configured = str(self._config.get("model") or "")
+                model_aliases = {name.removesuffix(":latest") for name in models}
+                if configured and configured not in models and configured not in model_aliases:
+                    return await self._error_result(
+                        f"provider 'ollama' model unavailable: {configured}"
+                    )
             resolved = await self._gateway.resolve_model(provider_id)
         except Exception as error:
             return await self._error_result(str(error))
         if self._config.get("model", "") != resolved:
-            self._register(
-                preset_id=provider_id,
-                base_url=self._config.get("base_url", ""),
-                model=resolved,
-            )
             self._config["model"] = resolved
+            self._profiles().setdefault(provider_id, {})["model"] = resolved
             self._persist(self._config)
-        return GatewayConnectionResult(status="ok", resolved_model=resolved)
+        try:
+            await self._gateway.complete(
+                ModelRole.TUTOR_WRITER,
+                [{"role": "user", "content": "只回复：连接成功"}],
+                temperature=0,
+                max_tokens=12,
+                max_retries=0,
+            )
+        except Exception as error:
+            return await self._error_result(str(error))
+        self._connection_status = "success"
+        preset = PRESETS.get(provider_id)
+        message = "已连接到本地 Ollama。" if preset is not None and preset.local else "模型已响应，配置可以使用。"
+        return GatewayConnectionResult(status="ok", message=message, resolved_model=resolved)
 
     def current_config(self) -> dict:
         """Non-sensitive config snapshot (no key, no key name)."""
         return dict(self._config)
 
-    async def has_api_key(self) -> bool:
-        """Return only whether the current provider's credential exists."""
-        if self._provider_id is None:
+    def provider_profiles(self) -> dict[str, dict[str, str]]:
+        """All saved non-sensitive provider profiles for UI switching."""
+        return {
+            key: dict(value)
+            for key, value in self._profiles().items()
+            if key in PRESETS and isinstance(value, dict)
+        }
+
+    def connection_status(self) -> str:
+        return self._connection_status
+
+    async def has_api_key(self, preset_id: str | None = None) -> bool:
+        """Return only whether a provider credential exists."""
+        provider_id = preset_id or self._provider_id
+        if provider_id is None:
+            return False
+        preset = PRESETS.get(provider_id)
+        if preset is not None and not preset.requires_api_key:
             return False
         try:
             return bool(
-                await self._secret_store.get(secret_key_name(self._provider_id))
+                await self._secret_store.get(secret_key_name(provider_id))
             )
         except Exception:
             return False
@@ -392,10 +487,18 @@ class GatewayConfigService:
             await self._secret_store.delete(secret_key_name(self._provider_id))
         for role in ALL_ROLES:
             self._gateway.unregister(role)
+        self._connection_status = "unconfigured"
         self._config["onboarding_completed"] = True
         self._config.setdefault("config_version", CONFIG_VERSION)
         self._persist(self._config)
         return self.current_config()
+
+    async def is_ready(self) -> bool:
+        provider = self._gateway.provider_for(ModelRole.TUTOR_WRITER)
+        if provider is None or not provider.model or self._provider_id is None:
+            return False
+        preset = PRESETS[self._provider_id]
+        return not preset.requires_api_key or await self.has_api_key()
 
     def is_configured(self) -> bool:
         """True when the writer role has a provider with a usable model."""

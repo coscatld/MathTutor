@@ -69,6 +69,7 @@ class TutorWriter(Protocol):
         disclosure: DisclosedSolutionContext,
         policy: StagePolicy,
         action: TutorAction,
+        document_context: Any | None = None,
     ) -> TutorWriterCandidate: ...
 
 
@@ -114,6 +115,7 @@ class TemplateTutorWriter:
         disclosure: DisclosedSolutionContext,
         policy: StagePolicy,
         action: TutorAction,
+        document_context: Any | None = None,
     ) -> TutorWriterCandidate:
         if disclosure.assistance_level == 5 and disclosure.full_solution is not None:
             text = _render_full_solution(disclosure.full_solution)
@@ -122,6 +124,9 @@ class TemplateTutorWriter:
         text = level_templates.get(action.action)
         if text is None:
             text = level_templates.get("GIVE_HINT") or _TEMPLATES[0]["ASK_STUDENT"]
+        note = _document_excerpt_note(document_context)
+        if note:
+            text = f"{text}\n{note}"
         return TutorWriterCandidate(text=text, writer_version=self.writer_version)
 
 
@@ -133,14 +138,14 @@ def _render_full_solution(full_solution: dict) -> str:
         if isinstance(step, dict):
             text = str(step.get("display_text") or "继续按已验证的步骤计算。")
             latex = str(step.get("display_latex") or "")
-            parts.append(f"{text}：{latex}" if latex else text)
+            parts.append(f"{text}：\n\\[ {latex} \\]" if latex else text)
         else:
             parts.append("继续按已验证的步骤计算。")
     answer = full_solution.get("final_answer") or {}
     if isinstance(answer, dict):
         latex = answer.get("display_latex")
         if latex:
-            parts.append(f"答案：{latex}")
+            parts.append(f"答案：\\( {latex} \\)")
         else:
             parts.append("答案已在上述计算中得出。")
     else:
@@ -177,7 +182,7 @@ _PROOF_RIGOR_RULES = {
 }
 
 
-def _build_system_prompt(policy: StagePolicy) -> str:
+def _build_system_prompt(policy: StagePolicy, personality_instruction: str = "") -> str:
     """Expression constraints from the StagePolicy — hard policy, no solution content."""
     density = _SYMBOL_DENSITY_RULES.get(policy.symbol_density, _SYMBOL_DENSITY_RULES["medium"])
     rigor = _PROOF_RIGOR_RULES.get(policy.proof_rigor, _PROOF_RIGOR_RULES["basic"])
@@ -186,7 +191,13 @@ def _build_system_prompt(policy: StagePolicy) -> str:
         if policy.max_steps_per_turn <= 1
         else f"不超过 {policy.max_steps_per_turn} 个步骤"
     )
+    personality = (
+        f"\nTutor 表达风格：{personality_instruction.strip()}"
+        if personality_instruction.strip()
+        else ""
+    )
     return (
+        r"使用 Markdown；行内数学用 \( ... \)，独立公式用 \[ ... \]。不要使用裸方括号或 HTML，不主动解释内部实现。表达清晰自然，避免过度 Emoji 和标题。"
         "你是一名面向 K12 学生的数学辅导老师，负责把服务器允许披露的教学材料"
         "表达成对学生的辅导语言。\n"
         "硬性规则：你只能使用对话中给出的【已披露的教学内容】；"
@@ -201,6 +212,7 @@ def _build_system_prompt(policy: StagePolicy) -> str:
         f"- 允许先给出公式再解释：{'是' if policy.allow_formula_first else '否'}\n"
         f"- 优先用具体数字和例子表达：{'是' if policy.prefer_concrete_representation else '否'}\n"
         "请用中文回复，直接输出要对学生说的话，不要包含任何前言、解释或标注。"
+        + personality
     )
 
 
@@ -231,24 +243,71 @@ def _disclosure_material(disclosure: DisclosedSolutionContext) -> str:
     return "\n".join(parts)
 
 
+def _document_excerpt_note(document_context: Any | None) -> str:
+    """Short, citation-ready excerpt for hint/explain — not a solution dump."""
+    chunks = _iter_document_chunks(document_context)
+    if not chunks:
+        return ""
+    filename, chunk = chunks[0]
+    page = f"第{chunk.page}页" if chunk.page is not None else f"分块#{chunk.sequence}"
+    excerpt = (chunk.text or "").strip().replace("\n", " ")[:80]
+    if not excerpt:
+        return f"可以对照你上传的资料《{filename}》。"
+    return f"结合你的资料《{filename}》{page}：{excerpt}"
+
+
+def _iter_document_chunks(document_context: Any | None) -> list[tuple[str, Any]]:
+    if document_context is None:
+        return []
+    selections = (
+        document_context
+        if isinstance(document_context, (list, tuple))
+        else (document_context,)
+    )
+    rows: list[tuple[str, Any]] = []
+    for selection in selections:
+        filename = getattr(selection, "filename", "") or ""
+        for chunk in getattr(selection, "chunks", ()) or ():
+            rows.append((getattr(chunk, "filename", "") or filename, chunk))
+    return rows
+
+
+def _document_prompt_block(document_context: Any | None) -> str:
+    chunks = _iter_document_chunks(document_context)
+    if not chunks:
+        return ""
+    lines = ["学生资料摘录（讲解参考，不是标准答案；引用时保留文件名/页码/分块号）："]
+    for filename, chunk in chunks[:8]:
+        page = getattr(chunk, "page", None)
+        loc = f"第{page}页" if page is not None else f"分块#{getattr(chunk, 'sequence', 0)}"
+        score = getattr(chunk, "score", None)
+        score_bit = f" 分数{score:.2f}" if isinstance(score, (int, float)) else ""
+        text = (getattr(chunk, "text", "") or "").strip().replace("\n", " ")
+        lines.append(f"- 《{filename}》{loc}{score_bit}：{text}")
+    return "\n".join(lines)
+
+
 def _build_user_prompt(
     problem_view: PublicProblemView,
     disclosure: DisclosedSolutionContext,
     action: TutorAction,
+    document_context: Any | None = None,
 ) -> str:
-    """User prompt carries ONLY the problem surface, the action intent and the disclosure."""
+    """User prompt carries the problem surface, action, disclosure, optional notes."""
     intent = _ACTION_INTENT.get(action.action, action.action)
-    return "\n".join(
+    parts = [
+        f"题目：{problem_view.display_latex}",
         (
-            f"题目：{problem_view.display_latex}",
-            (
-                f"本轮动作：{action.action}（{intent}），帮助级别 L{disclosure.assistance_level}，"
-                f"可见内容：{action.solution_visibility}"
-            ),
-            "已披露的教学内容（你唯一被允许使用的材料）：",
-            _disclosure_material(disclosure),
-        )
-    )
+            f"本轮动作：{action.action}（{intent}），帮助级别 L{disclosure.assistance_level}，"
+            f"可见内容：{action.solution_visibility}"
+        ),
+        "已披露的教学内容（解题步骤仍以披露材料为准）：",
+        _disclosure_material(disclosure),
+    ]
+    notes = _document_prompt_block(document_context)
+    if notes:
+        parts.extend(["", notes])
+    return "\n".join(parts)
 
 
 class LLMTutorWriter:
@@ -258,7 +317,7 @@ class LLMTutorWriter:
     exactly ``PublicProblemView + DisclosedSolutionContext + StagePolicy +
     TutorAction`` — the model can never see content outside the disclosure.
 
-    Failure posture (A3): the model layer is called at most once per
+    Failure posture (A3): the model layer makes one normal call plus at most one grace call per
     ``write()``. Provider errors, timeouts, or malformed output fall back to
     the deterministic :class:`TemplateTutorWriter` on the SAME projected
     input — never an exception out of the pedagogy chain. Leakage
@@ -311,6 +370,7 @@ class LLMTutorWriter:
         disclosure: DisclosedSolutionContext,
         policy: StagePolicy,
         action: TutorAction,
+        document_context: Any | None = None,
     ) -> TutorWriterCandidate:
         try:
             client = self._resolve_client()
@@ -323,6 +383,7 @@ class LLMTutorWriter:
                 disclosure=disclosure,
                 policy=policy,
                 action=action,
+                document_context=document_context,
             )
         if client is None:
             # Disabled (or not provisioned): deterministic path, no model call.
@@ -331,30 +392,42 @@ class LLMTutorWriter:
                 disclosure=disclosure,
                 policy=policy,
                 action=action,
+                document_context=document_context,
             )
 
-        system_prompt = _build_system_prompt(policy)
-        user_prompt = _build_user_prompt(problem_view, disclosure, action)
+        system_prompt = _build_system_prompt(policy, self._settings.personality_instruction)
+        user_prompt = _build_user_prompt(
+            problem_view, disclosure, action, document_context=document_context
+        )
         try:
             raw = await asyncio.wait_for(
-                client.complete(
+                getattr(client, "complete_result", client.complete)(
                     prompt=user_prompt,
                     system_prompt=system_prompt,
                     temperature=_TEMPERATURE,
                     max_tokens=self._settings.max_tokens,
-                    max_retries=0,  # A3: exactly one provider attempt.
+                    max_retries=0,  # No transport retry; bounded grace is owned by the runtime.
                 ),
                 timeout=self._settings.timeout_seconds,
             )
-        except Exception:
+        except Exception as exc:
+            from mathtutor.application.tutor_runtime import current_turn, FinishReason
+            turn = current_turn.get()
+            if turn is not None and isinstance(exc, TimeoutError):
+                turn.stop(FinishReason.TIMEOUT, turn.final_text)
+                if turn.final_text:
+                    return TutorWriterCandidate(text=turn.final_text, writer_version=self.writer_version)
             logger.warning("LLMTutorWriter: model call failed — template fallback", exc_info=True)
             return await self._fallback_candidate(
                 problem_view=problem_view,
                 disclosure=disclosure,
                 policy=policy,
                 action=action,
+                document_context=document_context,
             )
 
+        if hasattr(raw, "turn_result"):
+            raw = raw.text
         if not isinstance(raw, str) or not raw.strip():
             logger.warning("LLMTutorWriter: malformed model output — template fallback")
             return await self._fallback_candidate(
@@ -362,6 +435,7 @@ class LLMTutorWriter:
                 disclosure=disclosure,
                 policy=policy,
                 action=action,
+                document_context=document_context,
             )
 
         # INVARIANT 4: return the candidate exactly as produced — no
@@ -379,6 +453,7 @@ class LLMTutorWriter:
         disclosure: DisclosedSolutionContext,
         policy: StagePolicy,
         action: TutorAction,
+        document_context: Any | None = None,
     ) -> TutorWriterCandidate:
         """Deterministic fallback on the SAME projected input (A3)."""
         try:
@@ -387,6 +462,7 @@ class LLMTutorWriter:
                 disclosure=disclosure,
                 policy=policy,
                 action=action,
+                document_context=document_context,
             )
         except Exception:
             # The pedagogy chain must never die because of a writer.

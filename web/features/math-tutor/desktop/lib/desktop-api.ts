@@ -19,6 +19,8 @@ import type {
   DesktopDocument,
   DesktopMemory,
   DesktopSettings,
+  EmbeddingSettings,
+  EmbeddingTestResult,
   EducationalHistoryResult,
   ModelErrorKind,
   ModelTestResult,
@@ -32,6 +34,7 @@ import type {
   StudentExport,
   StudentSummary,
   TestConnectionResult,
+  TutorSettings,
 } from "../types";
 
 export const DESKTOP_PREFIX = "/api/v2/math-tutor/desktop";
@@ -114,6 +117,51 @@ export async function testConnection(): Promise<TestConnectionResult> {
 export async function fetchModels(): Promise<string[]> {
   return desktopFetch<string[]>("/settings/models");
 }
+
+export async function fetchEmbeddingSettings(): Promise<EmbeddingSettings> {
+  return desktopFetch<EmbeddingSettings>("/settings/embedding");
+}
+
+export async function saveEmbeddingSettings(input: {
+  enabled: boolean;
+  provider: "local" | "cloud";
+  local_model_id: string;
+  cloud_base_url: string;
+  cloud_model: string;
+  cloud_api_key?: string;
+}): Promise<EmbeddingSettings> {
+  return desktopFetch<EmbeddingSettings>("/settings/embedding", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function downloadLocalEmbeddingModel(model_id: string): Promise<EmbeddingSettings> {
+  return desktopFetch<EmbeddingSettings>("/settings/embedding/local/download", {
+    method: "POST",
+    body: JSON.stringify({ model_id }),
+  });
+}
+
+export async function deleteLocalEmbeddingModel(model_id: string): Promise<EmbeddingSettings> {
+  return desktopFetch<EmbeddingSettings>(`/settings/embedding/local/${encodeURIComponent(model_id)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function removeEmbeddingApiKey(): Promise<EmbeddingSettings> {
+  return desktopFetch<EmbeddingSettings>("/settings/embedding/api-key", { method: "DELETE" });
+}
+
+export async function testEmbeddingConnection(): Promise<EmbeddingTestResult> {
+  return desktopFetch<EmbeddingTestResult>("/settings/embedding/test", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function fetchTutorSettings(): Promise<TutorSettings> { return desktopFetch<TutorSettings>("/settings/tutor"); }
+export async function saveTutorSettings(input: { personality: string; custom_instruction: string }): Promise<TutorSettings> { return desktopFetch<TutorSettings>("/settings/tutor", { method: "PUT", body: JSON.stringify(input) }); }
 
 // ---------------------------------------------------------------------------
 // Readiness
@@ -225,15 +273,15 @@ export async function fetchStudentExport(): Promise<StudentExport> {
 // Documents — explicit user pick / import; public projections only.
 // ---------------------------------------------------------------------------
 
-export async function fetchDocuments(): Promise<DesktopDocument[]> {
-  return desktopFetch<DesktopDocument[]>("/documents");
+export async function fetchDocuments(conversationId?: string): Promise<DesktopDocument[]> {
+  return desktopFetch<DesktopDocument[]>(`/documents${conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : ""}`);
 }
 
 /** Multipart import (browser `<input type=file>` fallback pick path). */
-export async function importDocumentFile(file: File): Promise<DesktopDocument> {
+export async function importDocumentFile(file: File, conversationId?: string): Promise<DesktopDocument> {
   const body = new FormData();
   body.append("file", file);
-  const res = await apiFetch(`${DESKTOP_PREFIX}/documents/import`, {
+  const res = await apiFetch(`${DESKTOP_PREFIX}/documents/import${conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : ""}`, {
     method: "POST",
     body,
   });
@@ -248,8 +296,8 @@ export async function importDocumentFile(file: File): Promise<DesktopDocument> {
  * called when the shell is reachable; otherwise the UI falls back to the
  * browser file input. Cancelled → null.
  */
-export async function nativePickAndImport(): Promise<DesktopDocument | null> {
-  const res = await apiFetch(`${DESKTOP_PREFIX}/documents/pick`, {
+export async function nativePickAndImport(conversationId?: string): Promise<DesktopDocument | null> {
+  const res = await apiFetch(`${DESKTOP_PREFIX}/documents/pick${conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : ""}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -261,6 +309,10 @@ export async function nativePickAndImport(): Promise<DesktopDocument | null> {
   if (body.status === "cancelled") return null;
   return body.document ?? null;
 }
+
+export async function attachDocumentToConversation(conversationId: string, documentId: string): Promise<void> { await desktopFetch(`/conversations/${encodeURIComponent(conversationId)}/documents/${encodeURIComponent(documentId)}`, { method: "POST", body: JSON.stringify({}) }); }
+export async function detachDocumentFromConversation(conversationId: string, documentId: string): Promise<void> { await desktopFetch(`/conversations/${encodeURIComponent(conversationId)}/documents/${encodeURIComponent(documentId)}`, { method: "DELETE" }); }
+export async function renameDocument(documentId: string, filename: string): Promise<DesktopDocument> { return desktopFetch(`/documents/${encodeURIComponent(documentId)}`, { method: "PATCH", body: JSON.stringify({ filename }) }); }
 
 export async function toggleDocumentRetrieval(
   documentId: string,

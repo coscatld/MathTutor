@@ -263,6 +263,8 @@ def test_document_context_takes_first_selection():
     assert context.document_context is not None
     assert context.document_context.filename == "错题本.md"
     assert context.document_context.chunks[0].text == "移项时忘记变号。"
+    assert context.document_context.chunks[0].sequence == 0
+    assert context.document_context.chunks[0].score == 0.8
     assert context.provenance == _assembled().provenance  # provenance passthrough
 
 
@@ -392,3 +394,56 @@ async def test_service_fails_closed_when_required_unavailable():
     service = AdaptivePracticeService(assembler=ContextAssembler(providers={}))
     with pytest.raises(Exception):
         await service.generate_candidates(_STUDENT)
+
+
+async def test_generate_candidates_query_is_chinese_not_skill_code():
+    providers = _practice_providers()
+    service = AdaptivePracticeService(
+        assembler=ContextAssembler(providers=providers), desired_difficulty=3
+    )
+    await service.generate_candidates(_STUDENT, target_skill_ids=["LINEAR_EQUATION"])
+    calls = providers[RetrievalSource.USER_DOCUMENTS].retrieve_calls
+    assert calls, "documents must be queried when a Chinese hint exists"
+    hint = calls[0]["query_hint"]
+    assert "一元一次方程" in hint
+    assert "LINEAR_EQUATION" not in hint.split()
+    assert hint.strip() != "LINEAR_EQUATION"
+
+
+async def test_chain_consumes_document_context_instead_of_bank():
+    from mathtutor.application.llm_candidate_generator import (
+        PracticeGeneratorChain,
+        build_llm_prompt,
+        has_usable_document_context,
+    )
+
+    context = practice_context_from_assembled(
+        _assembled(with_documents=True), target_skill_ids=("LINEAR_EQUATION",)
+    )
+    assert has_usable_document_context(context)
+    prompt = build_llm_prompt(context)
+    assert "document_context" in prompt
+    assert "错题本.md" in prompt
+    assert "sequence" in prompt
+    assert "score" in prompt
+    assert "移项时忘记变号" in prompt
+
+    chain = PracticeGeneratorChain(gateway=None)
+    candidates = await chain.generate(context, count=1)
+    assert candidates
+    assert candidates[0].generated_by == "mt-template-document-grounded-v1"
+    assert not candidates[0].generated_by.startswith("mt-bank-")
+
+
+def test_build_retrieval_query_joins_titles_aliases_and_problem():
+    from mathtutor.application.retrieval_query import build_retrieval_query
+
+    query = build_retrieval_query(
+        skill_ids=("LINEAR_EQUATION",),
+        problem_text="解方程 2x+3=7",
+        misconception_ids=("miscon-transposition-error",),
+    )
+    assert "一元一次方程" in query
+    assert "移项" in query
+    assert "解方程 2x+3=7" in query
+    assert "LINEAR_EQUATION" not in query.split()

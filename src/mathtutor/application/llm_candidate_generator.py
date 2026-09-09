@@ -120,7 +120,12 @@ class TemplateCandidateExerciseGenerator:
         options = _TEMPLATES.get(family, ())
         if not options:
             return []
-        index = sum(ord(ch) for ch in "".join(context.target_skill_ids)) % len(options)
+        seed = "".join(context.target_skill_ids)
+        if has_usable_document_context(context):
+            # Document text participates in which isomorphic template is
+            # chosen — the chain does not ignore a successful recall.
+            seed += "|" + "".join(chunk.text for chunk in context.document_context.chunks)
+        index = sum(ord(ch) for ch in seed) % len(options)
         candidates: list[CandidateExercise] = []
         for offset in range(max(1, count)):
             statement = options[(index + offset) % len(options)]
@@ -131,7 +136,11 @@ class TemplateCandidateExerciseGenerator:
                     skill_ids=context.target_skill_ids,
                     concept_ids=context.target_concept_ids,
                     difficulty=context.desired_difficulty,
-                    generated_by=self.generated_by,
+                    generated_by=(
+                        "mt-template-document-grounded-v1"
+                        if has_usable_document_context(context)
+                        else self.generated_by
+                    ),
                     context_version=context.context_version,
                     provenance=context.provenance,
                 )
@@ -148,8 +157,14 @@ _LLM_SYSTEM_PROMPT = (
     "你是 K12 数学练习题生成器。只输出一个 JSON 字符串数组，"
     "每项是一道题的纯文本（分数运算 / 多项式化简 / 一元一次方程 / 一元二次方程，"
     "使用数学标准写法，如 2x + 3 = 7、x^2 - 5x + 6 = 0）。"
+    "如果提供了 document_context（学生自己的资料摘录），必须根据资料出同构题："
+    "同一知识点、不同数字，不要忽略资料，也不要照抄整段课文。"
     "不要输出任何解释、答案或解题过程。"
 )
+
+# When at least this many projected chunks are present, the chain must
+# consume document_context instead of returning an unconstrained bank item.
+DOCUMENT_HIT_THRESHOLD = 1
 
 
 def build_llm_prompt(context: PracticeGenerationContext) -> str:
@@ -190,8 +205,31 @@ def build_llm_prompt(context: PracticeGenerationContext) -> str:
             context.personal_preferences.model_dump()
         )
     if context.document_context is not None:
-        public["document_context"] = to_json_safe(context.document_context.model_dump())
+        public["document_context"] = _document_context_public(context.document_context)
     return json.dumps(public, ensure_ascii=False, sort_keys=True)
+
+
+def _document_context_public(selection) -> dict:
+    """Citation-ready projection: filename, page, chunk sequence, score, text."""
+    return {
+        "document_id": str(selection.document_id),
+        "filename": selection.filename,
+        "chunks": [
+            {
+                "filename": chunk.filename or selection.filename,
+                "page": chunk.page,
+                "sequence": chunk.sequence,
+                "score": chunk.score,
+                "text": chunk.text,
+            }
+            for chunk in selection.chunks
+        ],
+    }
+
+
+def has_usable_document_context(context: PracticeGenerationContext) -> bool:
+    selection = context.document_context
+    return selection is not None and len(selection.chunks) >= DOCUMENT_HIT_THRESHOLD
 
 
 def _parse_llm_statements(text: str) -> list[str]:
@@ -323,15 +361,42 @@ class PracticeGeneratorChain:
     async def generate(
         self, context: PracticeGenerationContext, *, count: int = 1
     ) -> list[CandidateExercise]:
-        # 1. BANK — curated seed items (highest trust, deterministic).
+        if has_usable_document_context(context):
+            return await self._generate_from_documents(context, count=count)
+        return await self._generate_without_documents(context, count=count)
+
+    async def _generate_without_documents(
+        self, context: PracticeGenerationContext, *, count: int
+    ) -> list[CandidateExercise]:
+        # bank > template > LLM when no user-document hits.
         bank = bank_candidates_for(context, count=count)
         if bank:
             return bank
-        # 2. TEMPLATE — per-family patterns (deterministic).
         template_candidates = await self._template.generate(context, count=count)
         if template_candidates:
             return template_candidates
-        # 3. LLM — last resort; fail closed when unconfigured or failing.
+        return await self._try_llm(context, count=count)
+
+    async def _generate_from_documents(
+        self, context: PracticeGenerationContext, *, count: int
+    ) -> list[CandidateExercise]:
+        """Hits above threshold: consume document_context, do not drop recall.
+
+        LLM reads the projected chunks. If the gateway is off, the
+        document-grounded template still uses the chunk text as the seed.
+        Bank is last — unconstrained bank would silently ignore the notes.
+        """
+        llm_candidates = await self._try_llm(context, count=count)
+        if llm_candidates:
+            return llm_candidates
+        template_candidates = await self._template.generate(context, count=count)
+        if template_candidates:
+            return template_candidates
+        return bank_candidates_for(context, count=count)
+
+    async def _try_llm(
+        self, context: PracticeGenerationContext, *, count: int
+    ) -> list[CandidateExercise]:
         if self._gateway is None:
             return []
         llm = LLMCandidateExerciseGenerator(self._gateway)
@@ -346,7 +411,9 @@ __all__ = [
     "PracticeGenerationError",
     "PracticeGeneratorChain",
     "TemplateCandidateExerciseGenerator",
+    "DOCUMENT_HIT_THRESHOLD",
     "bank_candidates_for",
     "build_llm_prompt",
+    "has_usable_document_context",
     "source_type_for_generated_by",
 ]
