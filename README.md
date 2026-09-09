@@ -79,7 +79,7 @@ python scripts/check.py
 
 ### 安装
 
-1. 双击 `MathTutor-0.2.2-mac-arm64.dmg`。
+1. 双击 `MathTutor-0.2.3-mac-arm64.dmg`。
 2. 将 `MathTutor.app` 拖入“应用程序”文件夹。
 3. 第一次打开时，macOS 可能提示无法验证开发者。关闭提示后进入“系统设置 →
    隐私与安全性”，在 MathTutor 提示旁点击“仍要打开”，再次确认启动。
@@ -113,7 +113,7 @@ LearningEvidence → StudentState` 推进；所有数学事实和学习状态更
 发布者会在 GitHub Release 中同时给出 DMG 的 SHA-256。下载后可执行：
 
 ```bash
-shasum -a 256 MathTutor-0.2.2-mac-arm64.dmg
+shasum -a 256 MathTutor-0.2.3-mac-arm64.dmg
 ```
 
 输出必须与 Release 描述中的 SHA-256 完全一致后再安装。
@@ -121,10 +121,10 @@ shasum -a 256 MathTutor-0.2.2-mac-arm64.dmg
 ### 卡在“正在启动 MathTutor”
 
 如果窗口长时间停在该画面，先退出 MathTutor，再核对下载文件的
-SHA-256。当前 0.2.2 安装包的 SHA-256 为：
+SHA-256。当前 0.2.3 安装包的 SHA-256 为：
 
 ```text
-b03dfb572ad62babad882d6dcba1dea2987221218c14717f2620740ecfac1887
+2c03c1d043783aadd6f67b1c50d4fa90d965ff228cfea3d2e16dd686c50feecb
 ```
 
 旧候选包曾遗漏 Next.js 浏览器静态资源，会导致页面 HTML 能打开，但
@@ -145,5 +145,5 @@ npm run package:win
 
 该命令会构建 Next.js standalone 前端、下载并校验 Python 3.12 x64
 embeddable runtime、只安装产品运行依赖，然后生成 NSIS 安装器。产物位于
-`desktop\dist\MathTutor-0.2.2-win-x64.exe`。本地构建默认不带 Authenticode
+`desktop\dist\MathTutor-0.2.3-win-x64.exe`。本地构建默认不带 Authenticode
 签名；公开发布前应在受控签名环境中配置证书，并重新执行安装包 smoke。

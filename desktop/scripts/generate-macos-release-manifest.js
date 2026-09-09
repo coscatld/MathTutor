@@ -248,7 +248,6 @@ const native = contents.filter((entry) => entry.type === "file" &&
   .map(({ path: entryPath, size_bytes, sha256 }) => ({ path: entryPath, size_bytes, sha256 }));
 writeJson(nativeFile, { schema_version: 1, count: native.length, entries: native });
 
-const pkg = JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8"));
 const smoke = JSON.parse(fs.readFileSync(evidenceFile, "utf8"));
 const pythonVersion = execFileSync(path.join(resources, "python-runtime", "bin", "python"), ["--version"], { encoding: "utf8" }).trim();
 const identity = commandResult("security", ["find-identity", "-v", "-p", "codesigning"]);

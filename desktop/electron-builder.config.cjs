@@ -25,38 +25,17 @@ const runtimeFeatureExclusions = packageAllowlist.python_runtime.forbidden_featu
   ],
 );
 
-function pythonRuntime() {
-  const explicit = process.env.MATHTUTOR_PYTHON_RUNTIME;
-  if (explicit) return path.resolve(explicit);
-  const candidates = [
-    path.join(repoDir, ".venv"),
-    process.env.CONDA_PREFIX,
-  ].filter(Boolean);
-  const runtime = candidates.find((candidate) =>
-    fs.existsSync(path.join(candidate, process.platform === "win32" ? "python.exe" : "bin/python")),
-  );
-  if (!runtime) {
-    throw new Error(
-      "Python runtime not found. Set MATHTUTOR_PYTHON_RUNTIME to a relocatable target-OS environment.",
-    );
-  }
-  return runtime;
-}
-
+// Paths are declarations only. beforePack validates build outputs and resolves
+// the explicitly provisioned target runtime before electron-builder copies files.
 const nextStandalone = path.join(repoDir, "web", ".next-mathtutor", "standalone");
-if (!fs.existsSync(path.join(nextStandalone, "server.js"))) {
-  throw new Error("Missing web/.next-mathtutor/standalone/server.js; build the production web app first.");
-}
 const nextStatic = path.join(repoDir, "web", ".next-mathtutor", "static");
-if (!fs.existsSync(nextStatic)) {
-  throw new Error("Missing web/.next-mathtutor/static; build the production web app first.");
-}
 
 module.exports = {
   appId: "com.mathtutor.product",
   productName: "MathTutor",
   directories: { output: "dist", buildResources: "build" },
   artifactName: "${productName}-${version}-${os}-${arch}.${ext}",
+  beforePack: "scripts/before-pack.cjs",
   afterPack: "scripts/after-pack-macos.cjs",
   asar: true,
   files: ["main.js", "preload.js", "runtime/**/*", "package.json"],
@@ -87,7 +66,7 @@ module.exports = {
       filter: pythonSourceFilter,
     },
     {
-      from: pythonRuntime(),
+      from: path.join(repoDir, ".runtime", "target-runtime-not-resolved"),
       to: "python-runtime",
       filter: [
         "**/*",

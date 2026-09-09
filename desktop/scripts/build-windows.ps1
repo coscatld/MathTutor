@@ -40,6 +40,8 @@ try {
   }
 
   $env:MATHTUTOR_PYTHON_RUNTIME = $RuntimePath
+  & npm.cmd --prefix $DesktopDir run test:distribution
+  if ($LASTEXITCODE -ne 0) { throw "Target runtime distribution verification failed." }
   # Some redirected Windows profiles report EXDEV for atomic renames inside
   # AppData. Keep electron-builder's extraction cache beside the local runtime.
   $env:ELECTRON_BUILDER_CACHE = Join-Path $RepoDir ".runtime\electron-builder-cache"

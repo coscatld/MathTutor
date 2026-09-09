@@ -13,7 +13,7 @@ from mathtutor.release_config import RELEASE_CONFIG
 
 
 def test_release_config_freezes_authoritative_runtime_contracts() -> None:
-    assert RELEASE_CONFIG.app_version == "0.2.2"
+    assert RELEASE_CONFIG.app_version == "0.2.3"
     assert RELEASE_CONFIG.schema_version == SCHEMA_VERSION
     assert RELEASE_CONFIG.migration_head == MIGRATION_HEAD == "010"
     assert RELEASE_CONFIG.curriculum_active_version == StaticCurriculumProvider.VERSION_CODE

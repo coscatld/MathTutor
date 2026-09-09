@@ -1,0 +1,89 @@
+name: Release packaging
+
+on:
+  workflow_dispatch:
+    inputs:
+      macos_python_archive_url:
+        description: Pinned relocatable CPython install-only macOS arm64 archive (HTTPS)
+        required: true
+        type: string
+      macos_python_archive_sha256:
+        description: Independently verified SHA256 of the macOS Python archive
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            platform: macos
+            runtime: python-mac-arm64
+          - os: windows-latest
+            platform: windows
+            runtime: python-win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      # Build Python only; this interpreter is never copied into the artifact.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci --prefix web
+      - run: npm ci --prefix desktop
+      - run: npm run build --prefix web
+      - name: Prepare relocatable macOS runtime
+        if: matrix.platform == 'macos'
+        env:
+          PYTHON_ARCHIVE_URL: ${{ inputs.macos_python_archive_url }}
+          PYTHON_ARCHIVE_SHA256: ${{ inputs.macos_python_archive_sha256 }}
+        run: >-
+          python desktop/scripts/prepare-macos-python-runtime.py
+          --archive-url "$PYTHON_ARCHIVE_URL" --sha256 "$PYTHON_ARCHIVE_SHA256"
+          --output .runtime/python-mac-arm64
+      - name: Prepare relocatable Windows runtime
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: >-
+          ./desktop/scripts/prepare-windows-python-runtime.ps1
+          -OutputPath .runtime/python-win-x64 -BuildPython python -BuildPythonArgs @()
+      - name: Expose the prepared target runtime
+        shell: bash
+        run: echo "MATHTUTOR_PYTHON_RUNTIME=$GITHUB_WORKSPACE/.runtime/${{ matrix.runtime }}" >> "$GITHUB_ENV"
+      - name: Verify real distribution prerequisites
+        run: npm run test:distribution --prefix desktop
+      - name: Package macOS
+        if: matrix.platform == 'macos'
+        env:
+          CSC_NAME: ${{ secrets.MACOS_CSC_NAME }}
+          CSC_LINK: ${{ secrets.MACOS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CSC_KEY_PASSWORD }}
+        run: npm run package:mac:release --prefix desktop
+      - name: Verify macOS artifact launch and readonly DMG
+        if: matrix.platform == 'macos'
+        run: npm run smoke:packaged:mac --prefix desktop
+      - name: Package Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        working-directory: desktop
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: |
+          if (-not $env:CSC_LINK) { throw "Public Windows packaging requires a signing certificate." }
+          npx electron-builder --config electron-builder.config.cjs --win nsis --x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MathTutor-${{ matrix.platform }}
+          if-no-files-found: error
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.exe

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,16 @@ def main() -> None:
     run([sys.executable, "-m", "pytest", "tests", "desktop/tests"])
     run([npm, "test"], cwd=PROJECT_ROOT / "web")
     run([npm, "run", "build"], cwd=PROJECT_ROOT / "web")
-    run([npm, "run", "test:distribution"], cwd=PROJECT_ROOT / "desktop")
+    run([npm, "run", "test:contracts"], cwd=PROJECT_ROOT / "desktop")
+    print("[check] cross-platform source verification: PASS", flush=True)
+    if os.environ.get("MATHTUTOR_PYTHON_RUNTIME", "").strip():
+        run([npm, "run", "test:distribution"], cwd=PROJECT_ROOT / "desktop")
+    else:
+        reason = "Distribution: SKIPPED / NOT APPLICABLE — target packaging runtime not provisioned"
+        print(f"[check] {reason}", flush=True)
+        if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+            with open(summary, "a", encoding="utf-8") as output:
+                output.write(f"\n{reason}\n")
 
 
 if __name__ == "__main__":

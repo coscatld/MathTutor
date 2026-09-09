@@ -1,6 +1,6 @@
 {
   "name": "math-tutor-desktop",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "K12 MathTutor desktop shell (Electron) — native window + file dialogs only; all business logic lives in the local Python product service and the Next.js frontend.",
   "main": "main.js",
@@ -8,13 +8,15 @@
     "start": "electron .",
     "smoke": "electron . --smoke",
     "smoke-full": "electron . --smoke-full",
-    "test:distribution": "node --test tests/distribution.test.js tests/runtime-paths.test.js tests/platform-release.test.js tests/package-surface.test.js",
+    "test:distribution": "node scripts/verify-distribution-runtime.cjs && npm run test:contracts",
     "smoke:packaged:mac": "node scripts/run-packaged-smoke.js",
     "manifest:mac": "node scripts/generate-macos-release-manifest.js",
     "package:mac:unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
     "package:mac:release": "MATHTUTOR_PUBLIC_RELEASE=1 electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
     "package:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1",
-    "package:linux": "electron-builder --config electron-builder.config.cjs --linux AppImage --x64"
+    "package:linux": "electron-builder --config electron-builder.config.cjs --linux AppImage --x64",
+    "test:contracts": "node --test tests/distribution.test.js tests/runtime-paths.test.js tests/platform-release.test.js tests/package-surface.test.js tests/packaging-prerequisites.test.js",
+    "test:package": "electron-builder --config electron-builder.config.cjs --dir"
   },
   "devDependencies": {
     "electron": "^43.4.1",

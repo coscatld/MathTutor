@@ -33,5 +33,7 @@ jobs:
       - name: Install desktop contracts
         run: npm ci
         working-directory: desktop
+      # setup-python supplies build/test Python only, never the distributable runtime.
+      # check.py reports distribution as SKIPPED when no target runtime is provisioned.
       - name: Verify backend, frontend, build, and desktop contracts
         run: python scripts/check.py
