@@ -40,6 +40,7 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -87,25 +88,55 @@ class SqliteVecVectorIndex:
         self._extension_path = extension_path
         self._ids: list[str] = []
         self._conn = self._open_connection(extension_path)
-        self._version = self._read_version()
+        try:
+            self._version = self._read_version()
+        except BaseException:
+            # Cleanup must also run for programmer errors, which still propagate.
+            _close_failed_connection(self._conn)
+            raise
 
     # -------------------------------------------------------- lifecycle
 
     def _open_connection(self, extension_path: str) -> sqlite3.Connection:
+        conn = None
+        ready = False
         try:
             conn = sqlite3.connect(":memory:")
-            conn.enable_load_extension(True)
-            conn.load_extension(extension_path)
+            enable = getattr(conn, "enable_load_extension", None)
+            if not callable(enable):
+                raise SqliteVecUnavailableError(
+                    "SQLite extension loading is not supported by this runtime"
+                )
+            loaded = False
+            try:
+                enable(True)
+                conn.load_extension(extension_path)
+                loaded = True
+            finally:
+                try:
+                    enable(False)
+                except (AttributeError, sqlite3.Error, OSError):
+                    # Preserve the original loading error. If loading succeeded,
+                    # inability to disable loading makes this connection unusable.
+                    if loaded:
+                        raise
+            ready = True
             return conn
-        except (sqlite3.Error, OSError) as error:
+        except (AttributeError, sqlite3.Error, OSError) as error:
             raise SqliteVecUnavailableError(
                 f"sqlite-vec 扩展加载失败（path={extension_path!r}）：{error}"
             ) from error
+        finally:
+            if conn is not None and not ready:
+                _close_failed_connection(conn)
 
     def _read_version(self) -> str:
         try:
-            return str(self._conn.execute("select vec_version()").fetchone()[0])
-        except sqlite3.Error as error:
+            row = self._conn.execute("select vec_version()").fetchone()
+            if not row or not isinstance(row[0], str) or not row[0].strip():
+                raise SqliteVecUnavailableError("vec_version() returned no valid version")
+            return row[0]
+        except (AttributeError, sqlite3.Error, OSError) as error:
             raise SqliteVecUnavailableError(
                 f"vec_version() 查询失败（扩展可能不兼容）：{error}"
             ) from error
@@ -175,16 +206,22 @@ class SqliteVecVectorIndex:
             index = cls(extension_path, dimension=1)
             index.close()
             return True
-        except (SqliteVecUnavailableError, ValueError):
+        except SqliteVecUnavailableError:
             return False
 
     @classmethod
     def try_open(cls, extension_path: str, *, dimension: int) -> "SqliteVecVectorIndex | None":
-        """可选接线的干净 DEGRADED 入口：任何失败返回 None，不抛异常。"""
+        """可选能力不可用时返回 None；参数错误和编程错误仍向上传播。"""
         try:
             return cls(extension_path, dimension=dimension)
-        except (SqliteVecUnavailableError, ValueError):
+        except SqliteVecUnavailableError:
             return None
+
+
+def _close_failed_connection(conn: sqlite3.Connection) -> None:
+    """Best-effort cleanup without replacing the initialization failure."""
+    with suppress(AttributeError, sqlite3.Error, OSError):
+        conn.close()
 
 
 def _validate_entry_vector(vector: EmbeddingVector, dimension: int, entry_id: str) -> None:

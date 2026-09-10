@@ -14,6 +14,7 @@ embed_texts/embed_query 根本不被调用（计数 fake backend 断言 0 次）
 from __future__ import annotations
 
 from pathlib import Path
+import sqlite3
 
 import pytest
 
@@ -313,3 +314,127 @@ async def test_sqlite_vec_rebuild_replaces_entries_and_empty_search():
     assert [hit.id for hit in hits] == ["new-1"]  # 旧条目已被整体替换
     assert abs(hits[0].similarity - 1.0) < 1e-5
     index.close()
+
+
+# Capability fakes keep these regressions independent of the host OS/SQLite build.
+class _ConnectionWithoutExtensionLoading:
+    def __init__(self):
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+class _ExtensionConnection(_ConnectionWithoutExtensionLoading):
+    def __init__(self, *, load_error=None, enable_error=None, version_error=None, disable_error=None):
+        super().__init__()
+        self.load_error = load_error
+        self.enable_error = enable_error
+        self.version_error = version_error
+        self.disable_error = disable_error
+        self.enabled = []
+
+    def enable_load_extension(self, enabled):
+        self.enabled.append(enabled)
+        error = self.enable_error if enabled else self.disable_error
+        if error is not None:
+            raise error
+
+    def load_extension(self, extension_path):
+        if self.load_error is not None:
+            raise self.load_error
+
+    def execute(self, query):
+        if self.version_error is not None:
+            raise self.version_error
+        return self
+
+    def fetchone(self):
+        return ("v0.1.9",)
+
+
+def _use_connection(monkeypatch, conn):
+    monkeypatch.setattr("mathtutor.infrastructure.sqlite_vec_index.sqlite3.connect", lambda _: conn)
+
+
+async def test_sqlite_vec_missing_extension_path_degrades(tmp_path):
+    path = str(tmp_path / "sqlite_vec_missing.dylib")
+    with pytest.raises(SqliteVecUnavailableError):
+        SqliteVecVectorIndex(path, dimension=4)
+
+
+@pytest.mark.parametrize("non_callable", [False, True])
+async def test_sqlite_vec_runtime_without_extension_loading_degrades(monkeypatch, non_callable):
+    conn = _ConnectionWithoutExtensionLoading()
+    if non_callable:
+        conn.enable_load_extension = None
+    _use_connection(monkeypatch, conn)
+    with pytest.raises(SqliteVecUnavailableError, match="SQLite extension loading is not supported by this runtime"):
+        SqliteVecVectorIndex("optional-extension", dimension=4)
+    assert conn.closed
+
+
+@pytest.mark.parametrize("error_type", [AttributeError, OSError, sqlite3.OperationalError])
+async def test_sqlite_vec_load_extension_failure_degrades(monkeypatch, error_type):
+    error = error_type("extension cannot be loaded")
+    conn = _ExtensionConnection(load_error=error)
+    _use_connection(monkeypatch, conn)
+    with pytest.raises(SqliteVecUnavailableError) as caught:
+        SqliteVecVectorIndex("optional-extension", dimension=4)
+    assert caught.value.__cause__ is error
+    assert conn.enabled == [True, False]
+    assert conn.closed
+
+
+async def test_sqlite_vec_try_open_returns_none_when_unavailable(monkeypatch):
+    conn = _ConnectionWithoutExtensionLoading()
+    _use_connection(monkeypatch, conn)
+    assert SqliteVecVectorIndex.try_open("optional-extension", dimension=4) is None
+    assert conn.closed
+
+
+async def test_sqlite_vec_probe_returns_false_when_unavailable(monkeypatch):
+    conn = _ConnectionWithoutExtensionLoading()
+    _use_connection(monkeypatch, conn)
+    assert SqliteVecVectorIndex.probe("optional-extension") is False
+    assert conn.closed
+
+
+@pytest.mark.parametrize("stage", ["enable", "version", "disable"])
+async def test_sqlite_vec_initialization_failure_closes_connection(monkeypatch, stage):
+    conn = _ExtensionConnection(**{f"{stage}_error": sqlite3.OperationalError("capability unavailable")})
+    _use_connection(monkeypatch, conn)
+    with pytest.raises(SqliteVecUnavailableError):
+        SqliteVecVectorIndex("optional-extension", dimension=4)
+    assert conn.closed
+    assert conn.enabled == [True, False]
+
+
+async def test_sqlite_vec_loading_is_disabled_after_success(monkeypatch):
+    conn = _ExtensionConnection()
+    _use_connection(monkeypatch, conn)
+    index = SqliteVecVectorIndex("optional-extension", dimension=4)
+    assert index.extension_version() == "v0.1.9"
+    assert conn.enabled == [True, False]
+    assert not conn.closed
+    index.close()
+    assert conn.closed
+
+
+@pytest.mark.parametrize("entrypoint", ["constructor", "try_open", "probe"])
+async def test_sqlite_vec_programmer_errors_are_not_swallowed(monkeypatch, entrypoint):
+    conn = _ExtensionConnection(version_error=TypeError("programmer error"))
+    _use_connection(monkeypatch, conn)
+    with pytest.raises(TypeError, match="programmer error"):
+        if entrypoint == "probe":
+            SqliteVecVectorIndex.probe("optional-extension")
+        elif entrypoint == "try_open":
+            SqliteVecVectorIndex.try_open("optional-extension", dimension=4)
+        else:
+            SqliteVecVectorIndex("optional-extension", dimension=4)
+    assert conn.closed
+
+
+async def test_sqlite_vec_invalid_dimension_is_not_unavailable():
+    with pytest.raises(ValueError, match="dimension"):
+        SqliteVecVectorIndex.try_open("optional-extension", dimension=0)
