@@ -181,6 +181,9 @@ def verify_attempt(
             reason=parsed_answer.reason or "作答无法可靠解析",
             **base,
         )
+    if parsed_answer.kind == "linear_system" and problem.problem_type != "linear_system":
+        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
+                                 reason="当前题目不需要一组未知数的答案", **base)
 
     try:
         problem_ast = n.from_dict(problem.normalized_ast)
@@ -199,6 +202,9 @@ def verify_attempt(
         return _verify_linear(problem_ast, parsed_answer, base)
     if problem.problem_type == "quadratic":
         return _verify_quadratic(problem_ast, parsed_answer, base)
+    if problem.problem_type == "linear_system":
+        from mathtutor.learning.linear_system_attempt import verify_system_attempt
+        return verify_system_attempt(problem_ast, parsed_answer, base)
     return AttemptAssessment(
         correctness=Correctness.UNDETERMINED,
         reason=f"未知题族: {problem.problem_type}",

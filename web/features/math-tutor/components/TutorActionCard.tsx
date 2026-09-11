@@ -4,25 +4,27 @@ import { AlertCircle, GraduationCap } from "lucide-react";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import { actionLabel, normalizeAssistanceLevel } from "../lib/protocol";
 import type { TutorMessage } from "../types";
+import { supportExposureLabel } from "../lib/teaching-contract";
 
 /**
  * One tutor message. Shows the student-facing message plus the current
  * effective assistance level — never internal fields, IDs, or codes.
  * turn_error frames render as a distinct error card.
  */
-export default function TutorActionCard({ message, onContinue }: { message: TutorMessage; onContinue?: () => void }) {
+export default function TutorActionCard({ message, onContinue, onRecover }: { message: TutorMessage; onContinue?: () => void; onRecover?: () => void }) {
   if (message.kind === "student") {
     return <div className="flex justify-end"><div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-[#1d5fd1] px-4 py-3 text-[15px] leading-relaxed text-white shadow-sm"><MarkdownRenderer content={message.text} enableMath /></div></div>;
   }
   if (message.kind === "error") {
     return (
       <div
-        className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40"
+        className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3"
         role="alert"
       >
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
-        <div className="min-w-0 text-sm leading-relaxed text-red-800 dark:text-red-200">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+        <div className="min-w-0 text-sm leading-relaxed text-[var(--foreground)]">
           {message.text}
+          {onRecover && <button type="button" className="ml-3 underline underline-offset-2" onClick={onRecover}>重新同步</button>}
         </div>
       </div>
     );
@@ -48,14 +50,14 @@ export default function TutorActionCard({ message, onContinue }: { message: Tuto
           )}
           {level > 0 && (
             <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
-              第 {level} 级提示
+              已展示：{supportExposureLabel(level)}
             </span>
           )}
         </div>
         <div className="text-[15px] leading-relaxed text-[var(--foreground)]">
           <MarkdownRenderer content={message.text} enableMath />
           {message.status === "PARTIAL" && <div className="mt-3 text-sm text-slate-500">这次回答没有完整生成。{onContinue && <button className="ml-2 text-blue-600 underline" onClick={onContinue}>继续生成</button>}</div>}
-          {message.status === "FAILED" && <p className="mt-3 text-sm text-slate-500">这次回答未能生成，请重试。</p>}
+          {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-blue-600 underline" onClick={onRecover}>重新同步</button>}
         </div>
       </div>
     </div>

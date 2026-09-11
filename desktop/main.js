@@ -256,7 +256,8 @@ function startMockProvider(port) {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
           choices: [{
-            message: { content: practiceGenerator ? '["2x + 1 = 5"]' : "本地 mock 表达。" },
+            // A transfer task must not share the parent's answer (x=2).
+            message: { content: practiceGenerator ? '["3x + 1 = 10"]' : "本地 mock 表达。" },
             finish_reason: "stop",
           }],
         }));
@@ -871,7 +872,7 @@ async function runSmokeFull() {
     const frozen = version.body && version.body.release_config && version.body.release_config.migration_head;
     assertNamed(
       "database-migration",
-      version.status === 200 && frozen === "010" && live.head === frozen,
+      version.status === 200 && frozen === "014" && live.head === frozen,
       `frozen=${frozen || "missing"}, live=${live.head || "missing"}`,
     );
   }
@@ -992,7 +993,7 @@ async function runSmokeFull() {
   }
 
   // 5. Real product flow over WS: submit_problem → submit_attempt →
-  //    solved + practice_offered → offers list → accept → child cycle judge.
+  //    solved + independent offer → accept → child judge; preserve parent.
   const sessionId = `smoke-full-${Date.now()}`;
   let parentCycleId = null;
   try {
@@ -1015,7 +1016,8 @@ async function runSmokeFull() {
     assertNamed("correct-attempt", states.includes("solved"), `states=${JSON.stringify(states)}`);
     record(
       "cycle-solve",
-      states.includes("solved") && states.includes("practice_offered"),
+      states.includes("solved") && !states.includes("practice_offered") &&
+        committed(second).at(-1)?.cycle_state === "solved",
       `states=${JSON.stringify(states)}`,
     );
 
@@ -1053,7 +1055,7 @@ async function runSmokeFull() {
           child.status === 200 && ["awaiting_attempt", "problem_received"].includes(child.body && child.body.state),
           child.status === 200 ? `state=${child.body.state}` : `HTTP ${child.status}`,
         );
-        const judged = await wsTurn(wsUrl, "submit_attempt", { answer: "2" }, sessionId);
+        const judged = await wsTurn(wsUrl, "submit_attempt", { answer: "3" }, sessionId);
         const judgedStates = committed(judged).map((c) => c.cycle_state);
         record("child-judge", judgedStates.includes("solved"), `states=${JSON.stringify(judgedStates)}`);
       }
@@ -1142,7 +1144,7 @@ async function runSmokeFull() {
     const parent = await httpJson(`${backendUrl}/api/v2/math-tutor/cycles/${parentCycleId}`);
     record(
       "restart-durability",
-      parent.status === 200 && parent.body && parent.body.state === "closed",
+      parent.status === 200 && parent.body && parent.body.state === "solved",
       parent.status === 200 ? `parent state=${parent.body.state}` : `HTTP ${parent.status}`,
     );
   }

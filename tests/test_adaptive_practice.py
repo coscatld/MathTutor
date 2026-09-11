@@ -431,7 +431,12 @@ async def test_chain_consumes_document_context_instead_of_bank():
     chain = PracticeGeneratorChain(gateway=None)
     candidates = await chain.generate(context, count=1)
     assert candidates
-    assert candidates[0].generated_by == "mt-template-document-grounded-v1"
+    assert candidates[0].generated_by == "mt-template-document-grounded-v2"
+    basis = candidates[0].material_basis[0]
+    assert basis.quote == "移项"
+    assert basis.skill_id == "LINEAR_EQUATION"
+    assert basis.design_influence
+    assert "-" in candidates[0].problem_statement
     assert not candidates[0].generated_by.startswith("mt-bank-")
 
 

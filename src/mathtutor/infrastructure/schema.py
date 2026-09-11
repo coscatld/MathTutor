@@ -22,6 +22,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
+    Index,
     MetaData,
     String,
     Table,
@@ -30,6 +31,28 @@ from sqlalchemy import (
 )
 
 metadata = MetaData()
+
+teaching_contexts = Table(
+    "teaching_contexts", metadata,
+    Column("student_id", String(64), primary_key=True),
+    Column("cycle_id", String(36), primary_key=True),
+    Column("payload", JSON, nullable=False), Column("updated_at", Text, nullable=False),
+    ForeignKeyConstraint(["student_id", "cycle_id"], ["tutoring_cycles.student_id", "tutoring_cycles.cycle_id"]),
+)
+teaching_deliveries = Table(
+    "teaching_deliveries", metadata,
+    Column("student_id", String(64), primary_key=True),
+    Column("delivery_id", String(160), primary_key=True),
+    Column("cycle_id", String(36), nullable=False), Column("status", String(24), nullable=False),
+    Column("payload", JSON, nullable=False), Column("updated_at", Text, nullable=False),
+    ForeignKeyConstraint(["student_id", "cycle_id"], ["tutoring_cycles.student_id", "tutoring_cycles.cycle_id"]),
+)
+cycle_focus = Table(
+    "cycle_focus", metadata,
+    Column("student_id", String(64), primary_key=True), Column("client_session_id", String(128), primary_key=True),
+    Column("cycle_id", String(36), nullable=False),
+    ForeignKeyConstraint(["student_id", "cycle_id"], ["tutoring_cycles.student_id", "tutoring_cycles.cycle_id"]),
+)
 
 # ---------------------------------------------------------------- runtime
 
@@ -93,6 +116,18 @@ conversation_messages = Table(
     UniqueConstraint("student_id", "conversation_id", "event_key", name="uq_conversation_message_event"),
 )
 
+turn_requests = Table(
+    "turn_requests",
+    metadata,
+    Column("student_id", String(64), ForeignKey("student_profiles.student_id"), primary_key=True),
+    Column("conversation_id", String(128), primary_key=True),
+    Column("request_id", String(160), primary_key=True),
+    Column("payload_hash", String(64), nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("frames", JSON, nullable=False),
+    Column("created_at", Text, nullable=False),
+)
+
 conversation_documents = Table(
     "conversation_documents",
     metadata,
@@ -121,6 +156,7 @@ tutoring_cycles = Table(
         name="ck_cycle_source_xor",
     ),
 )
+cycle_owner_unique = Index("uq_tutoring_cycle_owner", tutoring_cycles.c.student_id, tutoring_cycles.c.cycle_id, unique=True)
 
 cycle_transitions = Table(
     "cycle_transitions",
@@ -577,6 +613,7 @@ document_index_builds = Table(
 
 
 __all__ = [
+    "turn_requests",
     "assistance_issuances",
     "attempt_assessments",
     "attempt_submissions",
@@ -613,3 +650,35 @@ __all__ = [
     "users",
     "verification_logs",
 ]
+
+# 013: recommendation planning is independent of task completion and released offers.
+practice_recommendations = Table(
+    "practice_recommendations", metadata,
+    Column("recommendation_id", String(64), primary_key=True),
+    Column("student_id", String(64), ForeignKey("student_profiles.student_id"), nullable=False),
+    Column("parent_cycle_id", String(64), nullable=False),
+    Column("purpose", String(8), nullable=False),
+    Column("target_revision", String(128), nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("offer_id", String(64), ForeignKey("practice_offers.offer_id"), nullable=True),
+    Column("payload", JSON, nullable=False),
+    Column("created_at", Text, nullable=False),
+    Column("updated_at", Text, nullable=False),
+)
+Index(
+    "uq_active_practice_recommendation",
+    practice_recommendations.c.student_id,
+    practice_recommendations.c.parent_cycle_id,
+    practice_recommendations.c.purpose,
+    practice_recommendations.c.target_revision,
+    unique=True,
+    sqlite_where=practice_recommendations.c.status.in_(("PREPARING", "ACTIVE")),
+)
+__all__.append("practice_recommendations")
+
+# 014: v2 tracking tables also participate in fresh-database create_all.
+from mathtutor.learning.knowledge_tracing.schema import metadata as _tracking_metadata
+
+for _tracking_table in _tracking_metadata.sorted_tables:
+    globals()[_tracking_table.name] = _tracking_table.to_metadata(metadata)
+    __all__.append(_tracking_table.name)

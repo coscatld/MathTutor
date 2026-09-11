@@ -141,9 +141,8 @@ async def test_ws_attempt_after_restart(tmp_path: Path) -> None:
             )
             events = _collect(ws)
         state = _last_state(events)
-        # Phase 5 E2E (§7.5): the solved cycle advanced server-side to a
-        # practice offer, and the offer rows survived the restart above.
-        assert state.get("cycle_state") == "practice_offered"
+        # An offer is independently durable; it does not overwrite SOLVED.
+        assert state.get("cycle_state") == "solved"
         assert state.get("payload", {}).get("action") == "practice_offered"
         assert state.get("extra", {}).get("offer_id")
         offers = client.get("/api/v2/math-tutor/offers").json()
@@ -151,5 +150,8 @@ async def test_ws_attempt_after_restart(tmp_path: Path) -> None:
         assert offers[0]["status"] == "ACTIVE"
         assert offers[0]["offer_id"] == state["extra"]["offer_id"]
         assert offers[0]["parent_cycle_id"]
+        restored = client.get("/api/v2/math-tutor/sessions/durable-2").json()
+        assert restored["state"] == "solved"
+        assert restored["active_offer"]["offer_id"] == offers[0]["offer_id"]
 
     reset_product_state()

@@ -33,7 +33,7 @@ class MathProblem(BaseModel):
     problem_id: UUID = Field(default_factory=uuid4)
     schema_version: str = SCHEMA_VERSION
     canonicalization_version: str = CANONICALIZATION_VERSION
-    problem_type: Literal["arithmetic", "polynomial", "linear", "quadratic"]
+    problem_type: Literal["arithmetic", "polynomial", "linear", "quadratic", "linear_system"]
     normalized_ast: dict[str, Any]
     display_latex: str
     content_hash: str = ""

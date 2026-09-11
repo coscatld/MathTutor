@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 CYCLE_SOURCE = Literal["problem_submission", "practice_offer"]
 
-OfferStatus = Literal["ACTIVE", "ACCEPTED", "EXPIRED", "REVOKED"]
+OfferStatus = Literal["ACTIVE", "ACCEPTED", "DECLINED", "EXPIRED", "REVOKED"]
 
 TutorActionType = Literal[
     "ASK_STUDENT",

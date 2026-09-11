@@ -254,6 +254,8 @@ class ProductState:
         # Desktop boot sequence record (GET /bootstrap). The app factory's
         # startup hook fills it; before that the snapshot reads "booting".
         self.bootstrap_tracker = BootstrapTracker()
+        from mathtutor.repositories.turn_repository import TurnRequestRepository
+        self.turn_requests = TurnRequestRepository(engine)
 
         if engine is not None:
             from mathtutor.repositories.sqlite_curriculum import (
@@ -415,6 +417,12 @@ class ProductState:
                 self.gateway, self.tutor_preferences.instruction()
             ),
         )
+        from mathtutor.infrastructure.tutor_intent import SemanticTeachingInterpreter
+        self.controller.semantic_interpreter = SemanticTeachingInterpreter(self.gateway)
+        from mathtutor.learning.knowledge_tracing.service import StudentStateService
+        self.student_state = StudentStateService(engine, Path(data_dir) / "models" / "dkt" / "model.npz") if engine is not None else None
+        self.store.student_state = self.student_state
+        self.store.practice_repository = self.practice_repository
 
     @property
     def capability(self) -> MathTutorController:

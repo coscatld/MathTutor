@@ -14,7 +14,7 @@ from mathtutor.domain.problem import MathProblem
 from mathtutor.domain.solution import MathSolutionCandidate
 from mathtutor.solving import nodes as n
 from mathtutor.solving.parser import ParsedProblem
-from mathtutor.solving.strategies import arithmetic, linear, polynomial, quadratic
+from mathtutor.solving.strategies import arithmetic, linear, polynomial, quadratic, linear_system
 
 _Strategy = Callable[[ParsedProblem], tuple[tuple[dict[str, Any], ...], dict[str, Any]]]
 
@@ -23,6 +23,7 @@ _STRATEGIES: dict[str, _Strategy] = {
     "polynomial": polynomial.solve,
     "linear": linear.solve,
     "quadratic": quadratic.solve,
+    "linear_system": linear_system.solve,
 }
 
 

@@ -377,13 +377,14 @@ async def test_export_returns_only_whitelisted_user_data(tmp_path: Path) -> None
         assert response.status_code == 200
         body = response.json()
         assert set(body) == {"meta", "documents", "memory", "student_summary"}
-        assert body["meta"]["schema_version"] == "mt-export-v1"
+        assert body["meta"]["schema_version"] == "mt-export-v2"
         assert len(body["documents"]) == 1
         assert body["documents"][0]["filename"] == "notes.txt"
         assert len(body["memory"]) == 1
         assert body["memory"][0]["subject"] == "数学"
         assert body["student_summary"]["total_attempts"] == 1
         assert len(body["student_summary"]["skills"]) >= 1
+        assert all("mastery" not in row for row in body["student_summary"]["skills"])
         _assert_no_forbidden_fields(body, "export")
     reset_product_state()
 
@@ -394,14 +395,15 @@ async def test_export_in_memory_mode_returns_empty_summary() -> None:
         response = client.get("/api/v2/math-tutor/desktop/privacy/export")
         assert response.status_code == 200
         body = response.json()
-        assert body["meta"]["schema_version"] == "mt-export-v1"
+        assert body["meta"]["schema_version"] == "mt-export-v2"
         assert body["documents"] == []
         assert body["memory"] == []
         assert body["student_summary"] == {
             "total_attempts": 0,
-            "estimator_version": "",
-            "projection_version": None,
+            "estimator_version": "evidence_tracker_v2",
+            "projection_version": 0,
             "skills": [],
             "active_misconceptions": [],
+            "model_status": "not_trained",
         }
     reset_product_state()

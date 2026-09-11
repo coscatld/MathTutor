@@ -187,12 +187,12 @@ const SUMMARY: StudentSummary = {
   active_misconceptions: 3,
 };
 
-test("PrivacySummary: read-only mastery bands, no edit controls anywhere", () => {
+test("PrivacySummary: legacy uncalibrated mastery is not a percentage or ability label", () => {
   const html = renderToStaticMarkup(<PrivacySummary summary={SUMMARY} />);
-  assert.ok(html.includes("85%") && html.includes("熟练"), "high mastery band");
-  assert.ok(html.includes("60%") && html.includes("进阶中"), "mid mastery band");
-  assert.ok(html.includes("30%") && html.includes("起步中"), "low mastery band");
-  assert.ok(html.includes("暂无数据"), "null mastery → 暂无数据");
+  assert.ok(!html.includes("85%") && !html.includes("熟练"));
+  assert.ok(!html.includes("60%") && !html.includes("进阶中"));
+  assert.ok(!html.includes("30%") && !html.includes("起步中"));
+  assert.ok(html.includes("仍需独立检测"));
   assert.ok(html.includes("学段：G7"), "grade band shown");
   assert.ok(html.includes("42"), "total attempts");
   assert.ok(html.includes("3"), "active misconceptions");

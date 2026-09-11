@@ -464,7 +464,11 @@ async def test_static_curriculum_provider_filters_nodes():
     provider = StaticCurriculumProvider()
     outcome = await provider.load(student_id=_STUDENT, intent=RetrievalIntent.SOLVE_PROBLEM)
     assert outcome.payload.version_code == "mt-curriculum-mvp-v1"
-    assert len(outcome.payload.nodes) == 8  # 4 skills + 4 concepts
+    assert len(outcome.payload.nodes) == 10  # 5 supported families + 5 concepts
+    assert {node.node_id for node in outcome.payload.nodes if node.kind == "skill"} == {
+        "ARITHMETIC", "POLYNOMIAL_BASIC", "LINEAR_EQUATION", "QUADRATIC_EQUATION", "LINEAR_SYSTEM",
+    }
+    assert "CONCEPT_LINEAR_SYSTEMS" in {node.node_id for node in outcome.payload.nodes}
 
     sliced = await provider.load(
         student_id=_STUDENT,

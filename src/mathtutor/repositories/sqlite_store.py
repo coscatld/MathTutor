@@ -43,6 +43,16 @@ class SQLiteSessionStore:
 
     def __init__(self, engine: Any) -> None:
         self.uow = MathTutorUow(engine)
+        from mathtutor.repositories.teaching_repository import TeachingRepository
+        self.teaching = TeachingRepository(engine)
+        self.student_state = None
+
+    async def focus_cycle(self, student_id, client_session_id, cycle_id):
+        async with self.uow.transaction() as conn:
+            await rt.set_cycle_focus(conn, student_id=student_id,
+                client_session_id=client_session_id, cycle_id=cycle_id)
+            snapshot = await rt.load_cycle(conn, student_id=student_id, client_session_id=client_session_id)
+        return _restore(snapshot, student_id)
 
     async def load(self, student_id: str, client_session_id: str) -> TutoringSession | None:
         async with self.uow.transaction() as conn:
@@ -75,6 +85,8 @@ class SQLiteSessionStore:
                 snapshot = await rt.create_successor_cycle(
                     conn, student_id=student_id, parent=existing
                 )
+            await rt.set_cycle_focus(conn, student_id=student_id,
+                client_session_id=client_session_id, cycle_id=snapshot.cycle_id)
         return _restore(snapshot, student_id)
 
     async def persist_transition(
@@ -111,7 +123,27 @@ class SQLiteSessionStore:
                 effective_assistance_level=action.effective_assistance_level,
                 solution_visibility=action.solution_visibility,
                 target_step_index=action.target_step_index,
+                action_id=action.action_id,
             )
+
+    async def commit_teaching_action(self, student_id, cycle_id, transitions, action, context):
+        """One checkpoint for state, actual disclosure action, and resumable text."""
+        from mathtutor.repositories.sqlite_education import insert_tutor_action
+        async with self.uow.transaction() as conn:
+            for transition in transitions:
+                await rt.persist_transition(conn, student_id=student_id,
+                    cycle_id=cycle_id, transition=transition)
+            await insert_tutor_action(conn, student_id=student_id, cycle_id=cycle_id,
+                action_id=action.action_id, action=action.action,
+                effective_assistance_level=action.effective_assistance_level,
+                solution_visibility=action.solution_visibility, target_step_index=action.target_step_index)
+            await self.teaching.save(student_id, cycle_id, context, conn=conn)
+
+    async def persist_transitions(self, student_id, transitions):
+        async with self.uow.transaction() as conn:
+            for transition in transitions:
+                await rt.persist_transition(conn, student_id=student_id,
+                    cycle_id=transition.cycle_id, transition=transition)
 
     async def load_assistance(self, student_id: str, cycle_id: UUID) -> Any:
         """Rebuild the ledger from persisted tutor_actions (projection)."""
@@ -222,7 +254,7 @@ class SQLiteSessionStore:
                 student_id=student_id,
                 cycle_id=cycle_id,
                 raw_text=commit.raw_text,
-                idempotency_key=str(commit.evidence.get("idempotency_key") or ""),
+                idempotency_key=commit.idempotency_key or str((commit.evidence or {}).get("idempotency_key") or ""),
                 submission_id=commit.attempt_submission_id,
             )
             await edu.insert_attempt(
@@ -289,6 +321,10 @@ class SQLiteSessionStore:
                     active_misconceptions=list(commit.projection.get("active_misconceptions") or []),
                 )
             # 6. Outbox in the SAME transaction.
+            if commit.teaching_context is not None:
+                await self.teaching.save(student_id, commit.transitions[0].cycle_id, commit.teaching_context, conn=conn)
+            if self.student_state is not None and commit.tracking_attempt is not None:
+                await self.student_state.record_attempt(student_id, **commit.tracking_attempt, conn=conn)
             if commit.outbox_events:
                 await append_outbox_events(conn, list(commit.outbox_events))
 
@@ -404,6 +440,8 @@ class SQLiteSessionStore:
                     cycle_id=child.cycle.cycle_id,
                     transition=transition,
                 )
+            await rt.set_cycle_focus(conn, student_id=student_id,
+                client_session_id=client_session_id, cycle_id=child.cycle.cycle_id)
             if outbox_events:
                 await append_outbox_events(conn, list(outbox_events))
 

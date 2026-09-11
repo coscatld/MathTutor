@@ -8,9 +8,8 @@
  *  - after every (re)connect the client resyncs from the backend's
  *    owner-scoped GET /api/v2/math-tutor/sessions/{session_id} (cycle state,
  *    version, allowed inputs) — the server stays the only authority on what
- *    the UI may do. The WS itself is stateless per connection and does NOT
- *    replay missed events; already-received tutor messages stay in local
- *    state, so no re-subscription is needed.
+ *    the UI may do. Unacknowledged requests retain their identity across a
+ *    reconnect; the backend replays their durable result without new effects.
  *  - a 401 on recovery means the credentials are gone: status flips to
  *    "error" with a human hint (no auto-redirect loop).
  *
@@ -25,6 +24,7 @@ import {
   initialMathTutorState,
   mathTutorReducer,
 } from "../lib/reducer";
+import { presentationAcknowledgement, presentationFromFrame, type PendingPresentation } from "../lib/delivery";
 
 const WS_PATH = "/api/v2/math-tutor/ws";
 const RECONNECT_BASE_DELAY_MS = 1000;
@@ -57,6 +57,9 @@ export function useMathTutorSession(explicitSessionId?: string) {
   const manuallyClosedRef = useRef(false);
   const resyncInFlightRef = useRef(false);
   const sendInFlightRef = useRef(false);
+  const requestGenerationRef = useRef(0);
+  const unacknowledgedRef = useRef<{ id: string; envelope: string } | null>(null);
+  const presentationsRef = useRef(new Map<string, PendingPresentation>());
 
   const [state, dispatch] = useReducer(
     mathTutorReducer,
@@ -66,6 +69,23 @@ export function useMathTutorSession(explicitSessionId?: string) {
 
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  // This effect runs after React has committed the result. It records screen
+  // presentation only, never reading, understanding, or independent learning.
+  const acknowledgePresentations = useCallback(() => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    for (const [id, pending] of presentationsRef.current) {
+      const wire = presentationAcknowledgement(pending, stateRef.current.messages, document.visibilityState === "visible");
+      if (!wire) continue;
+      try { ws.send(wire); presentationsRef.current.delete(id); } catch { break; }
+    }
+  }, []);
+  useEffect(() => { acknowledgePresentations(); }, [state.messages, acknowledgePresentations]);
+  useEffect(() => {
+    document.addEventListener("visibilitychange", acknowledgePresentations);
+    return () => document.removeEventListener("visibilitychange", acknowledgePresentations);
+  }, [acknowledgePresentations]);
 
   // Late-bound refs so connect() and scheduleReconnect() can call each other
   // without a useCallback dependency cycle.
@@ -84,12 +104,13 @@ export function useMathTutorSession(explicitSessionId?: string) {
     if (resyncInFlightRef.current) return false;
     resyncInFlightRef.current = true;
     const requestedSession = sessionIdRef.current;
+    const requestedGeneration = requestGenerationRef.current;
     try {
       const res = await apiFetch(
         apiUrl(`/api/v2/math-tutor/sessions/${encodeURIComponent(requestedSession)}`),
         { skipAuthRedirect: true },
       );
-      if (requestedSession !== sessionIdRef.current || sendInFlightRef.current) return false;
+      if (requestedSession !== sessionIdRef.current || requestedGeneration !== requestGenerationRef.current || sendInFlightRef.current) return false;
       if (res.status === 401) {
         dispatch({
           type: "connection",
@@ -115,7 +136,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
         return false;
       }
       const summary = (await res.json()) as SessionSummary;
-      if (requestedSession !== sessionIdRef.current || sendInFlightRef.current) return false;
+      if (requestedSession !== sessionIdRef.current || requestedGeneration !== requestGenerationRef.current || sendInFlightRef.current) return false;
       dispatch({ type: "restore", summary });
       return true;
     } catch {
@@ -170,10 +191,15 @@ export function useMathTutorSession(explicitSessionId?: string) {
     }
     wsRef.current = ws;
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       attemptRef.current = 0;
       dispatch({ type: "connection", status: "connected", note: STATUS_NOTES.connected });
-      void resync();
+      const pending = unacknowledgedRef.current;
+      const restored = await resync();
+      if (restored && pending && pending === unacknowledgedRef.current && !sendInFlightRef.current && wsRef.current === ws && ws.readyState === WebSocket.OPEN) {
+        sendInFlightRef.current = true;
+        ws.send(pending.envelope);
+      }
     };
 
     ws.onmessage = (event: MessageEvent<string>) => {
@@ -185,12 +211,17 @@ export function useMathTutorSession(explicitSessionId?: string) {
       }
       const frame = projectStudentFrame(raw as never);
       if (!frame || (frame.payload.conversation_id && frame.payload.conversation_id !== sessionIdRef.current)) return;
+      const presentation = presentationFromFrame(frame);
+      if (presentation) presentationsRef.current.set(presentation.deliveryId, presentation);
       dispatch({ type: "frame", frame });
-      if (["turn_end", "turn_error", "assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)) {
-        sendInFlightRef.current = false;
+      if (["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)
+        && frame.payload.turn_id === unacknowledgedRef.current?.id) {
+        unacknowledgedRef.current = null;
       }
       if (frame.event_type === "turn_end") {
+        sendInFlightRef.current = false;
         window.dispatchEvent(new Event("mathtutor-conversations-changed"));
+        void resync();
       }
     };
 
@@ -222,19 +253,25 @@ export function useMathTutorSession(explicitSessionId?: string) {
         return false;
       }
       sendInFlightRef.current = true;
+      requestGenerationRef.current += 1;
+      const requestId = makeSessionId();
       const envelope = buildEnvelope(command, payload, sessionIdRef.current, {
-        idempotencyKey: makeSessionId(),
+        requestId,
+        idempotencyKey: requestId,
         // Optimistic concurrency: the server rejects commands that race ahead
         // of the version the client has seen.
         expectedCycleVersion: stateRef.current.seenVersion,
+        cycleId: stateRef.current.cycleId || undefined,
+        problemRevision: stateRef.current.cycleId ? stateRef.current.problemRevision : undefined,
       });
       try {
         ws.send(envelope);
+        if (command !== "cancel_turn") unacknowledgedRef.current = { id: requestId, envelope };
       } catch {
         sendInFlightRef.current = false;
         return false;
       }
-      const visibleText = payload.text || payload.answer || ({ request_hint: "给我一点提示", request_explanation: "讲解这个知识点", request_example: "给我一个类似例子", request_solution: "查看完整答案" } as Record<string, string>)[command];
+      const visibleText = payload.text || payload.answer || ({ request_hint: "给我一点提示", request_explanation: "讲解这个知识点", request_example: "给我一个类似例子", request_solution: "查看完整答案", request_practice: "我想独立练一道", resume_problem: "回到刚才那道题", end_problem: "结束本题", start_diagnostic: "先了解一下我的基础", skip_diagnostic: "跳过诊断，继续辅导", accept_practice_offer: "接受这道练习", decline_practice_offer: "暂不练习，保留当前题目" } as Record<string, string>)[command];
       dispatch({ type: "command_sent", command, text: visibleText });
       return true;
     },
@@ -244,7 +281,10 @@ export function useMathTutorSession(explicitSessionId?: string) {
   /** Start a brand-new tutoring problem (fresh client session id). */
   const newProblem = useCallback(() => {
     sessionIdRef.current = makeSessionId();
+    requestGenerationRef.current += 1;
     sendInFlightRef.current = false;
+    unacknowledgedRef.current = null;
+    presentationsRef.current.clear();
     dispatch({ type: "new_session", sessionId: sessionIdRef.current });
     void resync();
   }, [resync]);
@@ -254,6 +294,11 @@ export function useMathTutorSession(explicitSessionId?: string) {
     attemptRef.current = 0;
     connectRef.current();
   }, []);
+
+  const recover = useCallback(() => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) reconnect();
+    else void resync();
+  }, [reconnect, resync]);
 
   useEffect(() => {
     manuallyClosedRef.current = false;
@@ -275,5 +320,6 @@ export function useMathTutorSession(explicitSessionId?: string) {
     send,
     newProblem,
     reconnect,
+    recover,
   };
 }

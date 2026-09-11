@@ -64,7 +64,10 @@ from mathtutor.learning.skills import (
     SKILL_LINEAR_EQUATION,
     SKILL_POLYNOMIAL_BASIC,
     SKILL_QUADRATIC_EQUATION,
+    SKILL_LINEAR_SYSTEM,
+    CONCEPT_LINEAR_SYSTEMS,
     all_skill_ids,
+    skill_for_problem,
 )
 from mathtutor.repositories.practice_repository import (
     PracticeRepository,
@@ -127,6 +130,8 @@ SEED_BANK: tuple[SeedBankItem, ...] = (
     SeedBankItem("3x - 5 = 4", 2, (SKILL_LINEAR_EQUATION,), (CONCEPT_LINEAR_EQUATIONS,)),
     SeedBankItem("x^2 - 5x + 6 = 0", 3, (SKILL_QUADRATIC_EQUATION,), (CONCEPT_QUADRATIC_EQUATIONS,)),
     SeedBankItem("x^2 - 4x + 4 = 0", 3, (SKILL_QUADRATIC_EQUATION,), (CONCEPT_QUADRATIC_EQUATIONS,)),
+    SeedBankItem("x+y=4; x-y=2", 2, (SKILL_LINEAR_SYSTEM,), (CONCEPT_LINEAR_SYSTEMS,)),
+    SeedBankItem("2x+y=8; x-y=1", 3, (SKILL_LINEAR_SYSTEM,), (CONCEPT_LINEAR_SYSTEMS,)),
 )
 
 _ALL_CONCEPTS: tuple[str, ...] = (
@@ -134,6 +139,7 @@ _ALL_CONCEPTS: tuple[str, ...] = (
     CONCEPT_POLYNOMIALS,
     CONCEPT_LINEAR_EQUATIONS,
     CONCEPT_QUADRATIC_EQUATIONS,
+    CONCEPT_LINEAR_SYSTEMS,
 )
 
 
@@ -296,6 +302,10 @@ class ExerciseReleaseService:
             normalized_ast=parsed.normalized_ast,
             display_latex=parsed.display_latex,
         )
+        if candidate.skill_ids and skill_for_problem(problem) not in candidate.skill_ids:
+            raise ReleaseDeniedError("候选题的实际数学技能与请求目标不一致")
+        if "document-grounded" in candidate.generated_by and not candidate.material_basis:
+            raise ReleaseDeniedError("资料接地缺少可核对引用和设计依据")
         # Deterministic problem identity: the SAME canonical statement must
         # map to the SAME problem_id across republish calls (a fresh uuid4
         # per call would break content identity and idempotent republish).
@@ -306,6 +316,10 @@ class ExerciseReleaseService:
                 )
             }
         )
+        # Ordinary tutoring may already own this content hash under another
+        # UUID. Resolve it BEFORE solving/verifying; never rebind verified
+        # candidate bytes to a different persisted identity afterwards.
+        problem = await self.repository.resolve_problem(problem)
 
         # 2. Solver (or explicit candidate bytes).
         if solution_candidate is None:
@@ -334,7 +348,8 @@ class ExerciseReleaseService:
                 }
             )
 
-        # 4. Re-validate every hash binding BEFORE any write (fail closed).
+        # 4. Re-validate every hash binding BEFORE any trusted release or
+        # attestation write (the earlier canonical reservation grants no trust).
         validate_release_binding(problem, candidate_bytes, decision)
 
         # 5. Exercise identity: content-bound, deterministic (§7.1).
@@ -351,7 +366,7 @@ class ExerciseReleaseService:
             problem_grounding_id=uuid5(
                 _GROUNDING_NS, f"{problem.problem_id}:{candidate.difficulty}"
             ),
-            display_latex=problem.display_latex,
+            display_latex=parsed.display_latex,
             difficulty=candidate.difficulty,
             target_mapping_ids=(
                 tuple(mapping_id_for_skill(s) for s in candidate.skill_ids)
@@ -380,6 +395,7 @@ class ExerciseReleaseService:
                     "source_type": exercise.source_type,
                     "generated_by": candidate.generated_by,
                     "context_version": candidate.context_version,
+                    "material_basis": [basis.model_dump(mode="json") for basis in candidate.material_basis],
                 },
             ),
             status="draft",

@@ -1185,6 +1185,29 @@ async def student_summary(
     projection, total_attempts, observed = await _student_projection(
         state, str(owner.student_id)
     )
+    if state.student_state is None:
+        from mathtutor.learning.skill_graph import SKILLS
+        return {"skills": [{"code": code, "label": skill.label, "mastery": None, "grade_band": None,
+            "evidence_status": "仍需确认", "evidence_summary": {key: 0 for key in ("independent", "assisted", "post_solution", "diagnostic", "ungradable")}}
+            for code, skill in SKILLS.items()], "total_attempts": total_attempts, "active_misconceptions": 0}
+    if state.student_state is not None:
+        from mathtutor.learning.skill_graph import SKILLS
+        from mathtutor.application.evidence_projection import public_evidence
+        evidence = await state.student_state.summary(str(owner.student_id))
+        indexed = {row["skill_id"]: row for row in evidence["skills"]}
+        rows = []
+        for code, skill in SKILLS.items():
+            row = indexed.get(code, {})
+            summary_counts = row.get("evidence_summary", {})
+            flat = {key: sum(summary_counts.get(key, {}).values()) if isinstance(summary_counts.get(key), dict) else summary_counts.get(key, 0)
+                    for key in ("independent", "assisted", "post_solution", "diagnostic", "ungradable")}
+            # Multiskill whole-item evidence is not copied into several skill successes.
+            flat["diagnostic"] += row.get("joint_task_evidence", 0) + row.get("step_correct", 0)
+            rows.append({"code": code, "label": skill.label, "mastery": None, "grade_band": None,
+                         "evidence_status": row.get("evidence_status", "仍需确认"), "evidence_summary": flat})
+        return {"skills": rows,
+                "total_attempts": total_attempts, "active_misconceptions": 0,
+                "evidence_summary": public_evidence(await state.student_state.events(str(owner.student_id))), "model_status": evidence["dkt_mode"]}
     skill_map: dict[str, float] = {}
     active_misconceptions = 0
     if projection is not None:
@@ -1643,44 +1666,10 @@ async def confirm_memory(
 
 
 async def _export_student_summary(state, student_id: str) -> dict:
-    """Export-shaped student summary (whitelist fields only).
-
-    Reuses ``_student_projection`` — the one persisted-projection reader,
-    which already handles in-memory mode (empty) — and maps to the export
-    whitelist (``data_export.EXPORT_ALLOWED_FIELDS``)."""
-    projection, total_attempts, _observed = await _student_projection(
-        state, student_id
-    )
-    if projection is None:
-        return {
-            "total_attempts": total_attempts,
-            "estimator_version": "",
-            "projection_version": None,
-            "skills": [],
-            "active_misconceptions": [],
-        }
-    raw_rows = projection.get("skill_mastery") or ()
-    skills = [
-        {"skill_id": str(item["skill_id"]), "mastery": item["mastery"]}
-        for item in raw_rows
-        if isinstance(item, dict) and "skill_id" in item and "mastery" in item
-    ]
-    misconceptions = [
-        {
-            "rule_id": item["rule_id"],
-            "status": item.get("status"),
-            "confidence": item.get("confidence"),
-        }
-        for item in (projection.get("active_misconceptions") or [])
-        if isinstance(item, dict) and "rule_id" in item
-    ]
-    return {
-        "total_attempts": total_attempts,
-        "estimator_version": projection.get("estimator_version") or "",
-        "projection_version": projection.get("projection_version"),
-        "skills": skills,
-        "active_misconceptions": misconceptions,
-    }
+    """Use the same v2 evidence contract as the application export path."""
+    from mathtutor.application.data_export import export_evidence_summary
+    return await export_evidence_summary(student_id, uow=state.uow,
+                                          student_state=getattr(state, "student_state", None))
 
 
 @router.post("/privacy/purge-documents")

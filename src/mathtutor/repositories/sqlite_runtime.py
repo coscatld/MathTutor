@@ -224,12 +224,16 @@ async def load_cycle(
     conn: AsyncConnection, *, student_id: str, client_session_id: str
 ) -> CycleSnapshot | None:
     """Owner-scoped load: the client session name is namespaced per student."""
+    from mathtutor.infrastructure.schema import cycle_focus
+    focus = (await conn.execute(select(cycle_focus.c.cycle_id).where(
+        cycle_focus.c.student_id == student_id, cycle_focus.c.client_session_id == client_session_id))).scalar_one_or_none()
     row = (
         await conn.execute(
             select(tutoring_cycles)
             .join(learning_sessions, learning_sessions.c.session_id == tutoring_cycles.c.session_id)
             .where(tutoring_cycles.c.student_id == student_id)
             .where(learning_sessions.c.client_session_id == client_session_id)
+            .where(tutoring_cycles.c.cycle_id == focus if focus else True)
             .order_by(tutoring_cycles.c.created_at.desc())
             .limit(1)
         )
@@ -245,6 +249,21 @@ async def load_cycle(
         problem_id=UUID(row.problem_id) if row.problem_id else None,
         practice_offer_id=UUID(row.practice_offer_id) if row.practice_offer_id else None,
     )
+
+
+async def set_cycle_focus(conn, *, student_id, client_session_id, cycle_id):
+    from sqlalchemy.dialects.sqlite import insert
+    from mathtutor.infrastructure.schema import cycle_focus
+    valid = (await conn.execute(select(tutoring_cycles.c.cycle_id)
+        .join(learning_sessions, learning_sessions.c.session_id == tutoring_cycles.c.session_id)
+        .where(tutoring_cycles.c.student_id == student_id,
+               learning_sessions.c.client_session_id == client_session_id,
+               tutoring_cycles.c.cycle_id == str(cycle_id)))).scalar_one_or_none()
+    if not valid:
+        raise ValueError("cycle not found in this conversation")
+    await conn.execute(insert(cycle_focus).values(student_id=student_id, client_session_id=client_session_id,
+        cycle_id=str(cycle_id)).on_conflict_do_update(index_elements=[cycle_focus.c.student_id, cycle_focus.c.client_session_id],
+                                                   set_={"cycle_id": str(cycle_id)}))
 
 
 async def persist_transition(

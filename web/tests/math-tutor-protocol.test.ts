@@ -84,11 +84,12 @@ test("buildEnvelope produces a JSON envelope with only allowlisted keys", () => 
   }
 });
 
-test("buildEnvelope omits expected_cycle_version when it is 0 or absent", () => {
+test("buildEnvelope preserves version zero and omits only absent versions", () => {
   const withZero = JSON.parse(
     buildEnvelope("request_hint", {}, "s", { expectedCycleVersion: 0 }),
   ) as Record<string, unknown>;
-  assert.ok(!("expected_cycle_version" in withZero));
+  assert.equal(withZero.expected_cycle_version, 0);
+  assert.equal(withZero.expected_state_version, 0);
 
   const absent = JSON.parse(buildEnvelope("request_hint", {}, "s")) as Record<string, unknown>;
   assert.ok(!("expected_cycle_version" in absent));

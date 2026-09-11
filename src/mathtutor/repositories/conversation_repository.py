@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5, NAMESPACE_URL
 
 from sqlalchemy import exists, select
 
@@ -19,6 +19,10 @@ from mathtutor.repositories.uow import MathTutorUow
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def message_id_for(student_id: str, conversation_id: str, event_key: str) -> str:
+    return str(uuid5(NAMESPACE_URL, repr((student_id, conversation_id, event_key))))
 
 
 def _title(text: str) -> str:
@@ -47,11 +51,24 @@ class InMemoryConversationRepository:
         unique = event_key or str(uuid4())
         if any(row["event_key"] == unique for row in rows):
             return
-        rows.append({"message_id": str(uuid4()), "role": role, "content": content.strip(), "action": action, "assistance_level": assistance_level, "event_key": unique, "created_at": _now(), "status": status, "finish_reason": finish_reason, "turn_id": turn_id, "continuation_context": continuation_context})
+        rows.append({"message_id": message_id_for(student_id, conversation_id, unique), "role": role, "content": content.strip(), "action": action, "assistance_level": assistance_level, "event_key": unique, "created_at": _now(), "status": status, "finish_reason": finish_reason, "turn_id": turn_id, "continuation_context": continuation_context})
         item = self._conversations[key]
         if role == "student" and item["title"] == "新对话":
             item["title"] = _title(content)
         item["updated_at"] = _now()
+
+    async def finalize_turn(self, student_id, conversation_id, turn_id, *, status, finish_reason):
+        for row in self._messages.get((student_id, conversation_id), []):
+            if row.get("turn_id") == turn_id and row["role"] == "tutor":
+                row.update(status=status, finish_reason=finish_reason)
+
+    async def save_turn_message(self, student_id, conversation_id, turn_id, **values):
+        """Replace the approved snapshot in the single result for this request."""
+        event_key = f"tutor:{turn_id}:result"
+        await self.append_message(student_id, conversation_id, event_key=event_key, turn_id=turn_id, **values)
+        for row in self._messages.get((student_id, conversation_id), []):
+            if row["event_key"] == event_key:
+                row.update(values)
 
     async def list(self, student_id: str) -> list[dict]:
         rows = [
@@ -110,12 +127,31 @@ class SQLiteConversationRepository:
         now = _now()
         unique = event_key or str(uuid4())
         async with self.uow.transaction() as conn:
-            await conn.execute(conversation_messages.insert().prefix_with("OR IGNORE").values(message_id=str(uuid4()), conversation_id=conversation_id, student_id=student_id, role=role, content=content, action=action, assistance_level=assistance_level, event_key=unique, created_at=now, status=status, finish_reason=finish_reason, turn_id=turn_id, continuation_context=continuation_context))
+            await conn.execute(conversation_messages.insert().prefix_with("OR IGNORE").values(message_id=message_id_for(student_id, conversation_id, unique), conversation_id=conversation_id, student_id=student_id, role=role, content=content, action=action, assistance_level=assistance_level, event_key=unique, created_at=now, status=status, finish_reason=finish_reason, turn_id=turn_id, continuation_context=continuation_context))
             current = (await conn.execute(select(conversations.c.title).where(conversations.c.student_id == student_id, conversations.c.conversation_id == conversation_id))).scalar_one_or_none()
             values: dict[str, str] = {"updated_at": now}
             if role == "student" and current == "新对话":
                 values["title"] = _title(content)
             await conn.execute(conversations.update().where(conversations.c.student_id == student_id, conversations.c.conversation_id == conversation_id).values(**values))
+
+    async def finalize_turn(self, student_id, conversation_id, turn_id, *, status, finish_reason):
+        async with self.uow.transaction() as conn:
+            await conn.execute(conversation_messages.update().where(
+                conversation_messages.c.student_id == student_id,
+                conversation_messages.c.conversation_id == conversation_id,
+                conversation_messages.c.turn_id == turn_id,
+                conversation_messages.c.role == "tutor",
+            ).values(status=status, finish_reason=finish_reason))
+
+    async def save_turn_message(self, student_id, conversation_id, turn_id, **values):
+        event_key = f"tutor:{turn_id}:result"
+        await self.append_message(student_id, conversation_id, event_key=event_key, turn_id=turn_id, **values)
+        async with self.uow.transaction() as conn:
+            await conn.execute(conversation_messages.update().where(
+                conversation_messages.c.student_id == student_id,
+                conversation_messages.c.conversation_id == conversation_id,
+                conversation_messages.c.event_key == event_key,
+            ).values(**values))
 
     async def list(self, student_id: str) -> list[dict]:
         async with self.uow.transaction() as conn:

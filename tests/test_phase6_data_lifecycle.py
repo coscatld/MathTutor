@@ -343,9 +343,11 @@ def test_classification_covers_every_business_table() -> None:
     """Every business table in the schema has a category; no unclassified
     table and no classified ghost (both directions asserted)."""
     from mathtutor.infrastructure.schema import metadata
+    from mathtutor.learning.knowledge_tracing.schema import metadata as tracking_metadata
 
-    assert set(metadata.tables) == set(DATA_CATEGORIES)
-    for name in metadata.tables:
+    tables = set(metadata.tables) | set(tracking_metadata.tables)
+    assert tables == set(DATA_CATEGORIES)
+    for name in tables:
         assert classify_table(name) in {
             CATEGORY_AUTHORITY_EDUCATIONAL,
             CATEGORY_USER_CONTROLLED,
@@ -717,6 +719,102 @@ async def test_delete_educational_history_idempotent(env) -> None:
     assert _projection_key(projection_after) == _projection_key(projection_before)
 
 
+async def test_v2_history_deletion_clears_events_snapshots_and_teaching_progress(env, tmp_path):
+    """An explicit privacy operation erases results; restart cannot hydrate stale progress."""
+    from mathtutor.learning.knowledge_tracing.service import StudentStateService
+    from mathtutor.learning.knowledge_tracing.schema import learning_events, learning_predictions, student_state_snapshots
+    from mathtutor.repositories.teaching_repository import TeachingRepository
+
+    sid, other = _sid(), _sid()
+    owned = await _seed_education(env.uow, sid, attempts=1)
+    foreign = await _seed_education(env.uow, other, attempts=1)
+    state = StudentStateService(env.engine)
+    teaching = TeachingRepository(env.engine)
+    for owner, fixture in ((sid, owned), (other, foreign)):
+        await state.record_attempt(owner, session_id="session", cycle_id=str(fixture["cycle_id"]),
+            problem_id=str(fixture["problem_id"]), problem_revision="r1", item_family_id="linear",
+            skill_ids=("LINEAR_EQUATION",), assessment_id=str(uuid4()), attempt_id=str(fixture["attempt_ids"][0]), correctness="correct")
+        await teaching.save(owner, fixture["cycle_id"], {
+            "schema_version": "mt-teaching-v2", "skill_graph_version": "test-graph",
+            "problem_id": str(fixture["problem_id"]), "problem_revision": "r1", "display_text": "2x+3=7",
+            "skill_ids": ["LINEAR_EQUATION"], "lifecycle": "completed", "current_subgoal_index": 1,
+            "subgoals": [{"id": "isolate", "prompt_target": "求未知数", "skill_ids": ["LINEAR_EQUATION"], "status": "verified"}],
+            "progress": [{"text": "ANSWER-TO-ERASE", "verified_claims": [{"variable": "x", "value": 2}]}],
+            "assessments": [{"raw_text": "ANSWER-TO-ERASE", "task_completion": "complete"}],
+            "diagnosis": {"status": "completed", "results": [{"correctness": "correct"}]},
+            "last_plan": {"evidence_refs": ["old-assessment"]}, "error_analysis": {"student_response": "ANSWER-TO-ERASE"},
+            "pending_expression": {"request_id": "request-to-erase", "student_request": "ANSWER-TO-ERASE",
+                "feedback": "FEEDBACK-TO-ERASE", "approved_utterance": {"text": "OLD-APPROVED-REPLY"},
+                "continuation_context": "OLD-CONTINUATION"},
+            "language_understanding": {"evidence_quote": "ANSWER-TO-ERASE", "confusion": "persistent"},
+            "language_input_hash": "OLD-INPUT-HASH", "language_request_id": "request-to-erase",
+            "language_signal_consumed_request": "request-to-erase",
+            "task_context": {"schema_version": "mt-problem-context-v1", "problem_id": str(fixture["problem_id"]),
+                "cycle_id": str(fixture["cycle_id"]), "problem_revision": "r1", "source_ref": {"submission_id": "source-navigation"},
+                "original_statement": "解方程 2x+3=7", "full_statement": "解方程 2x+3=7",
+                "normalized_representation": {"kind": "equation"}, "task_kind": "solve_equation",
+                "task_type": "linear", "domain": "unknown", "units": "cm", "precision": {"decimal_places": 2},
+                "expected_answer_shape": {"kind": "root_set", "variables": ["x"]},
+                "verified_solution_ref": {"verification_log_id": "retained-reference"}, "verification_status": "verified",
+                "current_subgoal_id": "old-subgoal", "verified_student_steps": [{"text": "ANSWER-TO-ERASE"}],
+                "help_exposure": [{"text": "OLD-HELP-TO-ERASE", "target_answer_exposed": True}],
+                "unanswered_question": {"text": "OLD-QUESTION-TO-ERASE"},
+                "used_examples": [{"problem": "OLD-EXAMPLE-TO-ERASE"}],
+                "invitation_source": {"student_response": "ANSWER-TO-ERASE"},
+                "future_recovery_cache": {"text": "OLD-APPROVED-REPLY"}},
+        })
+    weights = tmp_path / "local-model.safetensors"
+    credentials = tmp_path / "secure-store-test.enc"
+    weights.write_bytes(b"nonsecret-model-marker")
+    credentials.write_bytes(b"encrypted-test-marker")
+
+    summary = await env.lifecycle.delete_educational_history(sid)
+    assert summary["teaching_contexts_cleared"] == 1
+    for table in (learning_events, learning_predictions, student_state_snapshots):
+        assert summary["by_table"][table.name] == 1
+        async with env.uow.transaction() as conn:
+            assert (await conn.execute(select(func.count()).select_from(table).where(table.c.student_id == sid))).scalar_one() == 0
+            assert (await conn.execute(select(func.count()).select_from(table).where(table.c.student_id == other))).scalar_one() == 1
+    restarted = StudentStateService(env.engine)
+    assert await restarted.import_legacy(sid) == 0
+    learner = await restarted.summary(sid)
+    assert learner["event_count"] == 0 and learner["skills"] == []
+    assert learner["training_data"]["events"] == 0
+    assert (await restarted.summary(other))["event_count"] == 1
+    clean = await TeachingRepository(env.engine).load(sid, owned["cycle_id"])
+    assert clean["problem_id"] == str(owned["problem_id"])
+    assert clean["display_text"] == "2x+3=7"
+    assert clean["progress"] == [] and clean["assessments"] == []
+    assert clean["subgoals"][0]["status"] == "pending"
+    assert clean["diagnosis"]["status"] == "not_started"
+    assert clean["legacy_provenance_uncertain"] is True
+    assert "ANSWER-TO-ERASE" not in str(clean)
+    for key in ("pending_expression", "language_understanding", "language_input_hash", "language_request_id",
+                "language_signal_consumed_request"):
+        assert key not in clean
+    for marker in ("FEEDBACK-TO-ERASE", "OLD-APPROVED-REPLY", "OLD-CONTINUATION", "OLD-HELP-TO-ERASE",
+                   "OLD-QUESTION-TO-ERASE", "OLD-EXAMPLE-TO-ERASE", "OLD-INPUT-HASH", "request-to-erase"):
+        assert marker not in str(clean)
+    task = clean["task_context"]
+    assert task["problem_id"] == str(owned["problem_id"]) and task["cycle_id"] == str(owned["cycle_id"])
+    assert task["original_statement"] == task["full_statement"] == "解方程 2x+3=7"
+    assert task["source_ref"] == {"submission_id": "source-navigation"}
+    assert task["normalized_representation"] == {"kind": "equation"}
+    assert task["units"] == "cm" and task["precision"] == {"decimal_places": 2}
+    assert task["verified_solution_ref"]["verification_log_id"] == "retained-reference"
+    assert task["verified_student_steps"] == task["used_examples"] == []
+    assert task["unanswered_question"] is task["invitation_source"] is None
+    assert task["help_exposure"]["provenance_uncertain"] is True
+    assert task["student_progress_status"] == task["example_history_status"] == "unknown"
+    assert task["current_subgoal_id"] == "isolate"
+    assert (await teaching.load(other, foreign["cycle_id"]))["lifecycle"] == "completed"
+    assert (await teaching.load(other, foreign["cycle_id"]))["pending_expression"]["approved_utterance"]["text"] == "OLD-APPROVED-REPLY"
+    second = await env.lifecycle.delete_educational_history(sid)
+    assert second["deleted_rows"] == 0 and second["teaching_contexts_cleared"] == 0
+    assert weights.read_bytes() == b"nonsecret-model-marker"
+    assert credentials.read_bytes() == b"encrypted-test-marker"
+
+
 def test_data_lifecycle_source_never_writes_mastery_values() -> None:
     """Static guard: the lifecycle module only REPLAYS projections — it has
     no path that assigns mastery values, no CAS update, no estimator use,
@@ -804,7 +902,7 @@ async def test_export_whitelist_only_no_sensitive_fields(env) -> None:
     assert set(export) == {"meta", "documents", "memory", "student_summary"}
     validate_export(export)  # 白名单校验通过
     assert export["meta"]["student_id"] == sid
-    assert export["meta"]["schema_version"] == "mt-export-v1"
+    assert export["meta"]["schema_version"] == "mt-export-v2"
     # documents：公共投影字段，且不泄露存储路径/哈希。
     assert len(export["documents"]) == 1
     doc_entry = export["documents"][0]
@@ -819,7 +917,12 @@ async def test_export_whitelist_only_no_sensitive_fields(env) -> None:
     summary = export["student_summary"]
     assert set(summary) <= EXPORT_ALLOWED_FIELDS["student_summary"]
     assert summary["total_attempts"] == 2
-    assert summary["projection_version"] == 2
+    assert summary["projection_version"] == 0  # No v2 events exist in this legacy fixture.
+    assert summary["estimator_version"] == "evidence_tracker_v2"
+    assert sum(row["evidence_summary"]["ungradable"] for row in summary["skills"]) == 2
+    assert all("mastery" not in row for row in summary["skills"])
+    from mathtutor.learning.knowledge_tracing.schema import learning_events
+    assert await _count(env, learning_events) == 0  # Export never performs a hidden migration.
     # 敏感字段逐字段缺席（构造的敏感数据一个都不能出现）。
     dumped = json.dumps(export, ensure_ascii=False, default=str)
     for marker in (
@@ -856,8 +959,15 @@ def test_export_validation_rejects_unknown_fields() -> None:
     with pytest.raises(ExportValidationError):
         validate_export({**valid, "extra_section": []})
     with pytest.raises(ExportValidationError):
+        validate_export({**valid, "student_summary.skills": {"api_key": "must-not-export"}})
+    with pytest.raises(ExportValidationError):
         bad = json.loads(json.dumps(valid))
         bad["documents"].append({"document_id": "x", "storage_ref": "uploads/x"})
+        validate_export(bad)
+    with pytest.raises(ExportValidationError):
+        bad = json.loads(json.dumps(valid))
+        bad["student_summary"]["skills"].append({"skill_id": "S", "evidence_status": "仍需确认",
+            "evidence_summary": {"independent": {"correct": 1, "incorrect": 0, "api_key": "must-not-export"}}})
         validate_export(bad)
     with pytest.raises(ExportValidationError):
         bad = json.loads(json.dumps(valid))
@@ -865,6 +975,27 @@ def test_export_validation_rejects_unknown_fields() -> None:
             {"skill_id": "S", "mastery": 0.5, "attestation": "no"}
         )
         validate_export(bad)
+
+
+async def test_legacy_verified_binding_preserved_without_inventing_help_chronology(env):
+    from mathtutor.learning.knowledge_tracing.service import StudentStateService
+    sid = _sid()
+    seeded = await _seed_education(env.uow, sid, attempts=1)
+    tracker = StudentStateService(env.engine)
+    assert await tracker.import_legacy(sid) == 1
+    facts = await tracker.events(sid)
+    assert facts[0].problem_id == str(seeded["problem_id"])
+    canonical = f"seed-problem-{seeded['problem_id']}"
+    assert facts[0].problem_revision == canonical
+    assert facts[0].provenance_uncertain and not facts[0].independent_target
+    context = await tracker.exposure_context(sid, canonical)
+    assert context["provenance_uncertain"] and not context["target_answer_exposed"]
+    # The legacy record proves neither "never helped" nor "read the answer".
+    new_attempt = await tracker.record_attempt(sid, session_id="another-conversation", cycle_id="another-cycle",
+        problem_id=str(seeded["problem_id"]), problem_revision=canonical, item_family_id="linear",
+        skill_ids=["linear_isolation"], assessment_id="new-assessment", attempt_id="new-attempt", correctness="correct")
+    assert new_attempt.provenance_uncertain and new_attempt.evidence_kind == "unknown"
+    assert not (await tracker.exposure_context(sid, "genuinely-new-task"))["provenance_uncertain"]
 
 
 # ---------------------------------------------------------------------------
@@ -928,7 +1059,7 @@ def test_schema_table_count_unchanged_and_migrations_are_explicit() -> None:
     from mathtutor.infrastructure import schema as schema_module
 
     assert set(schema_module.metadata.tables) == set(DATA_CATEGORIES)
-    assert len(schema_module.metadata.tables) == 34
+    assert len(schema_module.metadata.tables) == 42
     versions_dir = (
         Path(schema_module.__file__).resolve().parent / "migrations" / "versions"
     )
@@ -944,6 +1075,10 @@ def test_schema_table_count_unchanged_and_migrations_are_explicit() -> None:
         "008_document_chunk_fts.py",
         "009_conversation_workspace.py",
         "010_turn_completion.py",
+        "011_turn_requests.py",
+        "012_teaching_contexts.py",
+        "013_practice_recommendations.py",
+        "014_learning_tracking.py",
     ]
 
 

@@ -7,10 +7,9 @@ logic into a second place:
 - documents: the public document projection (``_project_document``, the
   single source in the desktop API layer — reused by lazy import);
 - memory: the public memory projection (``_project_memory``, same reuse);
-- student summary: the PERSISTED StudentState projection row (computed at
-  write time by ``learning.projection.project_student_state``) read back via
-  the existing ``load_student_projection`` + the attempt count — no
-  re-projection and no duplicated display formatting.
+- student summary: the v2 EvidenceTracker's attributable counts. Legacy
+  evidence with unavailable exposure chronology is explicitly uncertain;
+  the old fixed-level mastery percentage is never exported as knowledge.
 
 Structural guarantee: every field in the export body must appear in
 ``EXPORT_ALLOWED_FIELDS`` (per-section whitelist); ``validate_export``
@@ -43,7 +42,7 @@ from mathtutor.repositories.uow import MathTutorUow
 
 logger = logging.getLogger(__name__)
 
-EXPORT_SCHEMA_VERSION = "mt-export-v1"
+EXPORT_SCHEMA_VERSION = "mt-export-v2"
 
 #: Explicit per-section field whitelist. Anything outside it is REFUSED.
 #: (documents/memory mirror the existing public projections; the student
@@ -89,9 +88,12 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
             "projection_version",
             "skills",
             "active_misconceptions",
+            "model_status",
         }
     ),
-    "student_summary.skills": frozenset({"skill_id", "mastery"}),
+    "student_summary.skills": frozenset({"skill_id", "evidence_status", "evidence_summary"}),
+    "student_summary.skills.evidence_summary": frozenset({"independent", "assisted", "post_solution", "diagnostic", "ungradable", "step_correct", "joint_task_evidence", "duplicate_responses"}),
+    "student_summary.skills.binary_counts": frozenset({"correct", "incorrect"}),
     "student_summary.active_misconceptions": frozenset(
         {"rule_id", "status", "confidence"}
     ),
@@ -108,7 +110,7 @@ def validate_export(export: dict[str, Any]) -> None:
         if section not in export:
             raise ExportValidationError(f"导出缺少分区: {section!r}")
     for key in export:
-        if key not in EXPORT_ALLOWED_FIELDS:
+        if key not in {"meta", "documents", "memory", "student_summary"}:
             raise ExportValidationError(f"导出分区不在白名单: {key!r}")
 
     def _check(entry: Any, allowed: frozenset[str], where: str) -> None:
@@ -136,6 +138,16 @@ def validate_export(export: dict[str, Any]) -> None:
             EXPORT_ALLOWED_FIELDS["student_summary.skills"],
             f"student_summary.skills[{index}]",
         )
+        counts = entry.get("evidence_summary", {})
+        where = f"student_summary.skills[{index}].evidence_summary"
+        _check(counts, EXPORT_ALLOWED_FIELDS["student_summary.skills.evidence_summary"], where)
+        for key, value in counts.items():
+            if key in {"independent", "assisted", "post_solution", "diagnostic"}:
+                _check(value, EXPORT_ALLOWED_FIELDS["student_summary.skills.binary_counts"], f"{where}.{key}")
+                if any(type(number) is not int or number < 0 for number in value.values()):
+                    raise ExportValidationError("学习证据必须是非负整数计数")
+            elif type(value) is not int or value < 0:
+                raise ExportValidationError("学习证据必须是非负整数计数")
     for index, entry in enumerate(export["student_summary"]["active_misconceptions"]):
         _check(
             entry,
@@ -181,43 +193,7 @@ async def build_student_export(
     nodes = await memory.list(student_id)
 
     async def default_summary(sid: str) -> dict[str, Any]:
-        async with uow.transaction() as conn:
-            projection = await sqlite_education.load_student_projection(conn, sid)
-            total = await conn.execute(
-                select(func.count())
-                .select_from(attempts)
-                .where(attempts.c.student_id == sid)
-            )
-            total_attempts = int(total.scalar() or 0)
-        if projection is None:
-            return {
-                "total_attempts": total_attempts,
-                "estimator_version": "",
-                "projection_version": None,
-                "skills": [],
-                "active_misconceptions": [],
-            }
-        skills = [
-            {"skill_id": item["skill_id"], "mastery": item["mastery"]}
-            for item in projection.get("skill_mastery") or []
-            if isinstance(item, dict) and "skill_id" in item
-        ]
-        misconceptions = [
-            {
-                "rule_id": item["rule_id"],
-                "status": item.get("status"),
-                "confidence": item.get("confidence"),
-            }
-            for item in projection.get("active_misconceptions") or []
-            if isinstance(item, dict) and "rule_id" in item
-        ]
-        return {
-            "total_attempts": total_attempts,
-            "estimator_version": projection.get("estimator_version") or "",
-            "projection_version": projection.get("projection_version"),
-            "skills": skills,
-            "active_misconceptions": misconceptions,
-        }
+        return await export_evidence_summary(sid, uow=uow)
 
     summary_loader = student_summary_loader or default_summary
     summary = await summary_loader(student_id)
@@ -246,10 +222,54 @@ async def build_student_export(
     return export
 
 
+async def export_evidence_summary(student_id, *, uow=None, student_state=None):
+    """Shared API/export projection; strictly read-only, no migration writes."""
+    from mathtutor.learning.knowledge_tracing.service import StudentStateService
+    if uow is None:
+        snapshot = await student_state.summary(student_id) if student_state else {"skills": [], "last_event_seq": 0}
+        return {"total_attempts": sum(snapshot.get("totals", {}).values()), "estimator_version": "evidence_tracker_v2",
+                "projection_version": snapshot["last_event_seq"], "skills": _export_skills(snapshot["skills"]),
+                "active_misconceptions": [], "model_status": snapshot.get("dkt_mode", "not_trained")}
+    tracker = student_state or StudentStateService(uow.engine)
+    async with uow.transaction() as conn:
+        snapshot = await tracker.summary(student_id, conn=conn)
+        events = await tracker.events(student_id, conn=conn)
+        known_attempts = {e.attempt_id for e in events if e.event_type == "attempt_assessed"}
+        total_attempts = int((await conn.execute(select(func.count()).select_from(attempts).where(
+            attempts.c.student_id == student_id))).scalar() or 0)
+        legacy = await sqlite_education.load_evidence_for_student(conn, student_id)
+        projection = await sqlite_education.load_student_projection(conn, student_id)
+    rows = {row["skill_id"]: row for row in _export_skills(snapshot["skills"])}
+    # Exporting cannot silently migrate. If a legacy import has not happened,
+    # expose only the known observation count with uncertain provenance.
+    for fact in legacy:
+        if str(fact.attempt_id) in known_attempts:
+            continue
+        row = rows.setdefault(fact.skill_id, {"skill_id": fact.skill_id, "evidence_status": "历史帮助来源不完整，仍需确认",
+            "evidence_summary": {"independent": {"correct": 0, "incorrect": 0},
+                "assisted": {"correct": 0, "incorrect": 0}, "post_solution": {"correct": 0, "incorrect": 0},
+                "diagnostic": {"correct": 0, "incorrect": 0}, "ungradable": 0,
+                "step_correct": 0, "joint_task_evidence": 0, "duplicate_responses": 0}})
+        row["evidence_summary"]["ungradable"] += 1
+    return {"total_attempts": total_attempts, "estimator_version": "evidence_tracker_v2",
+            "projection_version": snapshot["last_event_seq"], "skills": [rows[k] for k in sorted(rows)],
+            "active_misconceptions": [{"rule_id": item["rule_id"], "status": item.get("status"), "confidence": None}
+                for item in (projection or {}).get("active_misconceptions", ()) if isinstance(item, dict) and "rule_id" in item],
+            "model_status": snapshot.get("dkt_mode", "not_trained")}
+
+
+def _export_skills(rows):
+    return [{"skill_id": row["skill_id"], "evidence_status": row["evidence_status"],
+             "evidence_summary": {key: value for key, value in row["evidence_summary"].items()
+                                  if key in EXPORT_ALLOWED_FIELDS["student_summary.skills.evidence_summary"]}}
+            for row in rows]
+
+
 __all__ = [
     "EXPORT_ALLOWED_FIELDS",
     "EXPORT_SCHEMA_VERSION",
     "ExportValidationError",
     "build_student_export",
+    "export_evidence_summary",
     "validate_export",
 ]

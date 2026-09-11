@@ -151,8 +151,13 @@ class Equation:
     rhs: "Node"
 
 
-Node = Num | Var | Add | Mul | Pow | Div
-NodeKind = Literal["num", "var", "add", "mul", "pow", "div", "equation"]
+@dataclass(frozen=True, slots=True)
+class LinearSystem:
+    equations: tuple[Equation, ...]
+
+
+Node = Num | Var | Add | Mul | Pow | Div | Equation | LinearSystem
+NodeKind = Literal["num", "var", "add", "mul", "pow", "div", "equation", "linear_system"]
 
 _MAX_NODES = 512
 _MAX_DEPTH = 64
@@ -175,6 +180,8 @@ def node_key(node: Node) -> tuple:
         return (2, node_key(node.num), node_key(node.den))
     if isinstance(node, Equation):
         return (6, node_key(node.lhs), node_key(node.rhs))
+    if isinstance(node, LinearSystem):
+        return (7, tuple(node_key(eq) for eq in node.equations))
     raise TypeError(f"unknown node: {node!r}")
 
 
@@ -316,6 +323,8 @@ def eq(lhs: Node, rhs: Node) -> Node:
 
 
 def to_dict(node: Node) -> dict[str, Any]:
+    if isinstance(node, LinearSystem):
+        return {"kind": "linear_system", "equations": [to_dict(eq) for eq in node.equations]}
     if isinstance(node, Num):
         return {"kind": "num", "value": node.value.to_dict()}
     if isinstance(node, Var):
@@ -349,6 +358,11 @@ def from_dict(payload: dict[str, Any]) -> Node:
         return div(from_dict(payload["num"]), from_dict(payload["den"]))
     if kind == "equation":
         return eq(from_dict(payload["lhs"]), from_dict(payload["rhs"]))
+    if kind == "linear_system":
+        equations = tuple(from_dict(item) for item in payload["equations"])
+        if len(equations) != 2 or not all(isinstance(item, Equation) for item in equations):
+            raise ValueError("二元一次方程组必须包含两个方程")
+        return LinearSystem(equations)
     raise ValueError(f"unknown node kind: {kind!r}")
 
 
@@ -360,6 +374,8 @@ def from_dict(payload: dict[str, Any]) -> Node:
 def variables(node: Node) -> frozenset[str]:
     """Distinct variable names in the tree (variables inside Div denominators
     are excluded from MVP families at classification time, not here)."""
+    if isinstance(node, LinearSystem):
+        return frozenset().union(*(variables(eq) for eq in node.equations))
     if isinstance(node, Num):
         return frozenset()
     if isinstance(node, Var):
@@ -541,6 +557,8 @@ def _render(node: Node, parent: NodeKind | None = None) -> str:
 
 
 def to_latex(node: Node) -> str:
+    if isinstance(node, LinearSystem):
+        return r"\begin{cases}" + r" \\ ".join(to_latex(eq) for eq in node.equations) + r"\end{cases}"
     return _render(node)
 
 
@@ -586,6 +604,7 @@ __all__ = [
     "Add",
     "Div",
     "Equation",
+    "LinearSystem",
     "MathComplexityError",
     "MathDomainError",
     "Mul",

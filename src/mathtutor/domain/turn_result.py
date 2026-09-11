@@ -29,6 +29,8 @@ class TutorTurnResult:
     provider: str = ''
     model: str = ''
     steps_used: int = 0
+    semantic_calls_used: int = 0  # Independent one-call language-understanding budget.
+    semantic_latency_ms: int = 0
     max_steps: int = 2  # One normal call and one bounded grace continuation.
     max_total_tokens: int = 16384
     input_tokens: int = 0
@@ -56,5 +58,4 @@ class TutorTurnResult:
                 'usage': {'input_tokens': self.input_tokens, 'output_tokens': self.output_tokens,
                           'total_tokens': self.input_tokens + self.output_tokens,
                           'estimated': self.usage_estimated}}
-
 

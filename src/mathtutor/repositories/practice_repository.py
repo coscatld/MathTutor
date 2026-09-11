@@ -23,6 +23,7 @@ from uuid import UUID, uuid4
 
 from mathtutor.domain.hashing import content_hash
 from mathtutor.domain.practice import Exercise, ExerciseRelease
+from mathtutor.domain.practice_recommendation import PracticeRecommendation
 from mathtutor.domain.problem import MathProblem
 from mathtutor.domain.solution import (
     MathSolutionCandidate,
@@ -102,8 +103,28 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def practice_problem_surface(problem: MathProblem, exercise: Exercise) -> MathProblem:
+    """Project the release-bound task statement, without changing math facts.
+
+    Different arithmetic tasks may share a folded canonical value. Their
+    student-facing instructions live on the immutable exercise, not that
+    global fact. Reparse and check its canonical binding before projection.
+    """
+    from mathtutor.solving.parser import parse_problem
+    parsed = parse_problem(exercise.problem_statement)
+    if parsed.kind != "parsed" or parsed.problem is None:
+        raise AttestationDeniedError("练习原始题干无法恢复")
+    snapshot = MathProblem.canonicalize(problem_type=parsed.problem.problem_type,
+        normalized_ast=parsed.problem.normalized_ast, display_latex=parsed.problem.display_latex)
+    if snapshot.content_hash != problem.content_hash:
+        raise AttestationDeniedError("练习题干与验证快照不一致")
+    return problem.model_copy(update={"display_latex": parsed.problem.display_latex})
+
+
 class PracticeRepository(Protocol):
     """Async practice-catalog contract (Phase 5, §11.3)."""
+
+    async def resolve_problem(self, problem: MathProblem) -> MathProblem: ...
 
     async def save_release_bundle(
         self,
@@ -119,6 +140,18 @@ class PracticeRepository(Protocol):
     async def create_offer(
         self, offer: PracticeOffer, outbox_events: list[dict[str, Any]] = ()
     ) -> None: ...
+
+    async def begin_recommendation(self, recommendation: PracticeRecommendation) -> tuple[PracticeRecommendation, bool]: ...
+
+    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer, outbox_events: list[dict[str, Any]]) -> None: ...
+
+    async def fail_recommendation(self, recommendation: PracticeRecommendation) -> None: ...
+
+    async def recommendations_for_student(self, student_id: str, parent_cycle_id: UUID | None = None) -> list[PracticeRecommendation]: ...
+
+    async def recommendation_for_offer(self, student_id: str, offer_id: UUID) -> PracticeRecommendation | None: ...
+
+    async def recover_preparing_recommendations(self) -> int: ...
 
     async def load_release(self, release_id: UUID) -> ExerciseRelease | None: ...
 
@@ -165,9 +198,18 @@ class InMemoryPracticeRepository:
         self._releases: dict[str, ExerciseRelease] = {}
         self._releases_by_exercise: dict[str, list[str]] = {}
         self._offers: dict[str, PracticeOffer] = {}
+        self._recommendations: dict[str, PracticeRecommendation] = {}
         self.outbox: list[dict[str, Any]] = []
 
     # ----------------------------------------------------------- release gate
+
+    async def resolve_problem(self, problem: MathProblem) -> MathProblem:
+        """Reserve canonical identity, without issuing any release or trust."""
+        for stored in self._problems.values():
+            if stored.content_hash == problem.content_hash:
+                return stored
+        self._problems[str(problem.problem_id)] = problem
+        return problem
 
     async def save_release_bundle(
         self,
@@ -235,6 +277,54 @@ class InMemoryPracticeRepository:
 
     # ----------------------------------------------------------------- offers
 
+    async def recommendations_for_student(self, student_id: str, parent_cycle_id: UUID | None = None) -> list[PracticeRecommendation]:
+        owner = student_uuid(student_id)
+        result = []
+        for record in self._recommendations.values():
+            if record.student_id != owner or (parent_cycle_id and record.parent_cycle_id != parent_cycle_id):
+                continue
+            offer = self._offers.get(str(record.offer_id))
+            status = record.status
+            if offer and status == "ACTIVE":
+                status = "EXPIRED" if offer.status == "ACTIVE" and offer.expires_at <= datetime.now(timezone.utc) else offer.status
+            projected = record.model_copy(update={"status": status})
+            result.append(projected)
+        return sorted(result, key=lambda item: item.created_at, reverse=True)
+
+    async def recover_preparing_recommendations(self) -> int:
+        count = 0
+        for key, record in list(self._recommendations.items()):
+            if record.status == "PREPARING":
+                self._recommendations[key] = record.model_copy(update={
+                    "status": "FAILED", "failure_reason": "上次生成已中断，可重新请求练习",
+                    "updated_at": datetime.now(timezone.utc),
+                })
+                count += 1
+        return count
+
+    async def recommendation_for_offer(self, student_id: str, offer_id: UUID) -> PracticeRecommendation | None:
+        return next((item for item in await self.recommendations_for_student(student_id) if item.offer_id == offer_id), None)
+
+    async def begin_recommendation(self, recommendation: PracticeRecommendation) -> tuple[PracticeRecommendation, bool]:
+        for item in await self.recommendations_for_student(str(recommendation.student_id), recommendation.parent_cycle_id):
+            self._recommendations[str(item.recommendation_id)] = item
+            if (item.purpose, item.target_revision) == (recommendation.purpose, recommendation.target_revision) and item.status in {"PREPARING", "ACTIVE"}:
+                return item, False
+        self._recommendations[str(recommendation.recommendation_id)] = recommendation
+        return recommendation, True
+
+    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer, outbox_events: list[dict[str, Any]]) -> None:
+        current = self._recommendations.get(str(recommendation.recommendation_id))
+        if current is None or current.status != "PREPARING" or current.student_id != offer.student_id or current.parent_cycle_id != offer.parent_cycle_id:
+            raise ValueError("推荐状态已变化，不能发布邀请")
+        await self.create_offer(offer, outbox_events)
+        self._recommendations[str(recommendation.recommendation_id)] = recommendation
+
+    async def fail_recommendation(self, recommendation: PracticeRecommendation) -> None:
+        current = self._recommendations.get(str(recommendation.recommendation_id))
+        if current and current.student_id == recommendation.student_id and current.status == "PREPARING":
+            self._recommendations[str(recommendation.recommendation_id)] = recommendation
+
     async def create_offer(
         self, offer: PracticeOffer, outbox_events: list[dict[str, Any]] = ()
     ) -> None:
@@ -275,7 +365,7 @@ class InMemoryPracticeRepository:
         if offer is None or str(offer.student_id) != str(student_uuid(student_id)):
             return False
         if offer.status == "ACTIVE":
-            self._offers[str(offer_id)] = offer.model_copy(update={"status": "REVOKED"})
+            self._offers[str(offer_id)] = offer.model_copy(update={"status": "DECLINED"})
             return True
         return False
 
@@ -335,7 +425,7 @@ class InMemoryPracticeRepository:
         ref = self._refs.get(str(release.verification_log_id))
         if problem is None or candidate is None or ref is None:
             return None
-        return problem, candidate, ref
+        return practice_problem_surface(problem, exercise), candidate, ref
 
     async def list_outbox(self) -> list[dict[str, Any]]:
         return list(self.outbox)

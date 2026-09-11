@@ -34,12 +34,13 @@ class TestHappyPath:
         assert s.state == S.DIAGNOSING
         s.step(Cmd.DIAGNOSIS_CORRECT)
         assert s.state == S.SOLVED
-        s.step(Cmd.REFLECTED)
-        assert s.state == S.REFLECTION
-        s.step(Cmd.PRACTICE_OFFERED)
-        assert s.state == S.PRACTICE_OFFERED
-        s.step(Cmd.ACCEPT_PRACTICE_OFFER)
-        assert s.state == S.CLOSED
+        # An independent offer changes its own lifecycle, not the parent result.
+        accepted = s.step(Cmd.ACCEPT_PRACTICE_OFFER)
+        assert s.state == S.SOLVED
+        assert accepted.chosen_action is None
+        declined = s.step(Cmd.DECLINE_PRACTICE_OFFER)
+        assert s.state == S.SOLVED
+        assert declined.chosen_action is None
 
     def test_hint_and_explanation_cycle(self) -> None:
         s = session()
@@ -76,8 +77,11 @@ class TestHappyPath:
         assert transition.chosen_action is not None
         assert transition.chosen_action.action == "SHOW_SOLUTION"
         assert transition.chosen_action.effective_assistance_level == 5
-        s.step(Cmd.REFLECTED)
-        assert s.state == S.REFLECTION
+        # Showing a solution does not establish reflection or comprehension.
+        s.step(Cmd.ACCEPT_PRACTICE_OFFER)
+        assert s.state == S.SOLUTION_SHOWN
+        s.step(Cmd.SUBMIT_ATTEMPT)
+        assert s.state == S.DIAGNOSING
 
     def test_retry_loop(self) -> None:
         s = session()

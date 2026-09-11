@@ -154,6 +154,11 @@ def _ast_budget(ast: Any) -> tuple[int, int]:
             pending.extend((current.get("num"), current.get("den")))
         elif kind == "equation":
             pending.extend((current.get("lhs"), current.get("rhs")))
+        elif kind == "linear_system":
+            equations = current.get("equations")
+            if not isinstance(equations, list) or len(equations) != 2:
+                raise ValueError("linear system requires exactly two equations")
+            pending.extend(equations)
         elif kind in {"num", "var"}:
             pass
         else:

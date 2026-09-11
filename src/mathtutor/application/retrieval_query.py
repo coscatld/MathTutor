@@ -20,6 +20,8 @@ from mathtutor.learning.skills import (
     SKILL_LINEAR_EQUATION,
     SKILL_POLYNOMIAL_BASIC,
     SKILL_QUADRATIC_EQUATION,
+    SKILL_LINEAR_SYSTEM,
+    CONCEPT_LINEAR_SYSTEMS,
 )
 
 # Title is the canonical Chinese name; aliases expand lexical coverage.
@@ -28,6 +30,7 @@ _SKILL_QUERY_TERMS: dict[str, tuple[str, ...]] = {
     SKILL_POLYNOMIAL_BASIC: ("多项式基础", "整式运算", "多项式", "合并同类项"),
     SKILL_LINEAR_EQUATION: ("一元一次方程", "一次方程", "解方程", "移项"),
     SKILL_QUADRATIC_EQUATION: ("一元二次方程", "二次方程", "求根公式", "判别式"),
+    SKILL_LINEAR_SYSTEM: ("二元一次方程组", "方程组", "加减消元", "代入消元"),
 }
 
 _CONCEPT_QUERY_TERMS: dict[str, tuple[str, ...]] = {
@@ -35,6 +38,7 @@ _CONCEPT_QUERY_TERMS: dict[str, tuple[str, ...]] = {
     CONCEPT_POLYNOMIALS: ("多项式", "整式"),
     CONCEPT_LINEAR_EQUATIONS: ("一次方程", "一元一次方程"),
     CONCEPT_QUADRATIC_EQUATIONS: ("二次方程", "一元二次方程"),
+    CONCEPT_LINEAR_SYSTEMS: ("二元一次方程组", "线性方程组"),
 }
 
 _MISCONCEPTION_TITLES: dict[str, str] = {rule.rule_id: rule.title for rule in RULES}

@@ -86,14 +86,8 @@ class PedagogyPlanner:
                     "这道题的完整解答尚未通过验证，暂时不能展示。"
                     "你可以继续尝试，或先请求一个提示。"
                 )
-            # Policy gate (§7.1 "仅在策略允许后"): the student must have
-            # received the stage's minimum hints before the full solution
-            # may be disclosed — a fresh problem never hands out the answer.
-            if assistance.hints_issued < policy.min_hints_for_solution:
-                raise DisclosurePolicyViolation(
-                    "现在先尝试一个提示并继续作答；"
-                    "等你探索过思路后，我再为你展示完整解答。"
-                )
+            # Ordinary learning: an explicit request plus a verified solution
+            # is sufficient. Hint count is not an answer-access credential.
             return self._action("SHOW_SOLUTION", 5, "full", policy)
         if command == CycleCommand.DIAGNOSIS_AMBIGUOUS or command == CycleCommand.DIAGNOSIS_CORRECT:
             return self._action("ASK_STUDENT", 0, "none", policy)

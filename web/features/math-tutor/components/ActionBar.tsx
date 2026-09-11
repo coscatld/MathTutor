@@ -2,7 +2,9 @@
 
 import {
   BookOpen,
+  BookOpenCheck,
   CheckCircle2,
+  CornerUpLeft,
   Eye,
   Lightbulb,
   Loader2,
@@ -16,14 +18,19 @@ import {
   type ActionButtonSpec,
   type ActionVariant,
 } from "../lib/protocol";
-import type { MathTutorCommand } from "../types";
+import type { ActiveOffer, AllowedAction, MathTutorCommand } from "../types";
+import { isAcceptableOffer, offerPurposeLabel } from "../lib/teaching-contract";
 
 const COMMAND_ICONS: Partial<Record<MathTutorCommand, LucideIcon>> = {
   request_hint: Lightbulb,
   request_explanation: BookOpen,
   request_example: Shapes,
-  solution_shown_permitted: Eye,
   request_solution: Eye,
+  request_practice: BookOpenCheck,
+  request_foundation: BookOpen,
+  request_review: BookOpenCheck,
+  resume_problem: CornerUpLeft,
+  end_problem: SquareX,
   accept_practice_offer: CheckCircle2,
   decline_practice_offer: XCircle,
   cancel_turn: SquareX,
@@ -43,19 +50,23 @@ const VARIANT_CLASSES: Record<ActionVariant, string> = {
 };
 
 interface ActionBarProps {
+  actions?: AllowedAction[];
+  offer?: ActiveOffer | null;
   allowed: string[];
   busy: boolean;
   disabled: boolean;
-  onCommand: (command: MathTutorCommand) => void;
+  onCommand: (command: MathTutorCommand, payload?: Record<string, string>) => void;
 }
 
 /**
- * The action area. EVERY button here comes from the server's
- * allowed_next_inputs — a command the server never sent has no button.
- * "查看完整答案" therefore only renders when the server grants it.
+ * Server capabilities own availability and disabled reasons. Legacy servers
+ * can still supply allowed_next_inputs; the UI never grants missing actions.
  */
-export default function ActionBar({ allowed, busy, disabled, onCommand }: ActionBarProps) {
-  const buttons = allowedInputsToButtons(allowed);
+export default function ActionBar({ allowed, actions, offer, busy, disabled, onCommand }: ActionBarProps) {
+  const buttons = allowedInputsToButtons(actions ? actions.map(a => a.command) : allowed);
+  const reasons = new Map(actions?.filter(a => !a.enabled && a.description).map(a => [a.reason_code, a.description]));
+  const validOffer = isAcceptableOffer(offer);
+  if (!validOffer && buttons.some(spec => ["accept_practice_offer", "decline_practice_offer"].includes(spec.command))) reasons.set("NO_ACTIVE_OFFER", "当前没有可接受的有效练习，可以重新请求一道。");
 
   if (buttons.length === 0) {
     return null;
@@ -67,16 +78,21 @@ export default function ActionBar({ allowed, busy, disabled, onCommand }: Action
       aria-label="可用操作"
     >
       <h2 className="mb-2.5 text-sm font-semibold text-[var(--foreground)]">可用操作</h2>
+      {validOffer ? <div className="mb-3 rounded-xl bg-blue-50 p-3 dark:bg-blue-950/30"><p className="text-xs font-medium text-[#1d5fd1] dark:text-blue-300">{offerPurposeLabel(offer.purpose)}</p>{offer.title ? <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">{offer.title}</p> : null}</div> : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 lg:grid-cols-2">
         {buttons.map((spec: ActionButtonSpec) => {
           const Icon = COMMAND_ICONS[spec.command] ?? Lightbulb;
-          const blocked = disabled || busy;
+          const capability = actions?.find(a => a.command === spec.command);
+          const needsOffer = ["accept_practice_offer", "decline_practice_offer"].includes(spec.command);
+          const blocked = disabled || busy || (actions !== undefined && capability?.enabled !== true) || (needsOffer && !validOffer);
+          const reason = needsOffer && !validOffer ? "NO_ACTIVE_OFFER" : capability && !capability.enabled ? capability.reason_code : undefined;
           return (
             <button
               key={spec.command}
               type="button"
-              onClick={() => onCommand(spec.command)}
+              onClick={() => onCommand(spec.command, needsOffer && validOffer ? { offer_id: offer.offer_id } : undefined)}
               disabled={blocked}
+              aria-describedby={reason ? `action-reason-${reason}` : undefined}
               className={`inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[spec.variant]}`}
             >
               {busy ? (
@@ -84,11 +100,12 @@ export default function ActionBar({ allowed, busy, disabled, onCommand }: Action
               ) : (
                 <Icon className="h-4 w-4" aria-hidden="true" />
               )}
-              {spec.label}
+              {capability?.label || spec.label}
             </button>
           );
         })}
       </div>
+      {[...reasons].map(([code, description]) => <p key={code} id={`action-reason-${code}`} className="mt-3 text-xs leading-5 text-slate-500">{description}</p>)}
     </section>
   );
 }

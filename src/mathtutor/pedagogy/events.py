@@ -49,6 +49,7 @@ STUDENT_EXTRA_ALLOWLIST: frozenset[str] = frozenset(
         "parent_cycle_id",
         "child_cycle_id",
         "idempotent_replay",
+        "purpose", "navigation_cycle_id",
     }
 )
 
@@ -71,6 +72,14 @@ class StudentPublicEvent(BaseModel):
     cycle_state: str = ""
     cycle_state_version: int = 0
     allowed_next_inputs: list[str] = Field(default_factory=list)
+    allowed_actions: list[dict[str, Any]] | None = None
+    problem_revision: str | None = None
+    teaching_plan: dict[str, Any] | None = None
+    problem_context: dict[str, Any] | None = None
+    evidence_summary: dict[str, Any] | None = None
+    active_offer: dict[str, Any] | None = None
+    diagnosis: dict[str, Any] | None = None
+    delivery_id: str | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
     # Strictly allowlisted public projections only (Phase 5). The
     # serializer fills this from metadata via build_student_extra; nothing

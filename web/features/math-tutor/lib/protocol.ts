@@ -11,7 +11,9 @@ import type {
   RawStudentFrame,
   StudentFrame,
   StudentPayload,
+  AllowedAction,
 } from "../types";
+import { projectActiveOffer, projectDiagnosis, projectEvidenceSummary, projectProblemContext, projectTeachingPlan } from "./teaching-contract";
 
 // ---------------------------------------------------------------------------
 // Frame projection — the client-side mirror of the backend's public-schema
@@ -27,6 +29,7 @@ const PAYLOAD_KEYS: ReadonlyArray<keyof StudentPayload> = [
   "student_message",
   "trigger_command",
   "error",
+  "error_code", "content_mode",
 ];
 
 const EVENT_TYPES: ReadonlySet<string> = new Set<MathTutorEventType>([
@@ -80,6 +83,20 @@ export function projectStudentFrame(raw: RawStudentFrame): StudentFrame | null {
     allowed_next_inputs: asStringList(raw.allowed_next_inputs),
     payload,
   };
+  if (typeof raw.cycle_id === "string") frame.cycle_id = raw.cycle_id;
+  if (typeof raw.delivery_id === "string" && raw.delivery_id.trim()) frame.delivery_id = raw.delivery_id;
+  if (typeof raw.problem_revision === "string") frame.problem_revision = raw.problem_revision;
+  if (Array.isArray(raw.allowed_actions)) frame.allowed_actions = projectAllowedActions(raw.allowed_actions);
+  // StudentPublicEvent serializes absent optional fields as null on generic
+  // lifecycle frames. Those are not state deletions. Only the public snapshot
+  // (identified by its capability array) can explicitly clear contextual data.
+  const hasSnapshot = Array.isArray(raw.allowed_actions);
+  const hasContextField = (name: string) => raw[name] !== undefined && (raw[name] !== null || hasSnapshot);
+  if (hasContextField("teaching_plan")) frame.teaching_plan = projectTeachingPlan(raw.teaching_plan);
+  if (hasContextField("problem_context")) frame.problem_context = projectProblemContext(raw.problem_context);
+  if (hasContextField("evidence_summary")) frame.evidence_summary = projectEvidenceSummary(raw.evidence_summary);
+  if (hasContextField("active_offer")) frame.active_offer = projectActiveOffer(raw.active_offer);
+  if (hasContextField("diagnosis")) frame.diagnosis = projectDiagnosis(raw.diagnosis);
   return frame;
 }
 
@@ -112,17 +129,23 @@ export function buildEnvelope(
     requestId?: string;
     idempotencyKey?: string;
     expectedCycleVersion?: number;
+    cycleId?: string;
+    problemRevision?: string;
   } = {},
 ): string {
   const envelope: ClientEnvelope = {
+    protocol_version: 2,
     command,
     payload,
     session_id: sessionId,
   };
   if (options.requestId) envelope.request_id = options.requestId;
   if (options.idempotencyKey) envelope.idempotency_key = options.idempotencyKey;
-  if (options.expectedCycleVersion !== undefined && options.expectedCycleVersion > 0) {
+  if (options.cycleId !== undefined) envelope.cycle_id = options.cycleId;
+  if (options.problemRevision !== undefined) envelope.problem_revision = options.problemRevision;
+  if (options.expectedCycleVersion !== undefined && options.expectedCycleVersion >= 0) {
     envelope.expected_cycle_version = options.expectedCycleVersion;
+    envelope.expected_state_version = options.expectedCycleVersion;
   }
   return JSON.stringify(envelope);
 }
@@ -179,7 +202,8 @@ const ACTION_BUTTON_TABLE: Readonly<Record<string, ActionButtonSpec>> = {
     variant: "secondary",
   },
   solution_shown_permitted: {
-    command: "solution_shown_permitted",
+    // Read-only compatibility with old server projections; never send events.
+    command: "request_solution",
     label: "查看完整答案",
     variant: "solution",
   },
@@ -198,7 +222,14 @@ const ACTION_BUTTON_TABLE: Readonly<Record<string, ActionButtonSpec>> = {
     label: "暂不练习",
     variant: "quiet",
   },
-  cancel_turn: { command: "cancel_turn", label: "结束本题", variant: "quiet" },
+  request_practice: { command: "request_practice", label: "我想独立练一道", variant: "secondary" },
+  request_foundation: { command: "request_foundation", label: "先补基础", variant: "secondary" },
+  request_review: { command: "request_review", label: "做一道复习题", variant: "secondary" },
+  resume_problem: { command: "resume_problem", label: "回到原题", variant: "secondary" },
+  end_problem: { command: "end_problem", label: "结束本题", variant: "quiet" },
+  start_diagnostic: { command: "start_diagnostic", label: "可选：了解当前基础", variant: "secondary" },
+  skip_diagnostic: { command: "skip_diagnostic", label: "跳过诊断，继续辅导", variant: "quiet" },
+  cancel_turn: { command: "cancel_turn", label: "停止生成", variant: "quiet" },
 };
 
 /**
@@ -207,12 +238,20 @@ const ACTION_BUTTON_TABLE: Readonly<Record<string, ActionButtonSpec>> = {
  * full-answer action is never promoted above learning-oriented actions.
  */
 export function allowedInputsToButtons(allowed: string[]): ActionButtonSpec[] {
-  const order: MathTutorCommand[] = [
+  // The legacy name is an inbound projection alias, not a sendable command.
+  const order: Array<MathTutorCommand | "solution_shown_permitted"> = [
     "request_hint",
     "request_explanation",
     "request_example",
+    "request_practice",
+    "request_foundation",
+    "request_review",
     "accept_practice_offer",
     "decline_practice_offer",
+    "resume_problem",
+    "end_problem",
+    "start_diagnostic",
+    "skip_diagnostic",
     "cancel_turn",
     "solution_shown_permitted",
     "request_solution",
@@ -220,9 +259,21 @@ export function allowedInputsToButtons(allowed: string[]): ActionButtonSpec[] {
   const specs: ActionButtonSpec[] = [];
   for (const name of order) {
     const spec = ACTION_BUTTON_TABLE[name];
-    if (spec && allowed.includes(name)) specs.push(spec);
+    if (spec && allowed.includes(name) && !specs.some(item => item.command === spec.command)) specs.push(spec);
   }
   return specs;
+}
+
+/** Reject malformed capability proposals; only the public command table renders. */
+export function projectAllowedActions(raw: unknown): AllowedAction[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap(value => {
+    if (!value || typeof value !== "object" || typeof value.enabled !== "boolean") return [];
+    const spec = ACTION_BUTTON_TABLE[String(value.command)];
+    if (!spec || spec.command !== value.command) return [];
+    return [{command: spec.command, enabled: value.enabled, reason_code: String(value.reason_code || ""),
+      description: String(value.description || ""), label: String(value.label || "")}];
+  });
 }
 
 /** Whether the attempt composer should be enabled for these inputs. */
@@ -296,11 +347,29 @@ const ACTION_LABELS: Readonly<Record<string, string>> = {
   SHOW_SOLUTION: "完整答案",
   REQUEST_RETRY: "再试一次",
   GENERATE_PRACTICE: "练习",
+  CORRECT_STEP: "步骤纠错",
+  RESUME_PROBLEM: "回到原题",
+  END_PROBLEM: "本题已结束",
+  SELF_REPORT: "理解反馈（自述）",
+  DIAGNOSTIC: "可跳过的基础检查",
+  DIAGNOSTIC_COMPLETE: "诊断已完成",
+  ERROR_ANALYSIS: "教师示例找错",
+  PRACTICE_DECLINED: "已略过练习",
   verified: "题目确认",
   correct: "回答正确",
   incorrect: "回答不正确",
   partial: "部分正确",
   ambiguous: "需要澄清",
+  practice_offered: "练习邀请",
+  practice_started: "开始练习",
+  CLARIFY_INTENT: "确认你的意思",
+  ask_subgoal: "当前小问题",
+  teacher_error_example: "找错练习 · 示例含错误",
+  local_demonstration: "示范一步",
+  diagnostic_started: "可跳过的基础检查",
+  diagnostic_skipped: "已跳过检查",
+  problem_resumed: "回到原题",
+  problem_ended: "本题已结束",
 };
 
 export function actionLabel(action: string): string {
@@ -326,6 +395,7 @@ export function shouldRenderTutorText(text: string): boolean {
 export function projectTurnError(text: string): string {
   const compact = String(text ?? "").trim();
   if (!compact) return STUDENT_STEP_FAILED;
+  if (/^(未知命令|内部错误|forbidden envelope|unknown envelope)/i.test(compact)) return STUDENT_STEP_FAILED;
   if (/状态\s+\w+\s+不接受命令/.test(compact)) return STUDENT_STEP_FAILED;
   if (/(submit_problem|clarify_problem|clarify_attempt|grounding_ok|cycle_state)/i.test(compact)) {
     return STUDENT_STEP_FAILED;

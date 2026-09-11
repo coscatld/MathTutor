@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { apiFetch, wsUrl } from "@/lib/api";
-import { buildEnvelope, makeSessionId } from "../../lib/protocol";
+import { buildEnvelope, makeSessionId, projectAllowedActions } from "../../lib/protocol";
 import {
   buildChildNavigationPath,
   extractChildCycleId,
@@ -61,7 +61,7 @@ export function useOfferAccept(): OfferAcceptResult {
       setState("connecting");
       navigatedRef.current = false;
 
-      if (offer.status === "REVOKED" || offer.status === "EXPIRED") {
+      if (offer.status !== "ACTIVE" || !offer.offer_id?.trim() || !offer.parent_cycle_id?.trim()) {
         setState("error");
         setError("该邀请已失效，无法开始练习。");
         return;
@@ -88,6 +88,8 @@ export function useOfferAccept(): OfferAcceptResult {
       // 2. Resync the server-authoritative state for the parent session.
       let stateVersion = 0;
       let allowed: string[] = [];
+      let cycleId: string | undefined;
+      let problemRevision: string | undefined;
       try {
         const res = await apiFetch(
           `/api/v2/math-tutor/sessions/${encodeURIComponent(sessionId)}`,
@@ -97,12 +99,19 @@ export function useOfferAccept(): OfferAcceptResult {
           const summary = (await res.json()) as {
             state_version?: unknown;
             allowed_next_inputs?: unknown;
+            allowed_actions?: unknown;
+            cycle_id?: unknown;
+            problem_revision?: unknown;
           };
           stateVersion =
             typeof summary.state_version === "number" ? summary.state_version : 0;
-          allowed = Array.isArray(summary.allowed_next_inputs)
+          allowed = summary.allowed_actions !== undefined
+            ? projectAllowedActions(summary.allowed_actions).filter(action => action.enabled).map(action => action.command)
+            : Array.isArray(summary.allowed_next_inputs)
             ? summary.allowed_next_inputs.filter((v): v is string => typeof v === "string")
             : [];
+          cycleId = typeof summary.cycle_id === "string" ? summary.cycle_id : undefined;
+          problemRevision = typeof summary.problem_revision === "string" ? summary.problem_revision : undefined;
         }
       } catch {
         // A resync failure is not fatal — the accept itself is still
@@ -146,6 +155,8 @@ export function useOfferAccept(): OfferAcceptResult {
           {
             idempotencyKey: makeSessionId(),
             expectedCycleVersion: stateVersion,
+            cycleId,
+            problemRevision,
           },
         );
         ws.send(envelope);

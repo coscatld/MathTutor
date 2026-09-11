@@ -121,6 +121,7 @@ class AttemptSummaryEntry(BaseModel):
     effective_assistance_level: int = Field(ge=0, le=5)
     attempt_index: int = Field(ge=1)
     created_at: str = ""
+    problem_id: str = ""
 
 
 class RecentAttemptsContext(BaseModel):

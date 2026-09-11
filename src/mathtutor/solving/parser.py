@@ -35,7 +35,7 @@ from typing import Any, Literal
 from mathtutor.solving import nodes as n
 
 MAX_TOKENS = 256
-ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic"]
+ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic", "linear_system"]
 ParseKind = Literal["parsed", "ambiguous", "unsupported", "unparseable"]
 
 
@@ -401,7 +401,7 @@ def _classify_expression(expr: n.Node) -> tuple[ProblemType, n.Node, str | None]
 _TRAILING_QUESTION = re.compile(r"[?？]+$")
 _TRAILING_EQUALS = re.compile(r"=+\s*$")
 _LEADING_TASK = re.compile(
-    r"^(?:请|帮我)?(?:计算|求解|解方程|化简|因式分解|求根(?!号)|求值|求极限|证明|解不等式|展开|求(?!根号))\s*"
+    r"^(?:请|帮我)?(?:计算|求解|解方程组|解方程|化简|因式分解|求根(?!号)|求值|求极限|证明|解不等式|展开|求(?!根号))\s*"
 )
 
 
@@ -420,6 +420,9 @@ def normalize_math_problem_text(text: str) -> str:
 
 def parse_problem(text: str) -> ParseOutcome:
     """Parse a single problem text into a canonical problem (or fail closed)."""
+    system_text = str(text or "").strip().replace(r"\begin{cases}", "").replace(r"\end{cases}", "").replace(r"\\", ";")
+    if system_text.count("=") >= 2 and re.search(r"[;；,，\n]", system_text):
+        return _parse_linear_system(system_text)
     text = normalize_math_problem_text(text)
     try:
         tokens = _Tokenizer(text).tokenize()
@@ -459,10 +462,85 @@ def parse_problem(text: str) -> ParseOutcome:
             problem_type=problem_type,
             ast=normalized,
             normalized_ast=n.to_dict(normalized),
-            display_latex=n.to_latex(normalized),
+            # Canonical arithmetic builders deliberately fold constants for
+            # verification. A task surface must retain the requested operation,
+            # not show that folded answer to a student before they attempt it.
+            display_latex=_arithmetic_surface(tokens) if problem_type == "arithmetic" else n.to_latex(normalized),
             variable=variable,
         )
     )
+
+
+def _arithmetic_surface(tokens: list[_Token]) -> str:
+    """Render only tokens already accepted by our grammar; never eval or HTML."""
+    result = []
+    symbols = {"plus": "+", "minus": "-", "star": r"\cdot", "slash": "/",
+               "caret": "^", "lparen": "(", "rparen": ")"}
+    for token in tokens:
+        if token.kind == "number":
+            value = token.value
+            result.append(str(value.numerator) if value.denominator == 1
+                          else rf"\frac{{{value.numerator}}}{{{value.denominator}}}")
+        elif token.kind == "frac":
+            numerator, denominator = token.value
+            result.append(rf"\frac{{{_arithmetic_surface(numerator)}}}{{{_arithmetic_surface(denominator)}}}")
+        else:
+            result.append(symbols[token.kind])
+    return " ".join(result)
+
+
+def _parse_linear_system(text: str) -> ParseOutcome:
+    from mathtutor.solving.linear_system import system_rows
+    parts = [part.strip() for part in re.split(r"[;；,，\n]", text) if part.strip()]
+    if len(parts) != 2:
+        return ParseOutcome.unsupported("当前仅支持两个方程、两个未知数的线性方程组")
+    if len(text) > 4096:
+        return ParseOutcome.unsupported("方程组超出输入预算")
+    equations = []
+    try:
+        for part in parts:
+            tokens = _Tokenizer(normalize_math_problem_text(part)).tokenize()
+            if len(tokens) > MAX_TOKENS:
+                raise UnsupportedError("方程组超出记号预算")
+            parser = _Parser(tokens)
+            lhs = parser.parse_expression()
+            parser.expect("equals")
+            rhs = parser.parse_expression()
+            if not parser.at_end():
+                raise ParseError("每个方程只能有一个等号")
+            equations.append(n.eq(lhs, rhs))
+        ast = n.LinearSystem(tuple(equations))
+        system_rows(ast)
+        return ParseOutcome.ok(ParsedProblem("linear_system", ast, n.to_dict(ast), n.to_latex(ast), None))
+    except AmbiguityError as exc:
+        return ParseOutcome.ambiguous(str(exc))
+    except ParseError as exc:
+        return ParseOutcome.unparseable(str(exc))
+    except (UnsupportedError, n.MathDomainError, n.MathComplexityError) as exc:
+        return ParseOutcome.unsupported(str(exc))
+
+
+def parse_linear_equation_fragment(text: str) -> ParseOutcome:
+    """Attempt-only parser for a single affine system step; never a solvable new task."""
+    from mathtutor.solving.linear_system import equation_row
+    try:
+        tokens = _Tokenizer(normalize_math_problem_text(text)).tokenize()
+        if len(tokens) > MAX_TOKENS:
+            raise UnsupportedError("作答超出记号预算")
+        parser = _Parser(tokens)
+        lhs = parser.parse_expression()
+        parser.expect("equals")
+        rhs = parser.parse_expression()
+        if not parser.at_end():
+            raise ParseError("每个方程只能有一个等号")
+        ast = n.eq(lhs, rhs)
+        variables = tuple(sorted(n.variables(ast)))
+        if len(variables) != 2:
+            return ParseOutcome.unsupported("需要二元一次式")
+        equation_row(ast, variables)
+        return ParseOutcome.ok(ParsedProblem("linear_system", ast, n.to_dict(ast), n.to_latex(ast), None))
+    except (AmbiguityError, ParseError, UnsupportedError, n.MathDomainError, n.MathComplexityError) as exc:
+        return ParseOutcome.unsupported(str(exc))
 
 
 __all__ = [

@@ -249,6 +249,8 @@ export interface SkillSummary {
   /** 0..1 or null when no observation yet. Read-only: never editable here. */
   mastery: number | null;
   grade_band: string | null;
+  evidence_summary?: import("../types").EvidenceSummary | null;
+  evidence_status?: string;
 }
 
 export interface StudentSummary {

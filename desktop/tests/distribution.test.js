@@ -9,6 +9,17 @@ const desktop = path.resolve(__dirname, "..");
 const main = fs.readFileSync(path.join(desktop, "main.js"), "utf8");
 const config = require(path.join(desktop, "electron-builder.config.cjs"));
 
+test("packaged smoke follows independent recommendations without closing the parent", () => {
+  assert.match(main, /!states\.includes\("practice_offered"\)/);
+  assert.match(main, /parent\.body\.state === "solved"/);
+  assert.doesNotMatch(main, /parent\.body\.state === "closed"/);
+  assert.match(main, /3x \+ 1 = 10/);
+  assert.match(main, /"child-judge", judgedStates\.includes\("solved"\)/);
+  const migration = fs.readFileSync(path.join(desktop, "../src/mathtutor/infrastructure/migrate.py"), "utf8")
+    .match(/MIGRATION_HEAD = "([0-9]+)"/)[1];
+  assert.ok(main.includes(`frozen === "${migration}"`));
+});
+
 test("distribution keeps mutable data under Electron userData", () => {
   assert.match(main, /app\.getPath\("userData"\)/);
   assert.match(main, /MATHTUTOR_DB_PATH: dataLayout\.database/);

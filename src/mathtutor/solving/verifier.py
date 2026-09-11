@@ -44,6 +44,8 @@ class VerificationPolicy:
 
 
 POLICIES: dict[str, VerificationPolicy] = {
+    "linear_system": VerificationPolicy("mt-ver-pol-linear-system", "linear_system", "v1",
+        ("parse_round_trip", "domain", "step_relation", "final_answer", "completeness", "extraneous_roots", "policy_coverage")),
     "arithmetic": VerificationPolicy(
         "mt-ver-pol-arithmetic", "arithmetic", "v1",
         ("parse_round_trip", "domain", "step_relation", "final_answer", "policy_coverage"),
@@ -404,4 +406,7 @@ class _Verifier:
 
 def verify(problem: MathProblem, candidate: MathSolutionCandidate) -> VerificationDecision:
     """Verify one candidate against its problem. Never mutates anything."""
+    if problem.problem_type == "linear_system":
+        from mathtutor.solving.linear_system_verifier import verify_system
+        return verify_system(problem, candidate)
     return _Verifier(problem, candidate).run()

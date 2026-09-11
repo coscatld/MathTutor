@@ -12,7 +12,6 @@ import {
   fetchStudentExport,
   fetchStudentSummary,
   formatBytes,
-  masteryLevelLabel,
   purgeDocuments,
   purgeMemory,
   rebuildIndexes,
@@ -20,17 +19,16 @@ import {
 import { DOCUMENT_STATUS_LABELS, MEMORY_TYPE_LABELS } from "../lib/labels";
 import type { DesktopDocument, DesktopMemory, StudentSummary } from "../types";
 import { memoryObjectText } from "./MemoryRow";
+import { evidenceStatusLabel, projectEvidenceSummary } from "../../lib/teaching-contract";
 
 /**
- * Read-only student-model summary. The mastery values are a projection for
- * display only — this component deliberately has NO edit affordances
- * (invariant: mastery must never be directly editable by the student).
+ * Show observed evidence, not an uncalibrated legacy mastery percentage.
  */
 export function PrivacySummary({ summary }: { summary: StudentSummary }) {
   return (
     <div className="flex flex-col gap-3" aria-label="学习模型摘要">
       <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
-        由系统根据你的练习记录自动生成，仅供查看，不可直接修改。
+        根据已经验证的作答记录生成。独立、受助和看答案后的作答分别记录，不把帮助次数当作掌握增长。
       </p>
       <dl className="grid grid-cols-2 gap-2">
         <div className="flex flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
@@ -43,10 +41,12 @@ export function PrivacySummary({ summary }: { summary: StudentSummary }) {
         </div>
       </dl>
       {summary.skills.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">还没有练习记录，暂无技能掌握数据。</p>
+        <p className="text-sm text-[var(--muted-foreground)]">还没有练习记录，暂无知识点证据。</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {summary.skills.map((skill) => (
+          {summary.skills.map((skill) => {
+            const evidence = projectEvidenceSummary(skill.evidence_summary);
+            return (
             <li
               key={skill.code}
               className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2"
@@ -57,18 +57,12 @@ export function PrivacySummary({ summary }: { summary: StudentSummary }) {
                   <span className="text-xs text-[var(--muted-foreground)]">学段：{skill.grade_band}</span>
                 ) : null}
               </span>
-              <span className="text-sm text-[var(--foreground)]">
-                {skill.mastery === null ? (
-                  <span className="text-[var(--muted-foreground)]">暂无数据</span>
-                ) : (
-                  <>
-                    <span className="font-semibold">{Math.round(skill.mastery * 100)}%</span>
-                    <span className="ml-1.5 text-xs text-[var(--muted-foreground)]">{masteryLevelLabel(skill.mastery)}</span>
-                  </>
-                )}
+              <span className="flex flex-col items-end gap-1 text-xs leading-5 text-[var(--muted-foreground)]">
+                <span>{evidence ? evidenceStatusLabel(skill.evidence_status || evidence.status) : "仍需独立检测"}</span>
+                {evidence ? <><span>独立 {evidence.independent} 次 · 受助 {evidence.assisted} 次</span><span>看答案后 {evidence.post_solution} 次 · 暂无法判断 {evidence.ungradable} 次</span></> : <span>旧记录不足以区分作答前的帮助</span>}
               </span>
             </li>
-          ))}
+          ); })}
         </ul>
       )}
     </div>

@@ -28,6 +28,7 @@ from mathtutor.application.adaptive_practice import (
 from mathtutor.application.practice_release import SEED_BANK
 from mathtutor.domain.hashing import to_json_safe
 from mathtutor.domain.practice_context import PracticeGenerationContext
+from mathtutor.domain.practice_recommendation import MaterialDesignBasis
 from mathtutor.infrastructure.generative_gateway import (
     GatewayRoleClient,
     GenerativeModelGateway,
@@ -38,6 +39,7 @@ from mathtutor.learning.skills import (
     SKILL_LINEAR_EQUATION,
     SKILL_POLYNOMIAL_BASIC,
     SKILL_QUADRATIC_EQUATION,
+    SKILL_LINEAR_SYSTEM,
 )
 
 # ---------------------------------------------------------------------------
@@ -73,6 +75,7 @@ _FAMILY_FOR_SKILL: dict[str, str] = {
     SKILL_POLYNOMIAL_BASIC: "polynomial",
     SKILL_LINEAR_EQUATION: "linear",
     SKILL_QUADRATIC_EQUATION: "quadratic",
+    SKILL_LINEAR_SYSTEM: "linear_system",
 }
 
 # Curated statement patterns — every string must parse AND verify through the
@@ -102,6 +105,88 @@ def _family_for_targets(context: PracticeGenerationContext) -> str | None:
     return next(iter(families))
 
 
+def candidate_is_distinct(statement: str, excluded: Sequence[str]) -> bool:
+    """Exclude canonical repeats and answer-copy variants, not just text duplicates."""
+    from mathtutor.solving.parser import parse_problem
+    from mathtutor.solving.solver import solve_problem
+    from mathtutor.domain.problem import MathProblem
+    from mathtutor.domain.hashing import content_hash
+
+    def identities(text):
+        outcome = parse_problem(text)
+        if outcome.kind != "parsed" or outcome.problem is None:
+            return None
+        parsed = outcome.problem
+        problem = MathProblem.canonicalize(problem_type=parsed.problem_type,
+            normalized_ast=parsed.normalized_ast, display_latex=parsed.display_latex)
+        solved = solve_problem(problem, parsed)
+        answer = content_hash(solved.candidate.final_answer) if solved.candidate is not None else None
+        return problem.content_hash, problem.problem_type, answer
+
+    identity = identities(statement)
+    if identity is None:
+        return True  # Actual parse failure belongs to the release gate.
+    for old in excluded:
+        previous = identities(old)
+        if previous and (identity[0] == previous[0] or (identity[1] == previous[1] and identity[2] is not None and identity[2] == previous[2])):
+            return False
+    return True
+
+
+def _parameterized_templates(family: str, difficulty: int) -> tuple[str, ...]:
+    """Finite verifier-covered pool; difficulty affects the mathematical structure."""
+    result = []
+    for n in range(2, 14):
+        a, b, root = n + 1, n, n + 4
+        if family == "linear":
+            if difficulty == 1:
+                text = f"x + {b} = {root + b}"
+            elif difficulty == 2:
+                text = f"{a}x - {b} = {a * root - b}"
+            elif difficulty == 3:
+                text = f"{a + 1}x - {b} = x + {a * root - b}"
+            elif difficulty == 4:
+                text = f"x/{a} - {b} = {root}"
+            else:
+                text = f"({a}x - {b})/2 = {a * root - b}/2"
+        elif family == "arithmetic":
+            text = f"{a} + {b} * 2" if difficulty == 1 else f"{b}/{a} + {n + difficulty}/{n + difficulty + 2}"
+        elif family == "polynomial":
+            text = f"{a}x + {b}x" if difficulty == 1 else f"{max(1, difficulty - 1)}(x + {b})^2 + {a}x"
+        elif family == "linear_system":
+            second = n + 2
+            if difficulty <= 2:
+                text = f"x+y={root + second}; x-y={root - second}"
+            else:
+                text = f"{a}x+y={a * root + second}; x-{difficulty}y={root - difficulty * second}"
+        else:
+            second = root + max(1, difficulty - 1)
+            text = f"x^2 - {root + second}x + {root * second} = 0"
+        result.append(text)
+    return tuple(result)
+
+
+def _document_basis(context: PracticeGenerationContext, family: str) -> MaterialDesignBasis | None:
+    """Use a precise skill/method quote only when it changes a template feature."""
+    if context.document_context is None:
+        return None
+    methods = {
+        "linear": (("移项", "使用含减法常数项的方程，练习移项与符号保持"),),
+        "arithmetic": (("通分", "使用不同分母的分数加法，练习通分"), ("分数", "使用不同分母的分数加法，练习通分")),
+        "polynomial": (("乘法公式", "使用二项式平方展开，练习乘法公式"), ("展开", "使用二项式平方展开，练习展开")),
+        "quadratic": (("因式分解", "使用两个整数根的二次方程，练习因式分解"),),
+        "linear_system": (("消元", "使用两个一次方程，通过线性组合消去一个未知数"),),
+    }
+    for chunk in context.document_context.chunks:
+        for term, influence in methods.get(family, ()):
+            start = chunk.text.find(term)
+            if start >= 0:
+                return MaterialDesignBasis(source_chunk_id=chunk.chunk_id,
+                    skill_id=context.target_skill_ids[0], quote_start=start,
+                    quote_end=start + len(term), quote=term, design_influence=influence)
+    return None
+
+
 class TemplateCandidateExerciseGenerator:
     """Deterministic per-family statement generator (source: TEMPLATE).
 
@@ -117,18 +202,36 @@ class TemplateCandidateExerciseGenerator:
         family = _family_for_targets(context)
         if family is None:
             return []
-        options = _TEMPLATES.get(family, ())
+        basis = _document_basis(context, family)
+        # A method quote constrains actual structure; difficulty 1 can't claim
+        # fractional/square-method grounding that the generated item omits.
+        if context.desired_difficulty == 1 and family in {"arithmetic", "polynomial", "linear"}:
+            basis = None
+        options = _parameterized_templates(family, context.desired_difficulty)
+        if context.practice_purpose == "C":
+            # A broad family is not enough to justify an unrelated seed item.
+            # Foundation items exercise the diagnosed prerequisite operation.
+            if family == "arithmetic":
+                if context.foundation_focus == "fraction_operations":
+                    options = tuple(f"{n}/3 + 1/2" for n in range(2, 14))
+                else:
+                    options = tuple(f"{n} - (-{n + 3})" for n in range(2, 14))
+                    basis = None
+            elif family == "linear":
+                options = tuple(f"x + {n} = {3 * n + 1}" for n in range(2, 14))
+                basis = None
+            elif family == "polynomial":
+                options = tuple(f"{n}(x + 2) - {n - 1}x" for n in range(2, 14))
+                basis = None
         if not options:
             return []
         seed = "".join(context.target_skill_ids)
-        if has_usable_document_context(context):
-            # Document text participates in which isomorphic template is
-            # chosen — the chain does not ignore a successful recall.
-            seed += "|" + "".join(chunk.text for chunk in context.document_context.chunks)
         index = sum(ord(ch) for ch in seed) % len(options)
         candidates: list[CandidateExercise] = []
-        for offset in range(max(1, count)):
+        for offset in range(len(options)):
             statement = options[(index + offset) % len(options)]
+            if not candidate_is_distinct(statement, context.excluded_problem_statements):
+                continue
             candidates.append(
                 CandidateExercise(
                     student_id=context.student_id,
@@ -137,14 +240,17 @@ class TemplateCandidateExerciseGenerator:
                     concept_ids=context.target_concept_ids,
                     difficulty=context.desired_difficulty,
                     generated_by=(
-                        "mt-template-document-grounded-v1"
-                        if has_usable_document_context(context)
+                        "mt-template-document-grounded-v2"
+                        if basis is not None
                         else self.generated_by
                     ),
                     context_version=context.context_version,
                     provenance=context.provenance,
+                    material_basis=(basis,) if basis is not None else (),
                 )
             )
+            if len(candidates) >= max(1, count):
+                break
         return candidates
 
 
@@ -216,6 +322,7 @@ def _document_context_public(selection) -> dict:
         "filename": selection.filename,
         "chunks": [
             {
+                "source_chunk_id": str(chunk.chunk_id),
                 "filename": chunk.filename or selection.filename,
                 "page": chunk.page,
                 "sequence": chunk.sequence,
@@ -229,7 +336,8 @@ def _document_context_public(selection) -> dict:
 
 def has_usable_document_context(context: PracticeGenerationContext) -> bool:
     selection = context.document_context
-    return selection is not None and len(selection.chunks) >= DOCUMENT_HIT_THRESHOLD
+    family = _family_for_targets(context)
+    return selection is not None and family is not None and _document_basis(context, family) is not None
 
 
 def _parse_llm_statements(text: str) -> list[str]:
@@ -273,7 +381,7 @@ class LLMCandidateExerciseGenerator:
         else:
             self._client = None
 
-    async def generate(
+async def generate(
         self, context: PracticeGenerationContext, *, count: int = 1
     ) -> list[CandidateExercise]:
         if self._client is None:
@@ -315,13 +423,19 @@ def bank_candidates_for(
     context: PracticeGenerationContext, *, count: int = 1
 ) -> list[CandidateExercise]:
     """Curated seed items matching the targets (source: BANK)."""
+    if context.practice_purpose == "C":
+        # Generic seed-bank difficulty does not encode a diagnosed subskill.
+        # The bounded, verified foundation templates below do.
+        return []
     wanted_skills = set(context.target_skill_ids) or None
     wanted_concepts = set(context.target_concept_ids) or None
     matches: list[CandidateExercise] = []
-    for item in SEED_BANK:
+    for item in sorted(SEED_BANK, key=lambda item: abs(item.difficulty - context.desired_difficulty)):
         if wanted_skills and not (set(item.skill_ids) & wanted_skills):
             continue
         if wanted_concepts and not (set(item.concept_ids) & wanted_concepts):
+            continue
+        if item.difficulty != context.desired_difficulty or not candidate_is_distinct(item.problem_statement, context.excluded_problem_statements):
             continue
         matches.append(
             CandidateExercise(
@@ -370,29 +484,26 @@ class PracticeGeneratorChain:
     ) -> list[CandidateExercise]:
         # bank > template > LLM when no user-document hits.
         bank = bank_candidates_for(context, count=count)
-        if bank:
+        if len(bank) >= count:
             return bank
-        template_candidates = await self._template.generate(context, count=count)
+        template_context = context.model_copy(update={"excluded_problem_statements": (*context.excluded_problem_statements, *(item.problem_statement for item in bank))})
+        template_candidates = await self._template.generate(template_context, count=count - len(bank))
         if template_candidates:
-            return template_candidates
-        return await self._try_llm(context, count=count)
+            return (bank + template_candidates)[:count]
+        return (bank + await self._try_llm(template_context, count=count - len(bank)))[:count]
 
     async def _generate_from_documents(
         self, context: PracticeGenerationContext, *, count: int
     ) -> list[CandidateExercise]:
         """Hits above threshold: consume document_context, do not drop recall.
 
-        LLM reads the projected chunks. If the gateway is off, the
-        document-grounded template still uses the chunk text as the seed.
-        Bank is last — unconstrained bank would silently ignore the notes.
+        A checked method citation selects an actual template feature.
+        Merely sending text to an LLM cannot establish material grounding.
         """
-        llm_candidates = await self._try_llm(context, count=count)
-        if llm_candidates:
-            return llm_candidates
         template_candidates = await self._template.generate(context, count=count)
         if template_candidates:
             return template_candidates
-        return bank_candidates_for(context, count=count)
+        return await self._generate_without_documents(context, count=count)
 
     async def _try_llm(
         self, context: PracticeGenerationContext, *, count: int

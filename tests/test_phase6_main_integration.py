@@ -8,7 +8,7 @@
   BackupService surfaces; restore runs the full stop → dispose → verified
   restore → rebuild orchestration and always reports restart_required;
   client backup names are strictly validated (traversal refused);
-- GET /student-summary — read-only mastery projection;
+- GET /student-summary — read-only evidence projection without invented mastery;
 - the UoW commit hook wakes the resident relay (wiring proof).
 """
 
@@ -40,6 +40,7 @@ from mathtutor.infrastructure.generative_gateway import (
     GenerativeProviderError,
 )
 from mathtutor.infrastructure.secret_store import InMemorySecretStore
+from mathtutor.learning.skill_graph import SKILLS, FAMILY_SKILLS
 from mathtutor.repositories.uow import MathTutorUow
 from mathtutor.security.settings import MathTutorSecuritySettings
 
@@ -568,22 +569,23 @@ def test_student_summary_empty_in_memory() -> None:
     reset_product_state()
     with _client() as client:
         body = client.get("/api/v2/math-tutor/desktop/student-summary").json()
-    assert body == {
-        "skills": [
-            {"code": "ARITHMETIC", "label": "四则运算", "mastery": None, "grade_band": "小学"},
-            {"code": "POLYNOMIAL_BASIC", "label": "整式运算", "mastery": None, "grade_band": "初中"},
-            {"code": "LINEAR_EQUATION", "label": "一元一次方程", "mastery": None, "grade_band": "初中"},
-            {"code": "QUADRATIC_EQUATION", "label": "一元二次方程", "mastery": None, "grade_band": "初中"},
-        ],
-        "total_attempts": 0,
-        "active_misconceptions": 0,
-    }
+    assert body["total_attempts"] == 0
+    assert body["active_misconceptions"] == 0
+    assert {skill["code"] for skill in body["skills"]} == set(SKILLS)
+    for skill in body["skills"]:
+        assert skill["label"] == SKILLS[skill["code"]].label
+        assert skill["mastery"] is None
+        assert skill["grade_band"] is None
+        assert skill["evidence_summary"] == {
+            "independent": 0, "assisted": 0, "post_solution": 0,
+            "diagnostic": 0, "ungradable": 0,
+        }
     reset_product_state()
 
 
-def test_student_summary_projects_mastery_after_correct_attempt(tmp_path: Path) -> None:
-    """One correct linear-equation attempt → LINEAR_EQUATION mastery
-    observed (> 0), the other skills unobserved (null), total_attempts 1."""
+def test_student_summary_reports_evidence_without_fabricated_mastery(tmp_path: Path) -> None:
+    """One independent multiskill item is not several independent successes
+    or proof of mastery. The profile retains its item-level evidence."""
     db_file = tmp_path / "math_tutor.db"
     reset_product_state()
     with _client(db_file) as client:
@@ -592,13 +594,14 @@ def test_student_summary_projects_mastery_after_correct_attempt(tmp_path: Path) 
     assert body["total_attempts"] == 1
     assert body["active_misconceptions"] == 0
     skills = {skill["code"]: skill for skill in body["skills"]}
-    assert set(skills) == {
-        "ARITHMETIC", "POLYNOMIAL_BASIC", "LINEAR_EQUATION", "QUADRATIC_EQUATION",
-    }
-    linear = skills["LINEAR_EQUATION"]
-    assert linear["mastery"] is not None and linear["mastery"] > 0
-    assert skills["ARITHMETIC"]["mastery"] is None  # never observed
-    assert skills["QUADRATIC_EQUATION"]["mastery"] is None
+    assert set(skills) == set(SKILLS)
+    assert all(skill["mastery"] is None for skill in skills.values())
+    assert body["evidence_summary"]["independent"] == 1
+    for code, skill in skills.items():
+        assert skill["evidence_summary"] == {
+            "independent": 0, "assisted": 0, "post_solution": 0,
+            "diagnostic": int(code in FAMILY_SKILLS["linear"]), "ungradable": 0,
+        }
     # Read-only: the endpoint has no body and accepts no writes.
     reset_product_state()
 

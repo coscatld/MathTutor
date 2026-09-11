@@ -6,6 +6,8 @@ import MarkdownRenderer from '../components/common/MarkdownRenderer';
 import { normalizeMath } from '../components/common/math-normalization';
 import { initialMathTutorState, mathTutorReducer } from '../features/math-tutor/lib/reducer';
 import { projectStudentFrame } from '../features/math-tutor/lib/protocol';
+import { allowedInputsToButtons, buildEnvelope, projectTurnError } from '../features/math-tutor/lib/protocol';
+import TutorActionCard from '../features/math-tutor/components/TutorActionCard';
 
 const render = (text: string) => renderToStaticMarkup(<MarkdownRenderer content={text} enableMath />);
 for (const role of ['user', 'assistant']) {
@@ -63,4 +65,70 @@ test('deltas_accumulate_in_one_message_and_foreign_turns_are_ignored', () => {
   assert.equal(state.messages[0].text, '前半后半');
   const foreign = projectStudentFrame({event_type: 'assistant_complete', payload: {turn_id: 't', conversation_id: 'other'}})!;
   assert.equal(mathTutorReducer(state, {type: 'frame', frame: foreign}), state);
+});
+
+test('solution_button_emits_public_command_even_for_legacy_server_name', () => {
+  const buttons = allowedInputsToButtons(['solution_shown_permitted', 'request_solution']);
+  assert.equal(buttons.length, 1);
+  assert.equal(buttons[0].command, 'request_solution');
+  const wire = JSON.parse(buildEnvelope(buttons[0].command, {}, 'c', {requestId: 'r', idempotencyKey: 'r'}));
+  assert.equal(wire.protocol_version, 2);
+  assert.equal(wire.request_id, 'r');
+  assert.equal(wire.command, 'request_solution');
+});
+
+const turnFrame = (event_type: string, payload: Record<string, unknown> = {}) => projectStudentFrame({event_type, payload: {turn_id: 't', message_id: 'result-t', conversation_id: 'c', ...payload}})!;
+
+test('same_turn_error_and_terminal_error_share_one_result_and_one_recovery', () => {
+  let state = initialMathTutorState('c');
+  for (const event_type of ['turn_error', 'turn_error', 'assistant_error', 'assistant_error']) {
+    state = mathTutorReducer(state, {type: 'frame', frame: turnFrame(event_type, {error: '请补充题目。'})});
+  }
+  assert.equal(state.messages.length, 1);
+  assert.equal(state.messages[0].turnId, 't');
+  const html = renderToStaticMarkup(<TutorActionCard message={state.messages[0]} onRecover={() => {}} />);
+  assert.equal(html.split('请补充题目。').length - 1, 1);
+  assert.equal(html.split('重新同步').length - 1, 1);
+  assert.ok(!html.includes('border-red') && !html.includes('这次回答未能生成'));
+});
+
+test('error_after_content_remains_inside_the_same_turn_container', () => {
+  let state = mathTutorReducer(initialMathTutorState('c'), {type: 'frame', frame: turnFrame('assistant_delta', {student_message: '已完成第一步。'})});
+  for (const event_type of ['turn_error', 'turn_error', 'assistant_partial']) {
+    state = mathTutorReducer(state, {type: 'frame', frame: turnFrame(event_type, {error: '服务中断。', final_text: '已完成第一步。\n\n服务中断。'})});
+  }
+  assert.equal(state.messages.length, 1);
+  assert.equal(state.messages[0].text, '已完成第一步。\n\n服务中断。');
+});
+
+test('snapshot_replay_after_hydration_does_not_duplicate_text_or_message', () => {
+  let state = mathTutorReducer(initialMathTutorState('c'), {type: 'restore', summary: {
+    messages: [{message_id: 'result-t', turn_id: 't', role: 'tutor', content: '完整答案', status: 'COMPLETED'}],
+  }});
+  for (let replay = 0; replay < 2; replay++) {
+    state = mathTutorReducer(state, {type: 'frame', frame: turnFrame('assistant_delta', {student_message: '完整答案', content_mode: 'snapshot'})});
+    state = mathTutorReducer(state, {type: 'frame', frame: turnFrame('assistant_complete')});
+  }
+  assert.equal(state.messages.length, 1);
+  assert.equal(state.messages[0].text, '完整答案');
+  assert.equal(state.messages[0].status, 'COMPLETED');
+});
+
+test('restore_with_no_allowed_actions_clears_old_capabilities', () => {
+  const old = {...initialMathTutorState('c'), allowedNextInputs: ['request_hint'], problemActive: true};
+  const state = mathTutorReducer(old, {type: 'restore', summary: {state: '', allowed_next_inputs: []}});
+  assert.deepEqual(state.allowedNextInputs, []);
+  assert.equal(state.problemActive, false);
+});
+
+test('assistance_level_restores_from_server_ledger_after_restart', () => {
+  const state = mathTutorReducer(initialMathTutorState('c'), {type: 'restore', summary: {state: 'practice_offered', effective_assistance_level: 5}});
+  assert.equal(state.assistanceLevel, 5);
+});
+
+test('legacy_unknown_command_and_internal_exception_are_not_student_copy', () => {
+  for (const text of ['未知命令：solution_shown_permitted', '内部错误: secret exception']) {
+    const projected = projectTurnError(text);
+    assert.ok(!projected.includes('solution_shown_permitted') && !projected.includes('secret'));
+  }
 });

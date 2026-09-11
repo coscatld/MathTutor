@@ -91,6 +91,8 @@ def normalize_input(text: str) -> NormalizedInput:
         repairs.append("operator-alias")
         current = rewritten
 
+    if current.count("=") >= 2:
+        current = re.sub(r"(?<=[^\s])\s*\n\s*(?=[^\s])", ";", current)
     compact = " ".join(current.split())
     if compact != current:
         repairs.append("whitespace")

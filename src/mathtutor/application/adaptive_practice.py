@@ -22,6 +22,7 @@ nothing here blocks it.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Protocol, Sequence
 from uuid import UUID, uuid4
 
@@ -45,6 +46,7 @@ from mathtutor.domain.practice_context import (
     PracticeGenerationContext,
 )
 from mathtutor.domain.retrieval_policy import RetrievalIntent
+from mathtutor.domain.practice_recommendation import MaterialDesignBasis, PracticeRecommendation, PracticePurpose
 
 
 class CandidateExercise(BaseModel):
@@ -65,6 +67,7 @@ class CandidateExercise(BaseModel):
     generated_by: str
     context_version: str = PRACTICE_CONTEXT_VERSION
     provenance: tuple[ContextProvenance, ...] = ()
+    material_basis: tuple[MaterialDesignBasis, ...] = ()
 
 
 class CandidateExerciseGenerator(Protocol):
@@ -163,6 +166,11 @@ class AdaptivePracticeService:
         query_hint: str = "",
         problem_text: str = "",
         misconception_ids: Sequence[str] = (),
+        purpose: PracticePurpose = "D",
+        requested_difficulty: int | None = None,
+        current_difficulty: int | None = None,
+        excluded_problem_statements: Sequence[str] = (),
+        foundation_focus: str = "",
     ) -> list[CandidateExercise]:
         """Assemble the REQUIRED+OPTIONAL context and hand it to the generator."""
         assembled = await self.assemble_for_intent(
@@ -180,7 +188,15 @@ class AdaptivePracticeService:
             target_concept_ids=tuple(target_concept_ids),
             desired_difficulty=self._desired_difficulty,
         )
-        return await self._generator.generate(context, count=count)
+        from mathtutor.application.practice_policy import MAX_CANDIDATES, select_difficulty
+        difficulty, _ = select_difficulty(context, purpose=purpose,
+            baseline=current_difficulty or self._desired_difficulty, requested=requested_difficulty)
+        context = context.model_copy(update={
+            "desired_difficulty": difficulty, "practice_purpose": purpose,
+            "excluded_problem_statements": tuple(excluded_problem_statements),
+            "foundation_focus": foundation_focus,
+        })
+        return (await self._generator.generate(context, count=min(MAX_CANDIDATES, max(1, count))))[:MAX_CANDIDATES]
 
     async def assemble_for_intent(
         self,
@@ -219,11 +235,20 @@ class AdaptivePracticeService:
         parent_cycle_id: UUID,
         target_skill_ids: Sequence[str] = (),
         target_concept_ids: Sequence[str] = (),
-        count: int = 1,
+        count: int = 3,
         ttl: "Any | None" = None,
         problem_text: str = "",
         misconception_ids: Sequence[str] = (),
         query_hint: str = "",
+        purpose: PracticePurpose = "D",
+        target_revision: str = "",
+        exposure_level: int = 0,
+        full_task_completed: bool = False,
+        prerequisite_skill_ids: Sequence[str] = (),
+        foundation_focus: str = "",
+        requested_difficulty: int | None = None,
+        current_difficulty: int | None = None,
+        review_due: bool = False,
     ) -> Any:
         """Prepare ONE ACTIVE practice offer (§7.5).
 
@@ -247,50 +272,77 @@ class AdaptivePracticeService:
         )
         from mathtutor.domain.tutoring import PracticeOffer
         from mathtutor.security.scopes import student_uuid
+        from mathtutor.application.practice_policy import MAX_CANDIDATES, resolve_practice_purpose, validate_targets
+        from mathtutor.domain.hashing import content_hash
 
         if self._release_service is None:
             raise PracticeOfferError("release_service 未配置")
-        candidates = await self.generate_candidates(
-            student_id,
-            target_skill_ids=target_skill_ids,
-            target_concept_ids=target_concept_ids,
-            count=count,
-            query_hint=query_hint,
-            problem_text=problem_text,
-            misconception_ids=misconception_ids,
+        try:
+            purpose = resolve_practice_purpose(purpose,
+                full_task_completed=full_task_completed, exposure_level=exposure_level,
+                prerequisite_skill_ids=prerequisite_skill_ids, review_due=review_due)
+            targets = validate_targets(prerequisite_skill_ids if purpose == "C" else target_skill_ids)
+        except ValueError as exc:
+            raise PracticeOfferError(str(exc)) from exc
+        repository = self._release_service.repository
+        recommendation = PracticeRecommendation(
+            student_id=student_uuid(student_id), parent_cycle_id=parent_cycle_id,
+            purpose=purpose, target_revision=target_revision or content_hash({"problem": problem_text, "skills": targets}),
+            target_skill_ids=targets, resume_parent_cycle_id=parent_cycle_id if purpose == "C" else None,
         )
-        if not candidates:
-            raise PracticeOfferError("无法生成候选练习题")
-
-        last_error: Exception | None = None
-        chain = None
-        for candidate in candidates:
-            try:
-                chain = await self._release_service.release_candidate(
-                    candidate,
-                    source_type=source_type_for_generated_by(candidate.generated_by),
-                )
-                break
-            except ReleaseDeniedError as exc:  # try the next candidate
-                last_error = exc
-        if chain is None:
-            raise PracticeOfferError(
-                f"没有候选通过发布门（fail closed：{last_error}）"
+        recommendation, claimed = await repository.begin_recommendation(recommendation)
+        if not claimed:
+            if recommendation.status == "ACTIVE" and recommendation.offer_id:
+                existing = await repository.load_offer(recommendation.offer_id)
+                if existing and existing.status == "ACTIVE":
+                    return existing
+            raise PracticeOfferError("该目的的练习正在准备，请勿重复请求")
+        attempted = 0
+        try:
+            recent = await repository.offers_for_student_with_detail(student_id)
+            excluded = [problem_text] if problem_text else []
+            excluded.extend(exercise.problem_statement for _, exercise in recent[:20] if exercise)
+            candidates = await asyncio.wait_for(self.generate_candidates(
+                student_id, target_skill_ids=targets,
+                target_concept_ids=() if purpose == "C" else target_concept_ids,
+                count=min(MAX_CANDIDATES, max(1, count)), query_hint=query_hint,
+                problem_text=problem_text, misconception_ids=misconception_ids,
+                purpose=purpose, requested_difficulty=requested_difficulty,
+                current_difficulty=current_difficulty, excluded_problem_statements=excluded,
+                foundation_focus=foundation_focus,
+            ), timeout=30)
+            chain = None
+            seen = set()
+            from mathtutor.application.llm_candidate_generator import candidate_is_distinct
+            for candidate in candidates[:MAX_CANDIDATES]:
+                attempted += 1
+                if (not set(targets).issubset(candidate.skill_ids) or candidate.student_id != student_uuid(student_id)
+                        or not candidate_is_distinct(candidate.problem_statement, (*excluded, *seen))):
+                    continue
+                seen.add(candidate.problem_statement)
+                try:
+                    chain = await self._release_service.release_candidate(
+                        candidate, source_type=source_type_for_generated_by(candidate.generated_by))
+                    break
+                except ReleaseDeniedError:
+                    continue
+            if chain is None:
+                raise PracticeOfferError("候选预算内没有通过技能匹配、去重与验证的练习；原题结果保持不变，可重试")
+            offer = PracticeOffer(
+                student_id=student_uuid(student_id), parent_cycle_id=parent_cycle_id,
+                exercise_release_id=chain.release.release_id,
+                target_mapping_ids=chain.exercise.target_mapping_ids,
+                stage_policy_version="mt-stage-v2", status="ACTIVE",
+                expires_at=datetime.now(timezone.utc) + (ttl or OFFER_TTL),
             )
-
-        ttl = ttl or OFFER_TTL
-        offer = PracticeOffer(
-            student_id=student_uuid(student_id),
-            parent_cycle_id=parent_cycle_id,
-            exercise_release_id=chain.release.release_id,
-            target_mapping_ids=chain.exercise.target_mapping_ids,
-            stage_policy_version="mt-stage-v0",
-            status="ACTIVE",
-            expires_at=datetime.now(timezone.utc) + ttl,
-        )
-        await self._release_service.create_offer(
-            offer,
-            outbox_events=[
+            recommendation = recommendation.model_copy(update={
+                "status": "ACTIVE", "offer_id": offer.offer_id, "candidate_count": attempted,
+                "desired_difficulty": chain.exercise.difficulty,
+                "material_basis": tuple(basis.model_dump(mode="json") for basis in candidate.material_basis),
+                "decision_reason": "离散难度、目标技能、近期去重与确定性发布门均已检查",
+                "updated_at": datetime.now(timezone.utc),
+            })
+            await repository.complete_recommendation(recommendation, offer, outbox_events=[
                 {
                     "aggregate_type": "practice_offer",
                     "aggregate_id": str(offer.offer_id),
@@ -302,11 +354,27 @@ class AdaptivePracticeService:
                         "offer_id": str(offer.offer_id),
                         "parent_cycle_id": str(parent_cycle_id),
                         "expires_at": offer.expires_at.isoformat(),
+                        "purpose": purpose,
+                        "recommendation_id": str(recommendation.recommendation_id),
                     },
                 }
-            ],
-        )
-        return offer
+            ])
+            return offer
+        except asyncio.CancelledError:
+            await asyncio.shield(repository.fail_recommendation(recommendation.model_copy(update={
+                "status": "FAILED", "candidate_count": attempted,
+                "failure_reason": "练习准备已取消，可重新请求",
+                "updated_at": datetime.now(timezone.utc),
+            })))
+            raise
+        except Exception as exc:
+            failure = recommendation.model_copy(update={"status": "FAILED", "candidate_count": attempted,
+                "failure_reason": "练习生成或验证未完成，原题结果保持不变，可重新请求练习",
+                "updated_at": datetime.now(timezone.utc)})
+            await repository.fail_recommendation(failure)
+            if isinstance(exc, PracticeOfferError):
+                raise
+            raise PracticeOfferError(failure.failure_reason) from exc
 
 
 def practice_context_from_assembled(
@@ -368,6 +436,7 @@ def practice_context_from_assembled(
                 effective_assistance_level=entry.effective_assistance_level,
                 attempt_index=entry.attempt_index,
                 created_at=entry.created_at,
+                problem_id=entry.problem_id,
             )
             for entry in assembled.recent_attempts.entries
         ]

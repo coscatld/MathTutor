@@ -62,6 +62,7 @@ class LearningEvidence(BaseModel):
     evidence_version: str = EVIDENCE_VERSION
     idempotency_key: str
     created_at: str = ""
+    problem_id: str = ""
 
 
 def idempotency_key_for(
@@ -132,6 +133,7 @@ class EvidenceFactory:
             student_id=assessment.student_id,
             attempt_id=assessment.attempt_id,
             attempt_assessment_log_id=attempt_assessment_log_id,
+            problem_id=str(assessment.problem_id),
             skill_id=skill_id,
             correctness=correctness,
             score=score,

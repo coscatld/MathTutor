@@ -1,9 +1,8 @@
 """Wave 1 item 8 E2E: adaptive practice → verified exercise → child cycle
 over the REAL product app (SQLite + WebSocket, §7.5–§7.9).
 
-The live flow is server-driven: a correct attempt advances the cycle
-SOLVED →(REFLECTED)→ REFLECTION →(PRACTICE_OFFERED)→ PRACTICE_OFFERED with
-a public offer projection (offer id / labels / difficulty / timestamps —
+The live flow is server-driven: a correct attempt leaves the cycle SOLVED
+and publishes an independent offer projection (offer id / labels / difficulty / timestamps —
 never a solution, answer key, verification log or attestation). The offer
 survives restarts, accept binds a child cycle to the EXACT release snapshot,
 and judging the child re-uses the same state machine.
@@ -16,7 +15,13 @@ product flow.
 from __future__ import annotations
 
 import json
+import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from fractions import Fraction
 from pathlib import Path
+from threading import Barrier
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,6 +33,7 @@ from mathtutor.api.product_state import (
 )
 from mathtutor.pedagogy.events import assert_no_forbidden_fields
 from mathtutor.security.settings import MathTutorSecuritySettings
+from mathtutor.security.scopes import DEV_STUDENT_ID, student_uuid
 
 pytestmark = pytest.mark.asyncio
 
@@ -82,7 +88,7 @@ async def test_full_chain_solve_offer_accept_child_judge(tmp_path: Path) -> None
         committed = _committed(events)
         assert [c.get("cycle_state") for c in committed] == [
             "solved",
-            "practice_offered",
+            "solved",
         ]
         offer_event = committed[-1]
         assert offer_event.get("payload", {}).get("action") == "practice_offered"
@@ -113,20 +119,34 @@ async def test_full_chain_solve_offer_accept_child_judge(tmp_path: Path) -> None
         assert started[0].get("payload", {}).get("problem_latex")
         assert "final_answer" not in json.dumps(events)
 
-        # 4. The offer is consumed; the parent cycle is closed.
+        # 4. The offer is consumed; the parent's real solved result is preserved.
         offers = client.get("/api/v2/math-tutor/offers").json()
         assert offers[0]["status"] == "ACCEPTED"
         parent = client.get(
             f"/api/v2/math-tutor/cycles/{extra['parent_cycle_id']}"
         ).json()
-        assert parent["state"] == "closed"
+        assert parent["state"] == "solved"
 
         # 5. The child cycle is reachable and judged against the EXACT
         #    release snapshot (same session, same state machine).
         child = client.get(f"/api/v2/math-tutor/cycles/{child_cycle_id}").json()
-        assert child["state"] in ("awaiting_attempt", "problem_received")
+        assert child["state"] == "awaiting_attempt"
+        # Test-only access to the immutable release answer. New practice is
+        # deliberately distinct from the original; its answer cannot be guessed
+        # from the seed question or exposed by the public API.
+        runtime = get_product_state()
+        offer = await runtime.practice_repository.load_offer(UUID(extra["offer_id"]))
+        assert offer is not None
+        assert offer.student_id == student_uuid(DEV_STUDENT_ID)
+        verified = await runtime.store.load_verified(DEV_STUDENT_ID, UUID(child_cycle_id))
+        assert verified is not None
+        _, candidate, _ = verified
+        answer = candidate.final_answer
+        assert answer["kind"] == "roots" and len(answer["roots"]) == 1
+        root = answer["roots"][0]
+        child_answer = str(Fraction(root["value"]["n"], root["value"]["d"]))
         with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
-            _send(ws, "submit_attempt", {"answer": "2"})
+            _send(ws, "submit_attempt", {"answer": child_answer})
             events = _collect(ws)
         for frame in events:
             assert_no_forbidden_fields(frame)
@@ -134,7 +154,7 @@ async def test_full_chain_solve_offer_accept_child_judge(tmp_path: Path) -> None
         assert judged[0].get("cycle_state") == "solved"
         assert judged[0].get("payload", {}).get("action") == "correct"
         # The child's own solved cycle offers again (server-driven recursion).
-        assert judged[-1].get("cycle_state") == "practice_offered"
+        assert judged[-1].get("cycle_state") == "solved"
         assert judged[-1].get("extra", {}).get("offer_id")
         offers = client.get("/api/v2/math-tutor/offers").json()
         assert len(offers) == 2
@@ -142,7 +162,7 @@ async def test_full_chain_solve_offer_accept_child_judge(tmp_path: Path) -> None
     reset_product_state()
 
 
-async def test_duplicate_accept_replays_same_child_cycle(tmp_path: Path) -> None:
+async def test_duplicate_accept_after_expiry_replays_same_child_cycle(tmp_path: Path) -> None:
     """An already-ACCEPTED offer never opens a second child cycle — the
     replay returns the SAME child id (idempotent replay, §7.7 step 5)."""
     db_file = tmp_path / "math_tutor.db"
@@ -163,6 +183,11 @@ async def test_duplicate_accept_replays_same_child_cycle(tmp_path: Path) -> None
             e for e in _committed(first) if e.get("extra", {}).get("child_cycle_id")
         ][0]["extra"]["child_cycle_id"]
 
+        # A consumed offer may expire afterwards. Replaying the prior receipt
+        # must be checked before expiry; it is not a new acceptance grant.
+        with sqlite3.connect(db_file) as conn:
+            conn.execute("UPDATE practice_offers SET expires_at=? WHERE offer_id=?",
+                         ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), offer_id))
         # Second accept: same child cycle, flagged as idempotent replay.
         with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
             _send(ws, "accept_practice_offer", {"offer_id": offer_id})
@@ -178,8 +203,40 @@ async def test_duplicate_accept_replays_same_child_cycle(tmp_path: Path) -> None
     reset_product_state()
 
 
+async def test_concurrent_accept_opens_only_one_child_cycle(tmp_path: Path) -> None:
+    db_file = tmp_path / "math_tutor.db"
+    reset_product_state()
+    with _client(db_file) as client:
+        with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+            _send(ws, "submit_problem", {"text": "2x + 3 = 7"})
+            _collect(ws)
+            _send(ws, "submit_attempt", {"answer": "2"})
+            offer_id = _committed(_collect(ws))[-1]["extra"]["offer_id"]
+        ready = Barrier(2)
+
+        def accept():
+            with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+                ready.wait(timeout=5)
+                _send(ws, "accept_practice_offer", {"offer_id": offer_id})
+                return _collect(ws)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            jobs = [pool.submit(accept) for _ in range(2)]
+            outcomes = [job.result(timeout=15) for job in jobs]
+        children = []
+        for frames in outcomes:
+            started = [event for event in _committed(frames) if event.get("extra", {}).get("child_cycle_id")]
+            assert len(started) == 1
+            children.append(started[0]["extra"]["child_cycle_id"])
+        assert children[0] == children[1]
+        with sqlite3.connect(db_file) as conn:
+            assert conn.execute("SELECT count(*) FROM tutoring_cycles WHERE practice_offer_id=?", (offer_id,)).fetchone()[0] == 1
+        assert client.get("/api/v2/math-tutor/offers").json()[0]["status"] == "ACCEPTED"
+    reset_product_state()
+
+
 async def test_offer_flow_survives_restart_between_solve_and_accept(tmp_path: Path) -> None:
-    """The offer and the REFLECTED/PRACTICE_OFFERED transitions are durable:
+    """The independent offer and the parent's solved result are durable:
     solve + offer on app instance 1, accept on a fresh instance over the
     SAME database (restart-safe, §7.10)."""
     db_file = tmp_path / "math_tutor.db"
@@ -210,9 +267,8 @@ async def test_offer_flow_survives_restart_between_solve_and_accept(tmp_path: Pa
 
 
 async def test_l5_solution_shown_offers_practice(tmp_path: Path) -> None:
-    """The L5 path (solution shown → REFLECTION) also lands on a practice
-    offer: 3 hints, then request_solution shows the sanctioned L5 content
-    and the cycle advances to PRACTICE_OFFERED (§7.5)."""
+    """An explicit zero-hint solution creates a B offer, not reflection,
+    a completed parent or evidence of the student's understanding."""
     db_file = tmp_path / "math_tutor.db"
     reset_product_state()
 
@@ -220,20 +276,24 @@ async def test_l5_solution_shown_offers_practice(tmp_path: Path) -> None:
         with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
             _send(ws, "submit_problem", {"text": "2x + 3 = 7"})
             _collect(ws)
-            for _ in range(3):  # PRIMARY stage threshold for L5
-                _send(ws, "request_hint", {})
-                _collect(ws)
             _send(ws, "request_solution", {})
             events = _collect(ws)
+            shown = next(frame for frame in events if frame.get("event_type") == "assistant_complete")
+            assert shown["delivery_id"]
+            ws.send_json({"type": "delivery_presented", "delivery_id": shown["delivery_id"]})
         for frame in events:
             assert_no_forbidden_fields(frame)
         committed = _committed(events)
         actions = [e.get("payload", {}).get("action") for e in committed]
         assert "SHOW_SOLUTION" in actions
-        assert committed[-1].get("cycle_state") == "practice_offered"
+        assert committed[-1].get("cycle_state") == "solution_shown"
         assert committed[-1].get("extra", {}).get("offer_id")
         offers = client.get("/api/v2/math-tutor/offers").json()
         assert len(offers) == 1 and offers[0]["status"] == "ACTIVE"
+        current = client.get(f"/api/v2/math-tutor/sessions/{_SESSION}").json()
+        assert current["state"] == "solution_shown"
+        assert current["active_offer"]["purpose"] == "B"
+        assert current["evidence_summary"]["independent"] == 0
 
     reset_product_state()
 

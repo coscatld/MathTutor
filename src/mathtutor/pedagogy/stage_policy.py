@@ -18,7 +18,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Stage = Literal["primary", "middle", "high"]
+Stage = Literal["primary", "middle", "high", "unspecified"]
 SymbolDensity = Literal["low", "medium", "high"]
 ProofRigor = Literal["none", "basic", "strict"]
 
@@ -48,14 +48,13 @@ class StagePolicy(BaseModel):
     # Assistance ladder rules
     hint_escalation: tuple[int, ...]
     max_assistance_without_explicit_request: int
-    # Disclosure policy (§7.1): the full solution (L5) is only permitted
-    # after this many hints have actually been issued — "仅在策略允许后".
-    min_hints_for_solution: int = 2
+    # Legacy metadata only; ordinary learning has no hint-count answer gate.
+    min_hints_for_solution: int = 0
 
 
 PRIMARY_POLICY = StagePolicy(
     policy_id="mt-stage-primary",
-    version="1",
+    version="2",
     stage="primary",
     grade_min=1,
     grade_max=6,
@@ -68,13 +67,13 @@ PRIMARY_POLICY = StagePolicy(
     prefer_concrete_representation=True,
     # One hint at a time, escalate at most one level per request.
     hint_escalation=(1, 2, 3),
-    min_hints_for_solution=3,
+    min_hints_for_solution=0,
     max_assistance_without_explicit_request=1,
 )
 
 MIDDLE_POLICY = StagePolicy(
     policy_id="mt-stage-middle",
-    version="1",
+    version="2",
     stage="middle",
     grade_min=7,
     grade_max=9,
@@ -87,12 +86,12 @@ MIDDLE_POLICY = StagePolicy(
     prefer_concrete_representation=False,
     hint_escalation=(2, 3, 4),
     max_assistance_without_explicit_request=2,
-    min_hints_for_solution=2,
+    min_hints_for_solution=0,
 )
 
 HIGH_POLICY = StagePolicy(
     policy_id="mt-stage-high",
-    version="1",
+    version="2",
     stage="high",
     grade_min=10,
     grade_max=12,
@@ -105,7 +104,7 @@ HIGH_POLICY = StagePolicy(
     prefer_concrete_representation=False,
     hint_escalation=(2, 3, 4, 5),
     max_assistance_without_explicit_request=3,
-    min_hints_for_solution=1,
+    min_hints_for_solution=0,
 )
 
 STAGE_POLICIES: dict[Stage, StagePolicy] = {
@@ -113,6 +112,15 @@ STAGE_POLICIES: dict[Stage, StagePolicy] = {
     "middle": MIDDLE_POLICY,
     "high": HIGH_POLICY,
 }
+
+# No grade is inferred from a problem family or an unobserved student. This
+# neutral expression budget is refined by the persisted TeachingPlan; it is
+# not a global learner level and never unlocks disclosure by hint count.
+ADAPTIVE_POLICY = MIDDLE_POLICY.model_copy(update={
+    "policy_id": "mt-evidence-adaptive", "version": "3", "stage": "unspecified",
+    "grade_min": 0, "grade_max": 0, "allow_multi_method": True,
+    "hint_escalation": (1, 2, 3, 4), "max_assistance_without_explicit_request": 3,
+})
 
 
 def policy_for_stage(stage: str) -> StagePolicy:

@@ -102,6 +102,9 @@ def seed(data_root: Path, output: Path, namespace: str) -> dict[str, Any]:
         )
         offer_id = offer_event["extra"]["offer_id"]
         parent_cycle_id = offer_event["extra"]["parent_cycle_id"]
+        parent_before = client.get(f"/api/v2/math-tutor/cycles/{parent_cycle_id}")
+        parent_before.raise_for_status()
+        parent_state = parent_before.json()["state"]
         accepted = _turn(client, "accept_practice_offer", {"offer_id": offer_id})
         started = next(
             event
@@ -109,6 +112,10 @@ def seed(data_root: Path, output: Path, namespace: str) -> dict[str, Any]:
             if event.get("payload", {}).get("action") == "practice_started"
         )
         child_cycle_id = started["extra"]["child_cycle_id"]
+        parent_after = client.get(f"/api/v2/math-tutor/cycles/{parent_cycle_id}")
+        parent_after.raise_for_status()
+        if parent_after.json()["state"] != parent_state:
+            raise RuntimeError("accepting practice changed the parent's learning state")
 
         summary = client.get("/api/v2/math-tutor/desktop/student-summary")
         summary.raise_for_status()
@@ -123,6 +130,7 @@ def seed(data_root: Path, output: Path, namespace: str) -> dict[str, Any]:
             "document_id": document.json()["document_id"],
             "memory_id": memory.json()["memory_id"],
             "parent_cycle_id": parent_cycle_id,
+            "parent_state": parent_state,
             "offer_id": offer_id,
             "child_cycle_id": child_cycle_id,
             "backup_name": backup.json()["backup"]["path"],
@@ -215,15 +223,15 @@ def verify(data_root: Path, expected_path: Path, namespace: str) -> dict[str, An
         )
         checks = {
             "migration_head": version.json().get("release_config", {}).get("migration_head")
-            == "010",
+            == "014",
             "document_survives": documents.status_code == 200
             and any(item["document_id"] == expected["document_id"] for item in documents.json()),
             "memory_survives": memories.status_code == 200
             and any(item["memory_id"] == expected["memory_id"] for item in memories.json()),
             "offer_survives": offers.status_code == 200
             and any(item["offer_id"] == expected["offer_id"] for item in offers.json()),
-            "parent_cycle_survives": parent.status_code == 200
-            and parent.json().get("state") == "closed",
+            "parent_state_preserved": parent.status_code == 200
+            and parent.json().get("state") == expected["parent_state"],
             "child_cycle_survives": child.status_code == 200,
             "student_summary_stable": summary.status_code == 200
             and summary.json() == expected["student_summary"],

@@ -242,11 +242,12 @@ async def insert_tutor_action(
     solution_visibility: str,
     target_step_index: int | None = None,
     policy_versions: dict[str, str] | None = None,
+    action_id: UUID | None = None,
 ) -> UUID:
-    action_id = uuid4()
+    action_id = action_id or uuid4()
     versions = policy_versions or {}
     await conn.execute(
-        tutor_actions.insert().values(
+        tutor_actions.insert().prefix_with("OR IGNORE").values(
             action_id=str(action_id),
             cycle_id=str(cycle_id),
             student_id=student_id,
@@ -396,6 +397,7 @@ async def load_evidence_for_student(
             select(
                 mastery_evidence,
                 attempts.c.attempt_index,
+                verification_logs.c.problem_id,
             )
             .select_from(mastery_evidence)
             .join(
@@ -403,6 +405,8 @@ async def load_evidence_for_student(
                 (attempts.c.attempt_id == mastery_evidence.c.attempt_id)
                 & (attempts.c.student_id == mastery_evidence.c.student_id),
             )
+            .outerjoin(verification_logs, (verification_logs.c.log_id == mastery_evidence.c.attempt_assessment_log_id)
+                       & (verification_logs.c.attempt_id == mastery_evidence.c.attempt_id))
             .where(mastery_evidence.c.student_id == student_id)
             .order_by(mastery_evidence.c.created_at, mastery_evidence.c.evidence_id)
         )
@@ -417,6 +421,7 @@ async def load_evidence_for_student(
                 attempt_id=UUID(mapping["attempt_id"]),
                 attempt_assessment_log_id=UUID(mapping["attempt_assessment_log_id"]),
                 skill_id=mapping["skill_id"],
+                problem_id=str(mapping["problem_id"] or ""),
                 correctness=mapping["correctness"],
                 score=float(mapping["score"]),
                 difficulty=int(mapping["difficulty"]),

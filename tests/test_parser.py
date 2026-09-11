@@ -71,6 +71,13 @@ class TestFamilies:
 
 
 class TestCanonicalEquality:
+    @pytest.mark.parametrize("text,operation", [("3/4 + 1/2", "+"), ("8-(-3)", "-"),
+        ("2*(3+4)", r"\cdot")])
+    def test_arithmetic_task_display_keeps_operation_without_changing_facts(self, text, operation):
+        problem = parsed(text)
+        assert operation in problem.display_latex
+        assert parsed(problem.display_latex).normalized_ast == problem.normalized_ast
+
     def test_term_order_is_irrelevant(self) -> None:
         assert parsed("2x^2 + 4x").normalized_ast == parsed("4x + 2x^2").normalized_ast
 

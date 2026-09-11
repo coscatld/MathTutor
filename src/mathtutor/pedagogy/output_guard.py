@@ -1,12 +1,9 @@
 """TutorOutputGuard — the last line before the student sees anything (Phase 3D).
 
-Checks three leakage classes against the verified solution:
-
-1. final-answer leakage (values/roots appearing anywhere),
-2. unapproved-step leakage (an approved-level text that contains equation
-   fragments equivalent to the answer),
-3. mathematically equivalent disclosure (e.g. ``x-2=0`` for answer ``x=2``
-   — detected by canonical ROOT-SET equality, not string search).
+Checks scalar results, roots, polynomial forms and system assignments against
+verified solution material. Merely mentioning a source constant is not answer
+exposure. Guard mode also catches unauthorized equivalent solution equations;
+delivery mode records only an actually revealed complete target answer.
 
 On detection: deterministic fallback per level (design doc §7.2 — no LLM
 retry loops). L5 is the only level allowed to carry the full solution.
@@ -16,6 +13,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
+import json
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -25,11 +24,11 @@ from mathtutor.domain.tutoring import TutorAction
 from mathtutor.pedagogy.disclosure import DisclosedSolutionContext
 from mathtutor.pedagogy.guard_math import (
     equation_roots,
-    extract_math_fragments,
-    numeric_values,
     parse_fragment,
 )
 from mathtutor.pedagogy.tutor_writer import TutorWriterCandidate
+from mathtutor.solving import nodes as n
+from mathtutor.solving.strategies import _common as common
 
 
 class GuardedTutorUtterance(BaseModel):
@@ -130,42 +129,162 @@ class TutorOutputGuard:
 
     # ------------------------------------------------------------ detection
 
-    def _detect_leak(self, text: str, candidate: MathSolutionCandidate) -> str | None:
-        """Return the leak class name, or None when clean."""
-        forbidden = build_forbidden_set(candidate)
+    def _detect_leak(self, text: str, candidate: MathSolutionCandidate, *, target_answer_only=False) -> str | None:
+        """Compare actual answer assertions, not numbers occurring in a prompt.
 
-        # 1. Exact final-answer values appearing as numbers (2, 4/2, 2.0 …).
-        answer_fractions: set[Fraction] = set()
-        for value in forbidden.answer_values:
-            try:
-                answer_fractions.add(Fraction(value))
-            except (ValueError, ZeroDivisionError):
-                continue
-        text_values = numeric_values(text)
-        if text_values & answer_fractions:
-            return "final_answer_value"
-
-        # 2. Equation fragments whose canonical root set equals the answer
-        #    (catches x=2, x-2=0, 2-x=0, 2x=4 … for answer {2}).
-        answer_roots = (
-            {str(r) for r in candidate.final_answer.get("roots", [])}
-            if isinstance(candidate.final_answer, dict) and candidate.final_answer.get("kind") == "roots"
-            else set()
-        )
-        for fragment in extract_math_fragments(text):
-            parsed = parse_fragment(fragment)
-            if parsed is None:
-                continue
-            roots = equation_roots(parsed)
-            if roots is None:
-                # An arithmetic expression fragment could still BE the answer
-                # (e.g. "4/2"); its value was already caught by check 1.
-                continue
-            root_strings = {str(r) for r in roots}
-            if answer_roots and root_strings == answer_roots:
-                return "equivalent_equation"
-
+        Delivery uses ``target_answer_only=True``: a useful intermediate
+        equation is help, not a full-answer exposure. Guarding additionally
+        rejects unauthorized equivalent solution equations. Both paths exclude
+        the source statement reconstructed from verified candidate material.
+        """
+        final = candidate.final_answer
+        kind = final.get("kind")
+        fragments = _answer_fragments(text)
+        asserted = bool(_ANSWER_ASSERTION.search(text))
+        if kind == "rational":
+            expected = common.frac_from_dict(final["value"])
+            source = candidate.steps[-1].get("expr") if candidate.steps else None
+            for fragment in fragments:
+                parts = fragment.split("=")
+                options = parts[-1:] if len(parts) > 1 else parts
+                for part in options:
+                    parsed = parse_fragment(part)
+                    if parsed and source == n.to_dict(parsed.ast) and not asserted and len(parts) == 1 and not _bare_answer(text, part):
+                        continue
+                    if _scalar(part) == expected and (len(parts) > 1 or asserted or _bare_answer(text, part)):
+                        return "final_arithmetic_value"
+        elif kind == "polynomial":
+            expected = _nonzero_coefficients(common.coeffs_from_dict(final["coeffs"]))
+            variable = final["var"]
+            source = candidate.steps[0].get("expr") if candidate.steps else None
+            for fragment in fragments:
+                for part in fragment.split("="):
+                    parsed = parse_fragment(part)
+                    if not parsed or isinstance(parsed.ast, n.Equation):
+                        continue
+                    if source == n.to_dict(parsed.ast) and not asserted:
+                        continue
+                    coeffs = n.poly_coeffs(parsed.ast, variable)
+                    if coeffs is not None and _nonzero_coefficients(coeffs) == expected:
+                        return "final_polynomial_form"
+        elif kind == "assignments":
+            values = {name: common.frac_from_dict(value) for name, value in final["values"].items()}
+            observed = {}
+            for fragment in fragments:
+                pair = _assignment(fragment)
+                if pair and pair[0] in values and pair[1] == values[pair[0]]:
+                    observed[pair[0]] = pair[1]
+            if observed and (not target_answer_only or len(observed) == len(values)):
+                return "final_system_assignments" if len(observed) == len(values) else "partial_solution_assignment"
+        elif kind == "roots":
+            roots = final.get("roots", ())
+            if not roots and re.search(r"无实(?:数)?根|没有实数解|无实数解|空集|∅", text):
+                return "empty_root_set"
+            expected = {_root_key(root) for root in roots}
+            seen = set()
+            variable = str(final.get("latex", "x=")).split("=", 1)[0].strip() or "x"
+            for fragment in fragments:
+                pair = _assignment(fragment)
+                if pair and pair[0] == variable:
+                    key = _root_key(common.rational_root(pair[1]))
+                    if key in expected:
+                        seen.add(key)
+                # Symbolic surds use their server-authored exact rendering;
+                # no floating-point approximation decides algebraic equality.
+                for root in roots:
+                    rendered = common.root_latex(root, variable)
+                    if _math_key(fragment) == _math_key(rendered):
+                        seen.add(_root_key(root))
+                value = _scalar(fragment)
+                if value is not None and (asserted or _bare_answer(text, fragment)):
+                    key = _root_key(common.rational_root(value))
+                    if key in expected:
+                        seen.add(key)
+                if not target_answer_only:
+                    parsed = parse_fragment(fragment)
+                    if parsed and not _original_equation(parsed, candidate):
+                        actual = equation_roots(parsed)
+                        if actual is not None and expected and {_root_key(root) for root in actual} == expected:
+                            return "equivalent_equation"
+            if seen and (not target_answer_only or seen == expected):
+                return "final_answer_value"
         return None
+
+
+_ANSWER_ASSERTION = re.compile(r"(?:答案|结果|解|根)(?:最后)?(?:就)?(?:是|为|等于|[:：])|最终(?:会)?(?:得到|得出)|所以(?:可得)?|answer\s*(?:is|=|:)", re.IGNORECASE)
+
+
+def _answer_fragments(text):
+    # LaTeX wrappers/spacing do not become mathematical variable names.
+    text = re.sub(r"\\text\{[^}]*\}", "，", text)
+    text = re.sub(r"\\(?:quad|qquad|left|right|,|;|!|\(|\)|\[|\])", " ", text)
+    text = re.sub(r"([A-Za-z])_(?:\{\d+\}|\d+)", r"\1", text)
+    return [part.strip() for part in re.findall(r"[A-Za-z0-9+*/^=().{}\\√−\-\s]+", text)
+            if part.strip() and any(ch.isdigit() or ch.isalpha() for ch in part)]
+
+
+def _scalar(text):
+    parsed = parse_fragment(text.strip())
+    if not parsed or parsed.problem_type != "arithmetic":
+        return None
+    try:
+        value = n.evaluate(parsed.ast)
+        return Fraction(value.n, value.d)
+    except (n.MathDomainError, n.MathComplexityError, ValueError, ZeroDivisionError):
+        return None
+
+
+def _assignment(fragment):
+    parts = fragment.split("=")
+    if len(parts) != 2:
+        return None
+    for name, expression in (parts, parts[::-1]):
+        name = name.strip()
+        if re.fullmatch(r"[A-Za-z]", name):
+            value = _scalar(expression)
+            if value is not None:
+                return name, value
+    return None
+
+
+def _bare_answer(text, fragment):
+    return _math_key(text.strip(" 。.!！\n")) == _math_key(fragment)
+
+
+def _math_key(text):
+    text = re.sub(r"\\(?:quad|qquad|left|right|\(|\)|\[|\])", "", text)
+    text = re.sub(r"√(\d+)", r"\\sqrt{\1}", text)
+    return re.sub(r"\s+", "", text).replace("$", "").replace("=0+", "=").replace("=0-", "=-")
+
+
+def _root_key(root):
+    return json.dumps(root, sort_keys=True, separators=(",", ":"))
+
+
+def _nonzero_coefficients(coefficients):
+    return {key: value for key, value in coefficients.items() if value}
+
+
+def _original_equation(parsed, candidate):
+    if not isinstance(parsed.ast, n.Equation) or not parsed.variable or not candidate.steps:
+        return False
+    before = candidate.steps[0].get("before")
+    if not before:
+        coefficients = candidate.steps[0]
+        if all(key in coefficients for key in ("a", "b", "c")):
+            actual = n.equation_difference(parsed.ast, parsed.variable)
+            expected = {2: common.frac_from_dict(coefficients["a"]),
+                        1: common.frac_from_dict(coefficients["b"]), 0: common.frac_from_dict(coefficients["c"])}
+            return actual is not None and _nonzero_coefficients(actual) == _nonzero_coefficients(expected)
+        return False
+    try:
+        lhs, rhs = common.equation_sides(parsed.ast, parsed.variable)
+        a, b = _nonzero_coefficients(lhs), _nonzero_coefficients(rhs)
+        source_lhs = _nonzero_coefficients(common.coeffs_from_dict(before["lhs"]))
+        source_rhs = _nonzero_coefficients(common.coeffs_from_dict(before["rhs"]))
+        return (a == source_lhs and b == source_rhs) or (a == source_rhs and b == source_lhs)
+    except (n.MathDomainError, ValueError, KeyError):
+        return False
 
 
 __all__ = [

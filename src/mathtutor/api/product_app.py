@@ -174,10 +174,16 @@ def create_math_tutor_app(
         """
         try:
             from mathtutor.api.product_state import get_product_state
-
-            await get_product_state(
-                None if db_path is None else Path(db_path)
-            ).exercise_release.publish_seed_bank()
+            state = get_product_state(None if db_path is None else Path(db_path))
+            await state.practice_repository.recover_preparing_recommendations()
+            if state.student_state is not None:
+                from sqlalchemy import select
+                from mathtutor.infrastructure.schema import student_profiles
+                async with state.uow.transaction() as conn:
+                    owners = (await conn.execute(select(student_profiles.c.student_id))).scalars().all()
+                    for owner in owners:
+                        await state.student_state.import_legacy(owner, conn=conn)
+            await state.exercise_release.publish_seed_bank()
         except Exception:  # pragma: no cover - startup resilience
             import logging
 

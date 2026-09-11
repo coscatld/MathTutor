@@ -69,7 +69,9 @@ from mathtutor.infrastructure.schema import (
     misconception_observations,
     student_state_projections,
     verification_logs,
+    teaching_contexts,
 )
+from mathtutor.learning.knowledge_tracing.schema import learning_events, learning_predictions, student_state_snapshots
 from mathtutor.learning.projection import project_student_state
 from mathtutor.repositories import sqlite_education
 from mathtutor.repositories.document_repository import (
@@ -109,6 +111,7 @@ DATA_CATEGORIES: dict[str, str] = {
     "learning_sessions": CATEGORY_SYSTEM,
     "tutoring_cycles": CATEGORY_SYSTEM,
     "cycle_transitions": CATEGORY_SYSTEM,
+    "cycle_focus": CATEGORY_SYSTEM,
     # math facts chain — shared content authority (never student-owned).
     "math_problems": CATEGORY_SYSTEM,
     "solution_candidates": CATEGORY_SYSTEM,
@@ -123,15 +126,22 @@ DATA_CATEGORIES: dict[str, str] = {
     "mastery_evidence": CATEGORY_AUTHORITY_EDUCATIONAL,
     "misconception_observations": CATEGORY_AUTHORITY_EDUCATIONAL,
     "practice_offers": CATEGORY_AUTHORITY_EDUCATIONAL,
+    "practice_recommendations": CATEGORY_AUTHORITY_EDUCATIONAL,
+    "teaching_deliveries": CATEGORY_AUTHORITY_EDUCATIONAL,
+    "learning_events": CATEGORY_AUTHORITY_EDUCATIONAL,
     # derived projections — rebuildable from facts, never a deletion source.
     "student_state_projections": CATEGORY_DERIVED,
     "document_chunk_vectors": CATEGORY_DERIVED,
     "document_index_builds": CATEGORY_DERIVED,
+    "learning_predictions": CATEGORY_DERIVED,
+    "student_state_snapshots": CATEGORY_DERIVED,
+    "teaching_contexts": CATEGORY_DERIVED,
     # user-controlled content — the student's own documents and memories.
     "user_documents": CATEGORY_USER_CONTROLLED,
     "document_chunks": CATEGORY_USER_CONTROLLED,
     "conversations": CATEGORY_USER_CONTROLLED,
     "conversation_messages": CATEGORY_USER_CONTROLLED,
+    "turn_requests": CATEGORY_USER_CONTROLLED,
     "conversation_documents": CATEGORY_USER_CONTROLLED,
     "personal_memory_nodes": CATEGORY_USER_CONTROLLED,
     "personal_memory_edges": CATEGORY_USER_CONTROLLED,
@@ -152,6 +162,7 @@ DATA_CATEGORY_REASONS: dict[str, str] = {
     "learning_sessions": "会话骨架（客户端会话 id 唯一约束），非教育结果",
     "tutoring_cycles": "教学会话骨架（状态机 CAS 载体）——明确不在教育历史删除集",
     "cycle_transitions": "append-only 状态机审计，会话骨架的一部分",
+    "cycle_focus": "会话当前题目指针，保留用于路由恢复",
     "problem_submissions": "学生提交的题目原文（含 raw_text），权威教育事实；作为 cycle 的入口记录保留在删除集之外",
     "math_problems": "canonical 数学事实目录（共享内容权威，非学生数据）",
     "solution_candidates": "标准解候选目录（共享内容权威）",
@@ -164,6 +175,12 @@ DATA_CATEGORY_REASONS: dict[str, str] = {
     "mastery_evidence": "append-only 掌握证据（不变量 B 的事实），删除集",
     "misconception_observations": "append-only 迷思观察，删除集",
     "practice_offers": "学生维度的练习发放记录（练习骨架），保留",
+    "practice_recommendations": "练习推荐目的与发放状态审计，和邀请骨架一起保留",
+    "teaching_deliveries": "帮助内容交付与暴露收据，保留以免删除历史后恢复独立资格",
+    "learning_events": "v2权威学习事件，随授权教育历史删除，不从旧聊天重建",
+    "learning_predictions": "可重算的历史预测记录，随教育历史删除",
+    "student_state_snapshots": "从学习事件重放得到的追踪器状态，随事实删除以防旧状态恢复",
+    "teaching_contexts": "题目骨架上的教学进度投影；清除作答/诊断结果，保留题目绑定",
     "student_state_projections": "StudentState 投影（由 evidence 重放派生，不变量 B）",
     "document_chunk_vectors": "embedding 向量投影（由 chunks 派生，不变量 E）",
     "document_index_builds": "索引构建生命周期行（派生的构建签名）",
@@ -171,6 +188,7 @@ DATA_CATEGORY_REASONS: dict[str, str] = {
     "document_chunks": "chunk 文本事实（用户内容；随文档删除真实清理）",
     "conversations": "学生创建的对话标题与时间信息（用户可控工作区数据）",
     "conversation_messages": "学生与 Tutor 的可恢复对话记录（用户可控内容）",
+    "turn_requests": "按用户和对话隔离的请求结果台账（含已批准回复）",
     "conversation_documents": "对话与资料的用户显式关联（用户可控边界）",
     "personal_memory_nodes": "个人记忆 KG 节点（USER_CONTROLLED，软删）",
     "personal_memory_edges": "个人记忆 KG 边（节点附属结构）",
@@ -242,6 +260,9 @@ def classify_field(table_name: str, field: str) -> str | None:
 
 #: 教育结果事实表 —— delete_educational_history 整学生硬删（行无软删字段）。
 EDUCATIONAL_RESULT_TABLES: tuple[str, ...] = (
+    "learning_events",
+    "learning_predictions",
+    "student_state_snapshots",
     "mastery_evidence",
     "misconception_observations",
     "attempt_assessments",
@@ -263,7 +284,59 @@ EDUCATIONAL_SKELETON_KEPT: tuple[str, ...] = (
     "practice_offers",
     "domain_outbox",
     "outbox_dispatch_ledger",
+    "cycle_focus",
+    "practice_recommendations",
+    "teaching_deliveries",
 )
+
+
+def _clear_teaching_results(payload: dict[str, Any]) -> dict[str, Any]:
+    """Retain the problem/navigation skeleton, never restore erased student claims."""
+    from copy import deepcopy
+    # This is deliberately a whitelist, not a growing blacklist of language
+    # caches. pending_expression (including approved bytes and continuation),
+    # language_understanding/evidence_quote, input hashes/request IDs and all
+    # future transient teaching fields are excluded by default.
+    retained = {key: deepcopy(payload[key]) for key in (
+        "schema_version", "skill_graph_version", "problem_id", "problem_revision",
+        "display_text", "skill_ids", "resume_parent_cycle_id", "client_session_id",
+    ) if key in payload}
+    goals = []
+    for goal in payload.get("subgoals", []):
+        goals.append({key: deepcopy(goal[key]) for key in ("id", "prompt_target", "skill_ids") if key in goal} | {"status": "pending"})
+    task = payload.get("task_context")
+    if isinstance(task, dict):
+        # Preserve static canonical task conditions and navigation. In
+        # particular, do not let the next hydration rebuild an incomplete
+        # task from display_text alone. Results and recovery checkpoints are
+        # not part of this retained, answer-free task projection.
+        static_task = {key: deepcopy(task[key]) for key in (
+            "schema_version", "problem_id", "cycle_id", "problem_revision", "canonicalization_version",
+            "source", "source_ref", "original_statement", "full_statement", "statement_provenance",
+            "display_text", "normalized_representation", "task_type", "task_kind", "task_objective",
+            "solve_for", "domain", "units", "precision", "expected_answer_shape", "skill_ids",
+            "skill_details", "skill_graph_version", "skill_label_version", "step_skill_map",
+            "verified_solution_ref", "verification_status", "verification_reason", "verification_capability",
+        ) if key in task}
+        static_task.update({
+            "current_subgoal_id": goals[0].get("id") if goals else None,
+            "verified_student_steps": [], "student_progress_status": "unknown",
+            "unanswered_question": None,
+            "help_exposure": {"status": "unknown", "provenance_uncertain": True,
+                              "reason": "educational_history_deleted"},
+            "used_examples": [], "example_history_status": "unknown",
+            "invitation_source": None,
+        })
+        retained["task_context"] = static_task
+    retained.update({
+        "lifecycle": "active", "current_subgoal_index": 0, "subgoals": goals,
+        "progress": [], "assessments": [], "stuck_count": 0, "help_without_progress": 0,
+        "help_fingerprints": [], "last_plan": None, "deliveries": [],
+        # Deleted chronology cannot establish new independent mastery in the old cycle.
+        "legacy_provenance_uncertain": True,
+        "diagnosis": {"status": "not_started", "can_skip": True, "question_count": 0},
+    })
+    return retained
 
 
 class LifecycleUnavailableError(ValueError):
@@ -578,6 +651,22 @@ class DataLifecycleService:
             ]
 
             deleted_by_table: dict[str, int] = {}
+            # Facts and all v2 derived state disappear in the SAME authorized transaction.
+            for table in (learning_predictions, student_state_snapshots, learning_events):
+                result = await conn.execute(sa_delete(table).where(table.c.student_id == student_id))
+                deleted_by_table[table.name] = result.rowcount
+            teaching_rows = (await conn.execute(select(teaching_contexts).where(
+                teaching_contexts.c.student_id == student_id))).all()
+            cleared_contexts = 0
+            for row in teaching_rows:
+                payload = _clear_teaching_results(row.payload)
+                if payload != row.payload:
+                    from datetime import datetime, timezone
+                    await conn.execute(teaching_contexts.update().where(
+                        teaching_contexts.c.student_id == student_id,
+                        teaching_contexts.c.cycle_id == row.cycle_id,
+                    ).values(payload=payload, updated_at=datetime.now(timezone.utc).isoformat()))
+                    cleared_contexts += 1
             # FK order: evidence → observations → assessments → (attempt-linked
             # verification logs) → attempts → attempt submissions.
             for table in (mastery_evidence, misconception_observations):
@@ -617,6 +706,7 @@ class DataLifecycleService:
                     "by_table": deleted_by_table,
                     "kept_skeleton_tables": list(EDUCATIONAL_SKELETON_KEPT),
                     "projection": None,
+                    "teaching_contexts_cleared": cleared_contexts,
                 }
                 _log_summary("delete_educational_history", summary)
                 return summary
@@ -651,6 +741,7 @@ class DataLifecycleService:
                 "deleted_rows": total_deleted,
                 "by_table": deleted_by_table,
                 "kept_skeleton_tables": list(EDUCATIONAL_SKELETON_KEPT),
+                "teaching_contexts_cleared": cleared_contexts,
                 "projection": {
                     "projection_version": replay.projection_version,
                     "estimator_version": replay.estimator_version,

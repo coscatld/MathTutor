@@ -25,7 +25,7 @@ export default function PracticeOfferCard({
   accepting: boolean;
   onStart: () => void;
 }) {
-  const active = offer.status === "ACTIVE";
+  const active = offer.status === "ACTIVE" && Boolean(offer.offer_id?.trim()) && Boolean(offer.parent_cycle_id?.trim());
   const disabled = !active || accepting;
   const expiryText = active ? offerExpiryLabel(offer.expires_at) : "";
 

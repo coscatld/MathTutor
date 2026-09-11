@@ -209,7 +209,7 @@ def test_migration_006_backfills_old_rows_and_is_idempotent(tmp_path: Path) -> N
     conn.close()
     assert columns["attempt_id"] == 1 and columns["skill_id"] == 1
     assert row == ("att", SKILL_LINEAR_EQUATION, "idem")
-    assert version == "010"
+    assert version == "014"
 
 
 @pytest.mark.asyncio
@@ -254,17 +254,17 @@ async def test_l5_projection_is_friendly_display_only(text: str) -> None:
     assert "{'" not in rendered.text and '"kind"' not in rendered.text
 
 
-def test_solution_rejection_is_actionable_and_hides_thresholds() -> None:
+def test_unverified_solution_rejection_is_actionable_and_hides_thresholds() -> None:
     with pytest.raises(DisclosurePolicyViolation) as exc:
         PedagogyPlanner().plan(
             state=CycleState.AWAITING_ATTEMPT,
             command=CycleCommand.SOLUTION_SHOWN_PERMITTED,
             policy=PRIMARY_POLICY,
             assistance=CycleAssistance(),
-            verified_ref=object(),  # only presence is relevant to this gate
+            verified_ref=None,
         )
     message = str(exc.value)
-    assert "提示" in message and "继续作答" in message
+    assert "验证" in message and "提示" in message
     assert not any(character.isdigit() for character in message)
     assert "requires" not in message and "received" not in message
 

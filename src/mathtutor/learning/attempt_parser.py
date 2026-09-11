@@ -30,7 +30,7 @@ from mathtutor.domain.attempt import StudentAttempt
 from mathtutor.solving import nodes as n
 from mathtutor.solving.parser import ParsedProblem, parse_problem
 
-AttemptAnswerKind = Literal["value", "equation", "empty_root_set", "undeterminable"]
+AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "undeterminable"]
 
 # uuid5 namespace for deterministic attempt ids: attempt_id = f(submission_id),
 # so a replayed submission yields the SAME attempt identity end to end —
@@ -93,9 +93,14 @@ def parse_student_attempt(
         parsed_steps = ({"kind": "answer", "parse_kind": "empty_root_set"},)
     else:
         outcome = parse_problem(stripped)
+        if outcome.kind == "unsupported" and stripped.count("=") == 1:
+            from mathtutor.solving.parser import parse_linear_equation_fragment
+            fragment = parse_linear_equation_fragment(stripped)
+            if fragment.kind == "parsed":
+                outcome = fragment
         if outcome.kind == "parsed" and outcome.problem is not None:
             parsed_problem = outcome.problem
-            parse_kind = "equation" if isinstance(parsed_problem.ast, n.Equation) else "value"
+            parse_kind = "linear_system" if isinstance(parsed_problem.ast, n.LinearSystem) else "equation" if isinstance(parsed_problem.ast, n.Equation) else "value"
             parsed_steps = (
                 {
                     "kind": "answer",
@@ -142,7 +147,7 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
     parse_kind = step.get("parse_kind")
     if parse_kind == "empty_root_set":
         return ParsedAttempt("empty_root_set")
-    if parse_kind not in ("value", "equation"):
+    if parse_kind not in ("value", "equation", "linear_system"):
         return ParsedAttempt.undeterminable(f"未知的解析类型: {parse_kind!r}")
     try:
         ast = n.from_dict(step["normalized_ast"])

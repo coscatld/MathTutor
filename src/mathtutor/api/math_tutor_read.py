@@ -77,6 +77,9 @@ async def get_session(
         "state_version": 0,
         "allowed_next_inputs": [],
     }
+    from mathtutor.application.student_contract import session_contract
+    summary.update(await session_contract(state.store, owner.student_id, session,
+        processing=state.turn_requests.is_processing(owner.student_id, session_id)))
     return {
         **summary,
         **(conversation or {}),

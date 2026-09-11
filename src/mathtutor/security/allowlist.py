@@ -22,11 +22,14 @@ MATHTUTOR_ALLOWED_CAPABILITIES: frozenset[str] = frozenset({"math_tutor"})
 MATHTUTOR_ENVELOPE_ALLOWED_KEYS: frozenset[str] = frozenset(
     {
         "command",
+        "protocol_version",
         "payload",
         "cycle_id",
         "session_id",
         "request_id",
         "expected_cycle_version",
+        "expected_state_version",
+        "problem_revision",
         "idempotency_key",
     }
 )
@@ -108,6 +111,19 @@ def validate_client_envelope(raw: Any) -> dict[str, Any]:
     """
     if not isinstance(raw, dict):
         raise SecurityViolationError("envelope must be a JSON object")
+    if type(raw.get("protocol_version", 1)) is not int or raw.get("protocol_version", 1) not in (1, 2):
+        raise SecurityViolationError("请更新客户端后重试。")
+    for key in ("request_id", "idempotency_key"):
+        if key in raw and (not isinstance(raw[key], str) or not raw[key].strip() or len(raw[key]) > 160):
+            raise SecurityViolationError("请求标识无效，请重新打开对话。")
+    for key in ("cycle_id", "problem_revision"):
+        if key in raw and (not isinstance(raw[key], str) or len(raw[key]) > 128):
+            raise SecurityViolationError("题目绑定无效，请重新同步对话。")
+    for key in ("expected_cycle_version", "expected_state_version"):
+        if key in raw and (type(raw[key]) is not int or raw[key] < 0):
+            raise SecurityViolationError("状态版本无效，请重新同步对话。")
+    if "expected_cycle_version" in raw and "expected_state_version" in raw and raw["expected_cycle_version"] != raw["expected_state_version"]:
+        raise SecurityViolationError("状态版本不一致，请重新同步对话。")
     forbidden = [key for key in raw if key in MATHTUTOR_ENVELOPE_FORBIDDEN_KEYS]
     if forbidden:
         raise SecurityViolationError(

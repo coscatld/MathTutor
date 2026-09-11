@@ -28,6 +28,10 @@ from mathtutor.pedagogy.events import StudentPublicEvent
 from mathtutor.api.event_stream import MathTutorEventStream
 from mathtutor.api.product_state import get_product_state
 from mathtutor.application.controller import MathTutorRequest
+from mathtutor.application.controller import LEGACY_COMMAND_ALIASES
+from mathtutor.application.message_projection import project_turn_error
+from mathtutor.domain.hashing import content_hash
+from mathtutor.repositories.conversation_repository import message_id_for
 from mathtutor.application.conversation_scope import reset_document_scope, set_document_scope
 from mathtutor.security.allowlist import (
     SecurityViolationError,
@@ -56,11 +60,12 @@ def _to_student_frame(event: Any) -> dict[str, Any]:
             event_type="turn_error",
             cycle_state=str(metadata.get("cycle_state", "")),
             cycle_state_version=int(metadata.get("cycle_state_version") or 0),
-            payload={"error": event.content},
+            payload={"error": project_turn_error(event.content), "error_code": metadata.get("error_code", "REQUEST_FAILED")},
         ).wire_dict()
     if event.type == "content":
         return StudentPublicEvent(
             event_type=str(metadata.get("event_type") or "tutor_action_committed"),
+            cycle_id=str(metadata.get("cycle_id") or ""),
             cycle_state=str(metadata.get("cycle_state", "")),
             cycle_state_version=int(metadata.get("cycle_state_version") or 0),
             allowed_next_inputs=[str(x) for x in metadata.get("allowed_next_inputs") or []],
@@ -95,6 +100,10 @@ async def math_tutor_websocket(ws: WebSocket) -> None:
     incoming: asyncio.Queue[str | None] = asyncio.Queue(maxsize=16)
     disconnect_reason = FinishReason.STREAM_INTERRUPTED
 
+    def set_active(task, conversation_id):
+        nonlocal active_task, active_conversation
+        active_task, active_conversation = task, conversation_id
+
     async def safe_send(data: dict[str, Any]) -> None:
         nonlocal closed
         if closed:
@@ -111,6 +120,11 @@ async def math_tutor_websocket(ws: WebSocket) -> None:
                 raw = await ws.receive_text()
                 try:
                     envelope = json.loads(raw)
+                    if (isinstance(envelope, dict) and envelope.get("type") == "delivery_presented"
+                            and set(envelope) == {"type", "delivery_id"}
+                            and isinstance(envelope["delivery_id"], str) and len(envelope["delivery_id"]) <= 160):
+                        await state.controller.mark_delivery(owner.student_id, envelope["delivery_id"], "presented")
+                        continue
                     validate_client_envelope(envelope)
                 except (ValueError, SecurityViolationError):
                     envelope = {}
@@ -139,83 +153,10 @@ async def math_tutor_websocket(ws: WebSocket) -> None:
             if user_message is not None:
                 session_id = session_id or "default"
                 display_text, event_key = _message_projection(user_message)
-                await state.conversations.ensure(owner.student_id, session_id)
-                await state.conversations.append_message(
-                    owner.student_id,
-                    session_id,
-                    role="student",
-                    content=display_text,
-                    event_key=f"student:{event_key}",
-                )
-                request = MathTutorRequest(
-                    session_id=session_id,
-                    user_message=user_message,
-                    owner=owner,
-                    conversation_messages=tuple(
-                        await state.conversations.messages(owner.student_id, session_id)
-                    ),
-                )
-                event_stream = MathTutorEventStream()
-                turn = TutorTurnResult(turn_id=event_key, conversation_id=session_id)
-                started = time.monotonic()
-
-                async def _run() -> None:
-                    token = None
-                    turn_token = current_turn.set(turn)
-                    try:
-                        token = set_document_scope(await state.conversations.document_ids(owner.student_id, session_id))
-                        await state.controller.run(request, event_stream)
-                    except asyncio.CancelledError:
-                        turn.stop(disconnect_reason, "\n\n".join(str(p["student_message"]) for p in pending_messages))
-                    except Exception:
-                        turn.stop(FinishReason.INTERNAL_ERROR, "\n\n".join(str(p["student_message"]) for p in pending_messages))
-                    finally:
-                        current_turn.reset(turn_token)
-                        if token is not None:
-                            reset_document_scope(token)
-                        await event_stream.close()
-
                 disconnect_reason = FinishReason.STREAM_INTERRUPTED
-                pending_messages = []
-                task = asyncio.create_task(_run())
-                active_task = task
-                active_conversation = session_id
-                await safe_send(StudentPublicEvent(event_type="assistant_start", payload={"turn_id": event_key, "conversation_id": session_id}).wire_dict())
-                async for event in event_stream.subscribe():
-                    frame = _to_student_frame(event)
-                    payload = frame.setdefault("payload", {})
-                    payload.update({"turn_id": event_key, "conversation_id": session_id})
-                    if frame.get("event_type") == "turn_error":
-                        turn.stop(FinishReason.INTERNAL_ERROR, turn.final_text)
-                    if frame.get("event_type") in {"tutor_action_committed", "tutor_message"} and payload.get("student_message"):
-                        turn.final_text = str(payload["student_message"])
-                        payload["message_id"] = f"{event_key}:{len(pending_messages)}"
-                        payload.update({"turn_id": event_key, "conversation_id": session_id, "status": "STREAMING"})
-                        pending_messages.append(dict(payload, cycle_state_version=frame.get("cycle_state_version", 0)))
-                    await safe_send(frame)
-                    if frame.get("event_type") in {"tutor_action_committed", "tutor_message"} and payload.get("student_message"):
-                        await safe_send(StudentPublicEvent(event_type="assistant_delta", payload=payload).wire_dict())
-                await task
-                active_task = None
-                turn.final_text = "\n\n".join(str(p["student_message"]) for p in pending_messages)
-                if turn.partial and not turn.final_text:
-                    turn.status = "FAILED"
-                for payload in pending_messages:
-                    await state.conversations.append_message(owner.student_id, session_id, role="tutor",
-                        content=str(payload["student_message"]), action=str(payload.get("action") or ""),
-                        assistance_level=int(payload.get("effective_assistance_level") or 0),
-                        status=turn.status, finish_reason=turn.finish_reason.value, turn_id=event_key,
-                        continuation_context=getattr(turn, "continuation_context", ""),
-                        event_key=f"tutor:{event_key}:{payload['cycle_state_version']}:{payload.get('action', '')}")
-                if not turn.final_text and turn.status != "COMPLETED":
-                    await state.conversations.append_message(owner.student_id, session_id, role="tutor",
-                        content="已停止生成。" if turn.status == "CANCELLED" else "这次回答未能生成，请重试。",
-                        status=turn.status, finish_reason=turn.finish_reason.value, turn_id=event_key,
-                        event_key=f"tutor:{event_key}:outcome")
-                turn.latency_ms = int((time.monotonic() - started) * 1000)
-                record_turn(turn)
-                terminal = "assistant_complete" if turn.status == "COMPLETED" else "assistant_partial" if turn.partial else "assistant_error"
-                await safe_send(StudentPublicEvent(event_type=terminal, payload=turn.wire()).wire_dict())
+                await _process_request(state, owner, session_id, user_message, event_key,
+                                       display_text, safe_send, set_active,
+                                       lambda: disconnect_reason)
             # Turn-termination frame: the client reads events until it sees
             # this marker (the socket stays open for the next command).
             await safe_send(StudentPublicEvent(event_type="turn_end", payload={"conversation_id": session_id}).wire_dict())
@@ -227,6 +168,203 @@ async def math_tutor_websocket(ws: WebSocket) -> None:
             active_task.cancel()
             await asyncio.gather(active_task, return_exceptions=True)
         await asyncio.gather(reader, return_exceptions=True)
+
+
+def _canonical_envelope(user_message: str) -> dict:
+    try:
+        envelope = json.loads(user_message)
+    except ValueError:
+        envelope = {"command": "send_message", "payload": {"text": user_message}}
+    if not isinstance(envelope, dict):
+        envelope = {"command": "send_message", "payload": {"text": user_message}}
+    if envelope.get("protocol_version", 1) == 1:
+        envelope["command"] = LEGACY_COMMAND_ALIASES.get(envelope.get("command"), envelope.get("command", "send_message"))
+    return envelope
+
+
+async def _process_request(state, owner, session_id, user_message, event_key,
+                           display_text, send, set_active, cancellation_reason):
+    """One serialized request, with durable approved-result replay."""
+    journal = state.turn_requests
+    key = (owner.student_id, session_id, event_key)
+    envelope = _canonical_envelope(user_message)
+    fingerprint = content_hash({k: v for k, v in envelope.items()
+                                if k not in {"request_id", "idempotency_key"}})
+    async with journal.conversation(owner.student_id, session_id):
+        await state.conversations.ensure(owner.student_id, session_id)
+        created, stored = await journal.claim(*key, fingerprint)
+        recovery = None
+        if not created:
+            if stored["payload_hash"] != fingerprint:
+                await send(StudentPublicEvent(event_type="assistant_error", payload={
+                    "turn_id": f"{event_key}:conflict", "conversation_id": session_id,
+                    "status": "FAILED", "error_code": "REQUEST_ID_CONFLICT",
+                    "error": "同一个请求标识对应了不同内容，请重新发送。",
+                }).wire_dict())
+                return
+            failed_or_interrupted = stored["status"] != "FINISHED" or any(
+                frame["event_type"] in {"assistant_error", "assistant_partial"} for frame in stored["frames"])
+            if failed_or_interrupted:
+                cycle = await state.store.load(owner.student_id, session_id)
+                context = await state.store.teaching.load(owner.student_id, cycle.cycle.cycle_id) if cycle else None
+                checkpoint = (context or {}).get("pending_expression", {})
+                if (checkpoint.get("request_id") == event_key and checkpoint.get("phase") != "done"
+                        and checkpoint.get("cycle_version") == cycle.version
+                        and checkpoint.get("command") in {"request_hint", "request_explanation", "request_example", "request_solution"}):
+                    recovery = checkpoint
+        if not created and recovery is None:
+            frames = stored["frames"]
+            if stored["status"] != "FINISHED":
+                # A previous process stopped after claim. Do not replay effects.
+                snapshots = [f["payload"].get("student_message", "") for f in frames if f["event_type"] == "assistant_delta"]
+                text = snapshots[-1] if snapshots else ""
+                # The approved history snapshot is written before its frame.
+                # A crash in that gap must not discard already saved content.
+                messages = await state.conversations.messages(owner.student_id, session_id)
+                saved = next((m for m in reversed(messages) if m.get("turn_id") == event_key and m["role"] == "tutor"), None)
+                if saved and saved["content"] != text:
+                    text = saved["content"]
+                    frames = [*frames, StudentPublicEvent(event_type="assistant_delta", payload={
+                        "turn_id": event_key, "conversation_id": session_id,
+                        "message_id": saved["message_id"], "student_message": text,
+                        "content_mode": "snapshot", "action": saved["action"],
+                        "effective_assistance_level": saved["assistance_level"],
+                    }).wire_dict()]
+                recovered = TutorTurnResult(turn_id=event_key, conversation_id=session_id)
+                recovered.stop(FinishReason.STREAM_INTERRUPTED, text)
+                if not text:
+                    await state.conversations.save_turn_message(*key, role="error",
+                        content="上次处理已中断；已保存的作答不会重复提交，请重新同步题目状态。",
+                        status="FAILED", finish_reason=recovered.finish_reason.value)
+                await state.conversations.finalize_turn(*key, status=recovered.status, finish_reason=recovered.finish_reason.value)
+                frames = [*frames, StudentPublicEvent(
+                    event_type="assistant_partial" if text else "assistant_error",
+                    payload={**recovered.wire(), "error_code": "REQUEST_INTERRUPTED",
+                             "error": "上次处理已中断；已保存的作答不会重复提交，请重新同步题目状态。"},
+                ).wire_dict()]
+                await journal.record(*key, frames, finished=True)
+            for frame in frames:
+                await send(frame)
+            return
+
+        frames = []
+
+        async def publish(frame, *, finished=False):
+            frames.append(frame)
+            await journal.record(*key, frames, finished=finished)
+            await send(frame)
+
+        if not recovery:
+            await state.conversations.append_message(owner.student_id, session_id,
+                role="student", content=display_text, event_key=f"student:{event_key}")
+        # Evidence keys are globally unique; a client key is only conversation-local.
+        envelope["idempotency_key"] = content_hash({"owner": key[0], "conversation": key[1], "request": key[2]})
+        request = MathTutorRequest(session_id=session_id,
+            user_message=json.dumps(envelope, ensure_ascii=False), owner=owner,
+            conversation_messages=tuple(await state.conversations.messages(owner.student_id, session_id)))
+        stream = MathTutorEventStream()
+        turn = TutorTurnResult(turn_id=event_key, conversation_id=session_id)
+        started = time.monotonic()
+        texts = [recovery["feedback"]] if recovery and recovery.get("feedback") else []
+        error_text = ""
+        display_action = ""
+        display_level = 0
+
+        async def run():
+            token = None
+            turn_token = current_turn.set(turn)
+            try:
+                token = set_document_scope(await state.conversations.document_ids(owner.student_id, session_id))
+                if recovery:
+                    await state.controller.recover_expression(request, recovery, stream)
+                else:
+                    await state.controller.run(request, stream)
+            except asyncio.CancelledError:
+                turn.stop(cancellation_reason(), "\n\n".join(texts))
+            except Exception:
+                logger.exception("Tutor request failed conversation_id=%s", session_id)
+                turn.stop(FinishReason.INTERNAL_ERROR, "\n\n".join(texts))
+            finally:
+                current_turn.reset(turn_token)
+                if token is not None:
+                    reset_document_scope(token)
+                await stream.close()
+
+        task = asyncio.create_task(run())
+        set_active(task, session_id)
+        try:
+            await publish(StudentPublicEvent(event_type="assistant_start", payload={"turn_id": event_key, "conversation_id": session_id}).wire_dict())
+            async for event in stream.subscribe():
+                frame = _to_student_frame(event)
+                payload = frame["payload"]
+                payload.update(turn_id=event_key, conversation_id=session_id)
+                is_content = frame["event_type"] in {"tutor_action_committed", "tutor_message"} and payload.get("student_message")
+                if frame["event_type"] == "turn_error":
+                    if error_text:
+                        continue
+                    error_text = payload["error"]
+                    turn.stop(FinishReason.INTERNAL_ERROR, "\n\n".join(texts))
+                    payload["message_id"] = message_id_for(owner.student_id, session_id, f"tutor:{event_key}:result")
+                    await state.conversations.save_turn_message(*key,
+                        role="tutor" if texts else "error", content="\n\n".join([*texts, error_text]),
+                        status="FAILED", finish_reason=turn.finish_reason.value)
+                if is_content:
+                    unique = f"tutor:{event_key}:result"
+                    payload.update(message_id=message_id_for(owner.student_id, session_id, unique),
+                                   status="STREAMING", content_mode="snapshot")
+                    texts.append(payload["student_message"])
+                    payload["student_message"] = "\n\n".join(texts)
+                    level = payload.get("effective_assistance_level", 0)
+                    if not display_action or level > display_level:
+                        display_action, display_level = payload.get("action", ""), level
+                    # Store approved content before sending; wire and history IDs agree.
+                    await state.conversations.save_turn_message(*key,
+                        role="tutor", content=payload["student_message"], action=display_action,
+                        assistance_level=display_level,
+                        status="STREAMING",
+                        continuation_context=getattr(turn, "continuation_context", ""))
+                await publish(frame)
+                if is_content:
+                    await publish(StudentPublicEvent(event_type="assistant_delta", payload={
+                        **payload, "action": display_action, "effective_assistance_level": display_level,
+                    }).wire_dict())
+            await task
+        finally:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            set_active(None, session_id)
+        turn.final_text = "\n\n".join(texts)
+        if error_text:
+            turn.stop(FinishReason.INTERNAL_ERROR, turn.final_text)
+            turn.final_text = "\n\n".join([*texts, error_text])
+        if turn.partial and not turn.final_text:
+            turn.status = "FAILED"
+        await state.conversations.finalize_turn(*key, status=turn.status, finish_reason=turn.finish_reason.value)
+        if not texts and not error_text and turn.status != "COMPLETED":
+            error_text = "已停止生成。" if turn.status == "CANCELLED" else "这次回答未能生成，请重新同步后再试。"
+            await state.conversations.save_turn_message(*key,
+                role="error", content=error_text, status=turn.status,
+                finish_reason=turn.finish_reason.value)
+        turn.latency_ms = int((time.monotonic() - started) * 1000)
+        record_turn(turn)
+        terminal = "assistant_complete" if turn.status == "COMPLETED" else "assistant_partial" if turn.partial else "assistant_error"
+        from mathtutor.application.student_contract import session_contract
+        contract = await session_contract(state.store, owner.student_id, await state.store.load(owner.student_id, session_id))
+        await publish(StudentPublicEvent(event_type=terminal,
+            cycle_id=contract["cycle_id"], cycle_state=contract["state"], cycle_state_version=contract["state_version"],
+            problem_revision=contract["problem_revision"], allowed_actions=contract["allowed_actions"],
+            allowed_next_inputs=contract["allowed_next_inputs"],
+            **{key: contract[key] for key in ("teaching_plan", "problem_context", "evidence_summary", "active_offer", "diagnosis")},
+            delivery_id=json.loads(getattr(turn, "continuation_context", "") or "{}").get("delivery_id"),
+            payload={**turn.wire(), "error": error_text, "effective_assistance_level": contract["effective_assistance_level"]},
+        ).wire_dict(), finished=True)
+        if turn.status == "COMPLETED":
+            active = await state.store.load(owner.student_id, session_id)
+            context = await state.store.teaching.load(owner.student_id, active.cycle.cycle_id) if active else None
+            if context and context.get("pending_expression", {}).get("request_id") == event_key:
+                context["pending_expression"]["phase"] = "done"
+                await state.store.teaching.save(owner.student_id, active.cycle.cycle_id, context)
 
 
 async def _normalize_message(
@@ -282,20 +420,18 @@ def _message_projection(user_message: str) -> tuple[str, str]:
         envelope = json.loads(user_message)
     except (TypeError, json.JSONDecodeError):
         return user_message.strip(), str(uuid4())
-    payload = envelope.get("payload") if isinstance(envelope, dict) else {}
+    if not isinstance(envelope, dict):
+        return user_message.strip(), str(uuid4())
+    payload = envelope.get("payload")
     if not isinstance(payload, dict):
         payload = {}
     text = next((str(payload.get(key) or "").strip() for key in ("text", "answer") if str(payload.get(key) or "").strip()), "")
     command = str(envelope.get("command") or "")
+    if envelope.get("protocol_version", 1) == 1:
+        command = LEGACY_COMMAND_ALIASES.get(command, command)
     if not text:
-        text = {
-            "request_hint": "给我一点提示",
-            "request_explanation": "讲解这个知识点",
-            "request_example": "给我一个类似例子",
-            "request_solution": "查看完整答案",
-            "accept_practice_offer": "接受练习",
-            "decline_practice_offer": "暂不练习",
-        }.get(command, command or "继续")
+        from mathtutor.application.message_projection import command_message_label
+        text = command_message_label(command)
     key = str(envelope.get("request_id") or envelope.get("idempotency_key") or uuid4())
     return text, key
 

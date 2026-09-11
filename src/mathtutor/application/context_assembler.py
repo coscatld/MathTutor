@@ -352,6 +352,7 @@ class RecentAttemptsSourceProvider(BaseContextSourceProvider):
                 ),
                 attempt_index=int(getattr(item, "attempt_index", 1)),
                 created_at=str(getattr(item, "created_at", "")),
+                problem_id=str(getattr(item, "problem_id", "")),
             )
             for item in list(evidence)[-self._max_entries :]
         )
@@ -490,10 +491,12 @@ class StaticCurriculumProvider(CurriculumSourceProvider):
             CurriculumNodeRef(node_id="POLYNOMIAL_BASIC", code="POLYNOMIAL_BASIC", kind="skill", title="多项式基础", stage="junior"),
             CurriculumNodeRef(node_id="LINEAR_EQUATION", code="LINEAR_EQUATION", kind="skill", title="一元一次方程", stage="junior"),
             CurriculumNodeRef(node_id="QUADRATIC_EQUATION", code="QUADRATIC_EQUATION", kind="skill", title="一元二次方程", stage="junior"),
+            CurriculumNodeRef(node_id="LINEAR_SYSTEM", code="LINEAR_SYSTEM", kind="skill", title="二元一次方程组", stage="junior"),
             CurriculumNodeRef(node_id="CONCEPT_NUMBER_OPERATIONS", code="CONCEPT_NUMBER_OPERATIONS", kind="concept", title="数与运算", stage="primary"),
             CurriculumNodeRef(node_id="CONCEPT_POLYNOMIALS", code="CONCEPT_POLYNOMIALS", kind="concept", title="多项式", stage="junior"),
             CurriculumNodeRef(node_id="CONCEPT_LINEAR_EQUATIONS", code="CONCEPT_LINEAR_EQUATIONS", kind="concept", title="一次方程", stage="junior"),
             CurriculumNodeRef(node_id="CONCEPT_QUADRATIC_EQUATIONS", code="CONCEPT_QUADRATIC_EQUATIONS", kind="concept", title="二次方程", stage="junior"),
+            CurriculumNodeRef(node_id="CONCEPT_LINEAR_SYSTEMS", code="CONCEPT_LINEAR_SYSTEMS", kind="concept", title="线性方程组", stage="junior"),
         ]
 
         async def fetch(_student_id: str, node_ids: Sequence[str] | None) -> list[CurriculumNodeRef]:

@@ -78,6 +78,7 @@ class AttemptSummaryEntry(BaseModel):
     effective_assistance_level: int = Field(ge=0, le=5)
     attempt_index: int = Field(ge=1)
     created_at: str = ""
+    problem_id: str = ""
 
 
 class PersonalPreferenceContext(BaseModel):
@@ -111,6 +112,9 @@ class PracticeGenerationContext(BaseModel):
     recent_attempt_summary: tuple[AttemptSummaryEntry, ...] = ()
 
     desired_difficulty: int = Field(ge=1, le=5, default=2)
+    excluded_problem_statements: tuple[str, ...] = ()
+    practice_purpose: str = "D"
+    foundation_focus: str = ""
 
     # OPTIONAL: personal preferences (router + user permission gated).
     personal_preferences: PersonalPreferenceContext | None = None

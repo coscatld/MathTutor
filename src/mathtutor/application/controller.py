@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
 from typing import Any, Literal, Protocol
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from mathtutor.application.math_tutor_service import MathTutorApplicationService
 from mathtutor.application.verification_backend import (
@@ -64,7 +64,7 @@ from mathtutor.pedagogy.disclosure import SolutionDisclosureProjector
 from mathtutor.pedagogy.exceptions import DisclosurePolicyViolation
 from mathtutor.pedagogy.output_guard import TutorOutputGuard
 from mathtutor.pedagogy.planner import CycleAssistance, PedagogyPlanner
-from mathtutor.pedagogy.stage_policy import PRIMARY_POLICY, StagePolicy
+from mathtutor.pedagogy.stage_policy import ADAPTIVE_POLICY, StagePolicy
 from mathtutor.pedagogy.tutor_writer import (
     PublicProblemView,
     TemplateTutorWriter,
@@ -109,9 +109,17 @@ USER_COMMANDS: dict[str, CycleCommand] = {
     "accept_practice_offer": CycleCommand.ACCEPT_PRACTICE_OFFER,
     "decline_practice_offer": CycleCommand.DECLINE_PRACTICE_OFFER,
     "cancel_turn": CycleCommand.CANCEL_TURN,
+    "request_practice": CycleCommand.REQUEST_HINT,
+    "request_foundation": CycleCommand.REQUEST_HINT,
+    "request_review": CycleCommand.REQUEST_HINT,
+    "resume_problem": CycleCommand.REQUEST_HINT,
+    "end_problem": CycleCommand.CANCEL_TURN,
+    "start_diagnostic": CycleCommand.REQUEST_HINT,
+    "skip_diagnostic": CycleCommand.REQUEST_HINT,
 }
 
-_STUDENT_COMMAND_VALUES = frozenset(c.value for c in USER_COMMANDS.values())
+# Legacy protocol (no version / v1) only. Remove after v1 clients retire.
+LEGACY_COMMAND_ALIASES = {"solution_shown_permitted": "request_solution"}
 SEND_MESSAGE_COMMAND = "send_message"
 logger = logging.getLogger(__name__)
 
@@ -120,11 +128,8 @@ def student_allowed_inputs(state: CycleState) -> list[str]:
     """Student-channel commands only: internal outcomes (e.g.
     ``solution_shown_permitted``) never appear in the UI contract — the
     client can only ever send what it is shown (design doc §13.3)."""
-    return [
-        command.value
-        for command in allowed_next_commands(state)
-        if command.value in _STUDENT_COMMAND_VALUES
-    ]
+    allowed = set(allowed_next_commands(state))
+    return [name for name, command in USER_COMMANDS.items() if command in allowed]
 
 
 # The capability persists cycles through the SessionStoreProtocol: the
@@ -273,6 +278,7 @@ class MathTutorController:
         practice_repository: Any | None = None,
         practice_service: Any | None = None,  # AdaptivePracticeService | None
         chat_responder: Any | None = None,
+        semantic_interpreter: Any | None = None,
     ) -> None:
         self.service = service or MathTutorApplicationService()
         self.sessions: SessionStoreProtocol = store or InMemorySessionStore()
@@ -298,12 +304,50 @@ class MathTutorController:
         # No process-local pedagogy caches: the verified chain and the
         # assistance ledger live in the store (append-only tutor_actions +
         # attestation) and are restored at every turn start — restart-safe.
-        self.policy: StagePolicy = policy or PRIMARY_POLICY
+        self.policy: StagePolicy = policy or ADAPTIVE_POLICY
         self.planner = planner or PedagogyPlanner()
         self.projector = projector or SolutionDisclosureProjector()
         self.writer = writer or TemplateTutorWriter()
         self.guard = guard or TutorOutputGuard()
         self.chat_responder = chat_responder
+        self.semantic_interpreter = semantic_interpreter
+
+    async def _teaching_context(self, owner_id, session, verified):
+        from mathtutor.pedagogy.teaching_plan import initial_context
+        context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
+        if context is None and verified:
+            assistance = await self.sessions.load_assistance(owner_id, session.cycle.cycle_id)
+            legacy_auto = session.state in {CycleState.SOLUTION_SHOWN, CycleState.REFLECTION, CycleState.PRACTICE_OFFERED}
+            context = initial_context(verified[0], verified[1], legacy_help=assistance.max_level_issued > 0 or legacy_auto,
+                verified_solution_ref=verified[2], cycle_id=session.cycle.cycle_id)
+            context["legacy_auto_transition"] = legacy_auto
+            from mathtutor.pedagogy.teaching_plan import TeachingPlan, current_subgoal
+            goal = current_subgoal(context)
+            context["last_plan"] = TeachingPlan("ASK_STUDENT", "focused_question", goal["prompt_target"], goal["id"],
+                tuple(goal.get("skill_ids") or context["skill_ids"]), ("CURRENT_SUBGOAL",), "guided", ("request_solution", "end_problem")).public()
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        elif context is not None and verified and "task_context" not in context:
+            from mathtutor.application.problem_context import build_problem_context
+            from mathtutor.learning.skill_graph import skills_for_subgoal
+            context["task_context"] = build_problem_context(verified[0], verified[1],
+                cycle_id=session.cycle.cycle_id, verified_solution_ref=verified[2])
+            for goal in context.get("subgoals", []):
+                goal["skill_ids"] = list(skills_for_subgoal(verified[0], goal["id"], verified[1]))
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        return context
+
+    async def _cycle_fact(self, owner_id, session, verified, event_type, *, lifecycle_status="active", task_purpose="practice"):
+        tracking = getattr(self.sessions, "student_state", None)
+        if tracking is None or not verified:
+            return
+        from mathtutor.learning.knowledge_tracing.events import LearningEvent
+        from mathtutor.learning.skill_graph import skills_for_problem
+        problem = verified[0]
+        await tracking.append_event(LearningEvent(event_id=f"{event_type}:{session.cycle.cycle_id}",
+            student_id=owner_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
+            event_type=event_type, problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
+            item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem),
+            eligible_cycle=task_purpose != "diagnostic", task_purpose=task_purpose, lifecycle_status=lifecycle_status))
 
     # ------------------------------------------------------------- run entry
 
@@ -323,9 +367,27 @@ class MathTutorController:
             return
 
         session = await self.sessions.load(owner.student_id, request.session_id)
+        from mathtutor.application.student_contract import binding_error
+        bound_verified = await self.sessions.load_verified(owner.student_id, session.cycle.cycle_id) if session else None
+        # An accepted offer is an immutable receipt, not a fresh operation on
+        # whichever cycle is now active. Preserve owner-scoped accept replay.
+        accepted_child = None
+        if command == "accept_practice_offer":
+            try:
+                accepted_child = await self.sessions.load_child_cycle_for_offer(owner.student_id, UUID(str((envelope.get("payload") or {}).get("offer_id", ""))))
+            except ValueError:
+                pass
+        conflict = binding_error(envelope, session, bound_verified) if accepted_child is None else None
+        if conflict:
+            await stream.error(conflict[1], source=self.manifest.name, metadata={"error_code": conflict[0]})
+            return
         payload = envelope.get("payload") or {}
         if command == SEND_MESSAGE_COMMAND:
             await self._route_send_message(request, session, payload, envelope, stream)
+            return
+        from mathtutor.application.student_contract import REVIEW_STATES, TEACHING_COMMANDS
+        if session is not None and session.state in REVIEW_STATES and command in TEACHING_COMMANDS:
+            await self._run_explicit(request, session, command, payload, envelope, stream)
             return
 
         if session is None:
@@ -337,7 +399,7 @@ class MathTutorController:
             owner.student_id, session.cycle.cycle_id
         )
 
-        expected_version = envelope.get("expected_cycle_version")
+        expected_version = envelope.get("expected_state_version", envelope.get("expected_cycle_version"))
         idempotency_key = str(envelope.get("idempotency_key", ""))
         try:
             await self._dispatch(
@@ -372,13 +434,13 @@ class MathTutorController:
                 exc.actual,
             )
             await stream.error(
-                project_turn_error(STUDENT_TRANSITION_FAILURE),
+                "题目状态刚刚更新了，请重新同步后再试一次。",
                 source=self.manifest.name,
                 metadata={"cycle_state": session.state.value, "cycle_state_version": session.version},
             )
-        except Exception as exc:  # fail closed: no state mutation, clear error
+        except Exception:  # Surface a safe error; committed effects are journaled.
             logger.exception("tutor turn failed conversation_id=%s", request.session_id)
-            await stream.error(project_turn_error(f"内部错误: {exc}"), source=self.manifest.name)
+            await stream.error("这次没能处理完成，请重新同步对话后再试。", source=self.manifest.name)
 
     async def _route_send_message(
         self,
@@ -403,7 +465,9 @@ class MathTutorController:
                 verified = await self.sessions.load_verified(request.owner.student_id, session.cycle.cycle_id)
                 token = continuation_text.set(str(previous.get("content") or ""))
                 try:
-                    utterance = await self._realize_utterance(session, verified, action)
+                    utterance = await self._realize_utterance(session, verified, action,
+                        owner_id=request.owner.student_id,
+                        student_request=str(context.get("student_request", "")), continuing=True)
                 finally:
                     continuation_text.reset(token)
                 await stream.emit(MathTutorEvent(type=MathTutorEventType.CONTENT, content=utterance.text,
@@ -411,9 +475,85 @@ class MathTutorController:
                     "effective_assistance_level": utterance.assistance_level,
                     "cycle_state": session.state.value, "cycle_state_version": session.version}))
                 return
-        routed = classify_user_message(
-            text, cycle_state=session.state if session is not None else None
-        )
+        from mathtutor.application.student_contract import problem_variable, verified_binding
+        verified = await self.sessions.load_verified(request.owner.student_id, session.cycle.cycle_id) if session else None
+        import re
+        if not verified and re.fullmatch(r"[+-]?\d+(?:\.\d+)?", text.strip()):
+            await self._dialogue(stream, session, f"你希望对 {text.strip()} 做什么任务？请补充题目要求，例如计算、分解或检验某个结论。", "ASK_STUDENT")
+            return
+        perception = None
+        if verified and re.search(r"[\u4e00-\u9fff]|\b(?:understand|explain|confused|hint)\b", text, re.I):
+            from mathtutor.application.teaching_intent import rule_teaching_intent
+            from mathtutor.pedagogy.teaching_plan import current_subgoal
+            context = await self._teaching_context(request.owner.student_id, session, verified)
+            visible_context = {"problem_id": context["problem_id"], "display_text": context["display_text"],
+                "skill_ids": context["skill_ids"], "current_subgoal": current_subgoal(context),
+                "recent_teaching": context.get("last_plan"), "stuck_count": context["stuck_count"],
+                "help_without_progress": context["help_without_progress"],
+                "recent_messages": [{"role": m.get("role"), "content": str(m.get("content", ""))[-600:]}
+                                    for m in request.conversation_messages[-4:]]}
+            if self.semantic_interpreter is not None:
+                perception = await self.semantic_interpreter.interpret(text, context=visible_context)
+            else:
+                perception = rule_teaching_intent(text, context=visible_context)
+            context["language_understanding"] = perception.model_dump()
+            context["language_input_hash"] = content_hash({"text": text})
+            context["language_request_id"] = str(envelope.get("idempotency_key", ""))
+            await self.sessions.teaching.save(request.owner.student_id, session.cycle.cycle_id, context)
+        if verified and perception and perception.intent == "self_report" and perception.confusion == "none":
+            if perception.resolved:
+                context = await self.sessions.teaching.load(request.owner.student_id, session.cycle.cycle_id)
+                context["stuck_count"] = 0
+                context["language_signal_consumed_request"] = context.get("language_request_id")
+                await self.sessions.teaching.save(request.owner.student_id, session.cycle.cycle_id, context)
+            tracking = getattr(self.sessions, "student_state", None)
+            if tracking:
+                from mathtutor.learning.knowledge_tracing.events import LearningEvent
+                from mathtutor.learning.skill_graph import skills_for_problem
+                await tracking.append_event(LearningEvent(event_id=f"self-report:{envelope.get('idempotency_key') or uuid4()}",
+                    student_id=request.owner.student_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
+                    event_type="self_explanation", problem_id=str(verified[0].problem_id), problem_revision=verified[0].content_hash,
+                    item_family_id=verified[0].problem_type, skill_ids=skills_for_problem(verified[0]), completion_scope="reflection"))
+            await self._dialogue(stream, session, "已记下你的理解反馈。它不等于已验证的独立作答；你可以写一步检验理解，或主动选一道练习。", "SELF_REPORT")
+            return
+        pending = ""
+        if previous and previous.get("action") == "CLARIFY_INTENT":
+            prior = list(request.conversation_messages)
+            previous_index = next((i for i, m in reversed(list(enumerate(prior))) if m is previous), -1)
+            pending = next((m.get("content", "") for m in reversed(prior[:previous_index]) if m.get("role") == "student"), "")
+        routed = classify_user_message(text, cycle_state=session.state if session else None,
+                                       variable=problem_variable(verified),
+                                       skill_id=skill_for_problem(verified[0]) if verified else "",
+                                       pending_math_text=pending,
+                                       variables=tuple(n.variables(n.from_dict(verified[0].normalized_ast))) if verified else (),
+                                       related_to_active=__import__("mathtutor.learning.skill_graph", fromlist=["related_question"]).related_question(text, verified[0]) if verified else False)
+        if (perception and perception.confidence >= 0.7 and perception.scope == "other"
+                and routed.intent in {ConversationIntent.GENERAL_CHAT, ConversationIntent.PROBLEM_CONTINUATION,
+                                      ConversationIntent.TEACHING_REQUEST}):
+            from dataclasses import replace
+            # A discussion of a quoted phrase or a different subject isn't
+            # evidence that the student is stuck on this mathematical goal.
+            routed = replace(routed, intent=ConversationIntent.GENERAL_CHAT, command="")
+        if perception and perception.confidence >= 0.7 and perception.scope in {"current_goal", "current_problem", "same_skill"}:
+            from dataclasses import replace
+            semantic_command = {"explanation": "request_explanation", "confusion": "request_explanation",
+                "hint": "request_hint", "example": "request_example", "solution": "request_solution",
+                "practice": "request_practice", "followup": "request_explanation"}.get(perception.intent)
+            # Only the structural route may create/replace a problem or submit
+            # a candidate answer. The model selects support, never correctness.
+            if semantic_command and routed.intent is ConversationIntent.ATTEMPT:
+                routed = replace(routed, command=semantic_command)
+            elif semantic_command and routed.intent in {ConversationIntent.GENERAL_CHAT,
+                    ConversationIntent.PROBLEM_CONTINUATION, ConversationIntent.TEACHING_REQUEST}:
+                routed = replace(routed, intent=ConversationIntent.TEACHING_REQUEST, command=semantic_command)
+            elif perception.intent == "ambiguous" and routed.intent is ConversationIntent.GENERAL_CHAT:
+                await self._dialogue(stream, session, "你想让我重讲刚才的小目标，还是换一个例子演示？我们可以继续围绕当前题目。", "ASK_STUDENT")
+                return
+        if session and routed.intent is ConversationIntent.CLARIFY_INTENT:
+            context = await self.sessions.teaching.load(request.owner.student_id, session.cycle.cycle_id)
+            if context and context.get("teacher_error_example", {}).get("awaiting_response"):
+                from dataclasses import replace
+                routed = replace(routed, intent=ConversationIntent.ATTEMPT, answer_text=text)
         logger.info(
             "tutor_orchestration conversation_id=%s intent=%s mode=%s state=%s",
             request.session_id,
@@ -430,10 +570,47 @@ class MathTutorController:
                 owner_id=request.owner.student_id,
             )
             return
+        if routed.intent is ConversationIntent.CLARIFY_INTENT:
+            await self._dialogue(stream, session, "这是你推到的下一步，还是一道新题？请回复“这是步骤”或“这是新题”。", "CLARIFY_INTENT")
+            return
+        if routed.intent is ConversationIntent.TEACHING_REQUEST:
+            if session is None:
+                await self._dialogue(stream, session, "请先发来要辅导的题目。", "ASK_STUDENT")
+            else:
+                await self._run_explicit(request, session, routed.command, {"student_request": text}, envelope, stream)
+            return
+        if routed.intent is ConversationIntent.ATTEMPT:
+            if session is None or not verified_binding(verified):
+                await self._dialogue(stream, session, "当前题目还没有可用的验证记录，请先补充完整题目。", "ASK_STUDENT")
+                return
+            if session.state not in {CycleState.AWAITING_ATTEMPT, CycleState.AWAITING_RETRY, CycleState.AWAITING_ATTEMPT_CLARIFICATION, CycleState.SOLUTION_SHOWN}:
+                await self._dialogue(stream, session, "本题已经完成。你可以继续追问原题，或用“换题：…”开始另一道题。", "ASK_STUDENT")
+                return
+            assistance = await self.sessions.load_assistance(request.owner.student_id, session.cycle.cycle_id)
+            await self._submit_attempt(session, request.owner.student_id, {"answer": routed.answer_text},
+                envelope.get("expected_state_version", envelope.get("expected_cycle_version")),
+                str(envelope.get("idempotency_key", "")), verified, assistance, stream,
+                raw_text_override=f"{pending}\n{text}" if pending and routed.answer_text == pending else text,
+                offer_after=not bool(routed.command), followup_command=routed.command or "",
+                followup_request=text)
+            if routed.command:
+                followup = {**envelope, "expected_state_version": session.version, "expected_cycle_version": session.version}
+                await self._run_explicit(request, session, routed.command, {"student_request": text}, followup, stream)
+            return
         if routed.intent is ConversationIntent.PROBLEM_CONTINUATION:
             await self._continue_active_problem(request, session, text, envelope, stream)
             return
-        await self._begin_or_replace_problem(request, session, text, envelope, stream)
+        await self._begin_or_replace_problem(request, session, routed.problem_text or text, envelope, stream)
+
+    async def _dialogue(self, stream, session, text, action, level=0):
+        await stream.content(text, source=self.manifest.name, metadata={
+            "event_type": "tutor_message", "action": action,
+            "effective_assistance_level": level,
+            "cycle_id": str(session.cycle.cycle_id) if session else "",
+            "cycle_state": session.state.value if session else "",
+            "cycle_state_version": session.version if session else 0,
+            "allowed_next_inputs": student_allowed_inputs(session.state) if session else [],
+        })
 
     async def _continue_active_problem(
         self,
@@ -453,14 +630,17 @@ class MathTutorController:
             )
             return
         allowed = set(student_allowed_inputs(session.state))
+        from mathtutor.application.student_contract import REVIEW_STATES, TEACHING_COMMANDS
+        if session.state in REVIEW_STATES:
+            allowed.update(TEACHING_COMMANDS)
         if "request_explanation" in allowed:
             await self._run_explicit(
-                request, session, "request_explanation", {}, envelope, stream
+                request, session, "request_explanation", {"student_request": text}, envelope, stream
             )
             return
         if "request_hint" in allowed:
             await self._run_explicit(
-                request, session, "request_hint", {}, envelope, stream
+                request, session, "request_hint", {"student_request": text}, envelope, stream
             )
             return
         await self._chat_message(
@@ -565,12 +745,17 @@ class MathTutorController:
         envelope: dict[str, Any],
         stream: MathTutorEventSink,
     ) -> None:
+        from mathtutor.application.student_contract import REVIEW_STATES, TEACHING_COMMANDS, verified_binding
         verified = await self.sessions.load_verified(
             request.owner.student_id, session.cycle.cycle_id
         )
         assistance = await self.sessions.load_assistance(
             request.owner.student_id, session.cycle.cycle_id
         )
+        if command in TEACHING_COMMANDS and session.state in REVIEW_STATES and verified_binding(verified):
+            await self._review_action(request, session, command, verified, assistance, stream,
+                                      student_request=str(payload.get("student_request", "")))
+            return
         try:
             await self._dispatch(
                 session,
@@ -578,7 +763,7 @@ class MathTutorController:
                 request.session_id,
                 command,
                 payload,
-                None,
+                envelope.get("expected_state_version", envelope.get("expected_cycle_version")),
                 str(envelope.get("idempotency_key", "")),
                 verified,
                 assistance,
@@ -596,6 +781,63 @@ class MathTutorController:
                 source=self.manifest.name,
                 metadata={"cycle_state": session.state.value, "cycle_state_version": session.version},
             )
+
+    async def _review_action(self, request, session, command, verified, assistance, stream, *, student_request="", resume_checkpoint=None):
+        # Reviewing a solved problem must not reopen it or relabel evidence.
+        reviewing_solution = command == "request_solution" and assistance.max_level_issued == 5
+        if reviewing_solution:
+            for message in reversed(request.conversation_messages):
+                try:
+                    context = json.loads(message.get("continuation_context") or "{}")
+                except (TypeError, ValueError):
+                    continue
+                if not isinstance(context, dict):
+                    continue
+                approved = context.get("approved_solution_text")
+                if (message.get("action") == "SHOW_SOLUTION" and message.get("status") == "COMPLETED"
+                        and context.get("cycle_id") == str(session.cycle.cycle_id)
+                        and isinstance(approved, str) and approved.strip()):
+                    from mathtutor.application.tutor_runtime import current_turn
+                    turn = current_turn.get()
+                    if turn is not None:
+                        turn.continuation_context = message["continuation_context"]
+                    await self._dialogue(stream, session, approved, "SHOW_SOLUTION", 5)
+                    return
+        action = self.planner.plan(state=session.state, command=USER_COMMANDS[command],
+                                   policy=self.policy, assistance=assistance, verified_ref=verified[2])
+        from mathtutor.application.tutor_runtime import current_turn
+        from mathtutor.domain.tutoring import TutorAction
+        from mathtutor.pedagogy.output_guard import GuardedTutorUtterance
+        turn = current_turn.get()
+        teaching_context = await self._teaching_context(request.owner.student_id, session, verified)
+        checkpoint = dict(resume_checkpoint or teaching_context.get("pending_expression") or {})
+        request_id = turn.turn_id if turn else str(action.action_id)
+        if checkpoint.get("request_id") != request_id:
+            checkpoint = {}
+        if resume_checkpoint and checkpoint.get("action"):
+            action = TutorAction.model_validate(checkpoint["action"])
+        checkpoint.update(request_id=request_id, command=command, student_request=student_request,
+            problem_revision=verified[0].content_hash, cycle_version=session.version, action=action.model_dump(mode="json"))
+        checkpoint.setdefault("phase", "planned")
+        if not reviewing_solution:
+            teaching_context["pending_expression"] = checkpoint
+            await self.sessions.teaching.save(request.owner.student_id, session.cycle.cycle_id, teaching_context)
+        # Legacy history may lack the approved body. Render the same stored,
+        # verified solution deterministically, without a second exposure event.
+        if checkpoint.get("approved_utterance") and not reviewing_solution:
+            utterance = GuardedTutorUtterance.model_validate(checkpoint["approved_utterance"])
+            if turn:
+                turn.continuation_context = checkpoint.get("continuation_context", "")
+        else:
+            utterance = await self._realize_utterance(session, verified, action, restore_solution=reviewing_solution,
+                                                    owner_id=request.owner.student_id,
+                                                    student_request=student_request)
+        if not reviewing_solution:
+            teaching_context = await self.sessions.teaching.load(request.owner.student_id, session.cycle.cycle_id)
+            teaching_context["pending_expression"].update(phase="action_committed", cycle_version=session.version)
+            await self.sessions.commit_teaching_action(request.owner.student_id, session.cycle.cycle_id, [],
+                action.model_copy(update={"action": utterance.action, "effective_assistance_level": utterance.assistance_level}), teaching_context)
+        await self._dialogue(stream, session, utterance.text, utterance.action, utterance.assistance_level)
 
     async def _chat_message(
         self,
@@ -692,34 +934,54 @@ class MathTutorController:
         assistance: CycleAssistance,
         stream: MathTutorEventSink,
     ) -> None:
-        if command == "submit_problem":
+        if command in {"request_practice", "request_foundation", "request_review"}:
+            if not verified:
+                await stream.error("请先提供一道题，明确要练习的知识点。", source=self.manifest.name)
+                return
+            context = await self._teaching_context(owner_id, session, verified)
+            from mathtutor.application.evidence_projection import prerequisite_gap, review_due
+            gaps = prerequisite_gap(context) if command == "request_foundation" else ()
+            tracking = getattr(self.sessions, "student_state", None)
+            due = review_due(await tracking.events(owner_id), context["skill_ids"]) if tracking and command == "request_review" else False
+            if command == "request_foundation" and not gaps:
+                await stream.error("还没有定位具体的先修缺口，可以先做可跳过的相关知识诊断。", source=self.manifest.name)
+                return
+            if command == "request_review" and not due:
+                await stream.error("当前没有到期复习记录，可以选择主动练习。", source=self.manifest.name)
+                return
+            await self._offer_after_solved(session, owner_id, skill_id=skill_for_problem(verified[0]),
+                stream=stream, problem_text=verified[0].display_latex,
+                purpose="C" if gaps else "E" if due else "D", prerequisite_skill_ids=gaps, review_due=due)
+        elif command in {"resume_problem", "start_diagnostic", "skip_diagnostic", "end_problem"}:
+            await self._learning_control(session, owner_id, client_session_id, command, verified, stream)
+        elif command == "submit_problem":
             await self._submit_problem(session, owner_id, payload, expected_version, idempotency_key, stream)
-        elif command == "submit_attempt":
+        elif command in ("submit_attempt", "clarify_attempt"):
             await self._submit_attempt(
-                session, owner_id, payload, expected_version, idempotency_key,
+                session, owner_id, {"answer": payload.get("answer", payload.get("text", ""))}, expected_version, idempotency_key,
                 verified, assistance, stream,
             )
         elif command == "request_hint":
             await self._prompt_command(
                 session, owner_id, CycleCommand.REQUEST_HINT, "提示", expected_version, idempotency_key,
-                verified, assistance, stream,
+                verified, assistance, stream, student_request=str(payload.get("student_request", "")),
             )
         elif command == "request_explanation":
             await self._prompt_command(
                 session, owner_id, CycleCommand.REQUEST_EXPLANATION, "讲解", expected_version, idempotency_key,
-                verified, assistance, stream,
+                verified, assistance, stream, student_request=str(payload.get("student_request", "")),
             )
         elif command == "request_example":
             await self._prompt_command(
                 session, owner_id, CycleCommand.REQUEST_EXAMPLE, "示例", expected_version, idempotency_key,
-                verified, assistance, stream,
+                verified, assistance, stream, student_request=str(payload.get("student_request", "")),
             )
         elif command == "request_solution":
             # L5: the planner fails closed without a verified ref; the
             # projector/writer/guard only then see the full solution.
             await self._prompt_command(
                 session, owner_id, CycleCommand.SOLUTION_SHOWN_PERMITTED, "完整解析", expected_version, idempotency_key,
-                verified, assistance, stream,
+                verified, assistance, stream, student_request=str(payload.get("student_request", "")),
             )
         elif command == "accept_practice_offer":
             await self._accept_practice_offer(
@@ -740,7 +1002,6 @@ class MathTutorController:
                 stream,
             )
         elif command in (
-            "clarify_attempt",
             "cancel_turn",
         ):
             await self._simple_step(session, owner_id, command, expected_version, idempotency_key, stream)
@@ -760,6 +1021,7 @@ class MathTutorController:
         idempotency_key: str,
         stream: MathTutorEventSink,
         constraint: ConstraintResult | None = None,
+        task_purpose: str = "practice",
     ) -> None:
         text = str(payload.get("text", ""))
         constraint = constraint or evaluate_constraints(text)
@@ -801,7 +1063,7 @@ class MathTutorController:
             idempotency_key=idempotency_key,
         )
         await self._ground_problem(
-            session, owner_id, text, stream, constraint=constraint
+            session, owner_id, text, stream, constraint=constraint, task_purpose=task_purpose
         )
 
     async def _clarify_and_ground(
@@ -832,6 +1094,7 @@ class MathTutorController:
         text: str,
         stream: MathTutorEventSink,
         constraint: ConstraintResult | None = None,
+        task_purpose: str = "practice",
     ) -> None:
         """Complete GROUNDING in the same turn: parse is a tool, not a wait state."""
         if session.state != CycleState.GROUNDING:
@@ -929,6 +1192,7 @@ class MathTutorController:
             return
         if result.kind == "unverified_blocked":
             logger.info("problem_grounding unverified reason=%s", result.reason)
+            await self._step(owner_id, session, CycleCommand.GROUNDING_OK)
             transition = await self._step(owner_id, session, CycleCommand.VERIFICATION_FAILED)
             await self._emit(
                 stream,
@@ -952,6 +1216,12 @@ class MathTutorController:
             session.cycle.cycle_id,
             (result.problem, result.candidate, result.verified_ref),
         )
+        teaching = await self._teaching_context(owner_id, session, (result.problem, result.candidate, result.verified_ref))
+        teaching["task_context"].update(original_statement=constraint.raw_text or text,
+            full_statement=constraint.raw_text or text, statement_provenance="owner_source",
+            source={"kind": "diagnostic" if task_purpose == "diagnostic" else "manual", "reference": None})
+        await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, teaching)
+        await self._cycle_fact(owner_id, session, (result.problem, result.candidate, result.verified_ref), "problem_started", task_purpose=task_purpose)
         await self._emit(
             stream,
             session,
@@ -974,7 +1244,13 @@ class MathTutorController:
         verified: tuple | None,
         assistance: CycleAssistance,
         stream: MathTutorEventSink,
+        *,
+        raw_text_override: str | None = None,
+        offer_after: bool = True,
+        followup_command: str = "",
+        followup_request: str = "",
     ) -> None:
+        submit_command = CycleCommand.CLARIFY_ATTEMPT if session.state == CycleState.AWAITING_ATTEMPT_CLARIFICATION else CycleCommand.SUBMIT_ATTEMPT
         # ---- READ is done by run(): cycle/verified/assistance restored. ----
         # A child practice cycle (practice_offer_id set, problem_id NULL —
         # ck_cycle_source_xor) judges against the offer→release EXACT
@@ -984,7 +1260,7 @@ class MathTutorController:
             session.problem_id is None and session.practice_offer_id is None
         ):
             transition = await self._step(
-                owner_id, session, CycleCommand.SUBMIT_ATTEMPT,
+                owner_id, session, submit_command,
                 expected_version=expected_version, idempotency_key=idempotency_key,
             )
             transition = await self._step(owner_id, session, CycleCommand.DIAGNOSIS_AMBIGUOUS)
@@ -999,7 +1275,7 @@ class MathTutorController:
             or ref.solution_payload_hash != candidate.payload_hash
         ):
             transition = await self._step(
-                owner_id, session, CycleCommand.SUBMIT_ATTEMPT,
+                owner_id, session, submit_command,
                 expected_version=expected_version, idempotency_key=idempotency_key,
             )
             transition = await self._step(
@@ -1012,6 +1288,29 @@ class MathTutorController:
             )
             return
         answer = str(payload.get("answer", ""))
+        from mathtutor.learning.skill_graph import skills_for_problem
+        from mathtutor.pedagogy.teaching_plan import apply_assessment, assessment_feedback, current_subgoal
+        context = await self._teaching_context(owner_id, session, verified)
+        if context.get("teacher_error_example", {}).get("awaiting_response"):
+            await self._assess_teacher_error(session, owner_id, context, answer, expected_version, idempotency_key, stream)
+            return
+        deliveries = await self.sessions.teaching.for_cycle(owner_id, session.cycle.cycle_id)
+        shown = [row for row in deliveries if row["status"] in {"possibly_exposed", "presented"}]
+        factual_level = 5 if any(row.get("target_answer_exposed") for row in shown) else 1 if shown else 0
+        # Old actions without delivery provenance cannot certify independence.
+        actual_assistance = CycleAssistance(max_level_issued=factual_level)
+        tracking = getattr(self.sessions, "student_state", None)
+        if tracking is not None:
+            exposure = await tracking.exposure_context(owner_id, problem.content_hash)
+            factual_level = max(factual_level, exposure["assistance_level"])
+            actual_assistance = CycleAssistance(max_level_issued=factual_level)
+            context["legacy_provenance_uncertain"] |= exposure["provenance_uncertain"]
+        prediction_id = f"prediction:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
+        if tracking is not None:
+            await tracking.prepare_prediction(owner_id, prediction_id=prediction_id,
+                session_id=session.session_id, cycle_id=session.cycle.cycle_id,
+                problem_id=problem.problem_id, problem_revision=problem.content_hash,
+                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem))
 
         # ---- COMPUTE: Phase 4 learning loop, pure and deterministic. ----
         attempt_index = await self.sessions.load_attempt_index(
@@ -1029,12 +1328,31 @@ class MathTutorController:
             assessment = await self.service.verification_backend.verify_attempt(
                 student_attempt, problem, candidate
             )
+            if problem.problem_type == "linear_system" and assessment.correctness is Correctness.PARTIAL:
+                # Accumulate only independently verified coordinate claims,
+                # then reverify the combined answer against BOTH original equations.
+                coordinates = {}
+                for prior in context["progress"]:
+                    for claim in prior["verified_claims"]:
+                        if claim.get("claim") == "variable_value":
+                            coordinates[claim["variable"]] = claim["value"]
+                for claim in assessment.verified_claims:
+                    if claim.get("claim") == "variable_value":
+                        coordinates[claim["variable"]] = claim["value"]
+                if len(coordinates) == 2:
+                    merged = ";".join(f"{name}={value['n']}/{value['d']}" for name, value in coordinates.items())
+                    joint_attempt = parse_student_attempt(attempt_submission_id=submission_id,
+                        student_id=session.student_id, cycle_id=session.cycle.cycle_id,
+                        raw_text=merged, attempt_index=attempt_index)
+                    joint = await self.service.verification_backend.verify_attempt(joint_attempt, problem, candidate)
+                    if joint.correctness is Correctness.CORRECT:
+                        student_attempt, assessment = joint_attempt, joint
         except VerificationBackendError as exc:
             # Infrastructure failure is not a mathematical assessment.  We
             # preserve the legal cycle transition but persist no attempt
             # assessment, evidence, misconception, mastery, or attestation.
             transition = await self._step(
-                owner_id, session, CycleCommand.SUBMIT_ATTEMPT,
+                owner_id, session, submit_command,
                 expected_version=expected_version, idempotency_key=idempotency_key,
             )
             transition = await self._step(
@@ -1050,7 +1368,7 @@ class MathTutorController:
         # State machine transitions in memory (persisted in ONE transaction
         # together with the education rows below — READ→COMPUTE→COMMIT).
         submit_transition = session.step(
-            CycleCommand.SUBMIT_ATTEMPT,
+            submit_command,
             expected_version=expected_version,
             idempotency_key=idempotency_key,
         )
@@ -1067,6 +1385,22 @@ class MathTutorController:
             diag_command = CycleCommand.DIAGNOSIS_INCORRECT
             message, detail = "回答不正确，再试一次", "incorrect"
         diag_transition = session.step(diag_command)
+        context, scoped_assessment = apply_assessment(context, assessment,
+            raw_text_override if raw_text_override is not None else answer, actual_assistance)
+        if context.get("legacy_provenance_uncertain") and scoped_assessment["evidence_kind"] == "independent":
+            scoped_assessment["evidence_kind"] = "ungradable"
+        if shown and any(row["status"] != "presented" for row in shown) and scoped_assessment["evidence_kind"] == "assisted":
+            scoped_assessment["evidence_kind"] = "ungradable"
+        message = assessment_feedback(scoped_assessment)
+        if followup_command:
+            from mathtutor.application.tutor_runtime import current_turn
+            active_turn = current_turn.get()
+            context["pending_expression"] = {
+                "phase": "assessment_committed", "request_id": active_turn.turn_id if active_turn else idempotency_key,
+                "command": followup_command, "student_request": followup_request,
+                "cycle_version": session.version, "problem_revision": problem.content_hash,
+                "feedback": message, "assessment_id": scoped_assessment["assessment_id"],
+            }
 
         observation = diagnose(
             assessment=assessment, problem=problem, attempt=student_attempt
@@ -1122,7 +1456,7 @@ class MathTutorController:
             problem_id=problem.problem_id,
             attempt_submission_id=submission_id,
             attempt_id=student_attempt.attempt_id,
-            raw_text=answer,
+            raw_text=raw_text_override if raw_text_override is not None else answer,
             parsed_steps=list(student_attempt.parsed_steps),
             attempt_index=attempt_index,
             payload_hash=student_attempt.payload_hash,
@@ -1135,7 +1469,22 @@ class MathTutorController:
                 verdict=assessment.correctness.value,
             ),
             assessment_policy_version=assessment.policy_version,
+            idempotency_key=idempotency_key,
             verified_claims=assessment.verified_claims,
+            teaching_context=context,
+            tracking_attempt={
+                "session_id": str(session.session_id), "cycle_id": str(session.cycle.cycle_id),
+                "problem_id": str(problem.problem_id), "problem_revision": problem.content_hash,
+                "item_family_id": problem.problem_type, "skill_ids": skills_for_problem(problem),
+                "assessment_id": str(student_attempt.attempt_id), "attempt_id": str(student_attempt.attempt_id),
+                "correctness": assessment.correctness.value, "prediction_id": prediction_id,
+                "completion_scope": "full_problem" if assessment.correctness is Correctness.CORRECT else "subgoal" if assessment.correctness is Correctness.PARTIAL else "full_problem",
+                "subgoal_id": current_subgoal(context)["id"],
+                "provenance_uncertain": context.get("legacy_provenance_uncertain", False),
+                "task_purpose": "diagnostic" if context.get("diagnostic_item") else "practice",
+                "misconception_codes": assessment.signals,
+                "response_fingerprint": content_hash({"parsed_steps": list(student_attempt.parsed_steps)}),
+            } if tracking is not None else None,
             invalid_claims=assessment.invalid_claims,
             remaining_requirements=assessment.remaining_requirements,
             observation=(
@@ -1167,7 +1516,9 @@ class MathTutorController:
 
         # Phase 5 (§7.5 E2E): a solved cycle is followed by a server-driven
         # practice offer — SOLVED →(REFLECTED)→ REFLECTION →(PRACTICE_OFFERED).
-        if assessment.correctness is Correctness.CORRECT:
+        if context.get("diagnostic_item"):
+            await self._advance_diagnostic(session, owner_id, context, assessment, stream)
+        elif assessment.correctness is Correctness.CORRECT and offer_after:
             await self._offer_after_solved(
                 session,
                 owner_id,
@@ -1187,6 +1538,9 @@ class MathTutorController:
         stream: MathTutorEventSink,
         reflected: bool = False,
         problem_text: str = "",
+        purpose: str | None = None,
+        prerequisite_skill_ids: tuple[str, ...] = (),
+        review_due: bool = False,
     ) -> None:
         """Server-driven practice offer after a solved cycle (§7.5 E2E).
 
@@ -1206,8 +1560,15 @@ class MathTutorController:
         """
         if self.practice_service is None:
             return
-        if not reflected:
-            await self._step(owner_id, session, CycleCommand.REFLECTED)
+        verified = await self.sessions.load_verified(owner_id, session.cycle.cycle_id)
+        assistance = await self.sessions.load_assistance(owner_id, session.cycle.cycle_id)
+        deliveries = await self.sessions.teaching.for_cycle(owner_id, session.cycle.cycle_id)
+        exposure = 5 if any(x.get("target_answer_exposed") for x in deliveries
+                            if x["status"] in {"possibly_exposed", "presented"}) else assistance.max_level_issued
+        tracking = getattr(self.sessions, "student_state", None)
+        if tracking is not None and verified:
+            exposure = max(exposure, (await tracking.exposure_context(owner_id, verified[0].content_hash))["assistance_level"])
+        purpose = purpose or ("B" if exposure >= 5 else "A2" if exposure else "A1")
         offer = None
         try:
             offer = await self.practice_service.prepare_offer(
@@ -1215,18 +1576,24 @@ class MathTutorController:
                 parent_cycle_id=session.cycle.cycle_id,
                 target_skill_ids=(skill_id,) if skill_id else (),
                 problem_text=problem_text,
+                purpose=purpose,
+                target_revision=verified[0].content_hash if verified else "",
+                exposure_level=exposure,
+                full_task_completed=session.state == CycleState.SOLVED,
+                prerequisite_skill_ids=prerequisite_skill_ids,
+                review_due=review_due,
             )
-        except Exception:  # practice is best-effort; the cycle must advance
+        except Exception:
             offer = None
-        transition = await self._step(
-            owner_id, session, CycleCommand.PRACTICE_OFFERED
-        )
+        from types import SimpleNamespace
+        transition = SimpleNamespace(from_state=session.state.value, to_state=session.state.value,
+                                     trigger_command="request_practice")
         if offer is None:
             await self._emit(
                 stream,
                 session,
                 transition,
-                "练习推荐暂时不可用 — 你已经完成了这一步，随时可以进入下一环节",
+                "这次没有生成通过验证的练习题。当前题目和作答记录保留，你可以继续辅导或稍后重试。",
                 detail="practice_unavailable",
             )
             return
@@ -1245,7 +1612,10 @@ class MathTutorController:
             stream,
             session,
             transition,
-            "做得很棒！为你准备了一道同类练习题，想挑战一下吗？",
+            {"A1": "这道题已经独立完成，可以换一道题检验迁移。",
+             "A2": "这道题在帮助后完成了，可以换一道题独立巩固。",
+             "B": "已展示解答；这不等于已经掌握。可以换一道题独立检测。",
+             "D": "练习题已经通过验证。你可以开始，原题会保留。"}.get(purpose, "练习题已经准备好。"),
             detail="practice_offered",
             extra={
                 "offer_id": str(offer.offer_id),
@@ -1256,6 +1626,7 @@ class MathTutorController:
                 "offered_at": offer.offered_at.isoformat(),
                 "expires_at": offer.expires_at.isoformat(),
                 "parent_cycle_id": str(offer.parent_cycle_id),
+                "purpose": purpose,
             },
         )
 
@@ -1270,7 +1641,15 @@ class MathTutorController:
         verified: tuple | None,
         assistance: CycleAssistance,
         stream: MathTutorEventSink,
+        *,
+        student_request: str = "",
+        resume_checkpoint: dict | None = None,
     ) -> None:
+        from mathtutor.application.student_contract import verified_binding
+        if not verified_binding(verified):
+            await stream.error("当前题目还没有可用的验证解答，请先补充题目。", source=self.manifest.name,
+                               metadata={"error_code": "NO_VERIFIED_SOLUTION"})
+            return
         # PLAN FIRST: a policy refusal must never advance the state machine
         # (e.g. request_solution before the stage's hint threshold).
         problem, candidate, ref = verified if verified else (None, None, None)
@@ -1289,17 +1668,58 @@ class MathTutorController:
                 metadata={"cycle_state": session.state.value},
             )
             return
-        transition = await self._step(
-            owner_id, session, command, expected_version=expected_version, idempotency_key=idempotency_key
-        )
+        from mathtutor.domain.tutoring import TutorAction
+        from mathtutor.application.tutor_runtime import current_turn
+        from mathtutor.pedagogy.output_guard import GuardedTutorUtterance
+        teaching_context = await self._teaching_context(owner_id, session, verified)
+        turn = current_turn.get()
+        request_id = turn.turn_id if turn else idempotency_key
+        if resume_checkpoint and resume_checkpoint.get("action"):
+            action = TutorAction.model_validate(resume_checkpoint["action"])
+        checkpoint = dict(resume_checkpoint or teaching_context.get("pending_expression") or {})
+        if checkpoint.get("request_id") != request_id:
+            checkpoint = {}
+        checkpoint.update(request_id=request_id, command={
+            CycleCommand.REQUEST_HINT: "request_hint", CycleCommand.REQUEST_EXPLANATION: "request_explanation",
+            CycleCommand.REQUEST_EXAMPLE: "request_example", CycleCommand.SOLUTION_SHOWN_PERMITTED: "request_solution",
+        }[command], student_request=student_request, problem_revision=problem.content_hash,
+            cycle_version=session.version, action=action.model_dump(mode="json"))
+        checkpoint.setdefault("phase", "planned")
+        teaching_context["pending_expression"] = checkpoint
+        await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, teaching_context)
         # Phase 3 teaching control chain: projector → writer → guard (the
         # action is already planner-sanctioned).
-        utterance = await self._realize_utterance(session, verified, action)
-        # Append the issued action to the store (append-only fact) so the
-        # ledger survives restarts (Phase 3 restart-safety).
-        await self.sessions.persist_tutor_action(
-            owner_id, session.cycle.cycle_id, action
-        )
+        if checkpoint.get("approved_utterance"):
+            utterance = GuardedTutorUtterance.model_validate(checkpoint["approved_utterance"])
+            if turn:
+                turn.continuation_context = checkpoint.get("continuation_context", "")
+        else:
+            utterance = await self._realize_utterance(session, verified, action, student_request=student_request, owner_id=owner_id)
+        # Keep the previous actionable state while the writer runs. Commit
+        # the request + delivery transition together, never strand a restart
+        # in HINTED/EXPLAINING after a provider failure or cancellation.
+        actual_command = command
+        return_state = session.state
+        if command == CycleCommand.SOLUTION_SHOWN_PERMITTED and utterance.assistance_level < 5:
+            actual_command = CycleCommand.REQUEST_HINT
+        transition = session.step(actual_command, expected_version=expected_version, idempotency_key=idempotency_key)
+        if actual_command == CycleCommand.REQUEST_HINT:
+            delivered = CycleCommand.HINT_DELIVERED
+        elif actual_command == CycleCommand.SOLUTION_SHOWN_PERMITTED:
+            delivered = None
+        else:
+            delivered = CycleCommand.EXPLANATION_DELIVERED
+        if delivered is not None and return_state == CycleState.AWAITING_RETRY:
+            delivered = CycleCommand.SUPPORT_RETURNED_TO_RETRY
+        transitions = [transition]
+        if delivered is not None:
+            transitions.append(session.step(delivered))
+        teaching_context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
+        teaching_context["pending_expression"].update(phase="action_committed", cycle_version=session.version)
+        actual_action = action.model_copy(update={"action": utterance.action,
+            "effective_assistance_level": utterance.assistance_level,
+            "solution_visibility": {0: "none", 1: "hint", 2: "hint", 3: "step", 4: "partial", 5: "full"}[utterance.assistance_level]})
+        await self.sessions.commit_teaching_action(owner_id, session.cycle.cycle_id, transitions, actual_action, teaching_context)
         await self._emit(
             stream,
             session,
@@ -1311,14 +1731,7 @@ class MathTutorController:
                 "effective_assistance_level": utterance.assistance_level,
             },
         )
-        if command == CycleCommand.REQUEST_HINT:
-            delivered = CycleCommand.HINT_DELIVERED
-        elif command == CycleCommand.SOLUTION_SHOWN_PERMITTED:
-            delivered = CycleCommand.REFLECTED  # L5 shown → reflection
-        else:
-            delivered = CycleCommand.EXPLANATION_DELIVERED
-        await self._step(owner_id, session, delivered)
-        if delivered == CycleCommand.REFLECTED and self.practice_service is not None:
+        if delivered is None and self.practice_service is not None:
             # L5 shown → REFLECTION → server-driven practice offer (§7.5 E2E).
             # The helper emits the final event (offer projection / degraded),
             # so no state-only emit follows.
@@ -1329,15 +1742,51 @@ class MathTutorController:
                 stream=stream,
                 reflected=True,
                 problem_text=problem.display_latex if problem is not None else "",
+                purpose="B",
             )
         else:
             await self._emit_state(stream, session)
+
+    async def recover_expression(self, request, checkpoint, stream):
+        """Resume only the persisted expression checkpoint, never re-assess input."""
+        owner_id = request.owner.student_id
+        session = await self.sessions.load(owner_id, request.session_id)
+        verified = await self.sessions.load_verified(owner_id, session.cycle.cycle_id)
+        if (not verified or verified[0].content_hash != checkpoint["problem_revision"]
+                or session.version != checkpoint["cycle_version"]):
+            await stream.error("原题状态已变化，未重放旧教学动作。", source=self.manifest.name)
+            return
+        if checkpoint["phase"] == "action_committed":
+            from mathtutor.application.tutor_runtime import current_turn
+            turn = current_turn.get()
+            if turn:
+                turn.continuation_context = checkpoint.get("continuation_context", "")
+            approved = checkpoint["approved_utterance"]
+            await self._dialogue(stream, session, approved["text"], approved["action"], approved["assistance_level"])
+            if checkpoint["command"] == "request_solution" and approved["assistance_level"] == 5:
+                await self._offer_after_solved(session, owner_id, skill_id=skill_for_problem(verified[0]),
+                    problem_text=verified[0].display_latex, stream=stream, purpose="B")
+            return
+        assistance = await self.sessions.load_assistance(owner_id, session.cycle.cycle_id)
+        from mathtutor.application.student_contract import REVIEW_STATES
+        if session.state in REVIEW_STATES:
+            await self._review_action(request, session, checkpoint["command"], verified, assistance, stream,
+                student_request=checkpoint["student_request"], resume_checkpoint=checkpoint)
+            return
+        await self._prompt_command(session, owner_id, USER_COMMANDS[checkpoint["command"]], "恢复已请求的教学表达",
+            session.version, f"expression:{checkpoint['request_id']}", verified, assistance, stream,
+            student_request=checkpoint["student_request"], resume_checkpoint=checkpoint)
 
     async def _realize_utterance(
         self,
         session: TutoringSession,
         verified: tuple | None,
         action,
+        *,
+        restore_solution: bool = False,
+        student_request: str = "",
+        owner_id: str = "",
+        continuing: bool = False,
     ):
         """DisclosureProjector → Writer → Guard (Phase 3A-D).
 
@@ -1348,6 +1797,22 @@ class MathTutorController:
         content. ``verified`` comes from the STORE (restored at turn start).
         """
         problem, candidate, ref = verified if verified else (None, None, None)
+        from mathtutor.pedagogy.teaching_plan import choose_plan, current_subgoal
+        teaching_context = await self._teaching_context(owner_id, session, verified) if owner_id and verified else None
+        plan = None
+        if teaching_context:
+            tracking = getattr(self.sessions, "student_state", None)
+            if tracking is not None:
+                from mathtutor.application.evidence_projection import teaching_evidence
+                teaching_context["learner_evidence"] = teaching_evidence(await tracking.events(owner_id), teaching_context["skill_ids"])
+            if continuing and teaching_context.get("last_plan"):
+                from mathtutor.pedagogy.teaching_plan import TeachingPlan
+                plan = TeachingPlan(**teaching_context["last_plan"])
+            else:
+                teaching_context, plan = choose_plan(teaching_context, action, student_request)
+            action = action.model_copy(update={"effective_assistance_level": plan.max_assistance_level,
+                "target_step_index": min(teaching_context["current_subgoal_index"], max(0, len(candidate.steps) - 1))})
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, teaching_context)
         disclosure = self.projector.project(
             ref,
             candidate,
@@ -1358,27 +1823,288 @@ class MathTutorController:
         problem_view = (
             PublicProblemView.of(problem) if problem is not None else None
         )
+        if problem_view is not None:
+            problem_view = problem_view.model_copy(update={"student_request": student_request,
+                                                           "skill_id": skill_for_problem(problem)})
+            if plan:
+                from mathtutor.pedagogy.student_evidence_view import progress_view, assessment_view
+                example = await self._verified_example(problem) if action.action == "SHOW_EXAMPLE" else None
+                if action.action == "SHOW_EXAMPLE" and ("错" in student_request or teaching_context.get("stuck_count", 0) >= 2):
+                    from mathtutor.pedagogy.error_example import build_teacher_error_example, TeacherErrorExampleUnavailable
+                    try:
+                        error_example = await build_teacher_error_example(skill_id=skill_for_problem(problem),
+                            verification_backend=self.service.verification_backend,
+                            release_service=getattr(self.practice_service, "_release_service", None))
+                        teaching_context["teacher_error_example"] = {**error_example.model_dump(), "awaiting_response": True}
+                        example = {"kind": "teacher_error_example", "problem": error_example.problem_text,
+                                   "wrong_step": error_example.wrong_step, "instruction": error_example.instruction}
+                        from dataclasses import replace
+                        plan = replace(plan, strategy="teacher_error_example", question_goal="指出教师故意设置的错误，并写出修正步骤", response_kind="error_analysis")
+                    except TeacherErrorExampleUnavailable:
+                        pass
+                problem_view = problem_view.model_copy(update={"teaching_plan": plan.public(),
+                    "task_context": {key: teaching_context.get("task_context", {}).get(key, "unknown") for key in
+                        ("full_statement", "task_kind", "task_objective", "domain", "units", "precision", "expected_answer_shape", "verification_capability")},
+                    "language_understanding": ({key: teaching_context.get("language_understanding", {}).get(key) for key in
+                        ("intent", "confusion", "resolved", "scope", "source")} if student_request and
+                        teaching_context.get("language_input_hash") == content_hash({"text": student_request}) else {}),
+                    "current_subgoal": current_subgoal(teaching_context),
+                    "verified_progress": progress_view(teaching_context["progress"][-4:]),
+                    "recent_assessments": assessment_view(teaching_context["assessments"][-3:]), "approved_example": example})
         document_context = await self._document_context_for_action(
             session, action, problem
         )
         from mathtutor.application.tutor_runtime import current_turn
         turn = current_turn.get()
         if turn is not None:
-            turn.continuation_context = json.dumps({"cycle_id": str(session.cycle.cycle_id), "action": action.model_dump(mode="json")})
-        candidate_text = await self.writer.write(
+            turn.continuation_context = json.dumps({"cycle_id": str(session.cycle.cycle_id),
+                                                   "action": action.model_dump(mode="json"),
+                                                   "student_request": student_request})
+        writer = self.writer
+        if restore_solution:
+            from mathtutor.pedagogy.tutor_writer import TemplateTutorWriter
+            writer = TemplateTutorWriter()
+        candidate_text = await writer.write(
             problem_view=problem_view,
             disclosure=disclosure,
             policy=self.policy,
             action=action,
             document_context=document_context,
         )
+        if turn is not None and turn.conversation_id and owner_id:
+            live = await self.sessions.load(owner_id, turn.conversation_id)
+            if (live is None or live.cycle.cycle_id != session.cycle.cycle_id or live.version != session.version):
+                # Recheck after model latency, before committing any approved
+                # delivery. A response for an old focus cannot enter a new task.
+                raise RuntimeError("teaching binding changed before delivery")
         utterance = self.guard.guard_or_fallback(
             candidate=candidate_text,
             candidate_solution=candidate,
             disclosure=disclosure,
             action=action,
         )
+        if plan:
+            from mathtutor.pedagogy.quality_guard import enforce_teaching_quality
+            utterance = await enforce_teaching_quality(utterance, candidate_text, problem_view, disclosure, action, self.policy)
+            from mathtutor.application.teaching_intent import negates_solution
+            if negates_solution(student_request) and self.guard._detect_leak(utterance.text, candidate, target_answer_only=True) is not None:
+                # Even a verified one-step demonstration may be the final
+                # answer. An explicit "no answer" request narrows disclosure.
+                safe_action = action.model_copy(update={"action": "ASK_STUDENT", "effective_assistance_level": 1,
+                    "solution_visibility": "hint", "target_step_index": None})
+                safe_disclosure = self.projector.project(ref, candidate, safe_action,
+                    concept_hint=_concept_hint_for(problem), strategy_hint=_strategy_hint_for(problem))
+                from mathtutor.pedagogy.tutor_writer import TemplateTutorWriter
+                safe_view = problem_view.model_copy(update={"teaching_plan": {**plan.public(), "support_mode": "guided"}, "approved_example": None})
+                safe_text = await TemplateTutorWriter().write(problem_view=safe_view, disclosure=safe_disclosure,
+                    policy=self.policy, action=safe_action)
+                utterance = self.guard.guard_or_fallback(candidate=safe_text, candidate_solution=candidate,
+                    disclosure=safe_disclosure, action=safe_action)
+            if not restore_solution:
+                if not continuing:
+                    teaching_context["help_without_progress"] += int(utterance.assistance_level > 0)
+                    teaching_context["help_fingerprints"].append(plan.fingerprint)
+                teaching_context["last_plan"] = {**plan.public(), "max_assistance_level": utterance.assistance_level}
+                delivery_id = str(action.action_id)
+                if continuing:
+                    delivery_id += f":continuation:{turn.turn_id if turn else uuid4()}"
+                target_exposed = self.guard._detect_leak(utterance.text, candidate, target_answer_only=True) is not None
+                delivery = {"session_id": str(session.session_id), "problem_id": str(problem.problem_id),
+                    "problem_revision": problem.content_hash, "item_family_id": problem.problem_type,
+                    "skill_ids": teaching_context["skill_ids"], "subgoal_id": current_subgoal(teaching_context)["id"],
+                    "help_kind": {"SHOW_SOLUTION": "solution", "EXPLAIN_CONCEPT": "explanation", "SHOW_EXAMPLE": "example"}.get(utterance.action, "hint"),
+                    "target_answer_exposed": target_exposed, "delivery_id": delivery_id,
+                    "request_id": turn.turn_id if turn is not None else delivery_id,
+                    "target_answer_authorized": action.action == "SHOW_SOLUTION"}
+                await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, teaching_context)
+                if utterance.assistance_level > 0:
+                    await self.sessions.teaching.delivery(owner_id, session.cycle.cycle_id, delivery_id, delivery)
+                tracking = getattr(self.sessions, "student_state", None)
+                if tracking is not None and utterance.assistance_level > 0:
+                    for phase in ("help_requested", "help_committed"):
+                        await tracking.record_help(owner_id, event_id=f"{delivery_id}:{phase}",
+                            cycle_id=str(session.cycle.cycle_id), event_type=phase, **delivery)
+                # Publishing begins immediately after this checkpoint. If an
+                # ACK is lost, conservatively treat these approved bytes as seen.
+                if utterance.assistance_level > 0:
+                    await self.mark_delivery(owner_id, delivery_id, "possibly_exposed")
+                if turn is not None and utterance.assistance_level > 0:
+                    data = json.loads(turn.continuation_context)
+                    data["delivery_id"] = delivery_id
+                    turn.continuation_context = json.dumps(data, ensure_ascii=False)
+        if turn is not None and utterance.action == "SHOW_SOLUTION" and utterance.assistance_level == 5:
+            # The turn can also contain an assessment or an invitation. Store
+            # the guarded answer separately; reviewing it must not replay those.
+            context = json.loads(turn.continuation_context)
+            context["approved_solution_text"] = utterance.text
+            turn.continuation_context = json.dumps(context, ensure_ascii=False)
+        if (teaching_context and teaching_context.get("pending_expression") and not restore_solution and not continuing
+                and (turn is None or teaching_context["pending_expression"]["request_id"] == turn.turn_id)):
+            # Approved bytes form a durable outbox. A crash before action commit
+            # resumes these exact bytes, with the original action/delivery IDs.
+            teaching_context["pending_expression"].update(phase="expression_approved",
+                approved_utterance=utterance.model_dump(),
+                continuation_context=getattr(turn, "continuation_context", ""))
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, teaching_context)
         return utterance
+
+    async def mark_delivery(self, owner_id, delivery_id, status):
+        row = await self.sessions.teaching.mark_delivery(owner_id, delivery_id, status)
+        tracking = getattr(self.sessions, "student_state", None)
+        if row is not None and tracking is not None:
+            phase = f"help_{status}"
+            await tracking.record_help(owner_id, event_id=f"{delivery_id}:{phase}", event_type=phase,
+                **{k: v for k, v in row.items() if k != "status"})
+
+    async def _verified_example(self, problem):
+        from mathtutor.pedagogy.tutor_writer import _render_full_solution
+        from mathtutor.domain.tutoring import TutorAction
+        text = {"arithmetic": "17/5 + 3/10", "polynomial": "3a+2(a+4)",
+                "linear": "5z+4=39", "quadratic": "z^2-12z+35=0",
+                "linear_system": "2u+v=19;u-v=2"}.get(problem.problem_type)
+        if not text:
+            return None
+        result = await self.service.submit_problem(text)
+        if result.kind != "verified":
+            return None
+        full = self.projector.project(result.verified_ref, result.candidate,
+            TutorAction(action="SHOW_SOLUTION", effective_assistance_level=5, solution_visibility="full"))
+        return {"problem": result.problem.display_latex, "solution": _render_full_solution(full.full_solution)}
+
+    async def _learning_control(self, session, owner_id, client_id, command, verified, stream):
+        from datetime import datetime, timezone
+        context = await self._teaching_context(owner_id, session, verified)
+        if command == "end_problem":
+            await self._step(owner_id, session, CycleCommand.CANCEL_TURN)
+            if context:
+                context["lifecycle"] = "ended"
+                await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+                await self._cycle_fact(owner_id, session, verified, "problem_ended", lifecycle_status="exited")
+            await self._dialogue(stream, session, "已结束当前题目的辅导，记录会保留。", "END_PROBLEM")
+            return
+        if not context:
+            await stream.error("请先提供要辅导的题目。", source=self.manifest.name)
+            return
+        if command in {"resume_problem", "skip_diagnostic"}:
+            parent_id = context.get("resume_parent_cycle_id")
+            if not parent_id:
+                await stream.error("当前没有待返回的原题。", source=self.manifest.name)
+                return
+            if command == "skip_diagnostic":
+                context["diagnosis"]["status"] = "skipped"
+                context["lifecycle"] = "skipped"
+                await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+                parent_context = await self.sessions.teaching.load(owner_id, parent_id)
+                parent_context["diagnosis"] = context["diagnosis"]
+                await self.sessions.teaching.save(owner_id, parent_id, parent_context)
+            parent = await self.sessions.focus_cycle(owner_id, client_id, parent_id)
+            await self._dialogue(stream, parent,
+                "已返回原题。诊断跳过不计为答错。" if command == "skip_diagnostic" else "已返回原题，继续之前的小目标。", "RESUME_PROBLEM")
+            return
+        if context.get("diagnostic_item") or context["diagnosis"]["status"] == "running":
+            await stream.error("相关知识诊断已经开始。你可以继续作答，也可以随时跳过。", source=self.manifest.name)
+            return
+        # Short, optional cold start tied to the actual problem family.
+        # Each item goes through the same independent verifier as a normal problem.
+        family = verified[0].problem_type
+        prerequisites = ["8-(-3)", "3(a+2)-2a"]
+        targets = {"arithmetic": ["3/4+1/2"], "polynomial": ["2(a+3)+a"],
+                   "linear": ["3z+2=17"], "quadratic": ["z^2-7z+12=0"],
+                   "linear_system": ["u+v=9;u-v=3"]}.get(family, [])
+        context["diagnosis"] = {"status": "running", "can_skip": True, "question_count": len(prerequisites + targets),
+            "started_at": datetime.now(timezone.utc).isoformat(), "answered": 0, "results": []}
+        await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        await self._start_diagnostic_item(owner_id, client_id, str(session.cycle.cycle_id),
+            prerequisites + targets, context["diagnosis"], stream)
+
+    async def _assess_teacher_error(self, session, owner_id, context, answer, expected_version, request_id, stream):
+        example = context["teacher_error_example"]
+        result = await self.service.submit_problem(example["problem_text"])
+        if result.kind != "verified":
+            await stream.error("这个教师示例暂时无法验证，原题记录没有改变。", source=self.manifest.name)
+            return
+        problem, candidate, ref = result.problem, result.candidate, result.verified_ref
+        attempt_index = await self.sessions.load_attempt_index(owner_id, session.cycle.cycle_id)
+        submission_id = uuid4()
+        attempt = parse_student_attempt(attempt_submission_id=submission_id, student_id=session.student_id,
+            cycle_id=session.cycle.cycle_id, raw_text=answer, attempt_index=attempt_index)
+        prediction_id = f"error-analysis:{session.cycle.cycle_id}:{request_id or submission_id}"
+        tracking = getattr(self.sessions, "student_state", None)
+        from mathtutor.learning.skill_graph import skills_for_problem
+        item = {"session_id": str(session.session_id), "cycle_id": str(session.cycle.cycle_id),
+                "problem_id": str(problem.problem_id), "problem_revision": problem.content_hash,
+                "item_family_id": problem.problem_type, "skill_ids": skills_for_problem(problem)}
+        if tracking:
+            await tracking.prepare_prediction(owner_id, prediction_id=prediction_id, **item)
+        assessment = await self.service.verification_backend.verify_attempt(attempt, problem, candidate)
+        from mathtutor.pedagogy.error_example import assess_teacher_error_repair
+        assessment = assess_teacher_error_repair(example=example, raw_text=answer, assessment=assessment)
+        transition = session.step(CycleCommand.TEACHER_ERROR_ANALYZED, expected_version=expected_version)
+        valid = assessment.correctness in {Correctness.CORRECT, Correctness.PARTIAL}
+        if valid:
+            context["teacher_error_example"]["awaiting_response"] = False
+        context.setdefault("error_analyses", []).append({"assessment_id": str(attempt.attempt_id),
+            "correctness": assessment.correctness.value, "student_text": answer, "teacher_authored": True})
+        commit = LearningCommit(transitions=[transition], problem_id=problem.problem_id,
+            attempt_submission_id=submission_id, attempt_id=attempt.attempt_id, raw_text=answer,
+            parsed_steps=list(attempt.parsed_steps), attempt_index=attempt_index, payload_hash=attempt.payload_hash,
+            reference_solution_log_id=ref.verification_log_id, correctness=assessment.correctness.value,
+            score=assessment.score, assessment_attestation_hash=_assessment_attestation_hash(attempt,
+                reference_log_id=ref.verification_log_id, verdict=assessment.correctness.value),
+            assessment_policy_version=assessment.policy_version, idempotency_key=request_id,
+            verified_claims=assessment.verified_claims, invalid_claims=assessment.invalid_claims,
+            remaining_requirements=assessment.remaining_requirements, teaching_context=context,
+            tracking_attempt={**item, "attempt_id": str(attempt.attempt_id), "assessment_id": str(attempt.attempt_id),
+                "correctness": assessment.correctness.value, "prediction_id": prediction_id,
+                "task_purpose": "error_analysis", "completion_scope": "error_analysis",
+                "response_fingerprint": content_hash({"parsed_steps": list(attempt.parsed_steps)})} if tracking else None)
+        await self.sessions.commit_learning_transaction(owner_id, commit)
+        await self._dialogue(stream, session,
+            "已验证这一步修正成立。这是教师错误示例的分析证据，不代表原题已经完成；现在回到原题。" if valid
+            else "这次修正还没有通过验证；示例中的错误是老师故意设置的，不会算作你原题做错。请继续检查等式两边的运算。",
+            "ERROR_ANALYSIS")
+
+    async def _start_diagnostic_item(self, owner_id, client_id, parent_id, items, diagnosis, stream):
+        item = await self.sessions.start_new_cycle(owner_id, client_id)
+        await self._submit_problem(item, owner_id, {"text": items[0]}, None, "", stream, task_purpose="diagnostic")
+        verified = await self.sessions.load_verified(owner_id, item.cycle.cycle_id)
+        context = await self._teaching_context(owner_id, item, verified)
+        if context is None:
+            await self.sessions.focus_cycle(owner_id, client_id, parent_id)
+            await stream.error("本次诊断题暂时不可用，已保留原题。", source=self.manifest.name)
+            return
+        context.update(diagnostic_item=True, resume_parent_cycle_id=parent_id,
+            diagnostic_remaining=items[1:], client_session_id=client_id, diagnosis=diagnosis)
+        await self.sessions.teaching.save(owner_id, item.cycle.cycle_id, context)
+        await self._dialogue(stream, item, "这是可跳过的相关知识诊断，不计为考试。请写出你的答案或一步思路。", "DIAGNOSTIC")
+
+    async def _advance_diagnostic(self, session, owner_id, context, assessment, stream):
+        if assessment.correctness in {Correctness.UNDETERMINED, Correctness.PARTIAL}:
+            return
+        diagnosis = context["diagnosis"]
+        diagnosis["answered"] += 1
+        diagnosis["results"].append({"problem_id": context["problem_id"],
+            "skill_ids": context["skill_ids"], "correctness": assessment.correctness.value})
+        items = list(context["diagnostic_remaining"])
+        # One verified error triggers one smaller prerequisite check, bounded
+        # to five total items; no global grade/ability label is inferred.
+        if assessment.correctness is Correctness.INCORRECT and not diagnosis.get("branched"):
+            items.insert(0, "5-(-2)")
+            diagnosis["branched"] = True
+            diagnosis["question_count"] += 1
+        parent_id = context["resume_parent_cycle_id"]
+        parent_context = await self.sessions.teaching.load(owner_id, parent_id)
+        if not items:
+            diagnosis["status"] = "completed"
+            diagnosis["can_skip"] = False
+        parent_context["diagnosis"] = diagnosis
+        await self.sessions.teaching.save(owner_id, parent_id, parent_context)
+        await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        if items:
+            await self._start_diagnostic_item(owner_id, context["client_session_id"], parent_id, items, diagnosis, stream)
+        else:
+            parent = await self.sessions.focus_cycle(owner_id, context["client_session_id"], parent_id)
+            await self._dialogue(stream, parent, "这组诊断已完成。已记录诊断作答，回到原题继续。", "DIAGNOSTIC_COMPLETE")
 
     async def _document_context_for_action(self, session, action, problem):
         """Assemble USER_DOCUMENTS for hint/explain when the policy allows it.
@@ -1599,6 +2325,12 @@ class MathTutorController:
         await self.sessions.store_verified(
             owner_id, child.cycle.cycle_id, exact
         )
+        child_context = await self._teaching_context(owner_id, child, exact)
+        child_context["resume_parent_cycle_id"] = str(session.cycle.cycle_id)
+        await self.sessions.teaching.save(owner_id, child.cycle.cycle_id, child_context)
+        recommendation = await self.practice.recommendation_for_offer(owner_id, offer_id)
+        await self._cycle_fact(owner_id, child, exact, "problem_started",
+            task_purpose="transfer" if recommendation and recommendation.purpose in {"A1", "A2", "B"} else "practice")
         await self._emit(
             stream,
             session,
@@ -1656,17 +2388,8 @@ class MathTutorController:
         if offer is None:
             await stream.error("没有可拒绝的练习 offer", source=self.manifest.name)
             return
-        transition = await self._step(
-            owner_id,
-            session,
-            CycleCommand.DECLINE_PRACTICE_OFFER,
-            expected_version=expected_version,
-            idempotency_key=idempotency_key,
-        )
         await self.practice.mark_offer_declined(owner_id, offer.offer_id)
-        await self._emit(
-            stream, session, transition, "已拒绝练习", detail="practice_declined"
-        )
+        await self._dialogue(stream, session, "已略过这次练习邀请，原题保持不变。", "PRACTICE_DECLINED")
 
     # ---------------------------------------------------------------- events
 
@@ -1685,6 +2408,7 @@ class MathTutorController:
         fields exist on this wire shape (see pedagogy.events)."""
         metadata = {
             "event_type": "tutor_action_committed",
+            "cycle_id": str(session.cycle.cycle_id),
             "from_state": transition.from_state,
             "to_state": transition.to_state,
             "cycle_state": session.state.value,
@@ -1717,6 +2441,7 @@ class MathTutorController:
                 content="",
                 metadata={
                     "event_type": "cycle_state_committed",
+                    "cycle_id": str(session.cycle.cycle_id),
                     "cycle_state": session.state.value,
                     "cycle_state_version": session.version,
                     "allowed_next_inputs": student_allowed_inputs(session.state),
@@ -1736,6 +2461,8 @@ def _parse_envelope(user_message: str) -> tuple[str, dict[str, Any]]:
         except json.JSONDecodeError as exc:
             raise ValueError(f"命令 envelope 不是合法 JSON: {exc}") from exc
         command = str(envelope.get("command") or SEND_MESSAGE_COMMAND)
+        if envelope.get("protocol_version", 1) == 1:
+            command = LEGACY_COMMAND_ALIASES.get(command, command)
         if command not in USER_COMMANDS and command != SEND_MESSAGE_COMMAND:
             raise ValueError(f"未知命令: {command}")
         return (command, envelope)

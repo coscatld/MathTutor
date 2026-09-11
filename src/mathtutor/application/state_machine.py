@@ -41,6 +41,7 @@ class CycleState(StrEnum):
     REFLECTION = "reflection"
     SOLUTION_SHOWN = "solution_shown"
     PRACTICE_OFFERED = "practice_offered"
+
     CLOSED = "closed"
 
 
@@ -55,6 +56,7 @@ class CycleCommand(StrEnum):
     REQUEST_EXAMPLE = "request_example"
     ACCEPT_PRACTICE_OFFER = "accept_practice_offer"
     DECLINE_PRACTICE_OFFER = "decline_practice_offer"
+    TEACHER_ERROR_ANALYZED = "teacher_error_analyzed"
     CANCEL_TURN = "cancel_turn"
     # Internal outcomes driven by application service stages.
     GROUNDING_OK = "grounding_ok"
@@ -68,6 +70,7 @@ class CycleCommand(StrEnum):
     DIAGNOSIS_AMBIGUOUS = "diagnosis_ambiguous"
     HINT_DELIVERED = "hint_delivered"
     EXPLANATION_DELIVERED = "explanation_delivered"
+    SUPPORT_RETURNED_TO_RETRY = "support_returned_to_retry"
     SOLUTION_SHOWN_PERMITTED = "solution_shown_permitted"
     REFLECTED = "reflected"
     PRACTICE_OFFERED = "practice_offered"
@@ -150,9 +153,11 @@ _TRANSITIONS: dict[CycleState, dict[CycleCommand, tuple[CycleState, TutorAction 
     },
     CycleState.HINTED: {
         CycleCommand.HINT_DELIVERED: (CycleState.AWAITING_ATTEMPT, None),
+        CycleCommand.SUPPORT_RETURNED_TO_RETRY: (CycleState.AWAITING_RETRY, None),
     },
     CycleState.EXPLAINING: {
         CycleCommand.EXPLANATION_DELIVERED: (CycleState.AWAITING_ATTEMPT, None),
+        CycleCommand.SUPPORT_RETURNED_TO_RETRY: (CycleState.AWAITING_RETRY, None),
     },
     CycleState.DIAGNOSING: {
         CycleCommand.DIAGNOSIS_CORRECT: (CycleState.SOLVED, _action("ASK_STUDENT", 0)),
@@ -167,6 +172,8 @@ _TRANSITIONS: dict[CycleState, dict[CycleCommand, tuple[CycleState, TutorAction 
         CycleCommand.SUBMIT_ATTEMPT: (CycleState.DIAGNOSING, None),
         CycleCommand.REQUEST_HINT: (CycleState.HINTED, _action("GIVE_HINT", 2, "hint")),
         CycleCommand.REQUEST_EXPLANATION: (CycleState.EXPLAINING, _action("EXPLAIN_CONCEPT", 1)),
+        CycleCommand.REQUEST_EXAMPLE: (CycleState.EXPLAINING, _action("SHOW_EXAMPLE", 1)),
+        CycleCommand.SOLUTION_SHOWN_PERMITTED: (CycleState.SOLUTION_SHOWN, _action("SHOW_SOLUTION", 5, "full")),
     },
     CycleState.SOLVED: {
         CycleCommand.REFLECTED: (CycleState.REFLECTION, None),
@@ -186,6 +193,19 @@ _TRANSITIONS: dict[CycleState, dict[CycleCommand, tuple[CycleState, TutorAction 
 # cancel_turn closes the cycle from every non-terminal state.
 for _state in list(_TRANSITIONS):
     _TRANSITIONS[_state][CycleCommand.CANCEL_TURN] = (CycleState.CLOSED, None)
+
+# Invitations are independent resources. Accepting temporarily changes focus;
+# it is not proof that the original problem is complete or reflected upon.
+for _state in (CycleState.AWAITING_ATTEMPT, CycleState.AWAITING_RETRY,
+               CycleState.AWAITING_ATTEMPT_CLARIFICATION, CycleState.SOLVED,
+               CycleState.SOLUTION_SHOWN, CycleState.REFLECTION, CycleState.PRACTICE_OFFERED):
+    _TRANSITIONS[_state][CycleCommand.ACCEPT_PRACTICE_OFFER] = (_state, None)
+    _TRANSITIONS[_state][CycleCommand.DECLINE_PRACTICE_OFFER] = (_state, None)
+    _TRANSITIONS[_state][CycleCommand.TEACHER_ERROR_ANALYZED] = (_state, None)
+
+# Repeating the original answer after viewing it is assessable, but the
+# evidence classifier retains answer exposure; it is never independent mastery.
+_TRANSITIONS[CycleState.SOLUTION_SHOWN][CycleCommand.SUBMIT_ATTEMPT] = (CycleState.DIAGNOSING, None)
 
 
 def allowed_next_commands(state: CycleState) -> tuple[CycleCommand, ...]:

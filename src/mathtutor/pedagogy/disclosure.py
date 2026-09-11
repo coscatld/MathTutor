@@ -62,6 +62,15 @@ def _display_step(step: dict[str, Any], index: int, variable: str) -> dict[str, 
             latex = " \\text{或} ".join(c.root_latex(root, variable) for root in roots)
             if not roots:
                 latex = "\\text{无实数解}"
+        elif step.get("kind") == "eliminate":
+            row = step["result_row"]
+            latex = f"{_fraction_latex(row[0])}{step['variable']} = {_fraction_latex(row[2])}"
+        elif step.get("kind") == "solve_variable":
+            latex = f"{step['variable']} = {_fraction_latex(step['value'])}"
+        elif step.get("kind") == "back_substitution":
+            latex = f"{_fraction_latex(step['coefficient'])}{step['variable']} = {_fraction_latex(step['rhs'])}"
+        elif step.get("kind") == "substitution":
+            latex = r",\quad ".join(f"{name}={_fraction_latex(value)}" for name, value in step["values"].items())
     except (KeyError, TypeError, ValueError):
         latex = ""
     return {"display_text": text, "display_latex": latex}

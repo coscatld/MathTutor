@@ -61,6 +61,7 @@ class LearningCommit:
     score: float | None
     assessment_attestation_hash: str
     assessment_policy_version: str = ""
+    idempotency_key: str = ""
     verified_claims: tuple[dict[str, Any], ...] = ()
     invalid_claims: tuple[dict[str, Any], ...] = ()
     remaining_requirements: tuple[dict[str, Any], ...] = ()
@@ -68,6 +69,8 @@ class LearningCommit:
     evidence: dict[str, Any] | None = None
     projection: dict[str, Any] | None = None
     outbox_events: list[dict[str, Any]] = field(default_factory=list)
+    teaching_context: dict[str, Any] | None = None
+    tracking_attempt: dict[str, Any] | None = None
 
 
 class SessionStoreProtocol(Protocol):
@@ -171,6 +174,10 @@ class InMemorySessionStore:
         # Phase 5: exact-snapshot fallback for child cycles (mirror of the
         # SQLite path); the capability also store_verified()s at accept.
         self.practice_repository = practice_repository
+        from mathtutor.repositories.teaching_repository import TeachingRepository
+        self.teaching = TeachingRepository()
+        self.student_state = None
+        self._cycle_archive = {}
 
     async def load(self, student_id: str, client_session_id: str) -> TutoringSession | None:
         return self._sessions.get((student_id, client_session_id))
@@ -178,7 +185,15 @@ class InMemorySessionStore:
     async def create(self, student_id: str, client_session_id: str) -> TutoringSession:
         session = TutoringSession(session_id=uuid4(), student_id=student_uuid(student_id))
         self._sessions[(student_id, client_session_id)] = session
+        self._cycle_archive[(student_id, str(session.cycle.cycle_id))] = session
         return session
+
+    async def focus_cycle(self, student_id, client_session_id, cycle_id):
+        target = self._cycle_archive.get((student_id, str(cycle_id)))
+        if target is None:
+            raise ValueError("cycle not found")
+        self._sessions[(student_id, client_session_id)] = target
+        return target
 
     async def start_new_cycle(self, student_id: str, client_session_id: str) -> TutoringSession:
         return await self.create(student_id, client_session_id)
@@ -193,13 +208,22 @@ class InMemorySessionStore:
         # happened inside the state machine; nothing further to persist.
         pass
 
+    async def persist_transitions(self, student_id, transitions):
+        return None
+
     async def persist_tutor_action(
         self,
         student_id: str,
         cycle_id: UUID,
         action: TutorAction,
     ) -> None:
-        self._actions.setdefault(cycle_id, []).append(action)
+        actions = self._actions.setdefault(cycle_id, [])
+        if not any(saved.action_id == action.action_id for saved in actions):
+            actions.append(action)
+
+    async def commit_teaching_action(self, student_id, cycle_id, transitions, action, context):
+        await self.persist_tutor_action(student_id, cycle_id, action)
+        await self.teaching.save(student_id, cycle_id, context)
 
     async def load_assistance(self, student_id: str, cycle_id: UUID) -> CycleAssistance:
         return _assistance_from_actions(self._actions.get(cycle_id, []))
@@ -249,6 +273,10 @@ class InMemorySessionStore:
         # In-memory: the session object already mutated; append the learning
         # facts to the per-process history so projections can replay.
         cycle_id = commit.transitions[0].cycle_id
+        if commit.teaching_context is not None:
+            await self.teaching.save(student_id, cycle_id, commit.teaching_context)
+        if self.student_state is not None and commit.tracking_attempt is not None:
+            await self.student_state.record_attempt(student_id, **commit.tracking_attempt)
         self._attempt_counts[cycle_id] = self._attempt_counts.get(cycle_id, 0) + 1
         if commit.evidence is not None:
             self._evidence_history.setdefault(student_id, []).append(
@@ -301,11 +329,12 @@ class InMemorySessionStore:
         if not accepted:
             raise PracticeOfferAcceptError("offer 不是 ACTIVE 或已过期")
         self._sessions[(student_id, client_session_id)] = child
+        self._cycle_archive[(student_id, str(child.cycle.cycle_id))] = child
 
     async def load_child_cycle_for_offer(
         self, student_id: str, offer_id: UUID
     ) -> TutoringSession | None:
-        for (owner, _client_id), session in self._sessions.items():
+        for (owner, _cycle_id), session in self._cycle_archive.items():
             if owner == student_id and session.cycle.practice_offer_id == offer_id:
                 return session
         return None
@@ -356,6 +385,7 @@ def _evidence_from_commit(student_id: str, commit: LearningCommit):
         student_id=student_uuid(student_id),
         attempt_id=commit.attempt_id,
         skill_id=str(row.get("skill_id") or "UNKNOWN_SKILL"),
+        problem_id=str(commit.problem_id),
         correctness=commit.correctness,
         score=float(commit.score if commit.score is not None else 0.0),
         difficulty=int(row.get("difficulty") or 1),

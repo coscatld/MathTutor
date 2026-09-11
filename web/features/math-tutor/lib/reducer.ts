@@ -20,7 +20,9 @@ import {
   normalizeAssistanceLevel,
   projectTurnError,
   shouldRenderTutorText,
+  projectAllowedActions,
 } from "./protocol";
+import { projectActiveOffer, projectDiagnosis, projectEvidenceSummary, projectProblemContext, projectTeachingPlan } from "./teaching-contract";
 
 export type MathTutorAction =
   | { type: "connection"; status: ConnectionStatus; note: string }
@@ -31,6 +33,8 @@ export type MathTutorAction =
 
 export function initialMathTutorState(sessionId: string): MathTutorUIState {
   return {
+    cycleId: "",
+    problemRevision: "",
     connectionStatus: "connecting",
     connectionNote: "",
     sessionId,
@@ -66,19 +70,32 @@ function appendMessage(
  */
 function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUIState {
   if (frame.payload.conversation_id && frame.payload.conversation_id !== state.sessionId) return state;
-  if (isStaleFrame(frame, state.seenVersion)) {
+  const changedCycle = Boolean(frame.cycle_id && frame.cycle_id !== state.cycleId);
+  if (!changedCycle && isStaleFrame(frame, state.seenVersion)) {
     return state;
   }
 
   const next: MathTutorUIState = {
     ...state,
-    seenVersion: Math.max(state.seenVersion, frame.cycle_state_version),
+    cycleId: frame.cycle_id || state.cycleId,
+    problemRevision: frame.problem_revision ?? (changedCycle ? "" : state.problemRevision),
+    seenVersion: changedCycle ? frame.cycle_state_version : Math.max(state.seenVersion, frame.cycle_state_version),
     cycleState: frame.cycle_state || state.cycleState,
+    teachingPlan: frame.teaching_plan !== undefined ? frame.teaching_plan : changedCycle ? null : state.teachingPlan,
+    problemContext: frame.problem_context !== undefined ? frame.problem_context : changedCycle ? null : state.problemContext,
+    evidenceSummary: frame.evidence_summary !== undefined ? frame.evidence_summary : changedCycle ? null : state.evidenceSummary,
+    activeOffer: frame.active_offer !== undefined ? frame.active_offer : changedCycle ? null : state.activeOffer,
+    diagnosis: frame.diagnosis !== undefined ? frame.diagnosis : changedCycle ? null : state.diagnosis,
   };
 
   if (frame.allowed_next_inputs.length > 0) {
     next.allowedNextInputs = frame.allowed_next_inputs;
   }
+  if (frame.allowed_actions !== undefined) {
+    next.allowedActions = frame.allowed_actions;
+    next.allowedNextInputs = frame.allowed_actions.filter(a => a.enabled).map(a => a.command);
+    next.assistanceLevel = normalizeAssistanceLevel(frame.payload.effective_assistance_level || 0);
+  } else if (changedCycle) next.allowedActions = undefined;
 
   // The server closed the cycle — the problem area returns to "write a new
   // problem" (a display decision from a public field, not a capability guess).
@@ -92,8 +109,9 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
     const text = frame.payload.student_message || "";
     if (shouldRenderTutorText(text)) {
       const id = frame.payload.message_id || frame.payload.turn_id;
-      const existing = state.messages.find(m => m.id === id && m.status === "STREAMING");
-      next.messages = existing ? state.messages.map(m => m === existing ? { ...m, text: m.text + text } : m)
+      const existing = state.messages.find(m => m.id === id);
+      next.messages = existing ? state.messages.map(m => m === existing ? { ...m, text: frame.payload.content_mode === "snapshot" ? text : m.text + text,
+        action: frame.payload.action || m.action, assistanceLevel: Math.max(m.assistanceLevel, normalizeAssistanceLevel(frame.payload.effective_assistance_level || 0)) } : m)
         : [...state.messages, { id: id || nextMessageId(), kind: "tutor", text, status: "STREAMING",
           turnId: frame.payload.turn_id, action: frame.payload.action || "",
           assistanceLevel: normalizeAssistanceLevel(frame.payload.effective_assistance_level || 0), version: next.seenVersion }].slice(-100) as TutorMessage[];
@@ -108,7 +126,7 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
       next.messages = next.messages.map(m => m === matching[0] ? { ...m, text: frame.payload.final_text! } : m);
     }
     if (frame.event_type === "assistant_error" && !next.messages.some(m => m.turnId === frame.payload.turn_id)) {
-      next.messages = appendMessage(next, { kind: "tutor", text: status === "CANCELLED" ? "已停止生成。" : "这次回答未能生成，请重试。", status, turnId: frame.payload.turn_id, action: "", assistanceLevel: 0, version: next.seenVersion });
+      next.messages = appendMessage(next, { kind: "error", text: projectTurnError(frame.payload.error || (status === "CANCELLED" ? "已停止生成。" : "这次回答未能生成，请重试。")), status, turnId: frame.payload.turn_id, action: "", assistanceLevel: 0, version: next.seenVersion });
     }
     next.pendingCommand = null;
     return next;
@@ -117,13 +135,18 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
   if (frame.event_type === "turn_error") {
     const text = projectTurnError(frame.payload.error?.trim() || "出错了，请重试。");
     next.pendingCommand = null;
-    next.messages = appendMessage(state, {
+    const turnId = frame.payload.turn_id;
+    const existing = turnId ? state.messages.find(m => m.turnId === turnId) : undefined;
+    next.messages = existing ? state.messages.map(m => m === existing ? { ...m, text: m.kind === "error" ? text : m.text.endsWith(text) ? m.text : `${m.text}\n\n${text}`, status: "FAILED" } : m) : [...state.messages, {
+      id: frame.payload.message_id || turnId || nextMessageId(),
       kind: "error",
       text,
+      turnId,
+      status: "FAILED",
       action: "turn_error",
       assistanceLevel: 0,
       version: frame.cycle_state_version,
-    });
+    }];
     return next;
   }
 
@@ -181,7 +204,10 @@ function applyRestore(
   const allowed = Array.isArray(summary.allowed_next_inputs)
     ? summary.allowed_next_inputs.filter((item): item is string => typeof item === "string")
     : [];
+  if (summary.cycle_id && summary.cycle_id === state.cycleId && stateVersion < state.seenVersion) return state;
+  const capabilities = summary.allowed_actions !== undefined ? projectAllowedActions(summary.allowed_actions) : undefined;
   const restoredState = String(summary.state ?? "");
+  const changedCycle = summary.cycle_id !== undefined && summary.cycle_id !== state.cycleId;
   const active = restoredState !== "" && restoredState !== "closed";
   const restoredMessages = Array.isArray(summary.messages)
     ? summary.messages.flatMap((message) => {
@@ -195,10 +221,19 @@ function applyRestore(
     : null;
   return {
     ...state,
+    cycleId: summary.cycle_id ?? state.cycleId,
+    problemRevision: summary.problem_revision ?? state.problemRevision,
+    teachingPlan: "teaching_plan" in summary ? projectTeachingPlan(summary.teaching_plan) : changedCycle ? null : state.teachingPlan,
+    problemContext: "problem_context" in summary ? projectProblemContext(summary.problem_context) : changedCycle ? null : state.problemContext,
+    evidenceSummary: "evidence_summary" in summary ? projectEvidenceSummary(summary.evidence_summary) : changedCycle ? null : state.evidenceSummary,
+    activeOffer: "active_offer" in summary ? projectActiveOffer(summary.active_offer) : null,
+    diagnosis: "diagnosis" in summary ? projectDiagnosis(summary.diagnosis) : changedCycle ? null : state.diagnosis,
+    allowedActions: capabilities,
     cycleState: restoredState,
-    seenVersion: Math.max(state.seenVersion, stateVersion),
-    allowedNextInputs: allowed.length > 0 ? allowed : state.allowedNextInputs,
-    problemActive: active || state.problemActive,
+    seenVersion: summary.cycle_id !== undefined && summary.cycle_id !== state.cycleId ? stateVersion : Math.max(state.seenVersion, stateVersion),
+    allowedNextInputs: capabilities ? capabilities.filter(a => a.enabled).map(a => a.command) : allowed,
+    assistanceLevel: normalizeAssistanceLevel(Number(summary.effective_assistance_level ?? 0)),
+    problemActive: active,
     pendingCommand: null,
     messages: restoredMessages ?? state.messages,
   };

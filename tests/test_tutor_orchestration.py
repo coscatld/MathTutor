@@ -87,7 +87,8 @@ def test_simple_arithmetic_is_math_problem() -> None:
 
 def test_followup_uses_active_problem_context() -> None:
     routed = classify_user_message("我没懂", cycle_state=CycleState.AWAITING_ATTEMPT)
-    assert routed.intent is ConversationIntent.PROBLEM_CONTINUATION
+    assert routed.intent is ConversationIntent.TEACHING_REQUEST
+    assert routed.command == "request_explanation"
 
 
 def test_internal_command_ack_is_dropped() -> None:
@@ -194,7 +195,7 @@ async def test_invalid_transition_not_exposed_to_ui() -> None:
     controller = MathTutorController()
     events = await _turn(controller, "bad-hint", "给我提示", command="request_hint")
     blob = _contents(events)
-    assert STUDENT_TRANSITION_FAILURE in blob
+    assert "请先补充题目" in blob
     assert "grounding" not in blob
     assert "submit_problem" not in blob
     assert "request_hint" not in blob
@@ -240,11 +241,11 @@ async def test_provider_success_not_overwritten_by_state_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_new_problem_replaces_active_cycle() -> None:
+async def test_explicit_new_problem_replaces_active_cycle() -> None:
     controller = MathTutorController()
     owner = _owner()
     await _turn(controller, "next-p", "2+2=?", owner=owner)
-    events = await _turn(controller, "next-p", "2x + 3 = 7", owner=owner)
+    events = await _turn(controller, "next-p", "换题：2x + 3 = 7", owner=owner)
     session = await controller.sessions.load(owner.student_id, "next-p")
     assert session is not None
     assert session.state is CycleState.AWAITING_ATTEMPT
