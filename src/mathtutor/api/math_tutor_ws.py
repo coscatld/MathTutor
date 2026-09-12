@@ -188,6 +188,25 @@ async def _process_request(state, owner, session_id, user_message, event_key,
     journal = state.turn_requests
     key = (owner.student_id, session_id, event_key)
     envelope = _canonical_envelope(user_message)
+    attachments = []
+    ids = (envelope.get("payload") or {}).get("attachment_ids")
+    if ids:
+        from mathtutor.repositories.image_repository import public_image
+        from mathtutor.infrastructure.generative_gateway import ModelRole
+        from mathtutor.infrastructure.vision import supports_vision, VISION_UNSUPPORTED
+        try:
+            if envelope.get("command") != "send_message":
+                raise ValueError("图片只能作为聊天消息附件发送")
+            rows = await state.images.resolve(owner.student_id, ids)
+            if not await supports_vision(state.gateway.provider_for(ModelRole.TUTOR_WRITER)):
+                raise ValueError(VISION_UNSUPPORTED)
+            attachments = [public_image(row) for row in rows]
+        except ValueError as exc:
+            await send(StudentPublicEvent(event_type="assistant_error", payload={
+                "turn_id": event_key, "conversation_id": session_id,
+                "status": "FAILED", "error": str(exc), "error_code": "IMAGE_INPUT_REJECTED",
+            }).wire_dict())
+            return
     fingerprint = content_hash({k: v for k, v in envelope.items()
                                 if k not in {"request_id", "idempotency_key"}})
     async with journal.conversation(owner.student_id, session_id):
@@ -212,7 +231,10 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                         and checkpoint.get("cycle_version") == cycle.version
                         and checkpoint.get("command") in {"request_hint", "request_explanation", "request_example", "request_solution"}):
                     recovery = checkpoint
-        if not created and recovery is None:
+        image_retry = bool(attachments and not created and stored["status"] == "FINISHED"
+            and any(f["event_type"] == "assistant_error" for f in stored["frames"])
+            and not any(f["event_type"] == "assistant_delta" for f in stored["frames"]))
+        if not created and recovery is None and not image_retry:
             frames = stored["frames"]
             if stored["status"] != "FINISHED":
                 # A previous process stopped after claim. Do not replay effects.
@@ -256,7 +278,7 @@ async def _process_request(state, owner, session_id, user_message, event_key,
 
         if not recovery:
             await state.conversations.append_message(owner.student_id, session_id,
-                role="student", content=display_text, event_key=f"student:{event_key}")
+                role="student", content=display_text, event_key=f"student:{event_key}", attachments=attachments)
         # Evidence keys are globally unique; a client key is only conversation-local.
         envelope["idempotency_key"] = content_hash({"owner": key[0], "conversation": key[1], "request": key[2]})
         request = MathTutorRequest(session_id=session_id,
@@ -429,7 +451,7 @@ def _message_projection(user_message: str) -> tuple[str, str]:
     command = str(envelope.get("command") or "")
     if envelope.get("protocol_version", 1) == 1:
         command = LEGACY_COMMAND_ALIASES.get(command, command)
-    if not text:
+    if not text and not payload.get("attachment_ids"):
         from mathtutor.application.message_projection import command_message_label
         text = command_message_label(command)
     key = str(envelope.get("request_id") or envelope.get("idempotency_key") or uuid4())

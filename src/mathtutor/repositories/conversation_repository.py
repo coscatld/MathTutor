@@ -42,8 +42,8 @@ class InMemoryConversationRepository:
         self._conversations.setdefault(key, {"conversation_id": conversation_id, "title": title, "created_at": now, "updated_at": now})
         return dict(self._conversations[key])
 
-    async def append_message(self, student_id: str, conversation_id: str, *, role: str, content: str, action: str = "", assistance_level: int = 0, event_key: str = "", status: str = "COMPLETED", finish_reason: str = "FINAL_ANSWER", turn_id: str = "", continuation_context: str = "") -> None:
-        if not content.strip():
+    async def append_message(self, student_id: str, conversation_id: str, *, role: str, content: str, action: str = "", assistance_level: int = 0, event_key: str = "", status: str = "COMPLETED", finish_reason: str = "FINAL_ANSWER", turn_id: str = "", continuation_context: str = "", attachments: list | None = None) -> None:
+        if not content.strip() and not attachments:
             return
         await self.ensure(student_id, conversation_id)
         key = (student_id, conversation_id)
@@ -51,10 +51,10 @@ class InMemoryConversationRepository:
         unique = event_key or str(uuid4())
         if any(row["event_key"] == unique for row in rows):
             return
-        rows.append({"message_id": message_id_for(student_id, conversation_id, unique), "role": role, "content": content.strip(), "action": action, "assistance_level": assistance_level, "event_key": unique, "created_at": _now(), "status": status, "finish_reason": finish_reason, "turn_id": turn_id, "continuation_context": continuation_context})
+        rows.append({"message_id": message_id_for(student_id, conversation_id, unique), "role": role, "content": content.strip(), "action": action, "assistance_level": assistance_level, "event_key": unique, "created_at": _now(), "status": status, "finish_reason": finish_reason, "turn_id": turn_id, "continuation_context": continuation_context, "attachments": attachments or []})
         item = self._conversations[key]
         if role == "student" and item["title"] == "新对话":
-            item["title"] = _title(content)
+            item["title"] = _title(content or ("图片问题" if attachments else ""))
         item["updated_at"] = _now()
 
     async def finalize_turn(self, student_id, conversation_id, turn_id, *, status, finish_reason):
@@ -119,19 +119,19 @@ class SQLiteConversationRepository:
             row = (await conn.execute(select(conversations).where(conversations.c.student_id == student_id, conversations.c.conversation_id == conversation_id))).first()
         return dict(row._mapping)
 
-    async def append_message(self, student_id: str, conversation_id: str, *, role: str, content: str, action: str = "", assistance_level: int = 0, event_key: str = "", status: str = "COMPLETED", finish_reason: str = "FINAL_ANSWER", turn_id: str = "", continuation_context: str = "") -> None:
+    async def append_message(self, student_id: str, conversation_id: str, *, role: str, content: str, action: str = "", assistance_level: int = 0, event_key: str = "", status: str = "COMPLETED", finish_reason: str = "FINAL_ANSWER", turn_id: str = "", continuation_context: str = "", attachments: list | None = None) -> None:
         content = content.strip()
-        if not content:
+        if not content and not attachments:
             return
         await self.ensure(student_id, conversation_id)
         now = _now()
         unique = event_key or str(uuid4())
         async with self.uow.transaction() as conn:
-            await conn.execute(conversation_messages.insert().prefix_with("OR IGNORE").values(message_id=message_id_for(student_id, conversation_id, unique), conversation_id=conversation_id, student_id=student_id, role=role, content=content, action=action, assistance_level=assistance_level, event_key=unique, created_at=now, status=status, finish_reason=finish_reason, turn_id=turn_id, continuation_context=continuation_context))
+            await conn.execute(conversation_messages.insert().prefix_with("OR IGNORE").values(message_id=message_id_for(student_id, conversation_id, unique), conversation_id=conversation_id, student_id=student_id, role=role, content=content, action=action, assistance_level=assistance_level, event_key=unique, created_at=now, status=status, finish_reason=finish_reason, turn_id=turn_id, continuation_context=continuation_context, attachments=attachments or []))
             current = (await conn.execute(select(conversations.c.title).where(conversations.c.student_id == student_id, conversations.c.conversation_id == conversation_id))).scalar_one_or_none()
             values: dict[str, str] = {"updated_at": now}
             if role == "student" and current == "新对话":
-                values["title"] = _title(content)
+                values["title"] = _title(content or ("图片问题" if attachments else ""))
             await conn.execute(conversations.update().where(conversations.c.student_id == student_id, conversations.c.conversation_id == conversation_id).values(**values))
 
     async def finalize_turn(self, student_id, conversation_id, turn_id, *, status, finish_reason):

@@ -22,6 +22,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
+    LargeBinary,
     Index,
     MetaData,
     String,
@@ -109,11 +110,22 @@ conversation_messages = Table(
     Column("turn_id", String(160), nullable=False, server_default=""),
     Column("continuation_context", Text, nullable=False, server_default=""),
     Column("content", Text, nullable=False),
+    Column("attachments", JSON, nullable=False, server_default="[]"),
     Column("action", String(48), nullable=False, default=""),
     Column("assistance_level", Integer, nullable=False, default=0),
     Column("event_key", String(160), nullable=False, default=""),
     Column("created_at", Text, nullable=False),
     UniqueConstraint("student_id", "conversation_id", "event_key", name="uq_conversation_message_event"),
+)
+
+image_attachments = Table(
+    "image_attachments", metadata,
+    Column("id", String(36), primary_key=True),
+    Column("student_id", String(64), ForeignKey("student_profiles.student_id"), nullable=False),
+    Column("mime_type", String(32), nullable=False),
+    Column("name", Text, nullable=False),
+    Column("data", LargeBinary, nullable=False),
+    Column("created_at", Text, nullable=False),
 )
 
 turn_requests = Table(

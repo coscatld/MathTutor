@@ -92,7 +92,7 @@ export type MathTutorCommand =
 export interface ClientEnvelope {
   protocol_version?: number;
   command: string;
-  payload: Record<string, string>;
+  payload: Record<string, string | string[]>;
   session_id: string;
   request_id?: string;
   idempotency_key?: string;
@@ -178,6 +178,7 @@ export interface SessionSummary {
     finish_reason?: string;
     role?: "student" | "tutor" | "error";
     content?: string;
+    attachments?: import("./lib/attachments").MessageAttachment[];
     action?: string;
     assistance_level?: number;
     created_at?: string;
@@ -193,6 +194,7 @@ export type ConnectionStatus =
 
 /** A rendered tutor message (from tutor_action_committed / turn_error). */
 export interface TutorMessage {
+  attachments?: import("./lib/attachments").MessageAttachment[];
   status?: string;
   turnId?: string;
   finishReason?: string;

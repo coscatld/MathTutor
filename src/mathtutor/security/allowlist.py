@@ -133,6 +133,13 @@ def validate_client_envelope(raw: Any) -> dict[str, Any]:
     unknown = [key for key in raw if key not in MATHTUTOR_ENVELOPE_ALLOWED_KEYS]
     if unknown:
         raise SecurityViolationError(f"unknown envelope keys: {sorted(unknown)}")
+    payload = raw.get("payload", {})
+    if not isinstance(payload, dict):
+        raise SecurityViolationError("消息内容必须是对象")
+    if "attachment_ids" in payload:
+        ids = payload["attachment_ids"]
+        if raw.get("command") != "send_message" or not isinstance(ids, list) or len(ids) > 4 or any(not isinstance(i, str) or len(i) != 36 for i in ids):
+            raise SecurityViolationError("图片附件格式无效，每条消息最多上传 4 张图片")
     return raw
 
 

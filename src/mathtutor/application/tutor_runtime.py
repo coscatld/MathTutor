@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from mathtutor.infrastructure.vision import content_token_estimate
 from collections import Counter
 from contextvars import ContextVar
 
@@ -51,7 +52,7 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
     if previous:
         messages.extend([{'role': 'assistant', 'content': previous}, {'role': 'user', 'content': '接着这条未完成回答继续，只输出后续部分，不重复前文。保持原来的披露范围。'}])
     prior_text = previous
-    if not prior_text and messages and messages[-1].get('content', '').strip() == '继续':
+    if not prior_text and messages and messages[-1].get('content', '') == '继续':
         prior_text = next((m['content'] for m in reversed(messages[:-1]) if m.get('role') == 'assistant'), '')
     text = ''
     if turn.steps_used >= turn.max_steps:
@@ -60,7 +61,7 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
     result = None
     while turn.steps_used < turn.max_steps:
         remaining = turn.max_total_tokens - turn.input_tokens - turn.output_tokens
-        prompt_estimate = sum(len(str(m.get('content', '')).encode('utf-8')) + 16 for m in messages)
+        prompt_estimate = sum(content_token_estimate(m.get('content', '')) + 16 for m in messages)
         allowance = min(max_tokens or 512, remaining - prompt_estimate)
         if allowance <= 0:
             turn.stop(FinishReason.TOKEN_LIMIT, text)
@@ -68,7 +69,7 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
         if turn.steps_used == turn.max_steps - 1 or remaining < 2 * (prompt_estimate + allowance):
             turn.grace_call_used = True
             messages.append({'role': 'system', 'content': '这是最后一次回答机会。不要调用工具或开始新的任务。接着已有回答完成可靠结论，不要重复前文；明确尚未完成的部分。'})
-            prompt_estimate = sum(len(str(m.get("content", "")).encode("utf-8")) + 16 for m in messages)
+            prompt_estimate = sum(content_token_estimate(m.get("content", "")) + 16 for m in messages)
             allowance = min(allowance, remaining - prompt_estimate)
             if allowance <= 0:
                 turn.stop(FinishReason.TOKEN_LIMIT, text)

@@ -261,6 +261,8 @@ def create_math_tutor_app(
     # --- Explicit allowlist (default deny) --------------------------------
     app.include_router(math_tutor_ws.router, prefix="/api/v2/math-tutor")
     app.include_router(math_tutor_read.router, prefix="/api/v2/math-tutor")
+    from mathtutor.api.image_api import router as image_router
+    app.include_router(image_router)
     # Desktop product bridge (settings/documents/memory/readiness) — a
     # deliberate addition to the student product surface, same auth posture.
     from mathtutor.api import desktop_api

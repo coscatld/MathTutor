@@ -256,6 +256,8 @@ class ProductState:
         self.bootstrap_tracker = BootstrapTracker()
         from mathtutor.repositories.turn_repository import TurnRequestRepository
         self.turn_requests = TurnRequestRepository(engine)
+        from mathtutor.repositories.image_repository import ImageRepository
+        self.images = ImageRepository(engine)
 
         if engine is not None:
             from mathtutor.repositories.sqlite_curriculum import (
@@ -419,6 +421,7 @@ class ProductState:
         )
         from mathtutor.infrastructure.tutor_intent import SemanticTeachingInterpreter
         self.controller.semantic_interpreter = SemanticTeachingInterpreter(self.gateway)
+        self.controller.image_repository = self.images
         from mathtutor.learning.knowledge_tracing.service import StudentStateService
         self.student_state = StudentStateService(engine, Path(data_dir) / "models" / "dkt" / "model.npz") if engine is not None else None
         self.store.student_state = self.student_state

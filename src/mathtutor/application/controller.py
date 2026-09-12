@@ -382,6 +382,16 @@ class MathTutorController:
             await stream.error(conflict[1], source=self.manifest.name, metadata={"error_code": conflict[0]})
             return
         payload = envelope.get("payload") or {}
+        if payload.get("attachment_ids"):
+            # Images are expression input, never a verified math answer or a
+            # permission to advance the bound teaching cycle.
+            try:
+                images = await self.image_repository.resolve(owner.student_id, payload["attachment_ids"])
+                await self._chat_message(session, str(payload.get("text") or ""),
+                    request.conversation_messages, stream, owner_id=owner.student_id, images=images)
+            except ValueError as exc:
+                await stream.error(str(exc), source=self.manifest.name)
+            return
         if command == SEND_MESSAGE_COMMAND:
             await self._route_send_message(request, session, payload, envelope, stream)
             return
@@ -849,8 +859,19 @@ class MathTutorController:
         owner_id: str | None = None,
         follow_up: bool = False,
         unstructured_math: bool = False,
+        images: list | None = None,
     ) -> None:
         responder = self.chat_responder
+        if images is None and getattr(self, "image_repository", None) is not None:
+            # Reattach the latest image turn for conversational follow-ups and
+            # continuation. A new structured math task still uses its own route.
+            previous = next((m for m in reversed(history[-20:]) if m.get("role") == "student" and m.get("attachments")), None)
+            if previous:
+                try:
+                    images = await self.image_repository.resolve(owner_id, [a["id"] for a in previous["attachments"]])
+                except ValueError:
+                    await stream.error("之前的图片已删除或不可用，请重新上传。", source=self.manifest.name)
+                    return
         problem_context = ""
         if follow_up and session is not None and owner_id:
             verified = await self.sessions.load_verified(
@@ -860,19 +881,30 @@ class MathTutorController:
                 problem_context = getattr(verified[0], "display_latex", "") or ""
         provider_result = "fallback"
         if responder is None:
+            if images:
+                raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。")
             message = fallback_tutor_reply(text)
         else:
             try:
+                extra = {"images": images} if images else {}
                 message = await responder.respond(
                     text,
                     history=history,
                     problem_context=problem_context,
                     unstructured_math=unstructured_math,
+                    **extra,
                 )
                 provider_result = "success"
             except TypeError:
+                if images:
+                    raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。") from None
                 message = await responder.respond(text, history=history)
                 provider_result = "success"
+            except ValueError as exc:
+                if not images:
+                    raise
+                await stream.error(str(exc), source=self.manifest.name)
+                return
         logger.info(
             "tutor_orchestration intent=general_chat provider_result=%s state=%s",
             provider_result,

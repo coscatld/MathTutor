@@ -5,6 +5,7 @@ import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import { actionLabel, normalizeAssistanceLevel } from "../lib/protocol";
 import type { TutorMessage } from "../types";
 import { supportExposureLabel } from "../lib/teaching-contract";
+import ImageAttachments from "./ImageAttachments";
 
 /**
  * One tutor message. Shows the student-facing message plus the current
@@ -13,7 +14,7 @@ import { supportExposureLabel } from "../lib/teaching-contract";
  */
 export default function TutorActionCard({ message, onContinue, onRecover }: { message: TutorMessage; onContinue?: () => void; onRecover?: () => void }) {
   if (message.kind === "student") {
-    return <div className="flex justify-end"><div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-[#1d5fd1] px-4 py-3 text-[15px] leading-relaxed text-white shadow-sm"><MarkdownRenderer content={message.text} enableMath /></div></div>;
+    return <div className="flex justify-end"><div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-[#1d5fd1] px-4 py-3 text-[15px] leading-relaxed text-white shadow-sm"><ImageAttachments images={message.attachments || []} /><MarkdownRenderer content={message.text} enableMath /></div></div>;
   }
   if (message.kind === "error") {
     return (

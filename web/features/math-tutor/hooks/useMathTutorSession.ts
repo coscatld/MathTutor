@@ -25,6 +25,7 @@ import {
   mathTutorReducer,
 } from "../lib/reducer";
 import { presentationAcknowledgement, presentationFromFrame, type PendingPresentation } from "../lib/delivery";
+import { ImageUploadRepository, type ChatAttachment, type MessageAttachment } from "../lib/attachments";
 
 const WS_PATH = "/api/v2/math-tutor/ws";
 const RECONNECT_BASE_DELAY_MS = 1000;
@@ -60,6 +61,9 @@ export function useMathTutorSession(explicitSessionId?: string) {
   const requestGenerationRef = useRef(0);
   const unacknowledgedRef = useRef<{ id: string; envelope: string } | null>(null);
   const presentationsRef = useRef(new Map<string, PendingPresentation>());
+  const completionRef = useRef<{ id: string; resolve: (success: boolean) => void } | null>(null);
+  const imageUploads = useRef(new ImageUploadRepository());
+  const imageRetry = useRef<{ fingerprint: string; id: string } | null>(null);
 
   const [state, dispatch] = useReducer(
     mathTutorReducer,
@@ -214,6 +218,12 @@ export function useMathTutorSession(explicitSessionId?: string) {
       const presentation = presentationFromFrame(frame);
       if (presentation) presentationsRef.current.set(presentation.deliveryId, presentation);
       dispatch({ type: "frame", frame });
+      const completion = completionRef.current;
+      if (completion && ["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type) && frame.payload.turn_id === completion.id) {
+        completion.resolve(frame.event_type === "assistant_complete");
+        if (frame.event_type === "assistant_complete") imageRetry.current = null;
+        completionRef.current = null;
+      }
       if (["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)
         && frame.payload.turn_id === unacknowledgedRef.current?.id) {
         unacknowledgedRef.current = null;
@@ -226,6 +236,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
     };
 
     ws.onclose = () => {
+      completionRef.current?.resolve(false); completionRef.current = null;
       sendInFlightRef.current = false;
       if (wsRef.current === ws) wsRef.current = null;
       scheduleReconnectRef.current();
@@ -239,7 +250,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
 
   /** Send a command envelope over the WS (only when connected). */
   const send = useCallback(
-    (command: MathTutorCommand, payload: Record<string, string> = {}): boolean => {
+    (command: MathTutorCommand, payload: Record<string, string | string[]> = {}, onComplete?: (success: boolean) => void, attachments: MessageAttachment[] = []): boolean => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         dispatch({
@@ -254,7 +265,9 @@ export function useMathTutorSession(explicitSessionId?: string) {
       }
       sendInFlightRef.current = true;
       requestGenerationRef.current += 1;
-      const requestId = makeSessionId();
+      const fingerprint = JSON.stringify(payload);
+      const requestId = attachments.length && imageRetry.current?.fingerprint === fingerprint ? imageRetry.current.id : makeSessionId();
+      if (attachments.length) imageRetry.current = { fingerprint, id: requestId };
       const envelope = buildEnvelope(command, payload, sessionIdRef.current, {
         requestId,
         idempotencyKey: requestId,
@@ -265,18 +278,27 @@ export function useMathTutorSession(explicitSessionId?: string) {
         problemRevision: stateRef.current.cycleId ? stateRef.current.problemRevision : undefined,
       });
       try {
+        if (onComplete) completionRef.current = { id: requestId, resolve: onComplete };
         ws.send(envelope);
         if (command !== "cancel_turn") unacknowledgedRef.current = { id: requestId, envelope };
       } catch {
+        completionRef.current = null;
         sendInFlightRef.current = false;
         return false;
       }
       const visibleText = payload.text || payload.answer || ({ request_hint: "给我一点提示", request_explanation: "讲解这个知识点", request_example: "给我一个类似例子", request_solution: "查看完整答案", request_practice: "我想独立练一道", resume_problem: "回到刚才那道题", end_problem: "结束本题", start_diagnostic: "先了解一下我的基础", skip_diagnostic: "跳过诊断，继续辅导", accept_practice_offer: "接受这道练习", decline_practice_offer: "暂不练习，保留当前题目" } as Record<string, string>)[command];
-      dispatch({ type: "command_sent", command, text: visibleText });
+      dispatch({ type: "command_sent", command, text: typeof visibleText === "string" ? visibleText : "", attachments });
       return true;
     },
     [],
   );
+
+  const sendMessage = useCallback(async (text: string, attachments: ChatAttachment[]) => {
+    const saved = await imageUploads.current.upload(attachments);
+    return new Promise<boolean>(resolve => {
+      if (!send("send_message", { text, ...(saved.length ? { attachment_ids: saved.map(a => a.id) } : {}) }, resolve, saved)) resolve(false);
+    });
+  }, [send]);
 
   /** Start a brand-new tutoring problem (fresh client session id). */
   const newProblem = useCallback(() => {
@@ -304,6 +326,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
     manuallyClosedRef.current = false;
     connectRef.current();
     return () => {
+      completionRef.current?.resolve(false); completionRef.current = null;
       manuallyClosedRef.current = true;
       clearReconnectTimer();
       if (wsRef.current) {
@@ -318,6 +341,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
     state,
     sessionId: sessionIdRef.current,
     send,
+    sendMessage,
     newProblem,
     reconnect,
     recover,

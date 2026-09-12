@@ -22,15 +22,12 @@ export default function MathTutorPage() {
 }
 
 function TutorConversation({ sessionId }: { sessionId: string }) {
-  const { state, send, reconnect, recover } = useMathTutorSession(sessionId);
+  const { state, send, sendMessage, reconnect, recover } = useMathTutorSession(sessionId);
   const [tool, setTool] = useState<ToolView | null>(null);
   const logEnd = useRef<HTMLDivElement>(null);
   useEffect(() => { logEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [state.messages, state.pendingCommand]);
   const busy = state.pendingCommand !== null;
   const connected = state.connectionStatus === "connected";
-  const submitText = (text: string) => {
-    send("send_message", { text });
-  };
   const toggleTool = (next: ToolView) => setTool((current) => current === next ? null : next);
   return <div className="flex h-full min-h-0 bg-[#faf9f5] dark:bg-[#111619]">
     <section className="flex min-w-0 flex-1 flex-col">
@@ -50,7 +47,7 @@ function TutorConversation({ sessionId }: { sessionId: string }) {
           {busy ? <div className="flex items-center gap-2 text-xs text-slate-400"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1d5fd1]" />Tutor 正在思考下一步…</div> : null}<div ref={logEnd} />
         </div>
       </div>
-      <ChatComposer onCancel={() => send("cancel_turn")} busy={busy} disabled={!connected} onSend={submitText} onAddMaterial={() => setTool("documents")} />
+      <ChatComposer onCancel={() => send("cancel_turn")} busy={busy} disabled={!connected} onSend={sendMessage} onAddMaterial={() => setTool("documents")} />
     </section>
     {tool ? <TutorToolsPanel view={tool} onClose={() => setTool(null)} sessionId={sessionId} level={state.assistanceLevel} plan={state.teachingPlan} evidence={state.evidenceSummary} diagnosis={state.diagnosis} offer={state.activeOffer} actions={state.allowedActions} allowed={state.allowedNextInputs} busy={busy} disabled={!connected} onCommand={(command, payload) => send(command, payload)} /> : null}
   </div>;

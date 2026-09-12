@@ -23,12 +23,13 @@ import {
   projectAllowedActions,
 } from "./protocol";
 import { projectActiveOffer, projectDiagnosis, projectEvidenceSummary, projectProblemContext, projectTeachingPlan } from "./teaching-contract";
+import { projectAttachments, type MessageAttachment } from "./attachments";
 
 export type MathTutorAction =
   | { type: "connection"; status: ConnectionStatus; note: string }
   | { type: "frame"; frame: StudentFrame }
   | { type: "restore"; summary: SessionSummary }
-  | { type: "command_sent"; command: MathTutorCommand; text?: string }
+  | { type: "command_sent"; command: MathTutorCommand; text?: string; attachments?: MessageAttachment[] }
   | { type: "new_session"; sessionId: string };
 
 export function initialMathTutorState(sessionId: string): MathTutorUIState {
@@ -212,11 +213,12 @@ function applyRestore(
   const restoredMessages = Array.isArray(summary.messages)
     ? summary.messages.flatMap((message) => {
         const text = String(message.content ?? "").trim();
-        if (!text) return [];
+        const attachments = projectAttachments(message.attachments);
+        if (!text && !attachments.length) return [];
         const kind = message.role === "student" ? "student" : message.role === "error" ? "error" : "tutor";
         if (kind !== "student" && !shouldRenderTutorText(text)) return [];
         const visible = kind === "error" ? projectTurnError(text) : text;
-        return [{ status: message.status || "COMPLETED", turnId: message.turn_id, finishReason: message.finish_reason, id: message.message_id || nextMessageId(), kind, text: visible, action: String(message.action ?? ""), assistanceLevel: normalizeAssistanceLevel(Number(message.assistance_level ?? 0)), version: stateVersion } satisfies TutorMessage];
+        return [{ attachments, status: message.status || "COMPLETED", turnId: message.turn_id, finishReason: message.finish_reason, id: message.message_id || nextMessageId(), kind, text: visible, action: String(message.action ?? ""), assistanceLevel: normalizeAssistanceLevel(Number(message.assistance_level ?? 0)), version: stateVersion } satisfies TutorMessage];
       })
     : null;
   return {
@@ -263,8 +265,8 @@ export function mathTutorReducer(
       return {
         ...state,
         pendingCommand: action.command,
-        messages: text && !duplicate
-          ? appendMessage(state, { kind: "student", text, action: action.command, assistanceLevel: 0, version: state.seenVersion })
+        messages: (text || action.attachments?.length) && !duplicate
+          ? appendMessage(state, { kind: "student", text, attachments: action.attachments, action: action.command, assistanceLevel: 0, version: state.seenVersion })
           : state.messages,
       };
     }

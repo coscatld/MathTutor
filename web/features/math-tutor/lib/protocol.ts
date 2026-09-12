@@ -123,7 +123,7 @@ export function isStaleFrame(frame: StudentFrame, seenVersion: number): boolean 
 
 export function buildEnvelope(
   command: MathTutorCommand,
-  payload: Record<string, string>,
+  payload: Record<string, string | string[]>,
   sessionId: string,
   options: {
     requestId?: string;

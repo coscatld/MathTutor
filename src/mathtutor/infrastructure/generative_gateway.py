@@ -204,6 +204,10 @@ class OpenAICompatibleProvider:
             )
         return key
 
+    async def supports_vision(self) -> bool:
+        from mathtutor.infrastructure.vision import openai_vision_model
+        return openai_vision_model(self.provider_id, self.model)
+
     async def complete(
         self,
         messages: Sequence[dict],
@@ -362,6 +366,14 @@ class OllamaProviderAdapter:
             raise GenerativeProviderError("provider 'ollama' malformed /api/tags response") from error
         return sorted(name for name in names if name)
 
+    async def supports_vision(self) -> bool:
+        try:
+            async with self._client() as client:
+                response = await client.post(f"{self._base_url}/api/show", json={"model": self.model}, timeout=5)
+                return response.status_code == 200 and "vision" in response.json().get("capabilities", [])
+        except (httpx.HTTPError, ValueError, TypeError):
+            return False
+
     async def complete(
         self,
         messages: Sequence[dict],
@@ -375,11 +387,12 @@ class OllamaProviderAdapter:
                 "provider 'ollama' has no model resolved — select an installed model"
             )
         options: dict[str, int | float] = {"temperature": temperature}
+        from mathtutor.infrastructure.vision import ollama_messages
         if max_tokens is not None:
             options["num_predict"] = max_tokens
         payload = {
             "model": self._model,
-            "messages": list(messages),
+            "messages": ollama_messages(messages),
             "stream": False,
             "options": options,
         }
@@ -546,6 +559,10 @@ class GenerativeModelGateway:
         provider = self._by_role.get(role)
         if provider is None:
             raise GenerativeConfigError(f"no generative provider for role {role.value!r}")
+        if any(isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"]) for m in messages):
+            from mathtutor.infrastructure.vision import supports_vision, VISION_UNSUPPORTED
+            if not await supports_vision(provider):
+                raise GenerativeConfigError(VISION_UNSUPPORTED)
         if role == ModelRole.TUTOR_WRITER:
             from mathtutor.application.tutor_runtime import complete_tutor
             return await complete_tutor(provider, messages, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries)
