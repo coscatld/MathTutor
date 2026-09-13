@@ -210,6 +210,14 @@ async def _process_request(state, owner, session_id, user_message, event_key,
     fingerprint = content_hash({k: v for k, v in envelope.items()
                                 if k not in {"request_id", "idempotency_key"}})
     async with journal.conversation(owner.student_id, session_id):
+        conversation = await state.conversations.get(owner.student_id, session_id)
+        if conversation and (conversation.get("trashed_at") or conversation.get("purged_at")):
+            await send(StudentPublicEvent(event_type="assistant_error", payload={
+                "turn_id": event_key, "conversation_id": session_id,
+                "status": "FAILED", "error_code": "CONVERSATION_DELETED",
+                "error": "对话已移入垃圾桶或已删除，请先恢复或新建对话。",
+            }).wire_dict())
+            return
         await state.conversations.ensure(owner.student_id, session_id)
         created, stored = await journal.claim(*key, fingerprint)
         recovery = None
@@ -296,7 +304,9 @@ async def _process_request(state, owner, session_id, user_message, event_key,
             token = None
             turn_token = current_turn.set(turn)
             try:
-                token = set_document_scope(await state.conversations.document_ids(owner.student_id, session_id))
+                document_ids = await state.conversations.document_ids(owner.student_id, session_id)
+                global_ids = [d.document_id for d in await state.documents.list_documents(owner.student_id) if d.is_global]
+                token = set_document_scope(list(dict.fromkeys(document_ids + global_ids)))
                 if recovery:
                     await state.controller.recover_expression(request, recovery, stream)
                 else:

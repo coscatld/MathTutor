@@ -343,6 +343,11 @@ class MathTutorController:
         from mathtutor.learning.knowledge_tracing.events import LearningEvent
         from mathtutor.learning.skill_graph import skills_for_problem
         problem = verified[0]
+        if event_type == "problem_started":
+            await tracking.prepare_prediction(owner_id, prediction_id=f"presentation:{session.cycle.cycle_id}",
+                session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
+                problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
+                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem))
         await tracking.append_event(LearningEvent(event_id=f"{event_type}:{session.cycle.cycle_id}",
             student_id=owner_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
             event_type=event_type, problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
@@ -862,6 +867,14 @@ class MathTutorController:
         images: list | None = None,
     ) -> None:
         responder = self.chat_responder
+        document_context = None
+        document_source = getattr(self, "chat_documents", None)
+        if document_source is not None:
+            try:
+                document_context = await document_source.build(owner_id, text, history)
+            except Exception:
+                logger.warning("Chat document retrieval unavailable")
+                document_context = {"status": "retrieval_failed", "files": [], "chunks": []}
         if images is None and getattr(self, "image_repository", None) is not None:
             # Reattach the latest image turn for conversational follow-ups and
             # continuation. A new structured math task still uses its own route.
@@ -887,6 +900,8 @@ class MathTutorController:
         else:
             try:
                 extra = {"images": images} if images else {}
+                if document_context is not None:
+                    extra["document_context"] = document_context
                 message = await responder.respond(
                     text,
                     history=history,
@@ -1601,6 +1616,10 @@ class MathTutorController:
         if tracking is not None and verified:
             exposure = max(exposure, (await tracking.exposure_context(owner_id, verified[0].content_hash))["assistance_level"])
         purpose = purpose or ("B" if exposure >= 5 else "A2" if exposure else "A1")
+        from mathtutor.learning.knowledge_tracing.events import valid_events
+        history = await tracking.events(owner_id) if tracking else []
+        basis_events = [e for e in valid_events(history)
+            if e.cycle_id == str(session.cycle.cycle_id) and e.event_type == "attempt_assessed"]
         offer = None
         try:
             offer = await self.practice_service.prepare_offer(
@@ -1614,6 +1633,8 @@ class MathTutorController:
                 full_task_completed=session.state == CycleState.SOLVED,
                 prerequisite_skill_ids=prerequisite_skill_ids,
                 review_due=review_due,
+                history_cutoff_seq=max((e.event_seq for e in history), default=0) if tracking else None,
+                evidence_ids=tuple(e.event_id for e in basis_events),
             )
         except Exception:
             offer = None

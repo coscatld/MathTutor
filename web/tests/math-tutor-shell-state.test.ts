@@ -30,5 +30,5 @@ test("tooltip uses a portal and viewport collision padding", async () => {
   assert.ok(source.includes("createPortal"));
   assert.ok(source.includes("VIEWPORT_PADDING"));
   assert.ok(source.includes("onPointerEnter"));
-  assert.ok(source.includes("max-w-[280px]"));
+  assert.ok(source.includes("max-w-[200px]"));
 });

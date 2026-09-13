@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: "class",
+  // Theme classes are restored at runtime; retain their token definitions.
+  safelist: ["dark", "theme-snow", "theme-glass"],
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",

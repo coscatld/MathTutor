@@ -19,7 +19,9 @@ import type {
   ProviderPreset,
   TestConnectionResult,
 } from "../types";
+import ConversationTrashPanel from "./ConversationTrashPanel";
 import BackupPanel from "./BackupPanel";
+import DataPrivacySettings from "./DataPrivacySettings";
 import EmbeddingSettingsPanel from "./EmbeddingSettingsPanel";
 import DocumentsPanel from "./DocumentsPanel";
 import MemoryPanel from "./MemoryPanel";
@@ -32,6 +34,7 @@ export interface FormMessage {
 }
 
 export interface SettingsFormData {
+  visionMode?: "auto" | "enabled" | "disabled";
   presets: ProviderPreset[];
   settings: DesktopSettings | null;
   presetId: string;
@@ -51,6 +54,7 @@ export interface SettingsFormData {
 }
 
 export interface SettingsFormHandlers {
+  onVisionModeChange?: (mode: "auto" | "enabled" | "disabled") => void;
   onPresetChange: (presetId: string) => void;
   onApiKeyChange: (value: string) => void;
   onBaseUrlChange: (value: string) => void;
@@ -73,7 +77,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
   const currentPreset = data.presets.find((p) => p.preset_id === data.presetId) ?? null;
   const providerSaved = data.settings?.preset_id === data.presetId;
   const formSaved = providerSaved && !data.apiKey.trim() && data.model === (data.settings?.model ?? "") && data.baseUrl === (data.settings?.base_url ?? "");
-  const canTest = formSaved && (currentPreset?.local ? Boolean(data.baseUrl.trim()) : Boolean(data.settings?.is_configured));
+  const canTest = formSaved && (data.visionMode ?? "auto") === (data.settings?.vision_mode ?? "auto") && (currentPreset?.local ? Boolean(data.baseUrl.trim()) : Boolean(data.settings?.is_configured));
   const connectionLabel = !providerSaved ? "未保存" : data.testing ? "正在连接" : data.settings?.connection_status === "success" ? "连接成功" : data.settings?.connection_status === "failure" ? "连接失败" : data.settings?.is_configured ? "已配置" : "未配置";
 
   return (
@@ -185,6 +189,8 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 readOnly={!currentPreset?.editable_base_url}
                 className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] read-only:cursor-default read-only:bg-[var(--muted)] read-only:text-[var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
               />
+              <p className="text-xs text-[var(--muted-foreground)]">默认使用服务商地址，可修改。API Key 将发送到此地址，请仅填写可信服务。</p>
+              {currentPreset?.base_url && <button type="button" onClick={() => handlers.onBaseUrlChange(currentPreset.base_url!)} className="w-fit text-xs text-blue-600">恢复默认地址</button>}
             </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="settings-model" className="text-sm font-medium text-[var(--foreground)]">
@@ -211,6 +217,15 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 {currentPreset?.local ? "读取本机模型" : "发现可用模型"}
               </button>
             )}
+            <label className="flex flex-col gap-2 text-sm font-medium">
+              图片输入能力
+              <select value={data.visionMode ?? "auto"} onChange={(event) => handlers.onVisionModeChange?.(event.target.value as "auto" | "enabled" | "disabled")} className="h-11 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3">
+                <option value="auto">自动识别（默认）</option>
+                <option value="enabled">启用（已确认模型支持视觉）</option>
+                <option value="disabled">关闭（纯文本模型）</option>
+              </select>
+              <span className="text-xs font-normal text-[var(--muted-foreground)]">未识别的视觉模型或自定义别名可选择启用。仅适用于兼容图片输入的服务；此选项不会让纯文本模型获得视觉能力。</span>
+            </label>
             {(currentPreset?.custom || currentPreset?.local) && !providerSaved ? <p className="text-xs text-[var(--muted-foreground)]">先保存当前服务商，再读取可用模型。</p> : null}
             {data.models !== null && data.models.length > 0 && (
               <ul className="flex flex-wrap gap-2" aria-label="发现到的模型">
@@ -264,6 +279,11 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
 }
 
 const MODEL_ERROR_ICONS: Record<ModelErrorKind, typeof ShieldAlert> = {
+  response_incomplete: TriangleAlert,
+  request_rejected: XCircle,
+  quota_exceeded: ShieldAlert,
+  rate_limited: RefreshCw,
+  provider_error: TriangleAlert,
   credential_invalid: KeyRound,
   network_unavailable: WifiOff,
   provider_unsupported: CircleHelp,
@@ -339,6 +359,7 @@ export default function SettingsPanel({
   const [presetId, setPresetId] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [visionMode, setVisionMode] = useState<"auto" | "enabled" | "disabled">("auto");
   const [model, setModel] = useState("");
   const [keyMasked, setKeyMasked] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -351,7 +372,7 @@ export default function SettingsPanel({
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const [modelTest, setModelTest] = useState<ModelTestResult | null>(null);
   const [message, setMessage] = useState<FormMessage | null>(null);
-  const [section, setSection] = useState<"general" | "model" | "tutor" | "data" | "appearance" | "advanced">("model");
+  const [section, setSection] = useState<"general" | "model" | "tutor" | "data" | "appearance" | "advanced" | "trash">("model");
   const toast = useToast();
 
   const load = useCallback(async () => {
@@ -360,8 +381,9 @@ export default function SettingsPanel({
       const [p, s] = await Promise.all([fetchPresetsFn(), fetchSettingsFn()]);
       setPresets(p);
       setSettings(s);
+      setVisionMode(s.vision_mode ?? "auto");
       setPresetId(s.preset_id);
-      setBaseUrl(s.base_url);
+      setBaseUrl(s.base_url || p.find((preset) => preset.preset_id === s.preset_id)?.base_url || "");
       setModel(s.model);
       setKeyMasked(s.key_masked);
     } catch (err) {
@@ -387,6 +409,7 @@ export default function SettingsPanel({
     try {
       const result = await saveSettingsFn({
         preset_id: currentPreset.preset_id,
+        vision_mode: visionMode,
         api_key: apiKey.trim() || undefined,
         base_url: currentPreset.editable_base_url ? baseUrl.trim() : undefined,
         model: model.trim() || undefined,
@@ -395,9 +418,11 @@ export default function SettingsPanel({
       setApiKey("");
       setBaseUrl(result.base_url);
       setModel(result.model);
+      setVisionMode(result.vision_mode ?? "auto");
       setSettings((current) => current ? {
         ...current,
         preset_id: result.preset_id,
+        vision_mode: result.vision_mode ?? "auto",
         base_url: result.base_url,
         model: result.model,
         is_configured: result.is_configured,
@@ -406,6 +431,7 @@ export default function SettingsPanel({
         provider_configs: {
           ...(current.provider_configs ?? {}),
           [result.preset_id]: {
+            vision_mode: result.vision_mode ?? "auto",
             model: result.model,
             base_url: result.base_url,
             has_api_key: Boolean(result.key_masked),
@@ -508,6 +534,7 @@ export default function SettingsPanel({
             presetId,
             apiKey,
             baseUrl,
+            visionMode,
             model,
             keyMasked,
             advancedOpen,
@@ -525,6 +552,7 @@ export default function SettingsPanel({
               const preset = presets.find((item) => item.preset_id === id);
               const profile = settings?.provider_configs?.[id];
               setPresetId(id);
+              setVisionMode(profile?.vision_mode ?? "auto");
               setApiKey("");
               setBaseUrl(profile?.base_url ?? preset?.base_url ?? "");
               setModel(profile?.model ?? preset?.default_model ?? "");
@@ -536,7 +564,8 @@ export default function SettingsPanel({
             },
             onApiKeyChange: setApiKey,
             onBaseUrlChange: setBaseUrl,
-            onModelChange: setModel,
+            onModelChange: (value) => { setModel(value); setVisionMode("auto"); },
+            onVisionModeChange: setVisionMode,
             onToggleAdvanced: () => setAdvancedOpen((v) => !v),
             onDiscoverModels: handleDiscover,
             onSave: handleSave,
@@ -548,20 +577,21 @@ export default function SettingsPanel({
         />
       );
   const sections = [
-    ["general", "通用"], ["model", "模型与 API"], ["tutor", "Tutor"], ["data", "数据与资料"], ["appearance", "外观"], ["advanced", "高级"],
+    ["general", "通用"], ["model", "模型与 API"], ["tutor", "Tutor"], ["data", "数据与隐私"], ["appearance", "外观"], ["advanced", "高级"], ["trash", "垃圾桶"],
   ] as const;
   return (
-    <div className="flex h-full min-h-0">
-      <aside className="w-48 shrink-0 border-r border-[#e1dfd8] bg-[#f2f1ec] p-4 dark:border-slate-800 dark:bg-[#171c20]"><h1 className="mb-5 flex items-center gap-2 px-2 font-serif text-lg font-bold"><Settings2 className="h-5 w-5 text-[#1d5fd1]" />设置</h1><nav className="space-y-1">{sections.map(([id, label]) => <button key={id} type="button" onClick={() => setSection(id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${section === id ? "bg-white font-semibold text-[#174c9e] shadow-sm dark:bg-slate-800 dark:text-blue-300" : "text-slate-600 hover:bg-white/70 dark:text-slate-400"}`}>{label}</button>)}</nav></aside>
-      <div className="min-h-0 flex-1 overflow-y-auto px-7 py-7"><div className="mx-auto max-w-4xl">
+    <div className="mt-settings-layout">
+      <aside className="mt-settings-nav"><h1 className="mb-5 flex items-center gap-2 px-2 font-serif text-lg font-bold"><Settings2 className="h-5 w-5 text-[#1d5fd1]" />设置</h1><nav aria-label="设置分类" className="space-y-1">{sections.map(([id, label]) => <button key={id} type="button" aria-current={section === id ? "page" : undefined} onClick={() => setSection(id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${section === id ? "bg-[var(--card)] font-semibold text-[var(--primary)] shadow-sm" : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]"}`}>{label}</button>)}</nav></aside>
+      <div className="mt-settings-content"><div className="mx-auto max-w-4xl">
+      {section === "trash" ? <ConversationTrashPanel /> : null}
       {section === "general" ? <section><h2 className="font-serif text-xl font-bold">通用</h2><div className="mt-4 rounded-2xl border border-[#deddd7] bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><p className="text-sm font-semibold">开箱即用</p><p className="mt-2 text-sm leading-6 text-slate-500">Embedding 与 OCR 等增强能力默认关闭；未配置模型时，核心练习、模板辅导和关键词检索仍可使用。</p></div></section> : null}
       {section === "model" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">模型与 API</h2><p className="mt-1 text-sm text-slate-500">配置生成模型和可选的资料 Embedding。密钥只进入系统安全凭据存储。</p></div>{modelPanel}{modelTest ? <ModelTestCard result={modelTest} /> : null}{settings && !settings.is_configured && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400">
-          尚未配置 AI 模型 —— 核心练习功能不受影响，配置后可解锁个性化辅导与自动练习邀请。
+          尚未配置 AI 模型 —— 核心练习功能不受影响，配置后可解锁个性化辅导与推荐练习。
         </p>
       )}<EmbeddingSettingsPanel /></div> : null}
       {section === "tutor" ? <TutorPersonalityPanel /> : null}
-      {section === "data" ? <div className="space-y-8"><div><h2 className="font-serif text-xl font-bold">数据、资料与记忆</h2><p className="mt-1 text-sm text-slate-500">资料原文、索引状态、对话关联和学习记忆分别管理。</p></div><DocumentsPanel /><MemoryPanel /></div> : null}
+      {section === "data" ? <DataPrivacySettings /> : null}
       {section === "appearance" ? <section><h2 className="font-serif text-xl font-bold">外观</h2><div className="mt-4 rounded-2xl border border-[#deddd7] bg-white p-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-900">界面跟随应用主题，并使用适合长时间学习的暖白画布与高对比文字。</div></section> : null}
       {section === "advanced" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">高级</h2><p className="mt-1 text-sm text-slate-500">备份、恢复与维护操作。</p></div><BackupPanel /></div> : null}
       </div></div>

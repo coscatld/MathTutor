@@ -14,7 +14,7 @@ import ImageAttachments from "./ImageAttachments";
  */
 export default function TutorActionCard({ message, onContinue, onRecover }: { message: TutorMessage; onContinue?: () => void; onRecover?: () => void }) {
   if (message.kind === "student") {
-    return <div className="flex justify-end"><div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-[#1d5fd1] px-4 py-3 text-[15px] leading-relaxed text-white shadow-sm"><ImageAttachments images={message.attachments || []} /><MarkdownRenderer content={message.text} enableMath /></div></div>;
+    return <div className="flex justify-end"><div className="mt-student-message"><ImageAttachments images={message.attachments || []} /><MarkdownRenderer content={message.text} enableMath /></div></div>;
   }
   if (message.kind === "error") {
     return (
@@ -35,14 +35,14 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
   const level = normalizeAssistanceLevel(message.assistanceLevel);
 
   return (
-    <div className="flex items-start gap-3">
+    <div className="mt-tutor-message">
       <div
-        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2563EB]/10"
+        className="mt-tutor-avatar"
         aria-hidden="true"
       >
         <GraduationCap className="h-4 w-4 text-[#1D4ED8] dark:text-blue-400" />
       </div>
-      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-[var(--border)] bg-[var(--card)] px-4 py-3 shadow-sm">
+      <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
           {label && (
             <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs font-medium text-[var(--muted-foreground)]">
@@ -55,7 +55,7 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
             </span>
           )}
         </div>
-        <div className="text-[15px] leading-relaxed text-[var(--foreground)]">
+        <div className="mt-answer-text">
           <MarkdownRenderer content={message.text} enableMath />
           {message.status === "PARTIAL" && <div className="mt-3 text-sm text-slate-500">这次回答没有完整生成。{onContinue && <button className="ml-2 text-blue-600 underline" onClick={onContinue}>继续生成</button>}</div>}
           {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-blue-600 underline" onClick={onRecover}>重新同步</button>}

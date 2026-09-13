@@ -7,6 +7,7 @@
  */
 
 export interface DesktopSettings {
+  vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
   model: string;
   base_url: string;
@@ -16,6 +17,7 @@ export interface DesktopSettings {
   key_masked: string | null;
   connection_status?: "unconfigured" | "configured" | "connecting" | "success" | "failure";
   provider_configs?: Record<string, {
+    vision_mode?: "auto" | "enabled" | "disabled";
     model: string;
     base_url: string;
     has_api_key: boolean;
@@ -41,6 +43,7 @@ export interface TutorSettings {
 }
 
 export interface SettingsSaveResult {
+  vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
   model: string;
   base_url: string;
@@ -127,6 +130,8 @@ export interface DesktopDocument {
   /** Friendly parse error (failed / needs_ocr) — never raw tracebacks. */
   error: string | null;
   conversation_ids?: string[];
+  conversation_titles?: Record<string, string>;
+  is_global?: boolean;
 }
 
 export type MemorySourceType = "USER_EXPLICIT" | "MODEL_INFERRED" | "USER_CONFIRMED";
@@ -156,6 +161,17 @@ export interface PracticeOffer {
   offered_at: string;
   expires_at: string;
   parent_cycle_id: string;
+  title?: string;
+  reason?: string;
+  observation_goal?: string;
+  question_count?: number;
+  display_status?: "pending" | "in_progress" | "completed" | "later" | "history";
+  feedback?: "later" | "not_relevant" | null;
+  resume_session_id?: string | null;
+  evidence_href?: string;
+  update_reason?: string | null;
+  evidence_ids?: string[];
+  result_summary?: { independent_correct: number; helped: number; observations: number } | null;
 }
 
 export type OfferAcceptState = "idle" | "connecting" | "accepting" | "accepted" | "error";
@@ -189,6 +205,11 @@ export interface BootstrapPayload {
 // ---------------------------------------------------------------------------
 
 export type ModelErrorKind =
+  | "response_incomplete"
+  | "request_rejected"
+  | "quota_exceeded"
+  | "rate_limited"
+  | "provider_error"
   | "credential_invalid"
   | "network_unavailable"
   | "provider_unsupported"
@@ -251,13 +272,42 @@ export interface SkillSummary {
   grade_band: string | null;
   evidence_summary?: import("../types").EvidenceSummary | null;
   evidence_status?: string;
+  observation?: string;
+  counts?: Record<string, {correct: number; incorrect: number}>;
+  last_checked_at?: string | null;
+  evidence_count?: number;
+  joint_task_evidence?: number;
+  next_href?: string;
+  next_action?: string;
 }
 
 export interface StudentSummary {
   skills: SkillSummary[];
   total_attempts: number;
   active_misconceptions: number;
+  schema_version?: string;
+  has_conversations?: boolean;
+  has_independent_evidence?: boolean;
+  coverage?: {supported_skills: number; observed_skills: number};
 }
+
+export interface LearningEvidence {
+  event_id: string;
+  event_seq: number;
+  cycle_id: string;
+  occurred_at: string;
+  skill_ids: string[];
+  problem_text: string;
+  student_response: string;
+  correctness: string | null;
+  evidence_kind: string;
+  completion_scope: string;
+  first_target: boolean;
+  excluded: boolean;
+  session_id: string | null;
+}
+
+export interface EvidencePage { items: LearningEvidence[]; next_cursor: number | null }
 
 // ---------------------------------------------------------------------------
 // Privacy / data lifecycle (wire contract; MAIN implements the backend).

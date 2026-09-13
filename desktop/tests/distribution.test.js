@@ -172,7 +172,8 @@ test("upgrade harness uses each artifact's own package namespace", () => {
     path.join(desktop, "scripts", "macos-upgrade-probe.py"),
     "utf8",
   );
-  assert.match(runner, /"seed",\s*"deeptutor\.math_tutor"/);
+  assert.match(runner, /"seed",\s*oldNamespace/);
+  assert.match(runner, /const oldNamespace = .*"mathtutor" : "deeptutor\.math_tutor"/);
   assert.match(runner, /"verify",\s*"mathtutor"/);
   assert.match(probe, /importlib\.import_module/);
   assert.match(probe, /choices=\("deeptutor\.math_tutor", "mathtutor"\)/);

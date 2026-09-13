@@ -197,8 +197,13 @@ def _service_with_error(error: Exception) -> GatewayConfigService:
             "provider 'test' model discovery transport error: ConnectTimeout",
             "network_unavailable",
         ),
-        ("provider 'test' model discovery HTTP 500: boom", "provider_unsupported"),
-        ("provider 'test' malformed /models response", "provider_unsupported"),
+        ("provider 'test' model discovery HTTP 500: boom", "provider_error"),
+        ("provider 'test' malformed /models response", "provider_error"),
+        ("provider output truncated before final content", "response_incomplete"),
+        ("provider returned empty content", "response_incomplete"),
+        ("HTTP 400: invalid parameters", "request_rejected"),
+        ("HTTP 402: insufficient balance", "quota_exceeded"),
+        ("HTTP 429: too many requests", "rate_limited"),
     ],
 )
 def test_classify_gateway_error(message: str, expected: str) -> None:
@@ -600,8 +605,9 @@ def test_student_summary_reports_evidence_without_fabricated_mastery(tmp_path: P
     for code, skill in skills.items():
         assert skill["evidence_summary"] == {
             "independent": 0, "assisted": 0, "post_solution": 0,
-            "diagnostic": int(code in FAMILY_SKILLS["linear"]), "ungradable": 0,
+            "diagnostic": 0, "ungradable": 0,
         }
+        assert skill["joint_task_evidence"] == int(code in FAMILY_SKILLS["linear"])
     # Read-only: the endpoint has no body and accepts no writes.
     reset_product_state()
 

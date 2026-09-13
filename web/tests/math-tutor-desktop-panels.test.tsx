@@ -236,8 +236,8 @@ test("ConfirmableDelete: first click asks, second click is the destructive actio
 test("PrivacyPanel: read-only profile, double-confirm delete surfaces, no mastery editing", () => {
   const html = renderToStaticMarkup(<PrivacyPanel />);
   assert.ok(/role="dialog"/.test(html), "dialog surface");
-  assert.ok(html.includes("我的数据"), "dialog title");
-  assert.ok(html.includes("正在加载我的数据…"), "loading state renders synchronously");
+  assert.ok(html.includes("数据与隐私"), "dialog title");
+  assert.ok(html.includes("正在加载数据管理…"), "loading state renders synchronously");
   // The read-only profile copy renders only after data arrives (effects don't
   // run in static render) — pin the invariant at source level instead.
   const source = fs.readFileSync(
@@ -269,6 +269,11 @@ test("ProviderOnboarding: dedicated page has focused copy and safe skip", () => 
 // ---------------------------------------------------------------------------
 
 const ALL_KINDS: ModelErrorKind[] = [
+  "response_incomplete",
+  "request_rejected",
+  "quota_exceeded",
+  "rate_limited",
+  "provider_error",
   "credential_invalid",
   "network_unavailable",
   "provider_unsupported",
@@ -276,14 +281,14 @@ const ALL_KINDS: ModelErrorKind[] = [
   "gateway_disabled",
 ];
 
-test("MODEL_ERROR_COPY: all five kinds have distinct titles and advice", () => {
+test("MODEL_ERROR_COPY: all kinds have distinct titles and advice", () => {
   for (const kind of ALL_KINDS) {
     const copy = MODEL_ERROR_COPY[kind];
     assert.ok(copy.title.length > 0, `${kind} has a title`);
     assert.ok(copy.advice.length > 0, `${kind} has advice`);
   }
   const titles = new Set(ALL_KINDS.map((k) => MODEL_ERROR_COPY[k].title));
-  assert.equal(titles.size, 5, "titles are distinct across kinds");
+  assert.equal(titles.size, ALL_KINDS.length, "titles are distinct across kinds");
   const fallback = modelErrorCopy(null);
   assert.ok(fallback.title.length > 0 && fallback.advice.length > 0, "null kind falls back to friendly copy");
 });
@@ -327,7 +332,7 @@ test("masteryLevelLabel: null → 暂无数据, banded labels otherwise", () => 
 
 test("PrivacyPanel: danger zone renders purge/history/export/rebuild surfaces", () => {
   const html = renderToStaticMarkup(<PrivacyPanel />);
-  assert.ok(html.includes("正在加载我的数据…"), "loading state renders synchronously");
+  assert.ok(html.includes("正在加载数据管理…"), "loading state renders synchronously");
   // The danger zone renders after data arrives (effects don't run in static
   // render) — pin the surfaces at source level, same as the profile test.
   const source = fs.readFileSync(

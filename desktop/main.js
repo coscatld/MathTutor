@@ -872,7 +872,7 @@ async function runSmokeFull() {
     const frozen = version.body && version.body.release_config && version.body.release_config.migration_head;
     assertNamed(
       "database-migration",
-      version.status === 200 && frozen === "015" && live.head === frozen,
+      version.status === 200 && frozen === "018" && live.head === frozen,
       `frozen=${frozen || "missing"}, live=${live.head || "missing"}`,
     );
   }

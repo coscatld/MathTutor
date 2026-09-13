@@ -24,6 +24,21 @@ class TurnRequestRepository:
         self.uow = MathTutorUow(engine) if engine is not None else None
         self._rows = {}
         self._locks = {}
+        self._owners = {}
+
+    @asynccontextmanager
+    async def owner(self, student_id):
+        """Serialize learning writes and deletion across this owner's tabs."""
+        key = str(student_id)
+        entry = self._owners.setdefault(key, [asyncio.Lock(), 0])
+        entry[1] += 1
+        try:
+            async with entry[0]:
+                yield
+        finally:
+            entry[1] -= 1
+            if not entry[1]:
+                self._owners.pop(key, None)
 
     def is_processing(self, student_id, conversation_id):
         entry = self._locks.get((student_id, conversation_id))
@@ -35,7 +50,7 @@ class TurnRequestRepository:
         entry = self._locks.setdefault(key, [asyncio.Lock(), 0])
         entry[1] += 1
         try:
-            async with entry[0]:
+            async with self.owner(student_id), entry[0]:
                 yield
         finally:
             entry[1] -= 1
@@ -74,3 +89,11 @@ class TurnRequestRepository:
             return
         async with self.uow.transaction() as conn:
             await conn.execute(turn_requests.update().where(*self._where(*key)).values(**values))
+
+    async def forget(self, owner, cid):
+        if self.uow is None:
+            self._rows = {key: row for key, row in self._rows.items() if key[:2] != (owner, cid)}
+        else:
+            async with self.uow.transaction() as conn:
+                await conn.execute(turn_requests.delete().where(
+                    turn_requests.c.student_id == owner, turn_requests.c.conversation_id == cid))

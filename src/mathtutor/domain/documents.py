@@ -137,6 +137,7 @@ class UserDocument(BaseModel):
     status: DocumentStatus = "importing"
     size_bytes: int = Field(ge=0)
     parser_version: str = ""
+    is_global: bool = False  # Explicit owner-local sharing across conversations.
     retrieval_enabled: bool = True
     parse_error: str = ""
     page_count: int = Field(ge=0, default=0)

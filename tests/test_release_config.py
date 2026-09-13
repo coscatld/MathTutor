@@ -13,9 +13,9 @@ from mathtutor.release_config import RELEASE_CONFIG
 
 
 def test_release_config_freezes_authoritative_runtime_contracts() -> None:
-    assert RELEASE_CONFIG.app_version == "0.3.1"
+    assert RELEASE_CONFIG.app_version == "0.3.3"
     assert RELEASE_CONFIG.schema_version == SCHEMA_VERSION
-    assert RELEASE_CONFIG.migration_head == MIGRATION_HEAD == "015"
+    assert RELEASE_CONFIG.migration_head == MIGRATION_HEAD == "018"
     assert RELEASE_CONFIG.curriculum_active_version == StaticCurriculumProvider.VERSION_CODE
     assert RELEASE_CONFIG.curriculum_default_version == StaticCurriculumProvider.VERSION_CODE
     assert RELEASE_CONFIG.verifier_version == AUTHORITATIVE_VERIFIER_VERSION
@@ -33,7 +33,7 @@ def test_release_config_freezes_authoritative_runtime_contracts() -> None:
 
 def test_release_config_public_manifest_is_secret_free_and_json_safe() -> None:
     manifest = RELEASE_CONFIG.public_manifest()
-    assert manifest["migration_head"] == "015"
+    assert manifest["migration_head"] == "018"
     assert manifest["stage_policy_versions"] == {
         "high": "2",
         "middle": "2",

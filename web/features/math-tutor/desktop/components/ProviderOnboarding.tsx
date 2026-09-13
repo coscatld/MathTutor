@@ -61,7 +61,7 @@ export default function ProviderOnboarding() {
         setPresets(available);
         setSettings(current);
         setPresetId(current.preset_id || available[0]?.preset_id || "");
-        setBaseUrl(current.base_url);
+        setBaseUrl(current.base_url || available.find((preset) => preset.preset_id === (current.preset_id || available[0]?.preset_id))?.base_url || "");
         setModel(current.model);
       } catch {
         setError("暂时无法读取本地配置，请稍后重试。");
@@ -249,7 +249,7 @@ export default function ProviderOnboarding() {
                 {advancedOpen ? (
                   <div className="mt-2 grid gap-3 rounded-2xl border border-[#e3e6eb] bg-[#f8f9fb] p-4 sm:grid-cols-2">
                     <label className="text-xs font-semibold text-[#4c5568]">
-                      服务地址 {currentPreset?.custom ? "（必填）" : ""}
+                      服务地址 {currentPreset?.custom ? "（必填）" : "（默认已填，可修改）"}
                       <input
                         type="url"
                         value={baseUrl}

@@ -13,8 +13,8 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.dialects.sqlite import insert
 
-from .events import FEATURE_SCHEMA, GRAPH_VERSION, LearningEvent, baseline_prediction, evidence_summary, utcnow, valid_events
-from .schema import learning_events, learning_predictions, student_state_snapshots
+from .events import FEATURE_SCHEMA, GRAPH_VERSION, LABEL_POLICY, BASELINE_POLICY, LearningEvent, baseline_prediction, evidence_summary, ordered_attempts, utcnow, valid_events
+from .schema import learning_events, learning_predictions, student_state_snapshots, learning_generations
 
 
 class StudentStateService:
@@ -61,7 +61,7 @@ class StudentStateService:
         async with self._transaction(conn) as db:
             rows = (await db.execute(select(learning_events.c.payload).where(
                 learning_events.c.student_id == str(student_id)).order_by(learning_events.c.event_seq))).scalars().all()
-            return [LearningEvent.model_validate(x) for x in rows]
+            return ordered_attempts([LearningEvent.model_validate(x) for x in rows])
 
     @staticmethod
     def _exposure_facts(history, problem_revision):
@@ -150,6 +150,7 @@ class StudentStateService:
                 "baseline_probability": baseline_prediction(history, skill_ids),
                 "shadow_probability": None, "prediction_label": None,
                 "feature_schema_version": FEATURE_SCHEMA, "graph_version": GRAPH_VERSION}
+            result.update(label_policy_version=LABEL_POLICY, baseline_policy=BASELINE_POLICY)
             if self.tracker:
                 try:
                     if self.tracker.graph_version != GRAPH_VERSION or any(x.graph_version != self.tracker.graph_version for x in history):
@@ -206,6 +207,8 @@ class StudentStateService:
                 leakage_group_id=leakage_group_id, time_gap_ms=time_gap_ms,
                 attempt_id=str(attempt_id), prediction_id=prediction_id, correctness=normalized,
                 response_fingerprint=response_fingerprint, duplicate_response=repeated,
+                prior_task_attempt=any(x.event_type == "attempt_assessed" and x.completion_scope == "full_problem"
+                    and x.problem_revision == str(problem_revision) for x in history),
                 completion_scope=completion_scope, subgoal_id=subgoal_id, evidence_kind=kind,
                 target_answer_exposed_before_attempt=answer_exposed,
                 prior_help_event_ids=tuple(x.event_id for x in helps), provenance_uncertain=uncertain,
@@ -220,6 +223,18 @@ class StudentStateService:
             await db.execute(learning_predictions.update().where(
                 learning_predictions.c.student_id == student_id,
                 learning_predictions.c.prediction_id == prediction_id).values(payload=prediction))
+            # Presentation-time forecast is labelled once. Later help or a
+            # repeated success cannot overwrite the first independent failure.
+            presentation_id = f"presentation:{cycle_id}"
+            presented = (await db.execute(select(learning_predictions.c.payload).where(
+                learning_predictions.c.student_id == student_id,
+                learning_predictions.c.prediction_id == presentation_id))).scalar_one_or_none()
+            if presented and completion_scope == "full_problem" and not presented.get("observed_event_seq"):
+                presented = {**presented, "observed_event_seq": event.event_seq,
+                    "assessment_id": str(assessment_id), "prediction_label": prediction["prediction_label"]}
+                await db.execute(learning_predictions.update().where(
+                    learning_predictions.c.student_id == student_id,
+                    learning_predictions.c.prediction_id == presentation_id).values(payload=presented))
             await self._checkpoint(db, student_id)
             return event
 
@@ -246,11 +261,22 @@ class StudentStateService:
             original = await self._existing(db, str(student_id), invalidates_event_id)
             if original is None:
                 raise ValueError("cannot invalidate another owner's or missing event")
+            if original.event_type != "attempt_assessed":
+                raise ValueError("only assessment evidence can be excluded")
             event = LearningEvent(event_id=event_id, student_id=str(student_id), session_id=original.session_id,
                 cycle_id=original.cycle_id, event_type="evidence_invalidated", problem_id=original.problem_id,
                 problem_revision=original.problem_revision, item_family_id=original.item_family_id,
                 invalidates_event_id=invalidates_event_id)
             await self._append(db, event)
+            predictions = (await db.execute(select(learning_predictions).where(
+                learning_predictions.c.student_id == str(student_id)))).mappings().all()
+            for row in predictions:
+                payload = row["payload"]
+                if payload.get("assessment_id") == original.assessment_id:
+                    await db.execute(learning_predictions.update().where(
+                        learning_predictions.c.student_id == str(student_id),
+                        learning_predictions.c.prediction_id == row["prediction_id"]
+                    ).values(payload={**payload, "label_excluded": True, "label_exclusion_event_id": event_id}))
             await self._checkpoint(db, str(student_id))
 
     async def _checkpoint(self, db, student_id):
@@ -269,6 +295,62 @@ class StudentStateService:
         values["payload"] = snapshot
         await db.execute(insert(student_state_snapshots).values(**values).on_conflict_do_update(
             index_elements=["student_id"], set_=values))
+
+    async def prepare_replay(self, student_id):
+        """Capture a deletion generation together with immutable replay input."""
+        student_id = str(student_id)
+        async with self.engine.begin() as db:
+            await db.execute(insert(learning_generations).values(student_id=student_id, generation=0)
+                .on_conflict_do_nothing(index_elements=["student_id"]))
+            generation = (await db.execute(select(learning_generations.c.generation).where(
+                learning_generations.c.student_id == student_id))).scalar_one()
+            history = await self.events(student_id, conn=db)
+        version = self.tracker.model_version if self.tracker else "evidence_tracker_v2"
+        snapshot = {"student_id": student_id, "model_version": version,
+            "last_event_seq": max((e.event_seq for e in history), default=0),
+            "feature_schema_version": FEATURE_SCHEMA, "graph_version": GRAPH_VERSION}
+        if self.tracker:
+            recurrent = self.tracker.initialize()
+            for event in valid_events(history):
+                recurrent = self.tracker.update(recurrent, event)
+            snapshot = self.tracker.snapshot(recurrent, student_id=student_id,
+                                             last_event_seq=snapshot["last_event_seq"])
+        snapshot["evidence_summary"] = evidence_summary(history)
+        snapshot["learning_generation"] = generation
+        return snapshot
+
+    async def commit_replay(self, snapshot):
+        """CAS applies equally to manual replay and future model-package jobs."""
+        sid = snapshot["student_id"]
+        version = self.tracker.model_version if self.tracker else "evidence_tracker_v2"
+        if snapshot["model_version"] != version:
+            return False
+        async with self.engine.begin() as db:
+            # First acquire the SQLite write transaction with a conditional
+            # update. Deletion and CAS cannot pass each other at commit time.
+            matched = await db.execute(learning_generations.update().where(
+                learning_generations.c.student_id == sid,
+                learning_generations.c.generation == snapshot["learning_generation"]
+            ).values(generation=learning_generations.c.generation))
+            if matched.rowcount != 1:
+                return False
+            last = (await db.execute(select(func.max(learning_events.c.event_seq)).where(
+                learning_events.c.student_id == sid))).scalar() or 0
+            if last != snapshot["last_event_seq"]:
+                return False
+            values = {k: snapshot[k] for k in ("student_id", "last_event_seq", "model_version", "feature_schema_version", "graph_version")}
+            values["payload"] = snapshot
+            await db.execute(insert(student_state_snapshots).values(**values).on_conflict_do_update(
+                index_elements=["student_id"], set_=values))
+        return True
+
+    async def recompute(self, student_id):
+        for _ in range(3):
+            snapshot = await self.prepare_replay(student_id)
+            if await self.commit_replay(snapshot):
+                return {"ok": True, "last_event_seq": snapshot["last_event_seq"],
+                        "learning_generation": snapshot["learning_generation"]}
+        raise ValueError("learning history changed during replay")
 
     async def summary(self, student_id, *, conn=None):
         async with self._transaction(conn) as db:

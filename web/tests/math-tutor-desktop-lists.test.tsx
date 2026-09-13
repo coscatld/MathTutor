@@ -58,7 +58,7 @@ test("DocumentRow: ready document renders public projection", () => {
   assert.ok(html.includes(DOCUMENT_STATUS_LABELS.ready), "shows status label");
   assert.ok(html.includes("2.0 KB"), "shows human-readable size");
   assert.ok(html.includes("2026-08-01"), "shows import date");
-  assert.ok(html.includes("参与个性化回忆"), "shows retrieval toggle");
+  assert.ok(html.includes("允许 Tutor 检索此资料"), "shows retrieval toggle");
   assert.ok(html.includes("2 个分块"), "shows chunk count");
   assert.ok(!html.includes("重新解析"), "no reparse button for ready docs");
 });

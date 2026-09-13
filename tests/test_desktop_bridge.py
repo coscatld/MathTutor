@@ -634,6 +634,7 @@ async def test_get_settings_has_no_key_material() -> None:
         response = client.get(f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings")
         assert response.status_code == 200
         assert set(response.json().keys()) == {
+            "vision_mode",
             "preset_id",
             "model",
             "base_url",
@@ -742,14 +743,15 @@ async def test_settings_custom_preset_requires_base_url() -> None:
         assert "Base URL" in response.json()["detail"]
 
 
-async def test_settings_rejects_fixed_preset_overrides() -> None:
+async def test_settings_accepts_preset_base_url_overrides() -> None:
     reset_product_state()
     with _client() as client:
         response = client.put(
             f"{desktop_api.DESKTOP_ROUTER_PREFIX}/settings",
-            json={"preset_id": "openai", "api_key": SECRET, "base_url": "https://evil.example"},
+            json={"preset_id": "openai", "api_key": SECRET, "base_url": "https://proxy.example/v1"},
         )
-        assert response.status_code == 422
+        assert response.status_code == 200
+        assert response.json()["base_url"] == "https://proxy.example/v1"
 
 
 async def test_settings_unknown_preset_rejected() -> None:

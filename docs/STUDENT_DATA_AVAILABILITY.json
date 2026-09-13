@@ -1,0 +1,1293 @@
+{
+  "schema_version": "assist2009-corrected-v1",
+  "source": {
+    "url": "https://sites.google.com/site/assistmentsdata/home/2009-2010-assistment-data/skill-builder-data-2009-2010",
+    "dictionary_url": "https://sites.google.com/site/assistmentsdata/an-explanation-on-how-to-interpret-our-data-sets",
+    "download_url": "https://drive.google.com/uc?export=download&id=1NNXHFRxcArrU0ZJSb9BIL56vmUt5FhlE",
+    "file": "skill_builder_data_corrected_collapsed.csv",
+    "sha256": "162ef8d2d28bcbfea6591a282994062bd8d5eaa00636544292a0d268dca6e5da",
+    "encoding": "latin-1",
+    "license": "Official page: free to use; cite exact data URL and ASSISTments paper. No SPDX license specified.",
+    "scope": "public ASSISTments source only; MathTutor target-domain students = 0"
+  },
+  "deduplication": {
+    "raw_rows": 346860,
+    "unique_problem_logs": 346860,
+    "duplicate_or_skill_expansion_rows_removed": 0
+  },
+  "population": {
+    "students": 4217,
+    "problem_logs": 346860,
+    "main_problem_logs": 275458,
+    "legal_labels": 245262,
+    "skill_tagged_legal_labels": 230843,
+    "mapped_legal_labels": 55321
+  },
+  "exclusions": {
+    "help_before_first_attempt": 25353,
+    "eligible": 245262,
+    "scaffold": 71402,
+    "repeat_problem": 4235,
+    "unverified_first_answer": 599,
+    "unverified_answer_type": 8,
+    "contradictory_correct_and_help": 1
+  },
+  "help": {
+    "first_action_missing_or_invalid": 0,
+    "hint_count_missing": 0,
+    "complete_action_sequence_unavailable": 346860,
+    "first_wrong_then_help_retained": 20919
+  },
+  "mapping": {
+    "version": "assist2009-mt-topic-v1",
+    "covered_skills": [
+      "distributive_law",
+      "fraction_operations",
+      "linear_isolation",
+      "quadratic_roots",
+      "signed_operations",
+      "system_completeness"
+    ],
+    "coverage_denominator": 13,
+    "source_skill_ids": 123,
+    "map": {
+      "277": [
+        "signed_operations",
+        "Addition and Subtraction Integers"
+      ],
+      "279": [
+        "signed_operations",
+        "Multiplication and Division Integers"
+      ],
+      "61": [
+        "fraction_operations",
+        "Division Fractions"
+      ],
+      "67": [
+        "fraction_operations",
+        "Multiplication Fractions"
+      ],
+      "280": [
+        "fraction_operations",
+        "Addition and Subtraction Fractions"
+      ],
+      "340": [
+        "distributive_law",
+        "Distributive Property"
+      ],
+      "311": [
+        "linear_isolation",
+        "Equation Solving Two or Fewer Steps"
+      ],
+      "312": [
+        "linear_isolation",
+        "Equation Solving More Than Two Steps"
+      ],
+      "356": [
+        "quadratic_roots",
+        "Quadratic Formula to Solve Quadratic Equation"
+      ],
+      "350": [
+        "system_completeness",
+        "Solving Systems of Linear Equations"
+      ]
+    },
+    "scope": "topic proxy; does not validate fine-grained method mastery or MathTutor task equivalence"
+  },
+  "splits": [
+    {
+      "mode": "student",
+      "seed": 17,
+      "discarded_by_joint_holdout": 0,
+      "folds": {
+        "train": {
+          "students": 2530,
+          "problem_logs": 205414,
+          "main_problem_logs": 162869,
+          "legal_labels": 145440,
+          "skill_tagged_legal_labels": 137067,
+          "mapped_legal_labels": 33284,
+          "checkpoints": {
+            "0": {
+              "available": 2530,
+              "legal": 2101,
+              "skill_tagged_legal": 2063,
+              "mapped_legal": 457
+            },
+            "1": {
+              "available": 2441,
+              "legal": 2155,
+              "skill_tagged_legal": 2112,
+              "mapped_legal": 544
+            },
+            "3": {
+              "available": 2276,
+              "legal": 2008,
+              "skill_tagged_legal": 1965,
+              "mapped_legal": 566
+            },
+            "5": {
+              "available": 2106,
+              "legal": 1816,
+              "skill_tagged_legal": 1767,
+              "mapped_legal": 560
+            },
+            "10": {
+              "available": 1709,
+              "legal": 1476,
+              "skill_tagged_legal": 1442,
+              "mapped_legal": 510
+            }
+          }
+        },
+        "validation": {
+          "students": 843,
+          "problem_logs": 72070,
+          "main_problem_logs": 57949,
+          "legal_labels": 51674,
+          "skill_tagged_legal_labels": 48570,
+          "mapped_legal_labels": 11098,
+          "checkpoints": {
+            "0": {
+              "available": 843,
+              "legal": 694,
+              "skill_tagged_legal": 680,
+              "mapped_legal": 137
+            },
+            "1": {
+              "available": 814,
+              "legal": 709,
+              "skill_tagged_legal": 697,
+              "mapped_legal": 161
+            },
+            "3": {
+              "available": 750,
+              "legal": 676,
+              "skill_tagged_legal": 661,
+              "mapped_legal": 170
+            },
+            "5": {
+              "available": 691,
+              "legal": 599,
+              "skill_tagged_legal": 581,
+              "mapped_legal": 194
+            },
+            "10": {
+              "available": 560,
+              "legal": 489,
+              "skill_tagged_legal": 473,
+              "mapped_legal": 177
+            }
+          }
+        },
+        "test": {
+          "students": 844,
+          "problem_logs": 69376,
+          "main_problem_logs": 54640,
+          "legal_labels": 48148,
+          "skill_tagged_legal_labels": 45206,
+          "mapped_legal_labels": 10939,
+          "checkpoints": {
+            "0": {
+              "available": 844,
+              "legal": 707,
+              "skill_tagged_legal": 693,
+              "mapped_legal": 152
+            },
+            "1": {
+              "available": 821,
+              "legal": 721,
+              "skill_tagged_legal": 708,
+              "mapped_legal": 165
+            },
+            "3": {
+              "available": 762,
+              "legal": 681,
+              "skill_tagged_legal": 669,
+              "mapped_legal": 193
+            },
+            "5": {
+              "available": 716,
+              "legal": 630,
+              "skill_tagged_legal": 618,
+              "mapped_legal": 211
+            },
+            "10": {
+              "available": 580,
+              "legal": 499,
+              "skill_tagged_legal": 492,
+              "mapped_legal": 173
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student_item",
+      "seed": 17,
+      "discarded_by_joint_holdout": 196255,
+      "folds": {
+        "train": {
+          "students": 2486,
+          "problem_logs": 121847,
+          "main_problem_logs": 96226,
+          "legal_labels": 86118,
+          "skill_tagged_legal_labels": 81020,
+          "mapped_legal_labels": 19292,
+          "checkpoints": {
+            "0": {
+              "available": 2477,
+              "legal": 2103,
+              "skill_tagged_legal": 2064,
+              "mapped_legal": 500
+            },
+            "1": {
+              "available": 2333,
+              "legal": 2066,
+              "skill_tagged_legal": 2024,
+              "mapped_legal": 573
+            },
+            "3": {
+              "available": 2073,
+              "legal": 1805,
+              "skill_tagged_legal": 1758,
+              "mapped_legal": 523
+            },
+            "5": {
+              "available": 1836,
+              "legal": 1603,
+              "skill_tagged_legal": 1557,
+              "mapped_legal": 510
+            },
+            "10": {
+              "available": 1339,
+              "legal": 1159,
+              "skill_tagged_legal": 1133,
+              "mapped_legal": 360
+            }
+          }
+        },
+        "validation": {
+          "students": 744,
+          "problem_logs": 14726,
+          "main_problem_logs": 11869,
+          "legal_labels": 10576,
+          "skill_tagged_legal_labels": 9997,
+          "mapped_legal_labels": 2310,
+          "checkpoints": {
+            "0": {
+              "available": 729,
+              "legal": 630,
+              "skill_tagged_legal": 615,
+              "mapped_legal": 171
+            },
+            "1": {
+              "available": 592,
+              "legal": 523,
+              "skill_tagged_legal": 508,
+              "mapped_legal": 166
+            },
+            "3": {
+              "available": 446,
+              "legal": 383,
+              "skill_tagged_legal": 368,
+              "mapped_legal": 127
+            },
+            "5": {
+              "available": 347,
+              "legal": 295,
+              "skill_tagged_legal": 285,
+              "mapped_legal": 79
+            },
+            "10": {
+              "available": 228,
+              "legal": 197,
+              "skill_tagged_legal": 192,
+              "mapped_legal": 48
+            }
+          }
+        },
+        "test": {
+          "students": 754,
+          "problem_logs": 14032,
+          "main_problem_logs": 11115,
+          "legal_labels": 9778,
+          "skill_tagged_legal_labels": 9195,
+          "mapped_legal_labels": 2257,
+          "checkpoints": {
+            "0": {
+              "available": 745,
+              "legal": 657,
+              "skill_tagged_legal": 644,
+              "mapped_legal": 194
+            },
+            "1": {
+              "available": 634,
+              "legal": 554,
+              "skill_tagged_legal": 545,
+              "mapped_legal": 180
+            },
+            "3": {
+              "available": 462,
+              "legal": 395,
+              "skill_tagged_legal": 385,
+              "mapped_legal": 132
+            },
+            "5": {
+              "available": 359,
+              "legal": 307,
+              "skill_tagged_legal": 298,
+              "mapped_legal": 103
+            },
+            "10": {
+              "available": 225,
+              "legal": 199,
+              "skill_tagged_legal": 196,
+              "mapped_legal": 53
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student_family",
+      "seed": 17,
+      "discarded_by_joint_holdout": 204905,
+      "folds": {
+        "train": {
+          "students": 2266,
+          "problem_logs": 109355,
+          "main_problem_logs": 87230,
+          "legal_labels": 77577,
+          "skill_tagged_legal_labels": 72067,
+          "mapped_legal_labels": 15820,
+          "checkpoints": {
+            "0": {
+              "available": 2266,
+              "legal": 1920,
+              "skill_tagged_legal": 1880,
+              "mapped_legal": 550
+            },
+            "1": {
+              "available": 2109,
+              "legal": 1867,
+              "skill_tagged_legal": 1823,
+              "mapped_legal": 573
+            },
+            "3": {
+              "available": 1855,
+              "legal": 1629,
+              "skill_tagged_legal": 1573,
+              "mapped_legal": 465
+            },
+            "5": {
+              "available": 1620,
+              "legal": 1402,
+              "skill_tagged_legal": 1350,
+              "mapped_legal": 395
+            },
+            "10": {
+              "available": 1235,
+              "legal": 1076,
+              "skill_tagged_legal": 1026,
+              "mapped_legal": 334
+            }
+          }
+        },
+        "validation": {
+          "students": 660,
+          "problem_logs": 17266,
+          "main_problem_logs": 13238,
+          "legal_labels": 11765,
+          "skill_tagged_legal_labels": 11160,
+          "mapped_legal_labels": 3087,
+          "checkpoints": {
+            "0": {
+              "available": 660,
+              "legal": 570,
+              "skill_tagged_legal": 567,
+              "mapped_legal": 144
+            },
+            "1": {
+              "available": 563,
+              "legal": 494,
+              "skill_tagged_legal": 488,
+              "mapped_legal": 148
+            },
+            "3": {
+              "available": 446,
+              "legal": 383,
+              "skill_tagged_legal": 378,
+              "mapped_legal": 137
+            },
+            "5": {
+              "available": 362,
+              "legal": 322,
+              "skill_tagged_legal": 319,
+              "mapped_legal": 125
+            },
+            "10": {
+              "available": 239,
+              "legal": 207,
+              "skill_tagged_legal": 204,
+              "mapped_legal": 57
+            }
+          }
+        },
+        "test": {
+          "students": 712,
+          "problem_logs": 15334,
+          "main_problem_logs": 12727,
+          "legal_labels": 11259,
+          "skill_tagged_legal_labels": 10750,
+          "mapped_legal_labels": 2706,
+          "checkpoints": {
+            "0": {
+              "available": 712,
+              "legal": 611,
+              "skill_tagged_legal": 609,
+              "mapped_legal": 231
+            },
+            "1": {
+              "available": 629,
+              "legal": 564,
+              "skill_tagged_legal": 560,
+              "mapped_legal": 211
+            },
+            "3": {
+              "available": 523,
+              "legal": 463,
+              "skill_tagged_legal": 456,
+              "mapped_legal": 165
+            },
+            "5": {
+              "available": 408,
+              "legal": 360,
+              "skill_tagged_legal": 357,
+              "mapped_legal": 121
+            },
+            "10": {
+              "available": 259,
+              "legal": 221,
+              "skill_tagged_legal": 218,
+              "mapped_legal": 52
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student",
+      "seed": 29,
+      "discarded_by_joint_holdout": 0,
+      "folds": {
+        "train": {
+          "students": 2530,
+          "problem_logs": 207046,
+          "main_problem_logs": 164482,
+          "legal_labels": 146733,
+          "skill_tagged_legal_labels": 138072,
+          "mapped_legal_labels": 32883,
+          "checkpoints": {
+            "0": {
+              "available": 2530,
+              "legal": 2090,
+              "skill_tagged_legal": 2054,
+              "mapped_legal": 451
+            },
+            "1": {
+              "available": 2451,
+              "legal": 2154,
+              "skill_tagged_legal": 2114,
+              "mapped_legal": 526
+            },
+            "3": {
+              "available": 2291,
+              "legal": 2049,
+              "skill_tagged_legal": 2006,
+              "mapped_legal": 567
+            },
+            "5": {
+              "available": 2125,
+              "legal": 1856,
+              "skill_tagged_legal": 1807,
+              "mapped_legal": 590
+            },
+            "10": {
+              "available": 1717,
+              "legal": 1497,
+              "skill_tagged_legal": 1460,
+              "mapped_legal": 510
+            }
+          }
+        },
+        "validation": {
+          "students": 843,
+          "problem_logs": 71386,
+          "main_problem_logs": 57019,
+          "legal_labels": 50761,
+          "skill_tagged_legal_labels": 47366,
+          "mapped_legal_labels": 11424,
+          "checkpoints": {
+            "0": {
+              "available": 843,
+              "legal": 711,
+              "skill_tagged_legal": 698,
+              "mapped_legal": 151
+            },
+            "1": {
+              "available": 810,
+              "legal": 731,
+              "skill_tagged_legal": 717,
+              "mapped_legal": 182
+            },
+            "3": {
+              "available": 739,
+              "legal": 653,
+              "skill_tagged_legal": 640,
+              "mapped_legal": 191
+            },
+            "5": {
+              "available": 682,
+              "legal": 594,
+              "skill_tagged_legal": 580,
+              "mapped_legal": 190
+            },
+            "10": {
+              "available": 556,
+              "legal": 481,
+              "skill_tagged_legal": 472,
+              "mapped_legal": 184
+            }
+          }
+        },
+        "test": {
+          "students": 844,
+          "problem_logs": 68428,
+          "main_problem_logs": 53957,
+          "legal_labels": 47768,
+          "skill_tagged_legal_labels": 45405,
+          "mapped_legal_labels": 11014,
+          "checkpoints": {
+            "0": {
+              "available": 844,
+              "legal": 701,
+              "skill_tagged_legal": 684,
+              "mapped_legal": 144
+            },
+            "1": {
+              "available": 815,
+              "legal": 700,
+              "skill_tagged_legal": 686,
+              "mapped_legal": 162
+            },
+            "3": {
+              "available": 758,
+              "legal": 663,
+              "skill_tagged_legal": 649,
+              "mapped_legal": 171
+            },
+            "5": {
+              "available": 706,
+              "legal": 595,
+              "skill_tagged_legal": 579,
+              "mapped_legal": 185
+            },
+            "10": {
+              "available": 576,
+              "legal": 486,
+              "skill_tagged_legal": 475,
+              "mapped_legal": 166
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student_item",
+      "seed": 29,
+      "discarded_by_joint_holdout": 195531,
+      "folds": {
+        "train": {
+          "students": 2488,
+          "problem_logs": 123142,
+          "main_problem_logs": 97709,
+          "legal_labels": 87223,
+          "skill_tagged_legal_labels": 81941,
+          "mapped_legal_labels": 19244,
+          "checkpoints": {
+            "0": {
+              "available": 2485,
+              "legal": 2101,
+              "skill_tagged_legal": 2061,
+              "mapped_legal": 489
+            },
+            "1": {
+              "available": 2335,
+              "legal": 2075,
+              "skill_tagged_legal": 2031,
+              "mapped_legal": 565
+            },
+            "3": {
+              "available": 2065,
+              "legal": 1829,
+              "skill_tagged_legal": 1776,
+              "mapped_legal": 555
+            },
+            "5": {
+              "available": 1796,
+              "legal": 1575,
+              "skill_tagged_legal": 1525,
+              "mapped_legal": 500
+            },
+            "10": {
+              "available": 1341,
+              "legal": 1143,
+              "skill_tagged_legal": 1102,
+              "mapped_legal": 380
+            }
+          }
+        },
+        "validation": {
+          "students": 746,
+          "problem_logs": 14679,
+          "main_problem_logs": 11668,
+          "legal_labels": 10364,
+          "skill_tagged_legal_labels": 9749,
+          "mapped_legal_labels": 2350,
+          "checkpoints": {
+            "0": {
+              "available": 737,
+              "legal": 640,
+              "skill_tagged_legal": 629,
+              "mapped_legal": 179
+            },
+            "1": {
+              "available": 607,
+              "legal": 528,
+              "skill_tagged_legal": 516,
+              "mapped_legal": 180
+            },
+            "3": {
+              "available": 452,
+              "legal": 392,
+              "skill_tagged_legal": 387,
+              "mapped_legal": 139
+            },
+            "5": {
+              "available": 327,
+              "legal": 288,
+              "skill_tagged_legal": 285,
+              "mapped_legal": 97
+            },
+            "10": {
+              "available": 212,
+              "legal": 177,
+              "skill_tagged_legal": 174,
+              "mapped_legal": 39
+            }
+          }
+        },
+        "test": {
+          "students": 746,
+          "problem_logs": 13508,
+          "main_problem_logs": 10770,
+          "legal_labels": 9555,
+          "skill_tagged_legal_labels": 9060,
+          "mapped_legal_labels": 2370,
+          "checkpoints": {
+            "0": {
+              "available": 734,
+              "legal": 628,
+              "skill_tagged_legal": 614,
+              "mapped_legal": 160
+            },
+            "1": {
+              "available": 621,
+              "legal": 543,
+              "skill_tagged_legal": 528,
+              "mapped_legal": 167
+            },
+            "3": {
+              "available": 468,
+              "legal": 385,
+              "skill_tagged_legal": 369,
+              "mapped_legal": 136
+            },
+            "5": {
+              "available": 355,
+              "legal": 312,
+              "skill_tagged_legal": 302,
+              "mapped_legal": 95
+            },
+            "10": {
+              "available": 221,
+              "legal": 193,
+              "skill_tagged_legal": 189,
+              "mapped_legal": 61
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student_family",
+      "seed": 29,
+      "discarded_by_joint_holdout": 190956,
+      "folds": {
+        "train": {
+          "students": 2441,
+          "problem_logs": 129906,
+          "main_problem_logs": 101392,
+          "legal_labels": 90837,
+          "skill_tagged_legal_labels": 85515,
+          "mapped_legal_labels": 18125,
+          "checkpoints": {
+            "0": {
+              "available": 2441,
+              "legal": 2079,
+              "skill_tagged_legal": 2053,
+              "mapped_legal": 483
+            },
+            "1": {
+              "available": 2270,
+              "legal": 2001,
+              "skill_tagged_legal": 1967,
+              "mapped_legal": 543
+            },
+            "3": {
+              "available": 2065,
+              "legal": 1830,
+              "skill_tagged_legal": 1788,
+              "mapped_legal": 534
+            },
+            "5": {
+              "available": 1827,
+              "legal": 1578,
+              "skill_tagged_legal": 1539,
+              "mapped_legal": 487
+            },
+            "10": {
+              "available": 1417,
+              "legal": 1223,
+              "skill_tagged_legal": 1186,
+              "mapped_legal": 368
+            }
+          }
+        },
+        "validation": {
+          "students": 594,
+          "problem_logs": 12740,
+          "main_problem_logs": 10712,
+          "legal_labels": 9443,
+          "skill_tagged_legal_labels": 8984,
+          "mapped_legal_labels": 2587,
+          "checkpoints": {
+            "0": {
+              "available": 594,
+              "legal": 502,
+              "skill_tagged_legal": 495,
+              "mapped_legal": 197
+            },
+            "1": {
+              "available": 488,
+              "legal": 437,
+              "skill_tagged_legal": 431,
+              "mapped_legal": 171
+            },
+            "3": {
+              "available": 379,
+              "legal": 329,
+              "skill_tagged_legal": 326,
+              "mapped_legal": 128
+            },
+            "5": {
+              "available": 313,
+              "legal": 278,
+              "skill_tagged_legal": 272,
+              "mapped_legal": 88
+            },
+            "10": {
+              "available": 200,
+              "legal": 176,
+              "skill_tagged_legal": 169,
+              "mapped_legal": 60
+            }
+          }
+        },
+        "test": {
+          "students": 649,
+          "problem_logs": 13258,
+          "main_problem_logs": 10536,
+          "legal_labels": 9319,
+          "skill_tagged_legal_labels": 8790,
+          "mapped_legal_labels": 2294,
+          "checkpoints": {
+            "0": {
+              "available": 649,
+              "legal": 547,
+              "skill_tagged_legal": 535,
+              "mapped_legal": 155
+            },
+            "1": {
+              "available": 559,
+              "legal": 490,
+              "skill_tagged_legal": 479,
+              "mapped_legal": 152
+            },
+            "3": {
+              "available": 423,
+              "legal": 365,
+              "skill_tagged_legal": 349,
+              "mapped_legal": 122
+            },
+            "5": {
+              "available": 341,
+              "legal": 289,
+              "skill_tagged_legal": 274,
+              "mapped_legal": 101
+            },
+            "10": {
+              "available": 233,
+              "legal": 212,
+              "skill_tagged_legal": 200,
+              "mapped_legal": 59
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student",
+      "seed": 43,
+      "discarded_by_joint_holdout": 0,
+      "folds": {
+        "train": {
+          "students": 2530,
+          "problem_logs": 206979,
+          "main_problem_logs": 163885,
+          "legal_labels": 145316,
+          "skill_tagged_legal_labels": 137136,
+          "mapped_legal_labels": 33256,
+          "checkpoints": {
+            "0": {
+              "available": 2530,
+              "legal": 2112,
+              "skill_tagged_legal": 2068,
+              "mapped_legal": 436
+            },
+            "1": {
+              "available": 2439,
+              "legal": 2142,
+              "skill_tagged_legal": 2097,
+              "mapped_legal": 502
+            },
+            "3": {
+              "available": 2271,
+              "legal": 2017,
+              "skill_tagged_legal": 1974,
+              "mapped_legal": 548
+            },
+            "5": {
+              "available": 2109,
+              "legal": 1827,
+              "skill_tagged_legal": 1775,
+              "mapped_legal": 566
+            },
+            "10": {
+              "available": 1722,
+              "legal": 1506,
+              "skill_tagged_legal": 1468,
+              "mapped_legal": 523
+            }
+          }
+        },
+        "validation": {
+          "students": 843,
+          "problem_logs": 65496,
+          "main_problem_logs": 52409,
+          "legal_labels": 47151,
+          "skill_tagged_legal_labels": 44070,
+          "mapped_legal_labels": 10341,
+          "checkpoints": {
+            "0": {
+              "available": 843,
+              "legal": 689,
+              "skill_tagged_legal": 678,
+              "mapped_legal": 141
+            },
+            "1": {
+              "available": 822,
+              "legal": 730,
+              "skill_tagged_legal": 717,
+              "mapped_legal": 169
+            },
+            "3": {
+              "available": 762,
+              "legal": 673,
+              "skill_tagged_legal": 658,
+              "mapped_legal": 183
+            },
+            "5": {
+              "available": 705,
+              "legal": 606,
+              "skill_tagged_legal": 589,
+              "mapped_legal": 196
+            },
+            "10": {
+              "available": 569,
+              "legal": 490,
+              "skill_tagged_legal": 480,
+              "mapped_legal": 176
+            }
+          }
+        },
+        "test": {
+          "students": 844,
+          "problem_logs": 74385,
+          "main_problem_logs": 59164,
+          "legal_labels": 52795,
+          "skill_tagged_legal_labels": 49637,
+          "mapped_legal_labels": 11724,
+          "checkpoints": {
+            "0": {
+              "available": 844,
+              "legal": 701,
+              "skill_tagged_legal": 690,
+              "mapped_legal": 169
+            },
+            "1": {
+              "available": 815,
+              "legal": 713,
+              "skill_tagged_legal": 703,
+              "mapped_legal": 199
+            },
+            "3": {
+              "available": 755,
+              "legal": 675,
+              "skill_tagged_legal": 663,
+              "mapped_legal": 198
+            },
+            "5": {
+              "available": 699,
+              "legal": 612,
+              "skill_tagged_legal": 602,
+              "mapped_legal": 203
+            },
+            "10": {
+              "available": 558,
+              "legal": 468,
+              "skill_tagged_legal": 459,
+              "mapped_legal": 161
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student_item",
+      "seed": 43,
+      "discarded_by_joint_holdout": 195347,
+      "folds": {
+        "train": {
+          "students": 2480,
+          "problem_logs": 122991,
+          "main_problem_logs": 97472,
+          "legal_labels": 86484,
+          "skill_tagged_legal_labels": 81688,
+          "mapped_legal_labels": 19358,
+          "checkpoints": {
+            "0": {
+              "available": 2472,
+              "legal": 2117,
+              "skill_tagged_legal": 2073,
+              "mapped_legal": 473
+            },
+            "1": {
+              "available": 2325,
+              "legal": 2061,
+              "skill_tagged_legal": 2013,
+              "mapped_legal": 563
+            },
+            "3": {
+              "available": 2062,
+              "legal": 1821,
+              "skill_tagged_legal": 1771,
+              "mapped_legal": 559
+            },
+            "5": {
+              "available": 1816,
+              "legal": 1586,
+              "skill_tagged_legal": 1537,
+              "mapped_legal": 517
+            },
+            "10": {
+              "available": 1348,
+              "legal": 1164,
+              "skill_tagged_legal": 1127,
+              "mapped_legal": 397
+            }
+          }
+        },
+        "validation": {
+          "students": 738,
+          "problem_logs": 13486,
+          "main_problem_logs": 10649,
+          "legal_labels": 9574,
+          "skill_tagged_legal_labels": 8982,
+          "mapped_legal_labels": 2199,
+          "checkpoints": {
+            "0": {
+              "available": 720,
+              "legal": 615,
+              "skill_tagged_legal": 599,
+              "mapped_legal": 153
+            },
+            "1": {
+              "available": 627,
+              "legal": 549,
+              "skill_tagged_legal": 531,
+              "mapped_legal": 170
+            },
+            "3": {
+              "available": 449,
+              "legal": 386,
+              "skill_tagged_legal": 377,
+              "mapped_legal": 127
+            },
+            "5": {
+              "available": 336,
+              "legal": 302,
+              "skill_tagged_legal": 293,
+              "mapped_legal": 93
+            },
+            "10": {
+              "available": 226,
+              "legal": 198,
+              "skill_tagged_legal": 188,
+              "mapped_legal": 49
+            }
+          }
+        },
+        "test": {
+          "students": 756,
+          "problem_logs": 15036,
+          "main_problem_logs": 12024,
+          "legal_labels": 10659,
+          "skill_tagged_legal_labels": 9997,
+          "mapped_legal_labels": 2372,
+          "checkpoints": {
+            "0": {
+              "available": 742,
+              "legal": 641,
+              "skill_tagged_legal": 635,
+              "mapped_legal": 190
+            },
+            "1": {
+              "available": 636,
+              "legal": 557,
+              "skill_tagged_legal": 544,
+              "mapped_legal": 180
+            },
+            "3": {
+              "available": 447,
+              "legal": 388,
+              "skill_tagged_legal": 380,
+              "mapped_legal": 132
+            },
+            "5": {
+              "available": 345,
+              "legal": 306,
+              "skill_tagged_legal": 302,
+              "mapped_legal": 91
+            },
+            "10": {
+              "available": 229,
+              "legal": 199,
+              "skill_tagged_legal": 195,
+              "mapped_legal": 52
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "student_family",
+      "seed": 43,
+      "discarded_by_joint_holdout": 198734,
+      "folds": {
+        "train": {
+          "students": 2354,
+          "problem_logs": 117295,
+          "main_problem_logs": 91919,
+          "legal_labels": 81046,
+          "skill_tagged_legal_labels": 75208,
+          "mapped_legal_labels": 18521,
+          "checkpoints": {
+            "0": {
+              "available": 2354,
+              "legal": 1994,
+              "skill_tagged_legal": 1951,
+              "mapped_legal": 495
+            },
+            "1": {
+              "available": 2172,
+              "legal": 1923,
+              "skill_tagged_legal": 1876,
+              "mapped_legal": 580
+            },
+            "3": {
+              "available": 1960,
+              "legal": 1733,
+              "skill_tagged_legal": 1682,
+              "mapped_legal": 575
+            },
+            "5": {
+              "available": 1669,
+              "legal": 1434,
+              "skill_tagged_legal": 1378,
+              "mapped_legal": 472
+            },
+            "10": {
+              "available": 1261,
+              "legal": 1084,
+              "skill_tagged_legal": 1040,
+              "mapped_legal": 358
+            }
+          }
+        },
+        "validation": {
+          "students": 607,
+          "problem_logs": 11202,
+          "main_problem_logs": 9276,
+          "legal_labels": 8309,
+          "skill_tagged_legal_labels": 7910,
+          "mapped_legal_labels": 1663,
+          "checkpoints": {
+            "0": {
+              "available": 607,
+              "legal": 509,
+              "skill_tagged_legal": 506,
+              "mapped_legal": 177
+            },
+            "1": {
+              "available": 520,
+              "legal": 459,
+              "skill_tagged_legal": 450,
+              "mapped_legal": 169
+            },
+            "3": {
+              "available": 415,
+              "legal": 360,
+              "skill_tagged_legal": 353,
+              "mapped_legal": 120
+            },
+            "5": {
+              "available": 302,
+              "legal": 260,
+              "skill_tagged_legal": 253,
+              "mapped_legal": 72
+            },
+            "10": {
+              "available": 182,
+              "legal": 161,
+              "skill_tagged_legal": 155,
+              "mapped_legal": 44
+            }
+          }
+        },
+        "test": {
+          "students": 695,
+          "problem_logs": 19629,
+          "main_problem_logs": 15355,
+          "legal_labels": 13877,
+          "skill_tagged_legal_labels": 13246,
+          "mapped_legal_labels": 3197,
+          "checkpoints": {
+            "0": {
+              "available": 695,
+              "legal": 612,
+              "skill_tagged_legal": 609,
+              "mapped_legal": 191
+            },
+            "1": {
+              "available": 621,
+              "legal": 560,
+              "skill_tagged_legal": 559,
+              "mapped_legal": 182
+            },
+            "3": {
+              "available": 517,
+              "legal": 471,
+              "skill_tagged_legal": 469,
+              "mapped_legal": 145
+            },
+            "5": {
+              "available": 418,
+              "legal": 373,
+              "skill_tagged_legal": 371,
+              "mapped_legal": 104
+            },
+            "10": {
+              "available": 289,
+              "legal": 257,
+              "skill_tagged_legal": 252,
+              "mapped_legal": 77
+            }
+          }
+        }
+      }
+    }
+  ],
+  "conclusions": {
+    "formal_abcd_started": false,
+    "target_transfer_validated": false,
+    "time_gap_features_available": false,
+    "training_weights_exported": false
+  },
+  "previous_workspace_audit": {
+    "audit_date": "2026-09-13",
+    "scope": "current MathTutor workspace; no installed user database or external dataset opened",
+    "real_data": {
+      "status": "not_available_in_audited_workspace",
+      "verified_available_students": 0,
+      "actual_user_population": null,
+      "dataset_version": null,
+      "skill_coverage": null,
+      "first_independent_label_retention": null,
+      "help_information_missing_rate": null,
+      "deduplicated_events": null,
+      "training_permission": "not_established"
+    },
+    "synthetic_fixture": {
+      "source": "src/mathtutor/learning/knowledge_tracing/__main__.py",
+      "source_sha256": "82e32b6c58aa1323a329ebaecd01cb8afe2b82620a2c96b740b71c48bf2fcf6f",
+      "label_policy": "first_independent_task_v1",
+      "data": {
+        "students": 18,
+        "events": 432,
+        "independent_binary_targets": 432,
+        "assisted_targets_excluded": 0,
+        "post_solution_targets_excluded": 0,
+        "uncertain_provenance_excluded": 0,
+        "duplicate_responses_excluded": 0,
+        "missing_or_unknown_labels": 0,
+        "unmapped_skills": 0,
+        "missing_near_duplicate_group": 0,
+        "graph_versions": [
+          "mt-skills-v2"
+        ],
+        "families": 9,
+        "policy_status": "shadow_only_pending_real_student_validation"
+      },
+      "covered_skills": [
+        "equality_preservation",
+        "linear_isolation"
+      ],
+      "supported_skill_count": 13,
+      "first_label_retention": 1.0,
+      "real_learning_effect_verified": false
+    },
+    "next_required_input": "A specifically identified, training-authorized event export or public dataset version with semantics and licensing documentation"
+  }
+}

@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
+import hashlib
 import importlib
 import json
 import os
+import sqlite3
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -22,6 +25,13 @@ from uuid import UUID
 
 SESSION_ID = "rc-upgrade-session"
 DOCUMENT_MARKER = "RC_UPGRADE_DOCUMENT_SENTINEL LINEAR_EQUATION"
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j1ioAAAAASUVORK5CYII=")
+
+
+def learning_fingerprint(db_path):
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM learning_events ORDER BY student_id,event_seq").fetchall()
+    return {"count": len(rows), "sha256": hashlib.sha256(json.dumps(rows, sort_keys=True).encode()).hexdigest()}
 
 
 def _collect(ws) -> list[dict[str, Any]]:
@@ -119,6 +129,27 @@ def seed(data_root: Path, output: Path, namespace: str) -> dict[str, Any]:
 
         summary = client.get("/api/v2/math-tutor/desktop/student-summary")
         summary.raise_for_status()
+        image = None
+        if namespace == "mathtutor":
+            import httpx
+            gateway_module = importlib.import_module(f"{namespace}.infrastructure.generative_gateway")
+            chat_module = importlib.import_module(f"{namespace}.infrastructure.tutor_chat")
+            state_module = importlib.import_module(f"{namespace}.api.product_state")
+            async def fixture_key():
+                return "nonpersonal-upgrade-fixture"
+            fixture_provider = gateway_module.OpenAICompatibleProvider(
+                base_url="https://example.invalid/v1", model="gpt-4.1", provider_id="openai",
+                api_key_resolver=fixture_key, transport=httpx.MockTransport(lambda request: httpx.Response(
+                    200, json={"choices": [{"message": {"content": "这是升级测试图片。"}, "finish_reason": "stop"}]})))
+            state = state_module.get_product_state()
+            state.gateway.register_provider(gateway_module.ModelRole.TUTOR_WRITER, fixture_provider)
+            state.controller.chat_responder = chat_module.TutorChatResponder(state.gateway)
+            uploaded = client.post("/api/v2/math-tutor/images", files={"file": ("upgrade.png", PNG, "image/png")})
+            uploaded.raise_for_status()
+            image = uploaded.json()
+            _turn(client, "send_message", {"text": "升级测试图片", "attachment_ids": [image["id"]]})
+            if image["id"] not in json.dumps(client.get(f"/api/v2/math-tutor/sessions/{SESSION_ID}").json()):
+                raise RuntimeError("old artifact did not persist the synthetic image message")
         backup = client.post("/api/v2/math-tutor/desktop/backup", json={})
         backup.raise_for_status()
         if backup.json().get("ok") is not True:
@@ -135,6 +166,8 @@ def seed(data_root: Path, output: Path, namespace: str) -> dict[str, Any]:
             "child_cycle_id": child_cycle_id,
             "backup_name": backup.json()["backup"]["path"],
             "student_summary": summary.json(),
+            "image": image,
+            "learning_fingerprint": learning_fingerprint(db_path) if namespace == "mathtutor" else None,
             "problem_state_observed": any(
                 event.get("cycle_state") == "awaiting_attempt"
                 for event in _committed(problem_events)
@@ -223,7 +256,7 @@ def verify(data_root: Path, expected_path: Path, namespace: str) -> dict[str, An
         )
         checks = {
             "migration_head": version.json().get("release_config", {}).get("migration_head")
-            == "015",
+            == "018",
             "document_survives": documents.status_code == 200
             and any(item["document_id"] == expected["document_id"] for item in documents.json()),
             "memory_survives": memories.status_code == 200
@@ -233,12 +266,30 @@ def verify(data_root: Path, expected_path: Path, namespace: str) -> dict[str, An
             "parent_state_preserved": parent.status_code == 200
             and parent.json().get("state") == expected["parent_state"],
             "child_cycle_survives": child.status_code == 200,
-            "student_summary_stable": summary.status_code == 200
-            and summary.json() == expected["student_summary"],
+            "profile_available": summary.status_code == 200
+            and summary.json().get("schema_version") == "learning_profile_v1"
+            and summary.json().get("total_attempts", 0) > 0,
+            "learning_events_preserved": (learning_fingerprint(db_path) == expected["learning_fingerprint"]
+                if expected.get("learning_fingerprint") else True),
+            "image_bytes_preserved": (client.get(expected["image"]["url"]).content == PNG
+                if expected.get("image") else True),
             "backup_verifies": backup.status_code == 200
             and backup.json().get("ok") is True,
         }
+        resume = client.post(f"/api/v2/math-tutor/offers/{expected['offer_id']}/resume")
+        checks["continue_practice"] = resume.status_code == 200 and resume.json().get("session_id") == SESSION_ID
+        if expected.get("image"):
+            conversation = client.get(f"/api/v2/math-tutor/sessions/{SESSION_ID}").json()
+            checks["image_message_preserved"] = expected["image"]["id"] in json.dumps(conversation)
     checks.update(asyncio.run(_authority_checks(db_path, expected["offer_id"])))
+    # Erasure occurs only AFTER preservation/replay checks, against this generated
+    # profile. The wrapper starts another artifact process to verify no recovery.
+    preservation_passed = all(value is True for key, value in checks.items()
+                             if not key.endswith("_count") and key != "projection_version")
+    if preservation_passed:
+        with _client(db_path, namespace) as client:
+            deletion = client.post("/api/v2/math-tutor/desktop/privacy/educational-history")
+            checks["delete_learning_history"] = deletion.status_code == 200
     required = [value for key, value in checks.items() if not key.endswith("_count") and key != "projection_version"]
     return {
         "status": "PASS" if all(value is True for value in required) else "FAIL",
@@ -247,9 +298,25 @@ def verify(data_root: Path, expected_path: Path, namespace: str) -> dict[str, An
     }
 
 
+def verify_deleted(data_root, expected_path, namespace):
+    expected = json.loads(expected_path.read_text())
+    db = data_root / "math_tutor.db"
+    with _client(db, namespace) as client:
+        summary = client.get("/api/v2/math-tutor/desktop/student-summary").json()
+        evidence = client.get("/api/v2/math-tutor/desktop/student-evidence").json()
+        offer = next(o for o in client.get("/api/v2/math-tutor/offers").json() if o["offer_id"] == expected["offer_id"])
+        checks = {"no_learning_events_after_process_restart": learning_fingerprint(db)["count"] == 0,
+                  "no_evidence_after_process_restart": evidence["items"] == [],
+                  "empty_profile_after_process_restart": summary["coverage"]["observed_skills"] == 0,
+                  "accepted_exercise_preserved": offer["status"] == "ACCEPTED" and offer["child_cycle_id"] == expected["child_cycle_id"],
+                  "old_basis_unavailable": offer["basis"] is None and offer["evidence_ids"] == [],
+                  "conversation_preserved": summary["has_conversations"]}
+    return {"operation": "verify-deleted", "status": "PASS" if all(checks.values()) else "FAIL", "checks": checks}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("seed", "verify"))
+    parser.add_argument("operation", choices=("seed", "verify", "verify-deleted"))
     parser.add_argument(
         "--namespace",
         required=True,
@@ -271,7 +338,8 @@ def main() -> int:
     result = (
         seed(args.data_root, args.state, args.namespace)
         if args.operation == "seed"
-        else verify(args.data_root, args.state, args.namespace)
+        else (verify_deleted(args.data_root, args.state, args.namespace) if args.operation == "verify-deleted"
+              else verify(args.data_root, args.state, args.namespace))
     )
     print(json.dumps(result, sort_keys=True))
     return 0 if result["status"] == "PASS" else 1

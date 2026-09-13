@@ -122,6 +122,8 @@ async def test_full_chain_solve_offer_accept_child_judge(tmp_path: Path) -> None
         # 4. The offer is consumed; the parent's real solved result is preserved.
         offers = client.get("/api/v2/math-tutor/offers").json()
         assert offers[0]["status"] == "ACCEPTED"
+        assert offers[0]["display_status"] == "in_progress"
+        assert offers[0]["resume_session_id"]
         parent = client.get(
             f"/api/v2/math-tutor/cycles/{extra['parent_cycle_id']}"
         ).json()

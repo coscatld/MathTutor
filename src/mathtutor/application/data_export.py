@@ -57,6 +57,7 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
             "mime_type",
             "status",
             "retrieval_enabled",
+            "is_global",
             "size_bytes",
             "page_count",
             "chunk_count",

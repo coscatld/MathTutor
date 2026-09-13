@@ -24,37 +24,37 @@ test("PracticeOfferCard: active offer renders public labels and an enabled start
   const html = renderToStaticMarkup(
     <PracticeOfferCard offer={makeOffer()} accepting={false} onStart={() => undefined} />,
   );
-  assert.ok(html.includes("可练习"), "shows ACTIVE label");
+  assert.ok(html.includes("待开始"), "shows ACTIVE label");
   assert.ok(html.includes("分数乘法"), "shows skill label");
   assert.ok(html.includes("分数"), "shows concept label");
-  assert.ok(html.includes("进阶"), "shows difficulty label");
+  assert.ok(html.includes("本次观察"), "shows observation goal");
   assert.ok(html.includes("开始练习"), "shows start button");
   assert.ok(!html.includes('disabled=""'), "active offer button is enabled");
-  assert.ok(html.includes("过期"), "shows expiry hint");
+  assert.ok(!html.includes("过期"), "no expiry pressure on pending practice");
 });
 
 test("PracticeOfferCard: REVOKED offer is disabled and shows no expiry countdown", () => {
   const html = renderToStaticMarkup(
     <PracticeOfferCard offer={makeOffer({ status: "REVOKED" })} accepting={false} onStart={() => undefined} />,
   );
-  assert.ok(html.includes("已撤回"), "shows REVOKED label");
-  assert.ok(html.includes('disabled=""'), "button disabled");
-  assert.ok(html.includes("该邀请已失效"), "explains why");
+  assert.ok(html.includes("历史建议"), "shows REVOKED label");
+  assert.ok(!html.includes("开始练习"), "no start action on inactive practice");
+  assert.ok(!html.includes("任务失败"), "expiry is not a learning failure");
 });
 
 test("PracticeOfferCard: EXPIRED offer is disabled", () => {
   const html = renderToStaticMarkup(
     <PracticeOfferCard offer={makeOffer({ status: "EXPIRED", expires_at: "2026-08-19T00:00:00Z" })} accepting={false} onStart={() => undefined} />,
   );
-  assert.ok(html.includes("已过期"), "shows EXPIRED label");
-  assert.ok(html.includes('disabled=""'), "button disabled");
+  assert.ok(html.includes("历史建议"), "shows EXPIRED label");
+  assert.ok(!html.includes("开始练习"), "no start action on inactive practice");
 });
 
 test("PracticeOfferCard: accepting state disables the button", () => {
   const html = renderToStaticMarkup(
     <PracticeOfferCard offer={makeOffer()} accepting={true} onStart={() => undefined} />,
   );
-  assert.ok(html.includes("正在接受…"), "shows accepting state");
+  assert.ok(html.includes("正在处理…"), "shows accepting state");
   assert.ok(html.includes('disabled=""'), "button disabled while accepting");
 });
 

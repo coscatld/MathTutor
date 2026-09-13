@@ -82,7 +82,7 @@ class ProviderPreset(BaseModel):
     default_model: str
     custom: bool = False
     requires_api_key: bool = True
-    editable_base_url: bool = False
+    editable_base_url: bool = True
     local: bool = False
 
 
@@ -228,6 +228,19 @@ class OpenAICompatibleProvider:
         }
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+        if self.provider_id == "moonshot" and self._model in {"kimi-k2.5", "kimi-k2.6"}:
+            payload.pop("temperature", None)
+            payload["thinking"] = {"type": "disabled"}
+        if self.provider_id == "deepseek" and any(
+            isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"])
+            for m in messages
+        ):
+            # Image tutoring uses a bounded answer budget; reserve it for visible
+            # content, not the provider's default high-effort reasoning.
+            payload["thinking"] = {"type": "disabled"}
+            import json
+            if len(json.dumps(payload).encode("utf-8")) > 48 * 1024 * 1024:
+                raise GenerativeConfigError("图片编码后的请求超过 DeepSeek 48 MiB 限制，请减少图片数量或压缩图片。")
         last_error: Exception | None = None
         for attempt in range(max_retries + 1):
             try:
@@ -239,6 +252,16 @@ class OpenAICompatibleProvider:
         raise GenerativeProviderError(
             f"provider {self.provider_id!r} failed after {max_retries + 1} attempt(s): {last_error}"
         )
+
+    async def probe_connection(self, messages: Sequence[dict]) -> CompletionResult:
+        """A bounded connectivity probe, independent of teaching-turn policy."""
+        payload = {"model": self._model, "messages": list(messages), "temperature": 0, "max_tokens": 128}
+        if self.provider_id == "deepseek":
+            payload["thinking"] = {"type": "disabled"}
+        if self.provider_id == "moonshot" and self._model in {"kimi-k2.5", "kimi-k2.6"}:
+            payload.pop("temperature", None)
+            payload["thinking"] = {"type": "disabled"}
+        return await self._post_chat(payload)
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
@@ -272,6 +295,8 @@ class OpenAICompatibleProvider:
             raise GenerativeProviderError(
                 f"provider {self.provider_id!r} malformed response: {response.text[:300]!r}"
             ) from error
+        if finish_reason in {"length", "max_tokens"} and (not isinstance(text, str) or not text.strip()):
+            raise GenerativeProviderError(f"provider {self.provider_id!r} output truncated before final content")
         if not isinstance(text, str) or not text.strip():
             raise GenerativeProviderError(
                 f"provider {self.provider_id!r} returned empty content"
@@ -555,10 +580,20 @@ class GenerativeModelGateway:
         temperature: float = 0.4,
         max_tokens: int | None = None,
         max_retries: int = 0,
+        connection_probe: bool = False,
     ) -> CompletionResult:
         provider = self._by_role.get(role)
         if provider is None:
             raise GenerativeConfigError(f"no generative provider for role {role.value!r}")
+        if connection_probe:
+            probe = getattr(provider, "probe_connection", None)
+            result = await asyncio.wait_for(
+                probe(messages) if probe else provider.complete(messages, temperature=0, max_tokens=128, max_retries=0),
+                timeout=30,
+            )
+            if result.finish_reason in {"length", "max_tokens"}:
+                raise GenerativeProviderError("connection probe output truncated")
+            return result
         if any(isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"]) for m in messages):
             from mathtutor.infrastructure.vision import supports_vision, VISION_UNSUPPORTED
             if not await supports_vision(provider):

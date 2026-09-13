@@ -13,26 +13,27 @@ from test_tutor_p0 import client_at, send, summary, count
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j1ioAAAAASUVORK5CYII=")
 
 
-def provider(calls, model="gpt-4.1", fail=False):
+def provider(calls, model="gpt-4.1", fail=False, provider_id="openai"):
     async def key(): return "test-key-not-real"
     def transport(request):
         calls.append(json.loads(request.content))
         return httpx.Response(503 if fail else 200, json={"choices": [{"message": {"content": "先看等号两边：你在哪一步做了不同的运算？"}, "finish_reason": "stop"}]})
-    return OpenAICompatibleProvider(base_url="https://example.invalid/v1", model=model, provider_id="openai", api_key_resolver=key, transport=httpx.MockTransport(transport))
+    return OpenAICompatibleProvider(base_url="https://example.invalid/v1", model=model, provider_id=provider_id, api_key_resolver=key, transport=httpx.MockTransport(transport))
 
 
-def bind(calls, model="gpt-4.1", fail=False):
+def bind(calls, model="gpt-4.1", fail=False, provider_id="openai"):
     state = get_product_state()
-    state.gateway.register_provider(ModelRole.TUTOR_WRITER, provider(calls, model, fail))
+    state.gateway.register_provider(ModelRole.TUTOR_WRITER, provider(calls, model, fail, provider_id))
     state.controller.chat_responder = TutorChatResponder(state.gateway)
 
 
 @pytest.mark.parametrize("text", ["", "这道题我为什么做错了？"])
-def test_image_message_reaches_same_provider_and_survives_restart(tmp_path, text):
+@pytest.mark.parametrize("provider_id,model", [("openai", "gpt-4.1"), ("deepseek", "deepseek-flash"), ("moonshot", "kimi-k2.5")])
+def test_image_message_reaches_same_provider_and_survives_restart(tmp_path, text, provider_id, model):
     db = tmp_path / "images.db"
     calls = []
     with client_at(db) as client:
-        bind(calls)
+        bind(calls, model=model, provider_id=provider_id)
         assert client.get("/api/v2/math-tutor/image-capabilities").json()["vision"]
         image = client.post("/api/v2/math-tutor/images", files={"file": ("题目.png", PNG, "image/png")})
         assert image.status_code == 201
@@ -41,7 +42,9 @@ def test_image_message_reaches_same_provider_and_survives_restart(tmp_path, text
             frames = send(ws, "send_message", "image-1", {"text": text, "attachment_ids": [attachment["id"]]})
             assert any(f["event_type"] == "assistant_complete" for f in frames), frames
         body = calls[0]
-        assert body["model"] == "gpt-4.1"
+        assert body["model"] == model
+        if provider_id == "deepseek":
+            assert body["thinking"] == {"type": "disabled"}
         parts = body["messages"][-1]["content"]
         assert parts[0]["type"] == "text" and (not text or parts[0]["text"] == text)
         assert parts[1]["type"] == "image_url"
@@ -56,8 +59,64 @@ def test_image_message_reaches_same_provider_and_survives_restart(tmp_path, text
         assert next(m for m in summary(client)["messages"] if m["role"] == "student")["attachments"] == [attachment]
         restored = client.get(attachment["url"])
         assert restored.content == PNG and restored.headers["x-content-type-options"] == "nosniff"
+        bind(calls, model=model, provider_id=provider_id)
+        with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+            frames = send(ws, "send_message", "follow-up", {"text": "这张图片是什么意思？"})
+            assert any(f["event_type"] == "assistant_complete" for f in frames), frames
+        assert calls[-1]["model"] == model
+        assert any(p.get("type") == "image_url" for p in calls[-1]["messages"][-1]["content"])
         assert client.delete(attachment["url"]).status_code == 204
         assert client.get(attachment["url"]).status_code == 404
+
+
+@pytest.mark.parametrize("provider_id,model,expected", [
+    ("deepseek", "deepseek-flash", True), ("deepseek", "deepseek-v4-flash-vision-exp", True),
+    ("deepseek", "deepseek-v4-pro", False), ("moonshot", "kimi-k2.6", True),
+    ("moonshot", "moonshot-v1-8k", False), ("custom", "my-vision-alias", False),
+])
+async def test_provider_vision_defaults(provider_id, model, expected):
+    assert await supports_vision(provider([], model=model, provider_id=provider_id)) is expected
+
+
+async def test_custom_vision_mode_survives_restart_and_resets_for_new_model(tmp_path):
+    from mathtutor.infrastructure.gateway_config import GatewayConfigService
+    from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway
+    from mathtutor.infrastructure.secret_store import InMemorySecretStore
+    store = InMemorySecretStore()
+    gateway = GenerativeModelGateway(store)
+    path = tmp_path / "gateway.json"
+    service = GatewayConfigService(gateway, store, config_path=path)
+    await service.apply_config(preset_id="custom", model="my-vl", base_url="https://example.invalid/v1", api_key="test-key", vision_mode="enabled")
+    restored_gateway = GenerativeModelGateway(store)
+    restored = GatewayConfigService(restored_gateway, store, config_path=path)
+    p = restored_gateway.provider_for(ModelRole.TUTOR_WRITER)
+    assert await supports_vision(p)
+    calls = []
+    p._transport = provider(calls)._transport
+    await TutorChatResponder(restored_gateway).respond("描述图片", images=[{"mime_type": "image/png", "data": PNG}])
+    assert calls[0]["model"] == "my-vl"
+    assert calls[0]["messages"][-1]["content"][1]["type"] == "image_url"
+    await restored.apply_config(preset_id="custom", model="my-vl", base_url="https://example.invalid/v1", vision_mode="disabled")
+    assert not await supports_vision(restored_gateway.provider_for(ModelRole.TUTOR_WRITER))
+    await restored.apply_config(preset_id="custom", model="my-vl", base_url="https://example.invalid/v1", vision_mode="enabled")
+    await restored.apply_config(preset_id="custom", model="text-only", base_url="https://example.invalid/v1")
+    assert not await supports_vision(restored_gateway.provider_for(ModelRole.TUTOR_WRITER))
+
+
+def test_vision_mode_settings_api(tmp_path):
+    with client_at(tmp_path / "settings.db") as client:
+        endpoint = "/api/v2/math-tutor/desktop/settings"
+        payload = {"preset_id": "custom", "model": "vendor-vl", "base_url": "https://example.invalid/v1", "api_key": "test-key", "vision_mode": "enabled"}
+        saved = client.put(endpoint, json=payload)
+        assert saved.status_code == 200
+        assert saved.json()["vision_mode"] == "enabled"
+        assert client.get(endpoint).json()["vision_mode"] == "enabled"
+        assert client.get("/api/v2/math-tutor/image-capabilities").json()["vision"]
+        payload["vision_mode"] = "disabled"
+        assert client.put(endpoint, json=payload).status_code == 200
+        assert not client.get("/api/v2/math-tutor/image-capabilities").json()["vision"]
+        payload["vision_mode"] = "invalid"
+        assert client.put(endpoint, json=payload).status_code == 422
 
 
 def test_unsupported_provider_never_ignores_image(tmp_path):

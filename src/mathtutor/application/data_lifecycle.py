@@ -71,7 +71,7 @@ from mathtutor.infrastructure.schema import (
     verification_logs,
     teaching_contexts,
 )
-from mathtutor.learning.knowledge_tracing.schema import learning_events, learning_predictions, student_state_snapshots
+from mathtutor.learning.knowledge_tracing.schema import learning_events, learning_predictions, student_state_snapshots, learning_generations, practice_feedback
 from mathtutor.learning.projection import project_student_state
 from mathtutor.repositories import sqlite_education
 from mathtutor.repositories.document_repository import (
@@ -129,6 +129,8 @@ DATA_CATEGORIES: dict[str, str] = {
     "practice_recommendations": CATEGORY_AUTHORITY_EDUCATIONAL,
     "teaching_deliveries": CATEGORY_AUTHORITY_EDUCATIONAL,
     "learning_events": CATEGORY_AUTHORITY_EDUCATIONAL,
+    "learning_generations": CATEGORY_SYSTEM,
+    "practice_feedback": CATEGORY_USER_CONTROLLED,
     # derived projections — rebuildable from facts, never a deletion source.
     "student_state_projections": CATEGORY_DERIVED,
     "document_chunk_vectors": CATEGORY_DERIVED,
@@ -179,6 +181,8 @@ DATA_CATEGORY_REASONS: dict[str, str] = {
     "practice_recommendations": "练习推荐目的与发放状态审计，和邀请骨架一起保留",
     "teaching_deliveries": "帮助内容交付与暴露收据，保留以免删除历史后恢复独立资格",
     "learning_events": "v2权威学习事件，随授权教育历史删除，不从旧聊天重建",
+    "learning_generations": "只保存删除代次，不保存题目、作答或学习状态；阻止旧任务回写",
+    "practice_feedback": "推荐反馈，随学习历史删除，不作为能力证据",
     "learning_predictions": "可重算的历史预测记录，随教育历史删除",
     "student_state_snapshots": "从学习事件重放得到的追踪器状态，随事实删除以防旧状态恢复",
     "teaching_contexts": "题目骨架上的教学进度投影；清除作答/诊断结果，保留题目绑定",
@@ -654,7 +658,12 @@ class DataLifecycleService:
 
             deleted_by_table: dict[str, int] = {}
             # Facts and all v2 derived state disappear in the SAME authorized transaction.
-            for table in (learning_predictions, student_state_snapshots, learning_events):
+            from sqlalchemy.dialects.sqlite import insert
+            from mathtutor.application.learning_profile import revoke_pending
+            await revoke_pending(conn, student_id)
+            await conn.execute(insert(learning_generations).values(student_id=student_id, generation=1)
+                .on_conflict_do_update(index_elements=["student_id"], set_={"generation": learning_generations.c.generation + 1}))
+            for table in (learning_predictions, student_state_snapshots, learning_events, practice_feedback):
                 result = await conn.execute(sa_delete(table).where(table.c.student_id == student_id))
                 deleted_by_table[table.name] = result.rowcount
             teaching_rows = (await conn.execute(select(teaching_contexts).where(

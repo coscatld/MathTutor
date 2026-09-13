@@ -379,11 +379,11 @@ async def test_preset_endpoint_works(tmp_path):
 # ---------------------------------------------------------- config validation (13)
 
 
-async def test_preset_rejects_base_url_but_accepts_user_model(tmp_path):
+async def test_preset_accepts_base_url_and_user_model(tmp_path):
     gateway = GenerativeModelGateway(InMemorySecretStore())
     service = GatewayConfigService(gateway, InMemorySecretStore())
-    with pytest.raises(GenerativeConfigError):
-        await service.apply_config(preset_id="openai", api_key=_SECRET, base_url="https://evil.example/v1")
+    configured = await service.apply_config(preset_id="openai", api_key=_SECRET, base_url="https://proxy.example/v1")
+    assert configured["base_url"] == "https://proxy.example/v1"
     configured = await service.apply_config(preset_id="openai", api_key=_SECRET, model="gpt-x")
     assert configured["model"] == "gpt-x"
     with pytest.raises(GenerativeConfigError):
@@ -498,6 +498,63 @@ async def test_apply_config_returns_nonsensitive_config(tmp_path):
         "config_version": 2,
     }
     assert _SECRET not in json.dumps(config)
+
+
+@pytest.mark.parametrize("preset_id", ["openai", "deepseek", "moonshot"])
+async def test_preset_url_defaults_and_override_survive_restart(tmp_path, preset_id):
+    path = tmp_path / "gateway.json"
+    store = InMemorySecretStore()
+    gateway = GenerativeModelGateway(store)
+    service = GatewayConfigService(gateway, store, config_path=path)
+    configured = await service.apply_config(preset_id=preset_id, api_key=_SECRET)
+    assert configured["base_url"] == PRESETS[preset_id].base_url
+    assert PRESETS[preset_id].editable_base_url is True
+    url = "https://proxy.example/v1"
+    await service.apply_config(preset_id=preset_id, base_url=url)
+    other = "deepseek" if preset_id == "openai" else "openai"
+    await service.apply_config(preset_id=other, api_key=_SECRET)
+    restored_gateway = GenerativeModelGateway(store)
+    restored = GatewayConfigService(restored_gateway, store, config_path=path)
+    assert restored.provider_profiles()[preset_id]["base_url"] == url
+    await restored.apply_config(preset_id=preset_id)
+    assert restored.current_config()["base_url"] == url
+    urls = []
+    async def handler(request):
+        urls.append(str(request.url))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]})
+    _inject(restored_gateway, handler)
+    await restored_gateway.client_for(ModelRole.TUTOR_WRITER).complete(prompt="p", max_retries=0)
+    assert urls == [url + "/chat/completions"]
+    await restored.apply_config(preset_id=preset_id, base_url=PRESETS[preset_id].base_url)
+    assert restored.current_config()["base_url"] == PRESETS[preset_id].base_url
+
+
+async def test_deepseek_probe_disables_thinking_without_changing_chat(tmp_path):
+    _, gateway, service, _ = await _configured(tmp_path, preset="deepseek", model="deepseek-flash")
+    requests = []
+    async def handler(request):
+        body = json.loads(request.content)
+        requests.append(body)
+        if body.get("thinking") != {"type": "disabled"} and body.get("max_tokens") == 12:
+            return httpx.Response(200, json={"choices": [{"message": {"content": "", "reasoning_content": "thinking"}, "finish_reason": "length"}]})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "连接成功"}, "finish_reason": "stop"}]})
+    _inject(gateway, handler)
+    result = await service.test_connection()
+    assert result.status == "ok"
+    assert requests[0]["max_tokens"] == 128
+    assert requests[0]["thinking"] == {"type": "disabled"}
+    await gateway.client_for(ModelRole.TUTOR_WRITER).complete(prompt="你好", max_retries=0)
+    assert "thinking" not in requests[-1]
+
+
+@pytest.mark.parametrize("finish_reason,content", [("length", ""), ("length", "partial"), ("stop", "")])
+async def test_incomplete_probe_is_not_unsupported(tmp_path, finish_reason, content):
+    _, gateway, service, _ = await _configured(tmp_path, preset="deepseek", model="deepseek-flash")
+    async def handler(request):
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}, "finish_reason": finish_reason}]})
+    _inject(gateway, handler)
+    result = await service.test_connection()
+    assert result.error_kind == "response_incomplete"
 
 
 async def test_saved_preset_model_survives_restart_and_beats_default(tmp_path):

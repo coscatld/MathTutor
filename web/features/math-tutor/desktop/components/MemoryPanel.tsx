@@ -158,7 +158,7 @@ export default function MemoryPanel({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
+    <div className="mt-page">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--foreground)]">

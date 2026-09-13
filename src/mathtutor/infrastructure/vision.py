@@ -2,11 +2,15 @@
 import base64
 import re
 
-VISION_UNSUPPORTED = "当前模型不支持图片输入，请切换到支持视觉输入的模型。"
+VISION_UNSUPPORTED = "当前配置未启用图片输入。若模型官方确认支持视觉，请到设置 → 高级选项 → 图片输入能力选择启用并保存。"
 
 
 def openai_vision_model(provider_id, model):
     # Documented image-input families; unknown/custom aliases fail closed.
+    if provider_id == "deepseek":
+        return model in {"deepseek-flash", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
+    if provider_id == "moonshot":
+        return model in {"kimi-k2.5", "kimi-k2.6", "moonshot-v1-8k-vision-preview", "moonshot-v1-32k-vision-preview", "moonshot-v1-128k-vision-preview"}
     return provider_id == "openai" and bool(re.fullmatch(
         r"(?:gpt-4o(?:-mini)?|gpt-4\.1(?:-mini|-nano)?)(?:-\d{4}-\d{2}-\d{2})?", model))
 
@@ -14,6 +18,9 @@ def openai_vision_model(provider_id, model):
 async def supports_vision(provider):
     if provider is None or not getattr(provider, "model", ""):
         return False
+    mode = getattr(provider, "vision_mode", "auto")
+    if mode in {"enabled", "disabled"}:
+        return mode == "enabled"
     capability = getattr(provider, "supports_vision", None)
     return bool(await capability()) if capability else False
 

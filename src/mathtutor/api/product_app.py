@@ -266,6 +266,8 @@ def create_math_tutor_app(
     # Desktop product bridge (settings/documents/memory/readiness) — a
     # deliberate addition to the student product surface, same auth posture.
     from mathtutor.api import desktop_api
+    from mathtutor.api import learning_profile_api
+    app.include_router(learning_profile_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
 
     app.include_router(
         desktop_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX

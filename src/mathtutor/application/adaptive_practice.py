@@ -249,6 +249,8 @@ class AdaptivePracticeService:
         requested_difficulty: int | None = None,
         current_difficulty: int | None = None,
         review_due: bool = False,
+        history_cutoff_seq: int | None = None,
+        evidence_ids: Sequence[str] = (),
     ) -> Any:
         """Prepare ONE ACTIVE practice offer (§7.5).
 
@@ -285,9 +287,16 @@ class AdaptivePracticeService:
         except ValueError as exc:
             raise PracticeOfferError(str(exc)) from exc
         repository = self._release_service.repository
+        from mathtutor.domain.practice_recommendation import RecommendationBasis
+        resolved_revision = target_revision or content_hash({"problem": problem_text, "skills": targets})
+        basis = RecommendationBasis(
+            history_cutoff_seq=history_cutoff_seq, evidence_ids=tuple(dict.fromkeys(evidence_ids)),
+            target_revision=resolved_revision, target_skill_ids=targets, purpose=purpose,
+            reason_code="parent_attempt" if evidence_ids else "related_task",
+        ) if history_cutoff_seq is not None else None
         recommendation = PracticeRecommendation(
             student_id=student_uuid(student_id), parent_cycle_id=parent_cycle_id,
-            purpose=purpose, target_revision=target_revision or content_hash({"problem": problem_text, "skills": targets}),
+            purpose=purpose, target_revision=resolved_revision, basis=basis,
             target_skill_ids=targets, resume_parent_cycle_id=parent_cycle_id if purpose == "C" else None,
         )
         recommendation, claimed = await repository.begin_recommendation(recommendation)

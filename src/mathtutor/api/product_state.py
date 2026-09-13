@@ -422,6 +422,11 @@ class ProductState:
         from mathtutor.infrastructure.tutor_intent import SemanticTeachingInterpreter
         self.controller.semantic_interpreter = SemanticTeachingInterpreter(self.gateway)
         self.controller.image_repository = self.images
+        from mathtutor.application.chat_documents import ChatDocumentContext
+        self.controller.chat_documents = ChatDocumentContext(
+            self.documents, self.document_repository,
+            self.document_index,
+        )
         from mathtutor.learning.knowledge_tracing.service import StudentStateService
         self.student_state = StudentStateService(engine, Path(data_dir) / "models" / "dkt" / "model.npz") if engine is not None else None
         self.store.student_state = self.student_state

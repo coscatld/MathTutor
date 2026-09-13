@@ -70,6 +70,11 @@ ModelErrorKind = Literal[
     "provider_unsupported",
     "model_unavailable",
     "gateway_disabled",
+    "response_incomplete",
+    "request_rejected",
+    "quota_exceeded",
+    "rate_limited",
+    "provider_error",
 ]
 
 
@@ -78,10 +83,18 @@ def classify_gateway_error(message: str) -> ModelErrorKind:
 
     The patterns mirror the gateway's own error strings
     (``generative_gateway``): no key material can survive ``_redact``, and
-    an unknown shape degrades to ``provider_unsupported`` — never a guess
+    an unknown shape degrades to ``provider_error`` — never a guess
     that blames the user's credential.
     """
     lowered = message.lower()
+    if "output truncated" in lowered or "empty content" in lowered:
+        return "response_incomplete"
+    if "http 402" in lowered or "insufficient_quota" in lowered:
+        return "quota_exceeded"
+    if "http 429" in lowered:
+        return "rate_limited"
+    if "http 400" in lowered or "http 422" in lowered:
+        return "request_rejected"
     if "no provider configured" in lowered:
         return "gateway_disabled"
     if "has no model resolved" in lowered:
@@ -96,7 +109,7 @@ def classify_gateway_error(message: str) -> ModelErrorKind:
         return "model_unavailable"
     if "transport error" in lowered or "timeout" in lowered:
         return "network_unavailable"
-    return "provider_unsupported"
+    return "provider_error"
 
 
 class GatewayConnectionResult(BaseModel):
@@ -140,7 +153,7 @@ class GatewayConfigService:
 
     # ------------------------------------------------------------- helpers
 
-    def _register(self, *, preset_id: str, base_url: str, model: str) -> None:
+    def _register(self, *, preset_id: str, base_url: str, model: str, vision_mode: str = "auto") -> None:
         """Bind BOTH product roles to one provider (system policy)."""
         preset = PRESETS[preset_id]
         for role in ALL_ROLES:
@@ -156,6 +169,7 @@ class GatewayConfigService:
                     model=model,
                     secret_key=secret_key_name(preset_id),
                 )
+            self._gateway.provider_for(role).vision_mode = vision_mode
 
     @staticmethod
     def _valid_ollama_url(value: str) -> bool:
@@ -247,6 +261,8 @@ class GatewayConfigService:
                     "base_url": profile_base,
                     "model": str(raw.get("model") or "") or profile_preset.default_model,
                 }
+                if raw.get("vision_mode") in {"enabled", "disabled"}:
+                    profiles[str(profile_id)]["vision_mode"] = raw["vision_mode"]
         # Version-1 migration: promote the former single active config into
         # the new provider profile map without changing the user's selection.
         active_profile = profiles.get(str(preset_id), {})
@@ -257,6 +273,9 @@ class GatewayConfigService:
             base_url = preset.base_url
         model = str(active_profile.get("model") or data.get("model") or "") or preset.default_model
         profiles[str(preset_id)] = {"base_url": base_url, "model": model}
+        vision_mode = active_profile.get("vision_mode", "auto")
+        if vision_mode != "auto":
+            profiles[str(preset_id)]["vision_mode"] = vision_mode
         role_names = data.get("roles")
         if isinstance(role_names, list) and role_names:
             roles: list[ModelRole] = []
@@ -269,7 +288,7 @@ class GatewayConfigService:
             roles = list(ALL_ROLES)
         if not roles:
             return
-        self._register(preset_id=str(preset_id), base_url=base_url, model=model)
+        self._register(preset_id=str(preset_id), base_url=base_url, model=model, vision_mode=vision_mode)
         self._provider_id = preset_id
         self._connection_status = "configured"
         self._config = {
@@ -323,12 +342,13 @@ class GatewayConfigService:
         api_key: str | None = None,
         base_url: str = "",
         model: str = "",
+        vision_mode: Literal["auto", "enabled", "disabled"] | None = None,
     ) -> dict:
         """Apply a provider preset and bind every product role to it.
 
         - every provider accepts an explicit model; defaults apply only when
           the saved model is empty;
-        - only custom/Ollama endpoints are editable; Ollama stays loopback;
+        - provider endpoints default to presets but are editable; Ollama stays loopback;
         - a non-empty ``api_key`` goes ONLY into the SecretStore;
         - the persisted JSON carries policy fields only — never the key.
         """
@@ -350,18 +370,19 @@ class GatewayConfigService:
             if not self._valid_ollama_url(effective_base_url):
                 raise GenerativeConfigError("Ollama base_url must be a loopback HTTP URL")
         else:
-            if base_url and base_url != preset.base_url:
-                raise GenerativeConfigError(
-                    f"preset {preset_id!r} has a fixed base_url"
-                )
-            effective_base_url = preset.base_url
+            effective_base_url = base_url or str(prior.get("base_url") or "") or preset.base_url
         effective_model = model or preset.default_model
+        if vision_mode is None:
+            vision_mode = prior.get("vision_mode", "auto") if effective_model == prior.get("model") else "auto"
+        if vision_mode not in {"auto", "enabled", "disabled"}:
+            raise GenerativeConfigError("invalid vision mode")
         if api_key and preset.requires_api_key:
             await self._secret_store.put(secret_key_name(preset_id), api_key)
         self._register(
             preset_id=preset_id,
             base_url=effective_base_url,
             model=effective_model,
+            vision_mode=vision_mode,
         )
         self._provider_id = preset_id
         self._connection_status = "configured"
@@ -369,6 +390,8 @@ class GatewayConfigService:
             "model": effective_model,
             "base_url": effective_base_url,
         }
+        if vision_mode != "auto":
+            profiles[preset_id]["vision_mode"] = vision_mode
         self._config = {
             "preset_id": preset_id,
             "model": effective_model,
@@ -430,9 +453,12 @@ class GatewayConfigService:
                 ModelRole.TUTOR_WRITER,
                 [{"role": "user", "content": "只回复：连接成功"}],
                 temperature=0,
-                max_tokens=12,
+                max_tokens=128,
                 max_retries=0,
+                connection_probe=True,
             )
+        except TimeoutError:
+            return await self._error_result("connection probe timeout")
         except Exception as error:
             return await self._error_result(str(error))
         self._connection_status = "success"

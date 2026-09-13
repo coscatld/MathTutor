@@ -39,6 +39,34 @@ import type {
 
 export const DESKTOP_PREFIX = "/api/v2/math-tutor/desktop";
 
+export async function resumePractice(offerId: string): Promise<string> {
+  const response = await apiFetch(`/api/v2/math-tutor/offers/${encodeURIComponent(offerId)}/resume`, {method:"POST"});
+  if (!response.ok) throw new DesktopApiError(await toFriendlyMessage(response, "暂时无法继续，请刷新列表。"));
+  const result = await response.json() as {session_id: string};
+  return result.session_id;
+}
+
+export async function fetchLearningEvidence(query: { skill_id?: string; cycle_id?: string; cursor?: number }) {
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => { if (value !== undefined) params.set(key, String(value)); });
+  return desktopFetch<import("../types").EvidencePage>(`/student-evidence?${params}`);
+}
+
+export async function excludeLearningEvidence(eventId: string) {
+  return desktopFetch<{ok: boolean}>(`/student-evidence/${encodeURIComponent(eventId)}/exclude`, {method: "POST"});
+}
+
+export async function recomputeLearningProfile() {
+  return desktopFetch<{ok: boolean}>("/privacy/recompute-profile", {method: "POST"});
+}
+
+export async function sendOfferFeedback(offerId: string, kind: "later" | "not_relevant") {
+  const response = await apiFetch(`/api/v2/math-tutor/offers/${encodeURIComponent(offerId)}/feedback`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({kind}),
+  });
+  if (!response.ok) throw new DesktopApiError(await toFriendlyMessage(response, "暂时无法保存反馈，请重试。"));
+}
+
 export class DesktopApiError extends Error {}
 
 /** Parse a backend error into a friendly message (detail or fallback). */
@@ -80,6 +108,7 @@ export async function fetchPresets(): Promise<ProviderPreset[]> {
 }
 
 export async function saveSettings(input: {
+  vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
   api_key?: string;
   base_url?: string;
@@ -277,6 +306,20 @@ export async function fetchDocuments(conversationId?: string): Promise<DesktopDo
   return desktopFetch<DesktopDocument[]>(`/documents${conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : ""}`);
 }
 
+export async function fetchDocumentDestinations(): Promise<Array<{conversation_id: string; title: string}>> {
+  const response = await apiFetch("/api/v2/math-tutor/sessions");
+  if (!response.ok) throw new DesktopApiError("对话列表暂时不可用");
+  return response.json();
+}
+
+export function setDocumentGlobal(documentId: string, isGlobal: boolean) {
+  return desktopFetch<DesktopDocument>(`/documents/${encodeURIComponent(documentId)}/scope`, { method: "PATCH", body: JSON.stringify({ is_global: isGlobal }) });
+}
+
+export function fetchConversationResources(conversationId: string) {
+  return desktopFetch<{ documents: DesktopDocument[]; images: Array<{ id: string; name: string; url: string }>; message_count: number }>(`/conversations/${encodeURIComponent(conversationId)}/resources`);
+}
+
 /** Multipart import (browser `<input type=file>` fallback pick path). */
 export async function importDocumentFile(file: File, conversationId?: string): Promise<DesktopDocument> {
   const body = new FormData();
@@ -450,6 +493,11 @@ export interface ModelErrorCopy {
 }
 
 export const MODEL_ERROR_COPY: Record<ModelErrorKind, ModelErrorCopy> = {
+  response_incomplete: { title: "模型回答不完整", advice: "服务已响应，但正文为空或被截断，请重试。" },
+  request_rejected: { title: "请求参数不兼容", advice: "请检查模型名称与 API 接口兼容性。" },
+  quota_exceeded: { title: "余额或配额不足", advice: "请到服务商控制台检查账户余额和配额。" },
+  rate_limited: { title: "请求受到限流", advice: "请稍后重试。" },
+  provider_error: { title: "模型服务调用失败", advice: "请稍后重试，这不代表服务商不受支持。" },
   credential_invalid: {
     title: "API 密钥无效",
     advice: "密钥可能已失效或粘贴不完整，请重新粘贴完整密钥后再试。",

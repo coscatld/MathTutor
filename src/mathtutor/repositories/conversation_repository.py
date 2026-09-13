@@ -70,11 +70,12 @@ class InMemoryConversationRepository:
             if row["event_key"] == event_key:
                 row.update(values)
 
-    async def list(self, student_id: str) -> list[dict]:
+    async def list(self, student_id: str, *, trashed: bool = False, all_records: bool = False) -> list[dict]:
         rows = [
             dict(value)
             for (owner, conversation_id), value in self._conversations.items()
-            if owner == student_id
+            if owner == student_id and not value.get("purged_at")
+            and (all_records or bool(value.get("trashed_at")) == trashed)
             and any(
                 row.get("role") == "student"
                 for row in self._messages.get((owner, conversation_id), [])
@@ -105,6 +106,17 @@ class InMemoryConversationRepository:
 
     async def conversation_ids_for_document(self, student_id: str, document_id: UUID) -> list[str]:
         return sorted(cid for (owner, cid), docs in self._documents.items() if owner == student_id and document_id in docs)
+
+
+    async def set_trash(self, owner, cid, trashed):
+        row = self._conversations[(owner, cid)]
+        row["trashed_at"] = _now() if trashed else None
+
+    async def purge(self, owner, cid):
+        key = (owner, cid)
+        self._messages.pop(key, None)
+        self._documents.pop(key, None)
+        self._conversations[key].update(title="", purged_at=_now())
 
 
 class SQLiteConversationRepository:
@@ -153,7 +165,7 @@ class SQLiteConversationRepository:
                 conversation_messages.c.event_key == event_key,
             ).values(**values))
 
-    async def list(self, student_id: str) -> list[dict]:
+    async def list(self, student_id: str, *, trashed: bool = False, all_records: bool = False) -> list[dict]:
         async with self.uow.transaction() as conn:
             has_student_message = exists(
                 select(conversation_messages.c.message_id).where(
@@ -164,6 +176,8 @@ class SQLiteConversationRepository:
             )
             rows = (await conn.execute(select(conversations).where(
                 conversations.c.student_id == student_id,
+                conversations.c.purged_at.is_(None),
+                True if all_records else (conversations.c.trashed_at.is_not(None) if trashed else conversations.c.trashed_at.is_(None)),
                 has_student_message,
             ).order_by(conversations.c.updated_at.desc()))).all()
         return [dict(row._mapping) for row in rows]
@@ -197,3 +211,21 @@ class SQLiteConversationRepository:
         async with self.uow.transaction() as conn:
             values = (await conn.execute(select(conversation_documents.c.conversation_id).where(conversation_documents.c.student_id == student_id, conversation_documents.c.document_id == str(document_id)))).scalars().all()
         return list(values)
+
+    async def set_trash(self, owner, cid, trashed):
+        async with self.uow.transaction() as conn:
+            await conn.execute(conversations.update().where(
+                conversations.c.student_id == owner, conversations.c.conversation_id == cid,
+                conversations.c.purged_at.is_(None),
+            ).values(trashed_at=_now() if trashed else None))
+
+    async def purge(self, owner, cid):
+        # Minimal tombstone prevents old URLs/queued requests resurrecting history.
+        async with self.uow.transaction() as conn:
+            for table in (conversation_messages, conversation_documents):
+                await conn.execute(table.delete().where(table.c.student_id == owner, table.c.conversation_id == cid))
+            from mathtutor.infrastructure.schema import turn_requests
+            await conn.execute(turn_requests.delete().where(turn_requests.c.student_id == owner, turn_requests.c.conversation_id == cid))
+            await conn.execute(conversations.update().where(
+                conversations.c.student_id == owner, conversations.c.conversation_id == cid,
+            ).values(title="", purged_at=_now()))

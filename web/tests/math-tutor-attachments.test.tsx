@@ -79,7 +79,7 @@ test("vision=false prevents upload; successful upload is reused on retry", async
   };
   try {
     const repo = new ImageUploadRepository(); const { value } = store(); value.add([file()]);
-    await assert.rejects(repo.upload(value.items), /不支持图片/); assert.equal(uploads, 0);
+    await assert.rejects(repo.upload(value.items), /未启用图片输入/); assert.equal(uploads, 0);
     vision = true; assert.deepEqual(await repo.upload(value.items), [saved]); await repo.upload(value.items); assert.equal(uploads, 1);
   } finally { global.fetch = original; }
 });

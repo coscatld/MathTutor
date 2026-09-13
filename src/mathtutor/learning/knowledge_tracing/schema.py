@@ -2,6 +2,18 @@
 from sqlalchemy import JSON, Column, Integer, MetaData, String, Table, UniqueConstraint
 
 metadata = MetaData()
+learning_generations = Table(
+    "learning_generations", metadata,
+    Column("student_id", String(64), primary_key=True),
+    Column("generation", Integer, nullable=False, default=0),
+)
+practice_feedback = Table(
+    "practice_feedback", metadata,
+    Column("student_id", String(64), primary_key=True),
+    Column("offer_id", String(64), primary_key=True),
+    Column("kind", String(24), nullable=False),
+    Column("created_at", String(64), nullable=False),
+)
 learning_events = Table(
     "learning_events", metadata,
     Column("student_id", String(64), primary_key=True),

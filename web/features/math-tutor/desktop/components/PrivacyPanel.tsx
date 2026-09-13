@@ -15,6 +15,7 @@ import {
   purgeDocuments,
   purgeMemory,
   rebuildIndexes,
+  recomputeLearningProfile,
 } from "../lib/desktop-api";
 import { DOCUMENT_STATUS_LABELS, MEMORY_TYPE_LABELS } from "../lib/labels";
 import type { DesktopDocument, DesktopMemory, StudentSummary } from "../types";
@@ -150,6 +151,7 @@ interface Props {
   rebuildIndexesFn?: typeof rebuildIndexes;
   fetchExportFn?: typeof fetchStudentExport;
   onClose?: () => void;
+  embedded?: boolean;
 }
 
 /**
@@ -171,6 +173,7 @@ export default function PrivacyPanel({
   rebuildIndexesFn = rebuildIndexes,
   fetchExportFn = fetchStudentExport,
   onClose,
+  embedded = false,
 }: Props) {
   const [memories, setMemories] = useState<DesktopMemory[]>([]);
   const [documents, setDocuments] = useState<DesktopDocument[]>([]);
@@ -311,16 +314,16 @@ export default function PrivacyPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
+      className={embedded ? "w-full" : "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"}
+      role={embedded ? undefined : "dialog"}
+      aria-modal={embedded ? undefined : true}
       aria-labelledby="privacy-title"
     >
-      <div className="flex max-h-[calc(100vh-4rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
+      <div className={embedded ? "flex w-full flex-col" : "flex max-h-[calc(100vh-4rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xl"}>
         <header className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-5 py-3.5">
           <h1 id="privacy-title" className="flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">
             <ShieldCheck className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
-            我的数据
+            数据与隐私
           </h1>
           {onClose && (
             <button
@@ -351,12 +354,12 @@ export default function PrivacyPanel({
           {loading ? (
             <p className="flex items-center gap-2 py-8 text-sm text-[var(--muted-foreground)]">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              正在加载我的数据…
+              正在加载数据管理…
             </p>
           ) : (
             <>
               {/* Profile — read-only display */}
-              <section className="flex flex-col gap-2" aria-label="我的资料">
+              {!embedded && <section className="flex flex-col gap-2" aria-label="我的资料">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                   <UserRound className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
                   我的资料
@@ -379,7 +382,7 @@ export default function PrivacyPanel({
                   <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
                   以上资料由系统自动生成，只读展示。
                 </p>
-              </section>
+              </section>}
 
               {/* Memories — delete with double confirm */}
               <section className="flex flex-col gap-2" aria-label="我的记忆">
@@ -436,13 +439,13 @@ export default function PrivacyPanel({
               </section>
 
               {/* Student model summary — strictly read-only */}
-              <section className="flex flex-col gap-2" aria-label="学习模型摘要">
+              {!embedded && <section className="flex flex-col gap-2" aria-label="学习模型摘要">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                   <ShieldCheck className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
                   学习模型摘要
                 </h2>
                 {summary ? <PrivacySummary summary={summary} /> : null}
-              </section>
+              </section>}
 
               {/* Data tools — non-destructive */}
               <section className="flex flex-col gap-2" aria-label="数据工具">
@@ -474,6 +477,8 @@ export default function PrivacyPanel({
                   导出内容只包含你自己的资料、记忆与学习摘要，不含任何密钥或系统内部数据。
                 </p>
               </section>
+
+              <section aria-label="学习画像重算" className="rounded-xl border border-[var(--border)] p-4"><h2 className="font-medium">重新计算学习画像</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">根据有效学习事件重新计算画像与个人状态。检索索引重建只影响资料搜索。</p><button type="button" disabled={busyId !== null} className="mt-3 min-h-11 rounded-lg border border-[var(--border)] px-4 text-sm disabled:opacity-50" onClick={async () => { setBusyId("recompute"); try { await recomputeLearningProfile(); await load(); setMessage({kind:"ok", text:"已根据有效记录重新计算学习画像。"}); } catch { setMessage({kind:"error",text:"画像重算未完成，请稍后重试。"}); } finally {setBusyId(null);} }}>{busyId === "recompute" ? "正在计算…" : "重新计算学习画像"}</button></section>
 
               {/* Danger zone — every action confirms twice before sending */}
               <section className="flex flex-col gap-2" aria-label="危险操作">
@@ -518,7 +523,7 @@ export default function PrivacyPanel({
                   />
                   <ConfirmableDelete
                     title="删除学习记录"
-                    detail="删除全部练习结果与学习模型（会话记录保留），模型将从零开始。"
+                    detail="将删除学习证据及其生成的画像和个性化状态。会话内容保留，但不会自动恢复已删除的画像。备份中的旧记录需要单独管理。"
                     confirming={confirmDanger === "educational-history"}
                     busy={busyId === "educational-history"}
                     onAskDelete={() => setConfirmDanger("educational-history")}
@@ -529,7 +534,7 @@ export default function PrivacyPanel({
                         async () => {
                           await deleteHistoryFn();
                         },
-                        "已删除学习记录，学习模型已重置。",
+                        "已删除学习记录及其生成的画像。",
                       )
                     }
                   />

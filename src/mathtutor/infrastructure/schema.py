@@ -95,6 +95,8 @@ conversations = Table(
     Column("title", String(160), nullable=False, default="新对话"),
     Column("created_at", Text, nullable=False),
     Column("updated_at", Text, nullable=False),
+    Column("trashed_at", Text, nullable=True),
+    Column("purged_at", Text, nullable=True),
     UniqueConstraint("student_id", "conversation_id", name="uq_conversation_owner_id"),
 )
 
@@ -556,6 +558,7 @@ user_documents = Table(
     Column("status", String(32), nullable=False),
     Column("size_bytes", Integer, nullable=False),
     Column("parser_version", Text, nullable=False, default=""),
+    Column("is_global", Integer, nullable=False, server_default="0"),
     Column("retrieval_enabled", Integer, nullable=False, default=1),
     Column("parse_error", Text, nullable=False, default=""),
     Column("page_count", Integer, nullable=False, default=0),

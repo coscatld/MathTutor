@@ -94,10 +94,14 @@ DESKTOP_ROUTER_PREFIX = "/api/v2/math-tutor/desktop"
 # ---------------------------------------------------------------------------
 
 
+from typing import Literal
+
+
 class SettingsUpdate(BaseModel):
     preset_id: str
     api_key: str | None = None
     base_url: str = ""
+    vision_mode: Literal["auto", "enabled", "disabled"] | None = None
     model: str = ""
 
 
@@ -164,8 +168,6 @@ def _friendly_config_error(preset_id: str, base_url: str, model: str) -> str | N
         return None
     if preset.local:
         return None
-    if base_url and base_url != preset.base_url:
-        return "该服务商使用固定服务地址；模型名称可在高级选项中修改。"
     return None
 
 
@@ -206,6 +208,7 @@ async def get_settings(
         "preset_id": preset_id,
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
+        "vision_mode": service.provider_profiles().get(preset_id, {}).get("vision_mode", "auto"),
         "is_configured": await service.is_ready(),
         "onboarding_completed": service.onboarding_completed(),
         "key_masked": masked,
@@ -270,6 +273,7 @@ async def put_settings(
             preset_id=update.preset_id,
             api_key=update.api_key or None,
             base_url=update.base_url,
+            vision_mode=update.vision_mode,
             model=update.model,
         )
     except GenerativeConfigError as error:
@@ -291,6 +295,7 @@ async def put_settings(
             masked = mask_secret(stored)
     return {
         "preset_id": str(config.get("preset_id") or ""),
+        "vision_mode": service.provider_profiles().get(str(config.get("preset_id") or ""), {}).get("vision_mode", "auto"),
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
         "key_masked": masked,
@@ -786,6 +791,11 @@ async def bootstrap(
 #: Friendly Chinese messages per error kind — never raw HTTP detail,
 #: headers, or key material (the gateway's message is redacted upstream).
 _MODEL_TEST_MESSAGES: dict[str, str] = {
+    "response_incomplete": "服务已响应，但回答为空或被截断，请重试。",
+    "request_rejected": "服务拒绝了请求参数，请检查模型名称与接口兼容性。",
+    "quota_exceeded": "服务账户余额或配额不足，请到服务商控制台检查。",
+    "rate_limited": "请求受到限流，请稍后重试。",
+    "provider_error": "模型服务调用失败，请稍后重试；这不代表服务商不受支持。",
     "credential_invalid": "API 密钥无效或已失效，请重新粘贴完整密钥。",
     "network_unavailable": "无法连接网络，请检查电脑的网络或代理设置。",
     "provider_unsupported": "暂不支持此服务商，请更换服务商或使用自定义服务地址。",
@@ -815,7 +825,7 @@ async def test_model(
             "message": "已连接到本地 Ollama。" if provider_id == "ollama" else "连接成功，模型可正常调用。",
             "resolved_model": result.resolved_model,
         }
-    kind = result.error_kind or "provider_unsupported"
+    kind = result.error_kind or "provider_error"
     provider_id = str(service.current_config().get("preset_id") or "")
     message = _MODEL_TEST_MESSAGES.get(kind, "连接失败，请稍后重试。")
     if provider_id == "ollama" and kind == "network_unavailable":
@@ -1175,79 +1185,16 @@ async def _student_projection(
 async def student_summary(
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
-    """Read-only student projection: mastery per skill (0..1 or null when
-    unobserved), total attempts, active misconception count.
-
-    Mastery is a PROJECTION of the append-only evidence — this endpoint has
-    no write path and never exposes evidence/assessment internals.
-    """
+    """Read-only evidence observations; probabilities remain internal."""
+    from mathtutor.application.learning_profile import profile_projection
+    from mathtutor.application.evidence_projection import public_evidence
     state = get_product_state()
-    projection, total_attempts, observed = await _student_projection(
-        state, str(owner.student_id)
-    )
-    if state.student_state is None:
-        from mathtutor.learning.skill_graph import SKILLS
-        return {"skills": [{"code": code, "label": skill.label, "mastery": None, "grade_band": None,
-            "evidence_status": "仍需确认", "evidence_summary": {key: 0 for key in ("independent", "assisted", "post_solution", "diagnostic", "ungradable")}}
-            for code, skill in SKILLS.items()], "total_attempts": total_attempts, "active_misconceptions": 0}
-    if state.student_state is not None:
-        from mathtutor.learning.skill_graph import SKILLS
-        from mathtutor.application.evidence_projection import public_evidence
-        evidence = await state.student_state.summary(str(owner.student_id))
-        indexed = {row["skill_id"]: row for row in evidence["skills"]}
-        rows = []
-        for code, skill in SKILLS.items():
-            row = indexed.get(code, {})
-            summary_counts = row.get("evidence_summary", {})
-            flat = {key: sum(summary_counts.get(key, {}).values()) if isinstance(summary_counts.get(key), dict) else summary_counts.get(key, 0)
-                    for key in ("independent", "assisted", "post_solution", "diagnostic", "ungradable")}
-            # Multiskill whole-item evidence is not copied into several skill successes.
-            flat["diagnostic"] += row.get("joint_task_evidence", 0) + row.get("step_correct", 0)
-            rows.append({"code": code, "label": skill.label, "mastery": None, "grade_band": None,
-                         "evidence_status": row.get("evidence_status", "仍需确认"), "evidence_summary": flat})
-        return {"skills": rows,
-                "total_attempts": total_attempts, "active_misconceptions": 0,
-                "evidence_summary": public_evidence(await state.student_state.events(str(owner.student_id))), "model_status": evidence["dkt_mode"]}
-    skill_map: dict[str, float] = {}
-    active_misconceptions = 0
-    if projection is not None:
-        # The persisted projection stores skill mastery as a sequence of
-        # {"skill_id": ..., "mastery": ...} rows (projection.py) — tolerate
-        # a plain map too, but never invent a mastery value.
-        raw_rows = projection.get("skill_mastery") or ()
-        if isinstance(raw_rows, (list, tuple)):
-            for item in raw_rows:
-                if isinstance(item, dict) and "skill_id" in item and "mastery" in item:
-                    skill_map[str(item["skill_id"])] = float(item["mastery"])
-        elif isinstance(raw_rows, dict):
-            skill_map = {
-                str(key): float(value)
-                for key, value in raw_rows.items()
-                if isinstance(value, (int, float))
-            }
-        raw_mis = projection.get("active_misconceptions") or []
-        if isinstance(raw_mis, (list, tuple)):
-            active_misconceptions = len(raw_mis)
-    skills = []
-    for skill_id in all_skill_ids():
-        label, grade_band = _SKILL_DISPLAY.get(skill_id, (skill_id, None))
-        # A skill the estimator has never seen evidence for reads null
-        # ("no observation yet") — the estimator's baseline (0.0) is NOT an
-        # observation and must not be presented as one.
-        mastery = skill_map.get(skill_id) if skill_id in observed else None
-        skills.append(
-            {
-                "code": skill_id,
-                "label": label,
-                "mastery": round(mastery, 4) if mastery is not None else None,
-                "grade_band": grade_band,
-            }
-        )
-    return {
-        "skills": skills,
-        "total_attempts": total_attempts,
-        "active_misconceptions": active_misconceptions,
-    }
+    history = await state.student_state.events(str(owner.student_id)) if state.student_state else []
+    conversations = await state.conversations.list(owner.student_id)
+    result = profile_projection(history, has_conversations=bool(conversations),
+        model_status=state.student_state.model_status if state.student_state else "not_trained")
+    result["evidence_summary"] = public_evidence(history)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1275,6 +1222,7 @@ def _project_document(doc) -> dict:
         "mime_type": doc.mime_type,
         "status": doc.status,
         "retrieval_enabled": doc.retrieval_enabled,
+        "is_global": doc.is_global,
         "size_bytes": doc.size_bytes,
         "page_count": doc.page_count,
         "chunk_count": doc.chunk_count,
@@ -1305,11 +1253,14 @@ def _validate_or_422(picked: PickedFile) -> None:
 
 async def _ingest(owner: StudentOwnerScope, picked: PickedFile, *, conversation_id: str = "") -> dict:
     state = get_product_state()
-    doc = await state.documents.ingest(owner.student_id, picked)
+    from mathtutor.api.conversation_guard import require_active
     if conversation_id.strip():
-        await state.conversations.attach_document(
-            owner.student_id, conversation_id.strip(), doc.document_id
-        )
+        async with state.turn_requests.conversation(owner.student_id, conversation_id.strip()):
+            await require_active(state, owner.student_id, conversation_id.strip())
+            doc = await state.documents.ingest(owner.student_id, picked)
+            await state.conversations.attach_document(owner.student_id, conversation_id.strip(), doc.document_id)
+    else:
+        doc = await state.documents.ingest(owner.student_id, picked)
     return _project_document(doc)
 
 
@@ -1321,16 +1272,79 @@ async def list_documents(
     state = get_product_state()
     docs = await state.documents.list_documents(owner.student_id)
     if conversation_id.strip():
+        from mathtutor.api.conversation_guard import require_active
+        await require_active(state, owner.student_id, conversation_id.strip())
         allowed = set(await state.conversations.document_ids(owner.student_id, conversation_id.strip()))
+        allowed.update(d.document_id for d in docs if d.is_global)
         docs = [doc for doc in docs if doc.document_id in allowed]
     docs = sorted(docs, key=lambda d: d.created_at, reverse=True)
     result = []
     for doc in docs:
+        memberships = await state.conversations.conversation_ids_for_document(owner.student_id, doc.document_id)
+        active_memberships = []
+        for cid in memberships:
+            row = await state.conversations.get(owner.student_id, cid)
+            if row and not row.get("trashed_at") and not row.get("purged_at"):
+                active_memberships.append(cid)
+        if memberships and not active_memberships and not doc.is_global:
+            continue
+        memberships = active_memberships
+        titles = {cid: (await state.conversations.get(owner.student_id, cid) or {}).get("title", "未命名对话") for cid in memberships}
         result.append({
+            "conversation_titles": titles,
             **_project_document(doc),
-            "conversation_ids": await state.conversations.conversation_ids_for_document(owner.student_id, doc.document_id),
+            "conversation_ids": memberships,
         })
     return result
+
+
+class DocumentScopeInput(BaseModel):
+    is_global: bool
+
+
+@router.patch("/documents/{document_id}/scope")
+async def set_document_scope_setting(document_id: UUID, body: DocumentScopeInput, owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = get_product_state()
+    doc = await state.documents.get_document(owner.student_id, document_id)
+    if doc is None:
+        raise HTTPException(404, "资料不存在")
+    updated = await state.document_repository.update_document(owner.student_id, doc.model_copy(update={"is_global": body.is_global}))
+    if updated is None:
+        raise HTTPException(404, "资料不存在")
+    return _project_document(updated)
+
+
+@router.get("/conversations/{conversation_id}/resources")
+async def conversation_resources(conversation_id: str, owner: StudentOwnerScope = Depends(require_student_owner)):
+    from mathtutor.application.conversation_resources import resources
+    from mathtutor.api.conversation_guard import require_active
+    await require_active(get_product_state(), owner.student_id, conversation_id)
+    documents, images, messages = await resources(get_product_state(), owner.student_id, conversation_id)
+    return {"documents": [_project_document(d) for d in documents], "images": images, "message_count": len(messages)}
+
+
+@router.get("/conversations/{conversation_id}/export")
+async def export_conversation_folder(conversation_id: str, owner: StudentOwnerScope = Depends(require_student_owner)):
+    from fastapi.responses import StreamingResponse
+    from starlette.background import BackgroundTask
+    from mathtutor.application.conversation_resources import export_folder
+    state = get_product_state()
+    from mathtutor.api.conversation_guard import require_active
+    if not await require_active(state, owner.student_id, conversation_id):
+        raise HTTPException(404, "对话不存在")
+    try:
+        stream = await export_folder(state, owner.student_id, conversation_id)
+    except ValueError as error:
+        raise HTTPException(413, "资料夹过大或包含无法导出的文件。") from error
+    def chunks():
+        try:
+            while data := stream.read(65536):
+                yield data
+        finally:
+            stream.close()
+    return StreamingResponse(chunks(), media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="MathTutor-conversation.zip"'},
+        background=BackgroundTask(stream.close))
 
 
 @router.post("/documents/import")
@@ -1433,7 +1447,10 @@ async def attach_conversation_document(
     state, doc_uuid = _require_document(owner, document_id)
     if await state.document_repository.get_document(owner.student_id, doc_uuid) is None:
         raise HTTPException(status_code=404, detail="文档不存在。")
-    await state.conversations.attach_document(owner.student_id, conversation_id, doc_uuid)
+    from mathtutor.api.conversation_guard import require_active
+    async with state.turn_requests.conversation(owner.student_id, conversation_id):
+        await require_active(state, owner.student_id, conversation_id)
+        await state.conversations.attach_document(owner.student_id, conversation_id, doc_uuid)
     return {"ok": True}
 
 
@@ -1713,9 +1730,8 @@ async def delete_educational_history(
     routes through the memory CRUD surface."""
     state = get_product_state()
     try:
-        result = await state.data_lifecycle.delete_educational_history(
-            str(owner.student_id)
-        )
+        async with state.turn_requests.owner(owner.student_id):
+            result = await state.data_lifecycle.delete_educational_history(str(owner.student_id))
     except LifecycleUnavailableError as error:
         raise HTTPException(
             status_code=409, detail="当前环境不支持删除教育历史（需要本地数据库）。"

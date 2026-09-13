@@ -197,7 +197,7 @@ test("optional diagnosis does not start or fail a student from an empty observat
 
 test("practice-list card rejects a missing offer identifier", () => {
   const html = renderToStaticMarkup(<PracticeOfferCard offer={{offer_id: "", parent_cycle_id: "cycle", status: "ACTIVE", skill_labels: [], concept_labels: [], difficulty: "easy", offered_at: "", expires_at: ""}} accepting={false} onStart={() => {}} />);
-  assert.ok(html.includes('disabled=""'));
+  assert.ok(!html.includes("开始练习"));
 });
 
 test("delivery ACK is only issued for a visible committed result, never reading or mastery", () => {

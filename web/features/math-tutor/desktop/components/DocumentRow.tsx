@@ -2,7 +2,7 @@
 
 import { Check, FileText, Loader2, Pencil, RefreshCw, Trash2, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { formatBytes, formatDateTime, renameDocument, reparseDocument } from "../lib/desktop-api";
+import { formatBytes, formatDateTime, renameDocument, reparseDocument, setDocumentGlobal } from "../lib/desktop-api";
 import { documentStatusLabel } from "../lib/labels";
 import type { DesktopDocument } from "../types";
 
@@ -36,6 +36,8 @@ export default function DocumentRow({
   onUpdated: (doc: DesktopDocument) => void;
 }) {
   const [busyReparse, setBusyReparse] = useState(false);
+  const [scopeBusy, setScopeBusy] = useState(false);
+  const [scopeError, setScopeError] = useState("");
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(document.filename);
 
@@ -52,6 +54,7 @@ export default function DocumentRow({
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
+      {scopeError ? <p role="alert" className="text-sm text-red-600">{scopeError}</p> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10">
@@ -68,12 +71,18 @@ export default function DocumentRow({
               <span>{document.chunk_count} 个分块</span>
               <span>{formatBytes(document.size_bytes)}</span>
               <span>{formatDateTime(document.created_at)}</span>
-              {document.conversation_ids?.length ? <span>关联 {document.conversation_ids.length} 个对话</span> : <span>未关联对话</span>}
+              {document.is_global ? <span>所有对话可检索</span> : document.conversation_ids?.length ? <span>关联 {document.conversation_ids.length} 个对话</span> : <span>未关联对话</span>}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          <button type="button" disabled={busy || scopeBusy} className="min-h-[44px] rounded-xl border border-[var(--border)] px-3 text-sm hover:bg-[var(--muted)] disabled:opacity-50" onClick={async () => {
+            setScopeBusy(true); setScopeError("");
+            try { onUpdated(await setDocumentGlobal(document.document_id, !document.is_global)); }
+            catch { setScopeError("共享范围未保存，请重试。"); }
+            finally { setScopeBusy(false); }
+          }}>{scopeBusy ? "保存中…" : document.is_global ? "取消全局共享" : "设为总资料"}</button>
           {(document.status === "failed" || document.status === "needs_ocr") && (
             <button
               type="button"
@@ -120,7 +129,7 @@ export default function DocumentRow({
           disabled={busy || !canToggleRetrieval(document)}
           className="h-4 w-4 cursor-pointer accent-[#2563EB] disabled:cursor-not-allowed"
         />
-        参与个性化回忆（用于生成针对性练习）
+        允许 Tutor 检索此资料
       </label>
     </li>
   );

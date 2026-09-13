@@ -10,12 +10,15 @@ const os = require("node:os");
 const path = require("node:path");
 
 const desktop = path.resolve(__dirname, "..");
-const oldDmg = path.join(desktop, "dist", "pre-rc", "MathTutor-0.2.0-pre-rc-9cde02bd.dmg");
+const oldDmg = process.env.MATHTUTOR_UPGRADE_OLD_DMG || path.join(desktop, "dist", "pre-rc", "MathTutor-0.2.0-pre-rc-9cde02bd.dmg");
+const oldNamespace = process.env.MATHTUTOR_UPGRADE_OLD_DMG ? "mathtutor" : "deeptutor.math_tutor";
 const pkg = JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8"));
 const newDmg = path.join(desktop, "dist", `MathTutor-${pkg.version}-mac-arm64.dmg`);
 const probe = path.join(desktop, "scripts", "macos-upgrade-probe.py");
 const reportPath = path.join(desktop, "dist", "release-manifest", "macos-upgrade-report.json");
-const expectedOldHash = "9cde02bd7f997438b854949e1b5c8d959b9d63b6947e18ac006da446c9718670";
+const expectedOldHash = process.env.MATHTUTOR_UPGRADE_OLD_DMG
+  ? process.env.MATHTUTOR_UPGRADE_OLD_SHA256
+  : "9cde02bd7f997438b854949e1b5c8d959b9d63b6947e18ac006da446c9718670";
 
 function sha256(file) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
@@ -117,13 +120,14 @@ function detach(mountpoint) {
   let mounted = null;
   let seedEvidence;
   let verifyEvidence;
+  let deletedEvidence;
   try {
     attach(oldDmg, oldMount);
     mounted = oldMount;
     seedEvidence = runProbe(
       mountedApp(oldMount),
       "seed",
-      "deeptutor.math_tutor",
+      oldNamespace,
       work,
       dataRoot,
       statePath,
@@ -141,6 +145,7 @@ function detach(mountpoint) {
       dataRoot,
       statePath,
     );
+    deletedEvidence = runProbe(mountedApp(newMount), "verify-deleted", "mathtutor", work, dataRoot, statePath);
     detach(newMount);
     mounted = null;
   } finally {
@@ -182,6 +187,7 @@ function detach(mountpoint) {
     ],
     seed: seedEvidence,
     verify: verifyEvidence,
+    verify_after_deletion_process_restart: deletedEvidence,
     rollback_contract: "Keep the verified pre-upgrade backup and reinstall the frozen pre-RC artifact; never overwrite the live DB after a failed migration.",
   };
   fs.mkdirSync(path.dirname(reportPath), { recursive: true });

@@ -10,9 +10,12 @@ import {
   importDocumentFile,
   nativePickAndImport,
   toggleDocumentRetrieval,
+  setDocumentGlobal,
+  fetchDocumentDestinations,
 } from "../lib/desktop-api";
 import type { DesktopDocument, EmbeddingSettings } from "../types";
 import DocumentRow from "./DocumentRow";
+import DocumentGroups from "./DocumentGroups";
 import EmbeddingStatusBadge from "./EmbeddingStatusBadge";
 import { useToast } from "./ToastProvider";
 
@@ -32,6 +35,8 @@ export default function DocumentsPanel({
   nativePickAndImportFn?: typeof nativePickAndImport;
   importDocumentFileFn?: typeof importDocumentFile;
 }) {
+  const [destinations, setDestinations] = useState<Array<{conversation_id: string; title: string}>>([]);
+  const [destination, setDestination] = useState("");
   const [documents, setDocuments] = useState<DesktopDocument[]>([]);
   const [embeddingSettings, setEmbeddingSettings] = useState<EmbeddingSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,11 +49,13 @@ export default function DocumentsPanel({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextDocuments, nextEmbedding] = await Promise.all([
+      const [nextDocuments, nextEmbedding, nextDestinations] = await Promise.all([
         fetchDocumentsFn(),
         fetchEmbeddingSettingsFn().catch(() => null),
+        fetchDocumentDestinations().catch(() => []),
       ]);
       setDocuments(nextDocuments);
+      setDestinations(nextDestinations);
       setEmbeddingSettings(nextEmbedding);
       setMessage(null);
     } catch (err) {
@@ -69,7 +76,8 @@ export default function DocumentsPanel({
     setPicking(true);
     setMessage(null);
     try {
-      const doc = await nativePickAndImportFn();
+      const doc = await nativePickAndImportFn(destination && destination !== "global" ? destination : undefined);
+      if (doc && destination === "global") await setDocumentGlobal(doc.document_id, true);
       if (doc) {
         toast({ title: "资料已导入", description: `《${doc.filename}》已经可以管理与检索。` });
         await refresh();
@@ -91,7 +99,8 @@ export default function DocumentsPanel({
     setPicking(true);
     setMessage(null);
     try {
-      const doc = await importDocumentFileFn(file);
+      const doc = await importDocumentFileFn(file, destination && destination !== "global" ? destination : undefined);
+      if (destination === "global") await setDocumentGlobal(doc.document_id, true);
       toast({ title: "资料已导入", description: `《${doc.filename}》已经可以管理与检索。` });
       await refresh();
     } catch (err) {
@@ -109,7 +118,7 @@ export default function DocumentsPanel({
     setBusyId(doc.document_id);
     try {
       const updated = await toggleDocumentRetrieval(doc.document_id, enabled);
-      setDocuments((list) => list.map((d) => (d.document_id === updated.document_id ? updated : d)));
+      setDocuments((list) => list.map((d) => (d.document_id === updated.document_id ? { ...d, ...updated } : d)));
     } catch (err) {
       setMessage({
         kind: "error",
@@ -137,11 +146,11 @@ export default function DocumentsPanel({
   };
 
   const handleUpdated = (doc: DesktopDocument) => {
-    setDocuments((list) => list.map((d) => (d.document_id === doc.document_id ? doc : d)));
+    setDocuments((list) => list.map((d) => (d.document_id === doc.document_id ? { ...d, ...doc } : d)));
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
+    <div className="mt-page">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--foreground)]">
@@ -149,10 +158,16 @@ export default function DocumentsPanel({
             我的资料
           </h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            上传学习资料（TXT / Markdown / TeX / PDF，单个不超过 20MB），用于生成针对性练习。
+            按对话管理资料。总资料可供你的所有对话按需检索，其他对话的专属文件不会混入。
           </p>
           {embeddingSettings ? <span className="mt-2 block"><EmbeddingStatusBadge settings={embeddingSettings} /></span> : null}
         </div>
+        <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">新资料保存到
+          <select aria-label="新资料保存到" value={destination} onChange={e => setDestination(e.target.value)} className="min-h-[44px] max-w-[240px] rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
+            <option value="">未归类（不跨对话检索）</option><option value="global">总资料（所有对话）</option>
+            {Array.from(new Map([...destinations.map(d => [d.conversation_id, d.title] as const), ...documents.flatMap(d => (d.conversation_ids || []).map(id => [id, d.conversation_titles?.[id] || "未命名对话"] as const))])).map(([id,title]) => <option key={id} value={id}>{title}</option>)}
+          </select>
+        </label>
         <button
           type="button"
           onClick={handleNativePick}
@@ -192,7 +207,7 @@ export default function DocumentsPanel({
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           正在加载资料…
         </p>
-      ) : documents.length === 0 ? (
+      ) : documents.length === 0 && destinations.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] px-6 py-12 text-center">
           <FolderOpen className="h-8 w-8 text-[var(--muted-foreground)]" aria-hidden="true" />
           <p className="text-sm font-medium text-[var(--foreground)]">还没有学习资料</p>
@@ -201,8 +216,7 @@ export default function DocumentsPanel({
           </p>
         </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {documents.map((doc) => (
+        <DocumentGroups documents={documents} conversations={destinations} renderDocument={(doc) => (
             <DocumentRow
               key={doc.document_id}
               document={doc}
@@ -211,8 +225,7 @@ export default function DocumentsPanel({
               onDelete={() => handleDelete(doc)}
               onUpdated={handleUpdated}
             />
-          ))}
-        </ul>
+          )} />
       )}
     </div>
   );

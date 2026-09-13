@@ -10,6 +10,8 @@ from mathtutor.learning.skill_graph import GRAPH_VERSION
 
 EVENT_SCHEMA = "learning_event_v2"
 FEATURE_SCHEMA = "structured_kt_v1"
+LABEL_POLICY = "first_independent_task_v1"
+BASELINE_POLICY = "evidence_beta_v1"
 
 
 def utcnow() -> str:
@@ -42,6 +44,7 @@ class LearningEvent(BaseModel):
     attempt_id: str = ""
     response_fingerprint: str = Field(default="", max_length=128)
     duplicate_response: bool = False
+    prior_task_attempt: bool = False
     prediction_id: str = ""
     correctness: Literal["correct", "incorrect", "partial", "unknown"] | None = None
     completion_scope: Literal["full_problem", "subgoal", "reflection", "error_analysis"] = "full_problem"
@@ -96,17 +99,36 @@ class LearningEvent(BaseModel):
             and bool(self.skill_ids)
             and not self.provenance_uncertain
             and not self.duplicate_response
+            and not self.prior_task_attempt
             and not self.target_answer_exposed_before_attempt
         )
 
 
+def ordered_attempts(events: Sequence[LearningEvent]) -> list[LearningEvent]:
+    """Derive first-task eligibility BEFORE exclusions, including old exports.
+
+    An excluded verdict still occupies its chronological attempt position.
+    The original event disappears only when the entire learning history does.
+    """
+    seen, unique, result = set(), set(), []
+    for event in sorted(events, key=lambda e: (e.event_seq, e.occurred_at, e.event_id)):
+        identity = (event.student_id, event.event_id)
+        if identity in unique:
+            continue
+        unique.add(identity)
+        if event.event_type == "attempt_assessed" and event.completion_scope == "full_problem":
+            key = (event.student_id, event.problem_revision)
+            event = event.model_copy(update={"prior_task_attempt": event.prior_task_attempt or key in seen})
+            seen.add(key)
+        result.append(event)
+    return result
+
+
 def valid_events(events: Sequence[LearningEvent]) -> list[LearningEvent]:
     """Append-only correction events invalidate facts without erasing history."""
-    invalidated = {x.invalidates_event_id for x in events if x.event_type == "evidence_invalidated"}
-    unique: dict[str, LearningEvent] = {}
-    for event in sorted(events, key=lambda e: e.event_seq):
-        unique.setdefault(event.event_id, event)
-    return [x for x in unique.values() if x.event_id not in invalidated and x.event_type != "evidence_invalidated"]
+    invalidated = {(x.student_id, x.invalidates_event_id) for x in events if x.event_type == "evidence_invalidated"}
+    return [x for x in ordered_attempts(events)
+            if (x.student_id, x.event_id) not in invalidated and x.event_type != "evidence_invalidated"]
 
 
 def evidence_summary(events: Sequence[LearningEvent]) -> dict:
@@ -187,7 +209,7 @@ def evidence_summary(events: Sequence[LearningEvent]) -> dict:
 def baseline_prediction(events: Sequence[LearningEvent], skill_ids: Sequence[str]) -> float:
     rows = {x["skill_id"]: x for x in evidence_summary(events)["skills"]}
     estimates = []
-    for skill in skill_ids:
+    for skill in dict.fromkeys(skill_ids):
         independent = rows.get(skill, {}).get("independent", {})
         correct, incorrect = independent.get("correct", 0), independent.get("incorrect", 0)
         estimates.append((1 + correct) / (2 + correct + incorrect))

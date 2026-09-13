@@ -7,15 +7,17 @@ type Side = "top" | "right" | "bottom" | "left";
 type Position = { left: number; top: number; side: Side; ready: boolean };
 
 const VIEWPORT_PADDING = 10;
-const GAP = 8;
+const GAP = 6;
 
 export default function Tooltip({
   label,
   children,
   side = "bottom",
   wrapperClassName = "inline-flex",
+  disabled = false,
 }: {
   label: string;
+  disabled?: boolean;
   children: React.ReactNode;
   side?: Side;
   wrapperClassName?: string;
@@ -23,6 +25,7 @@ export default function Tooltip({
   const id = useId();
   const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLSpanElement>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<Position>({ left: 0, top: 0, side, ready: false });
@@ -33,11 +36,24 @@ export default function Tooltip({
       closeTimer.current = null;
     }
   }, []);
-  const enter = useCallback(() => {
-    cancelClose();
-    setOpen(true);
+  const dismiss = useCallback(() => {
+    if (openTimer.current) clearTimeout(openTimer.current);
+    openTimer.current = null;
+    cancelClose(); setOpen(false);
   }, [cancelClose]);
+  const enter = useCallback(() => {
+    if (disabled) return;
+    cancelClose();
+    window.dispatchEvent(new CustomEvent("mathtutor-tooltip-open", { detail: id }));
+    setOpen(true);
+  }, [cancelClose, disabled, id]);
+  const hover = () => {
+    cancelClose();
+    if (!disabled && !open && !openTimer.current) openTimer.current = setTimeout(() => { openTimer.current = null; enter(); }, 450);
+  };
   const leave = useCallback(() => {
+    if (openTimer.current) clearTimeout(openTimer.current);
+    openTimer.current = null;
     cancelClose();
     closeTimer.current = setTimeout(() => setOpen(false), 120);
   }, [cancelClose]);
@@ -89,10 +105,15 @@ export default function Tooltip({
     };
   }, [open, updatePosition]);
 
-  useEffect(() => () => cancelClose(), [cancelClose]);
+  useEffect(() => {
+    const other = (e: Event) => { if ((e as CustomEvent).detail !== id) dismiss(); };
+    window.addEventListener("mathtutor-tooltip-open", other);
+    return () => { dismiss(); window.removeEventListener("mathtutor-tooltip-open", other); };
+  }, [dismiss, id]);
+  useEffect(() => { if (disabled) dismiss(); }, [disabled, dismiss]);
 
   return (
-    <span ref={triggerRef} className={wrapperClassName} onPointerEnter={enter} onPointerLeave={leave} onFocus={enter} onBlur={leave} aria-describedby={open ? id : undefined}>
+    <span ref={triggerRef} className={wrapperClassName} onPointerEnter={event => { if (event.pointerType !== "touch") hover(); }} onPointerLeave={leave} onClickCapture={dismiss} onFocus={event => { if (event.target.matches(":focus-visible")) enter(); }} onBlur={leave} aria-describedby={open ? id : undefined}>
       {children}
       {open && typeof document !== "undefined" ? createPortal(
         <span
@@ -102,11 +123,11 @@ export default function Tooltip({
           data-side={position.side}
           onPointerEnter={enter}
           onPointerLeave={leave}
-          className="fixed z-[100] block max-w-[280px] whitespace-normal break-words rounded-lg bg-[#1f2933] px-3 py-2 text-xs leading-5 text-white shadow-xl"
+          className="fixed z-[100] block max-w-[200px] whitespace-normal break-words rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs leading-4 text-[var(--foreground)] shadow-sm"
           style={{
             left: position.left,
             top: position.top,
-            maxWidth: Math.max(0, Math.min(280, window.innerWidth - VIEWPORT_PADDING * 2)),
+            maxWidth: Math.max(0, Math.min(200, window.innerWidth - VIEWPORT_PADDING * 2)),
             visibility: position.ready ? "visible" : "hidden",
           }}
         >{label}</span>,

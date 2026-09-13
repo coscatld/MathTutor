@@ -8,7 +8,7 @@ import { maskKeyTail } from "../features/math-tutor/desktop/lib/desktop-api";
 import type { DesktopSettings, EmbeddingSettings, ProviderPreset, TestConnectionResult } from "../features/math-tutor/desktop/types";
 
 const PRESETS: ProviderPreset[] = [
-  { preset_id: "openai", label: "OpenAI", custom: false },
+  { preset_id: "openai", label: "OpenAI", custom: false, editable_base_url: true, base_url: "https://api.openai.com/v1" },
   { preset_id: "deepseek", label: "DeepSeek", custom: false },
   { preset_id: "moonshot", label: "Moonshot", custom: false },
   { preset_id: "custom", label: "自定义", custom: true },
@@ -66,6 +66,19 @@ function renderForm(overrides: {
   };
   return renderToStaticMarkup(<SettingsForm data={data} handlers={handlers} />);
 }
+
+test("SettingsForm: preset endpoint is editable and offers explicit default reset", () => {
+  const html = renderForm({ advancedOpen: true, baseUrl: "https://proxy.example/v1" });
+  const input = html.match(/<input[^>]*id="settings-baseurl"[^>]*>/)?.[0] ?? "";
+  assert.ok(input.includes('value="https://proxy.example/v1"'));
+  assert.ok(!/readonly|disabled/i.test(input));
+  assert.ok(html.includes("恢复默认地址"));
+  assert.ok(html.includes("图片输入能力"));
+  assert.ok(html.includes("自动识别（默认）"));
+  assert.ok(html.includes("启用（已确认模型支持视觉）"));
+  assert.ok(html.includes("关闭（纯文本模型）"));
+  assert.ok(html.includes("API Key 将发送到此地址"));
+});
 
 test("maskKeyTail: only the last four chars are ever exposed", () => {
   assert.equal(maskKeyTail("sk-abc-1234"), "••••••••1234");

@@ -4,7 +4,7 @@ export interface ChatAttachment { id: string; type: "image"; file: File; mimeTyp
 export const MAX_IMAGES = 4;
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
-export const VISION_UNSUPPORTED = "当前模型不支持图片输入，请切换到支持视觉输入的模型。";
+export const VISION_UNSUPPORTED = "当前配置未启用图片输入。若模型官方确认支持视觉，请到设置 → 高级选项 → 图片输入能力选择启用并保存。";
 export function validateImage(file: File, count: number): string | null {
   if (!IMAGE_TYPES.includes(file.type)) return "暂不支持该图片格式";
   if (file.size > MAX_IMAGE_BYTES) return "单张图片不能超过 10 MB";

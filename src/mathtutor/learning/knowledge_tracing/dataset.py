@@ -4,14 +4,14 @@ from __future__ import annotations
 import hashlib
 from collections import defaultdict
 
-from .events import LearningEvent, valid_events
+from .events import LearningEvent, ordered_attempts, valid_events
 
 
 def sequences(events):
     groups = defaultdict(list)
     for event in events:
         groups[event.student_id].append(event)
-    return [sorted(value, key=lambda e: (e.event_seq, e.occurred_at, e.event_id)) for _, value in sorted(groups.items())]
+    return [ordered_attempts(value) for _, value in sorted(groups.items())]
 
 
 def _partition(keys, seed):
@@ -26,17 +26,18 @@ def _partition(keys, seed):
 def split_events(events, *, mode="student", seed=17):
     """Each reported experiment has its own held-out test population.
 
-    Student and time splits retain canonical item identities wholly inside a
-    split; crossing duplicate items are purged from later splits. ``family``
-    is the stricter transfer experiment, withholding complete template families.
-    No fold ever fits a vocabulary/calibrator on held-out outcomes.
+    ``student`` permits different students to answer shared course items.
+    ``student_item`` / ``student_family`` hold out both students and content;
+    ``family`` alone does not imply unseen students. Legacy time/family
+    experiments purge repeated content from later folds. No fold fits a
+    vocabulary/calibrator on held-out outcomes.
     """
     dedup = []
     for history in sequences(events):
         dedup.extend(valid_events(history))
     folds = [[], [], []]
-    if mode in {"student", "family"}:
-        key = (lambda x: x.student_id) if mode == "student" else (lambda x: x.item_family_id)
+    if mode in {"student", "family", "student_item", "student_family"}:
+        key = (lambda x: x.item_family_id) if mode == "family" else (lambda x: x.student_id)
         mapping = _partition([key(x) for x in dedup], seed)
         for event in dedup:
             folds[mapping[key(event)]].append(event)
@@ -50,18 +51,32 @@ def split_events(events, *, mode="student", seed=17):
             b = max(a + 1, min(len(history) - 1, int(len(history) * .8)))
             folds[0].extend(history[:a]); folds[1].extend(history[a:b]); folds[2].extend(history[b:])
     else:
-        raise ValueError("split must be student, time or family")
+        raise ValueError("split must be student, student_item, student_family, time or family")
     # problem_revision is the canonical math-content hash, not a random row ID.
     # Keep an entire repeated item / its derived subgoals in its earliest fold.
     seen_items = set()
     purged = 0
+    shared = set()
+    for fold in folds:
+        items = {e.leakage_group_id or e.problem_revision for e in fold}
+        shared.update(items & seen_items)
+        seen_items.update(items)
+    seen_items = set()
+    item_mapping = None
+    if mode in {"student_item", "student_family"}:
+        item_key = lambda e: e.item_family_id if mode == "student_family" else (e.leakage_group_id or e.problem_revision)
+        item_mapping = _partition([item_key(e) for e in dedup], seed + 1)
     for i, fold in enumerate(folds):
-        kept = [e for e in fold if (e.leakage_group_id or e.problem_revision) not in seen_items]
+        kept = fold if mode == "student" else [e for e in fold if
+            (item_mapping[item_key(e)] == i if item_mapping is not None else
+             (e.leakage_group_id or e.problem_revision) not in seen_items)]
         purged += len(fold) - len(kept)
         folds[i] = kept
         seen_items.update(e.leakage_group_id or e.problem_revision for e in kept)
     return {"train": folds[0], "validation": folds[1], "test": folds[2],
             "audit": {"mode": mode, "seed": seed, "purged_cross_split_item_events": purged,
+                      "shared_course_items_before_filter": len(shared),
+                      "protocol": "new_student_existing_course" if mode == "student" else mode,
                       "sizes": {name: len(fold) for name, fold in zip(("train", "validation", "test"), folds)}}}
 
 

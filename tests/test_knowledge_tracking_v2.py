@@ -124,7 +124,7 @@ async def test_repeated_same_answer_is_retained_but_not_extra_independent_eviden
     wrong = await attempt(service, "wrong", correctness="incorrect", response_fingerprint="wrong-answer")
     first = await attempt(service, "first", response_fingerprint="correct-answer")
     repeated = await attempt(service, "repeated", response_fingerprint="correct-answer")
-    assert wrong.independent_target and first.independent_target
+    assert wrong.independent_target and not first.independent_target
     assert repeated.duplicate_response and not repeated.independent_target
     rows = await service.events("alice")
     assert len(rows) == 3  # All physical attempts are still auditable.
@@ -321,10 +321,10 @@ def test_offline_source_validation_never_echoes_raw_credentials(tmp_path, capsys
     assert "secret-must-not-echo" not in captured.err + captured.out
 
 
-def test_near_duplicate_family_keys_cannot_cross_student_split():
+def test_joint_student_item_split_removes_shared_items():
     events = synthetic_events(students=12, events_per_student=12)
     events = [e.model_copy(update={"leakage_group_id": f"near-duplicate-{e.event_seq}"}) for e in events]
-    splits = split_events(events, mode="student")
+    splits = split_events(events, mode="student_item")
     assert splits["audit"]["purged_cross_split_item_events"] > 0
     train = {e.leakage_group_id for e in splits["train"]}
     assert not train & {e.leakage_group_id for e in splits["validation"] + splits["test"]}

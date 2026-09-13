@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, CornerUpLeft, ListChecks } from "lucide-react";
+import { Check, ChevronDown, CornerUpLeft, ListChecks } from "lucide-react";
+import { useEffect, useRef } from "react";
 import type { DiagnosisSummary, EvidenceSummary, ProblemContext } from "../types";
 import { evidenceStatusLabel } from "../lib/teaching-contract";
 
@@ -8,16 +9,41 @@ const LIFECYCLE_LABELS: Record<string, string> = { ACTIVE: "辅导中", COMPLETE
 
 /** Source and goal come from the persisted context, not text-message parsing. */
 export function CurrentProblem({ context }: { context?: ProblemContext | null }) {
+  const disclosure = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent | FocusEvent) => {
+      if (event.target instanceof Node && !disclosure.current?.contains(event.target) && disclosure.current) disclosure.current.open = false;
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && disclosure.current?.open) {
+        disclosure.current.open = false;
+        disclosure.current.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("focusin", closeOutside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("focusin", closeOutside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
   if (!context) return null;
   const lifecycle = context.lifecycle.toUpperCase();
   const completeStep = ["completed", "verified", "resolved"].includes(context.current_subgoal?.status.toLowerCase() || "");
-  return <section aria-label="当前题目与目标" className="shrink-0 border-b border-[#e3e1da] bg-[#f4f3ee] px-5 py-3 dark:border-slate-800 dark:bg-[#171d21]">
-    <div className="mx-auto max-w-3xl">
+  return <details ref={disclosure} className="mt-context">
+    <summary aria-label="当前题目与目标" className="mt-context-trigger">
+      <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0"><span className="mt-context-label">当前题目</span><span className="mt-context-preview">{context.display_text || "待补充题目"}</span></span>
+      <ChevronDown className="mt-context-chevron h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+    </summary>
+    <section aria-label="题目与目标详情" className="mt-context-popover">
       <div className="flex items-center gap-2 text-xs text-slate-500"><ListChecks className="h-3.5 w-3.5" aria-hidden="true" /><span>当前题目</span><span className="ml-auto rounded-full border border-[#deddd7] px-2 py-0.5 dark:border-slate-700">{LIFECYCLE_LABELS[lifecycle] || "当前任务"}</span></div>
-      <p className="mt-1.5 max-h-20 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-slate-800 dark:text-slate-200">{context.display_text || "请补充当前题目的完整要求。"}</p>
+      <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{context.display_text || "请补充当前题目的完整要求。"}</p>
       {context.current_subgoal?.prompt_target ? <div className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-[#1d5fd1] dark:text-blue-300">{completeStep ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <CornerUpLeft className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}<span>{completeStep ? "已验证步骤：" : "当前小目标："}{context.current_subgoal.prompt_target}</span></div> : null}
-    </div>
-  </section>;
+    </section>
+  </details>;
 }
 
 export function EvidenceSummaryCard({ evidence }: { evidence?: EvidenceSummary | null }) {

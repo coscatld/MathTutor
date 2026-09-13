@@ -1,101 +1,34 @@
 "use client";
 
-import { BookOpen, Clock3, Loader2, Medal } from "lucide-react";
-import { difficultyLabel, offerExpiryLabel, offerStatusLabel } from "../lib/labels";
-import type { PracticeOffer } from "../types";
+import Link from "next/link";
+import {ArrowRight, Loader2} from "lucide-react";
+import {useState} from "react";
+import {resumePractice} from "../lib/desktop-api";
+import type {PracticeOffer} from "../types";
 
-const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400",
-  ACCEPTED: "border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]",
-  EXPIRED: "border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]",
-  REVOKED: "border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]",
-};
-
-/**
- * Public practice-offer card: only public labels (skills/concepts/difficulty/
- * expiry). Deliberately NO mastery, answer, verified-solution or attestation
- * material — those stay on the server.
- */
-export default function PracticeOfferCard({
-  offer,
-  accepting,
-  onStart,
-}: {
-  offer: PracticeOffer;
-  accepting: boolean;
-  onStart: () => void;
+const actionClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:opacity-50";
+export default function PracticeOfferCard({offer, accepting, onStart, onFeedback, disabled = false}: {
+  offer: PracticeOffer; accepting: boolean; onStart: () => void;
+  onFeedback?: (kind: "later" | "not_relevant") => void; disabled?: boolean;
 }) {
-  const active = offer.status === "ACTIVE" && Boolean(offer.offer_id?.trim()) && Boolean(offer.parent_cycle_id?.trim());
-  const disabled = !active || accepting;
-  const expiryText = active ? offerExpiryLabel(offer.expires_at) : "";
-
-  return (
-    <li
-      className={`flex flex-col gap-3 rounded-2xl border bg-[var(--card)] p-4 shadow-sm transition-colors duration-200 ${
-        active ? "border-[var(--border)]" : "border-[var(--border)] opacity-75"
-      }`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-              STATUS_STYLES[offer.status] ?? STATUS_STYLES.EXPIRED
-            }`}
-          >
-            {offerStatusLabel(offer.status)}
-          </span>
-          {active && expiryText && (
-            <span className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
-              <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
-              {expiryText}
-            </span>
-          )}
-        </div>
-        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#1D4ED8] dark:text-blue-400">
-          <Medal className="h-4 w-4" aria-hidden="true" />
-          {difficultyLabel(offer.difficulty)}
-        </span>
-      </div>
-
-      {(offer.skill_labels.length > 0 || offer.concept_labels.length > 0) && (
-        <div className="flex flex-wrap gap-1.5">
-          {offer.skill_labels.map((label) => (
-            <span
-              key={`s-${label}`}
-              className="rounded-full bg-[#2563EB]/10 px-2.5 py-1 text-xs font-medium text-[#1D4ED8] dark:text-blue-400"
-            >
-              {label}
-            </span>
-          ))}
-          {offer.concept_labels.map((label) => (
-            <span
-              key={`c-${label}`}
-              className="rounded-full border border-[var(--border)] bg-[var(--background)] px-2.5 py-1 text-xs text-[var(--muted-foreground)]"
-            >
-              {label}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
-        <p className="text-xs text-[var(--muted-foreground)]">
-          {active ? "接受后即可进入针对性练习。" : "该邀请已失效。"}
-        </p>
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={disabled}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {accepting ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <BookOpen className="h-4 w-4" aria-hidden="true" />
-          )}
-          {accepting ? "正在接受…" : "开始练习"}
-        </button>
-      </div>
-    </li>
-  );
+  const [resuming, setResuming] = useState(false);
+  const [error, setError] = useState("");
+  const active = offer.status === "ACTIVE" && offer.feedback !== "not_relevant" && Boolean(offer.offer_id?.trim()) && Boolean(offer.parent_cycle_id?.trim());
+  const continuing = offer.display_status === "in_progress" && !!offer.resume_session_id;
+  const completed = offer.display_status === "completed";
+  return <li className={`rounded-2xl border bg-[var(--card)] p-5 sm:p-6 ${continuing ? "border-[var(--primary)]" : "border-[var(--border)]"}`}>
+    <p className="text-xs font-medium text-[var(--muted-foreground)]">{continuing ? "进行中" : completed ? "已完成" : active ? (offer.feedback === "later" ? "稍后再做" : "待开始") : offer.status === "ACCEPTED" ? "已开始的历史练习" : "历史建议"}{active ? ` · ${offer.question_count ?? 1} 道题` : ""}</p>
+    <h3 className="mt-3 font-serif text-xl font-semibold leading-8">{offer.title || offer.skill_labels.join("、") || "相关练习"}</h3>
+    <p className="mt-2 text-sm leading-7 text-[var(--muted-foreground)]">{offer.reason || "围绕当前题目安排一次相关练习。"}</p>
+    {!!offer.skill_labels.length && <p className="mt-2 text-xs text-[var(--muted-foreground)]">{offer.skill_labels.join(" · ")}</p>}
+    {(active || continuing) && <p className="mt-3 text-sm leading-7">本次观察：{offer.observation_goal || "能否独立完成新题，哪些步骤仍需帮助。"}</p>}
+    {completed && offer.result_summary && <p className="mt-3 text-sm leading-7">{offer.result_summary.observations ? `本次有 ${offer.result_summary.independent_correct} 次独立整题答对、${offer.result_summary.helped} 条受助或答案后作答记录。` : "本次练习已结束，目前没有可展示的有效作答证据。"}</p>}
+    {offer.update_reason && <p className="mt-3 text-sm text-[var(--muted-foreground)]">{offer.update_reason}</p>}
+    <div className="mt-5 flex flex-wrap items-center gap-2">
+      {continuing ? <button disabled={resuming} className={`${actionClass} bg-[var(--primary)] text-[var(--primary-foreground)]`} onClick={async () => {setResuming(true); setError(""); try {const session = await resumePractice(offer.offer_id); window.location.href = `/math-tutor?session=${encodeURIComponent(session)}`;} catch {setError("暂时无法继续，请刷新列表后重试。"); setResuming(false);}}}>{resuming ? "正在恢复…" : "继续练习"}<ArrowRight className="h-4 w-4" aria-hidden="true" /></button> : active ? <button type="button" className={`${actionClass} bg-[var(--primary)] text-[var(--primary-foreground)]`} disabled={disabled || accepting} onClick={onStart}>{accepting ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />正在处理…</> : "开始练习"}</button> : null}
+      {active && onFeedback && <><button className={actionClass} disabled={disabled || accepting} onClick={() => onFeedback("later")}>稍后再做</button><button className={`${actionClass} text-[var(--muted-foreground)]`} disabled={disabled || accepting} onClick={() => onFeedback("not_relevant")}>这不是我想练的</button></>}
+      {completed && offer.evidence_href && <Link href={offer.evidence_href} className={`${actionClass} border border-[var(--border)] text-[var(--primary)]`}>查看学习记录</Link>}
+    </div>
+    {error && <p role="alert" className="mt-3 text-sm">{error}</p>}
+  </li>;
 }
