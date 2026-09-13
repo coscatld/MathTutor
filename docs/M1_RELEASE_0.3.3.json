@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "product": "MathTutor M1",
+  "version": "0.3.3",
+  "platform": "macOS arm64",
+  "completed_at": "2026-09-13T12:19:58.284762+00:00",
+  "source_commit": "a97e77f50a5267f59790701b983b42c3a4c6c3fe",
+  "branch": "m1-profile-0.3.3",
+  "artifact": {
+    "path": "desktop/dist/MathTutor-0.3.3-mac-arm64.dmg",
+    "bytes": 208293436,
+    "sha256": "897e6ae759ce4a4be3b7304af869f254d4fb433c593ad79b12458d1b1c87a958",
+    "signing": "unsigned local candidate",
+    "notarized": false,
+    "migration_head": "018"
+  },
+  "source_correspondence": {
+    "packaged_python_files": 184,
+    "python_mismatches": [],
+    "asar": [
+      {
+        "file": "main.js",
+        "comparison": "exact_bytes",
+        "matches": true
+      },
+      {
+        "file": "preload.js",
+        "comparison": "exact_bytes",
+        "matches": true
+      },
+      {
+        "file": "package.json",
+        "comparison": "name_version_main_identity_after_electron_builder_metadata_rewrite",
+        "matches": true
+      }
+    ]
+  },
+  "tests": {
+    "backend_full": {
+      "passed": 1069,
+      "skipped": 4,
+      "reason": "sqlite_vec_probe library missing"
+    },
+    "source_adapter": {
+      "passed": 10
+    },
+    "frontend": {
+      "passed": 160
+    },
+    "desktop_contracts_with_artifact": {
+      "passed": 46,
+      "skipped": 0
+    },
+    "production_build": "PASS",
+    "packaged_app_flow": "17/17",
+    "readonly_dmg_flow": "17/17",
+    "production_auth_smoke": "PASS",
+    "package_surface": "PASS"
+  },
+  "upgrade": {
+    "old_version": "0.3.2",
+    "old_artifact_sha256": "bac8c3056e65a4c41cd37cd807711436e2530009663db2c287f7692d8ca561bc",
+    "status": "PASS",
+    "installation": "copied each readonly DMG app into isolated temporary Applications directory",
+    "ui_api_mocked": false,
+    "preservation": {
+      "backup_verifies": true,
+      "child_cycle_survives": true,
+      "continue_practice": true,
+      "delete_learning_history": true,
+      "document_survives": true,
+      "evidence_count": 1,
+      "exact_verified_snapshot_resolves": true,
+      "image_bytes_preserved": true,
+      "image_message_preserved": true,
+      "learning_events_preserved": true,
+      "memory_survives": true,
+      "migration_head": true,
+      "offer_resolves": true,
+      "offer_survives": true,
+      "parent_state_preserved": true,
+      "profile_available": true,
+      "projection_version": 1,
+      "release_resolves": true,
+      "student_state_replay_consistent": true
+    },
+    "restart_after_erasure": {
+      "accepted_exercise_preserved": true,
+      "conversation_preserved": true,
+      "empty_profile_after_process_restart": true,
+      "no_evidence_after_process_restart": true,
+      "no_learning_events_after_process_restart": true,
+      "old_basis_unavailable": true
+    }
+  },
+  "data": {
+    "source": "ASSISTments 2009-2010 corrected collapsed",
+    "source_students": 4217,
+    "source_problem_logs": 346860,
+    "source_legal_labels": 245262,
+    "mapped_legal_labels": 55321,
+    "mapped_topics": "6/13",
+    "mathtutor_target_students": 0,
+    "formal_abcd_training": "NOT_STARTED",
+    "p5_model_bundle": "NOT_DELIVERED"
+  },
+  "evidence_files": [
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/backend.log",
+      "sha256": "695925d1a838531edfd3d647d6ab2253e9bc430ecc4b0c8e7dfbeaddefa50ddd",
+      "bytes": 54230
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/build.log",
+      "sha256": "52af47e0316fa6920acf47c25008fd16c234b12ac46023e251b7b51570ab6718",
+      "bytes": 1006
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/desktop_contracts.log",
+      "sha256": "05fae97812f5f2f2f8882388539f7ee0c02b47829703805b3d609d7428ecfd65",
+      "bytes": 4186
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/frontend.log",
+      "sha256": "04dab53d77ee2d2886f18d8e4d5d716f92f20b2c86c431eb5eec1ef1055e0a01",
+      "bytes": 13106
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/package-surface.json",
+      "sha256": "88c797c68cbf14fd26361a51dd2498ae61c6bfbf5917babf3f06df2410e59cd5",
+      "bytes": 78365
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/package.log",
+      "sha256": "962ee8e0ac471a482aa0d84cf8659e7b4acc53e42cc0a97aab1e73712362e54c",
+      "bytes": 1870
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/packaged-smoke.json",
+      "sha256": "c7130a4c27b7863578eb45dcf72c09ffb353e4ae6b81647c3c36764a9b96c3b3",
+      "bytes": 4399
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/packaged_smoke.log",
+      "sha256": "22308f75c5dab740cb75f789281e3e1f3ef40739d3f923b3977c66c3f5876d2b",
+      "bytes": 11294
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/source_adapter.log",
+      "sha256": "a40ab2bc493585bdbf2ead0371f95dbacd6940bea25dd43121857e045048a9a2",
+      "bytes": 99
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/upgrade.json",
+      "sha256": "089d94c2e0fdb392602ec208e3e90e142c0993e800f388c617181146a7f5771a",
+      "bytes": 9968
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/upgrade.log",
+      "sha256": "252b96dc1725b1de30929a9ab34af030c59300ec89d71d3dad089c74a2f021ca",
+      "bytes": 7709
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/upgraded-continue-practice.png",
+      "sha256": "2f18c0efff48354d888679d4ce95cf808d44ed58466b5453acb082599dff83a5",
+      "bytes": 149207
+    },
+    {
+      "path": "desktop/dist/m1-0.3.3-evidence/upgraded-profile-evidence.png",
+      "sha256": "e5827c7cd6cb6e614079fd672ec3b8771ca9bcde94e7646b7de383c1af319398",
+      "bytes": 208223
+    }
+  ]
+}

@@ -121,11 +121,15 @@ function detach(mountpoint) {
   let seedEvidence;
   let verifyEvidence;
   let deletedEvidence;
+  let uiEvidence = null;
+  const installedApp = path.join(work, "Applications", "MathTutor.app");
+  fs.mkdirSync(path.dirname(installedApp));
   try {
     attach(oldDmg, oldMount);
     mounted = oldMount;
+    execFileSync("ditto", [mountedApp(oldMount), installedApp]);
     seedEvidence = runProbe(
-      mountedApp(oldMount),
+      installedApp,
       "seed",
       oldNamespace,
       work,
@@ -137,15 +141,25 @@ function detach(mountpoint) {
 
     attach(newDmg, newMount);
     mounted = newMount;
+    fs.rmSync(installedApp, {recursive: true, force: true});
+    execFileSync("ditto", [mountedApp(newMount), installedApp]);
+    if (process.env.MATHTUTOR_UPGRADE_OLD_DMG) {
+      const ui = spawnSync(process.execPath, [path.join(desktop, "scripts", "macos-m1-ui-smoke.mjs"), installedApp, dataRoot, path.join(path.dirname(reportPath), "m1-ui")],
+        {cwd: work, env: process.env, encoding: "utf8", timeout: 180000});
+      process.stdout.write(ui.stdout || "");
+      process.stderr.write(ui.stderr || "");
+      if (ui.status !== 0) throw new Error("installed M1 UI check failed");
+      uiEvidence = JSON.parse(ui.stdout.trim().split(/\r?\n/).at(-1));
+    }
     verifyEvidence = runProbe(
-      mountedApp(newMount),
+      installedApp,
       "verify",
       "mathtutor",
       work,
       dataRoot,
       statePath,
     );
-    deletedEvidence = runProbe(mountedApp(newMount), "verify-deleted", "mathtutor", work, dataRoot, statePath);
+    deletedEvidence = runProbe(installedApp, "verify-deleted", "mathtutor", work, dataRoot, statePath);
     detach(newMount);
     mounted = null;
   } finally {
@@ -187,6 +201,8 @@ function detach(mountpoint) {
     ],
     seed: seedEvidence,
     verify: verifyEvidence,
+    installed_app_ui: uiEvidence,
+    installation: "copied each readonly DMG app into isolated temporary Applications directory",
     verify_after_deletion_process_restart: deletedEvidence,
     rollback_contract: "Keep the verified pre-upgrade backup and reinstall the frozen pre-RC artifact; never overwrite the live DB after a failed migration.",
   };
