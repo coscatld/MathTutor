@@ -8,11 +8,11 @@ from mathtutor.release_config import RELEASE_CONFIG
 
 def test_python_web_desktop_versions_agree():
     repo = Path(__file__).resolve().parents[1]
-    expected = tomllib.loads((repo / 'pyproject.toml').read_text())['project']['version']
+    expected = tomllib.loads((repo / 'pyproject.toml').read_text(encoding='utf-8'))['project']['version']
     assert RELEASE_CONFIG.app_version == expected
     for folder in ('web', 'desktop'):
-        package = json.loads((repo / folder / 'package.json').read_text())
-        lock = json.loads((repo / folder / 'package-lock.json').read_text())
+        package = json.loads((repo / folder / 'package.json').read_text(encoding='utf-8'))
+        lock = json.loads((repo / folder / 'package-lock.json').read_text(encoding='utf-8'))
         assert package['version'] == lock['version'] == lock['packages']['']['version'] == expected
-    frontend = (repo / 'web/next.config.js').read_text()
+    frontend = (repo / 'web/next.config.js').read_text(encoding='utf-8')
     assert re.search(r'NEXT_PUBLIC_APP_VERSION:\s*"([^"]+)"', frontend).group(1) == expected

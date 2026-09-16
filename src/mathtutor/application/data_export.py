@@ -93,7 +93,7 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
         }
     ),
     "student_summary.skills": frozenset({"skill_id", "evidence_status", "evidence_summary"}),
-    "student_summary.skills.evidence_summary": frozenset({"independent", "assisted", "post_solution", "diagnostic", "ungradable", "step_correct", "joint_task_evidence", "duplicate_responses"}),
+    "student_summary.skills.evidence_summary": frozenset({"independent", "assisted", "post_solution", "diagnostic", "ungradable", "step_correct", "joint_task_evidence", "duplicate_responses", "repeat_attempts"}),
     "student_summary.skills.binary_counts": frozenset({"correct", "incorrect"}),
     "student_summary.active_misconceptions": frozenset(
         {"rule_id", "status", "confidence"}

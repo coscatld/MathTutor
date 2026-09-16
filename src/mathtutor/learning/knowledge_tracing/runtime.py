@@ -71,6 +71,8 @@ class LSTMTracker:
         return float(_sigmoid(logit / self.temperature))
 
     def update(self, state, observed_event: LearningEvent):
+        if observed_event.event_type == "attempt_submitted":
+            return state
         h, c = state
         x = np.tanh(self.weights["event_projection.weight"] @ self.vocabulary.event(observed_event) + self.weights["event_projection.bias"])
         gates = (self.weights["lstm.weight_ih_l0"] @ x + self.weights["lstm.weight_hh_l0"] @ h

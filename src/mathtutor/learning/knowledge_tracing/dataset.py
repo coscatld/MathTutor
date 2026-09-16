@@ -89,6 +89,7 @@ def data_gaps(events):
         "post_solution_targets_excluded": sum(e.evidence_kind == "post_solution" for e in valid),
         "uncertain_provenance_excluded": sum(e.provenance_uncertain for e in valid),
         "duplicate_responses_excluded": sum(e.duplicate_response for e in valid),
+        "repeat_first_targets_excluded": sum(e.prior_task_attempt for e in valid),
         "missing_or_unknown_labels": sum(e.correctness in {None, "unknown"} for e in valid),
         "unmapped_skills": sum(not e.skill_ids for e in valid),
         "missing_near_duplicate_group": sum(not e.leakage_group_id for e in valid),

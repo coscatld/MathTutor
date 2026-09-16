@@ -10,7 +10,7 @@ from mathtutor.learning.skill_graph import GRAPH_VERSION
 
 EVENT_SCHEMA = "learning_event_v2"
 FEATURE_SCHEMA = "structured_kt_v1"
-LABEL_POLICY = "first_independent_task_v1"
+LABEL_POLICY = "first_content_submission_v1"
 BASELINE_POLICY = "evidence_beta_v1"
 
 
@@ -30,7 +30,7 @@ class LearningEvent(BaseModel):
     event_type: Literal[
         "attempt_assessed", "help_requested", "help_committed",
         "help_possibly_exposed", "help_presented", "self_explanation",
-        "evidence_invalidated", "problem_started", "problem_ended",
+        "evidence_invalidated", "problem_started", "problem_ended", "attempt_submitted",
     ]
     occurred_at: str = Field(default_factory=utcnow)
     problem_id: str
@@ -45,6 +45,8 @@ class LearningEvent(BaseModel):
     response_fingerprint: str = Field(default="", max_length=128)
     duplicate_response: bool = False
     prior_task_attempt: bool = False
+    submission_event_id: str = ""
+    supervision_policy_version: str = "legacy_response_distinct_v1"
     prediction_id: str = ""
     correctness: Literal["correct", "incorrect", "partial", "unknown"] | None = None
     completion_scope: Literal["full_problem", "subgoal", "reflection", "error_analysis"] = "full_problem"
@@ -110,16 +112,27 @@ def ordered_attempts(events: Sequence[LearningEvent]) -> list[LearningEvent]:
     An excluded verdict still occupies its chronological attempt position.
     The original event disappears only when the entire learning history does.
     """
-    seen, unique, result = set(), set(), []
+    # A raw submission and its assessment occupy ONE position, not two.
+    # Unassessed submissions (including judge failures) still reserve a slot.
+    seen, assessed_submissions, unique, result = {}, set(), set(), []
     for event in sorted(events, key=lambda e: (e.event_seq, e.occurred_at, e.event_id)):
         identity = (event.student_id, event.event_id)
         if identity in unique:
             continue
         unique.add(identity)
-        if event.event_type == "attempt_assessed" and event.completion_scope == "full_problem":
+        if event.event_type == "attempt_submitted":
             key = (event.student_id, event.problem_revision)
-            event = event.model_copy(update={"prior_task_attempt": event.prior_task_attempt or key in seen})
-            seen.add(key)
+            seen.setdefault(key, ("submission", event.event_id))
+        elif event.event_type == "attempt_assessed":
+            key = (event.student_id, event.problem_revision)
+            slot = ("submission", event.submission_event_id) if event.submission_event_id else ("assessment", event.event_id)
+            binding = (event.student_id, event.submission_event_id)
+            repeated_binding = bool(event.submission_event_id) and binding in assessed_submissions
+            event = event.model_copy(update={"prior_task_attempt": event.prior_task_attempt
+                or (key in seen and seen[key] != slot) or repeated_binding})
+            seen.setdefault(key, slot)
+            if event.submission_event_id:
+                assessed_submissions.add(binding)
         result.append(event)
     return result
 
@@ -152,12 +165,21 @@ def evidence_summary(events: Sequence[LearningEvent]) -> dict:
                 "post_solution": {"correct": 0, "incorrect": 0},
                 "step_correct": 0, "unknown": 0, "joint_task_evidence": 0, "diagnostic": {"correct": 0, "incorrect": 0},
                 "duplicate_responses": 0,
+                "repeat_attempts": 0,
                 "assessment_ids": [],
             })
         if event.duplicate_response:
             for skill in event.skill_ids:
                 skills[skill]["duplicate_responses"] += 1
             continue
+        if event.prior_task_attempt:
+            for skill in event.skill_ids:
+                skills[skill]["repeat_attempts"] += 1
+            # Repetition disqualifies first independent whole-task evidence,
+            # not separately attributed partial/assisted/diagnostic history.
+            if (event.evidence_kind == "independent" and event.completion_scope == "full_problem"
+                    and event.correctness in {"correct", "incorrect"} and event.task_purpose != "diagnostic"):
+                continue
         targets = event.skill_ids
         if len(targets) > 1:
             if event.correctness == "incorrect" and event.verified_error_skill_ids:
@@ -193,15 +215,17 @@ def evidence_summary(events: Sequence[LearningEvent]) -> dict:
         row["ungradable"] = row["unknown"]
         row["evidence_status"] = row["status"]
         row["evidence_summary"] = {key: row[key] for key in (
-            "independent", "assisted", "post_solution", "diagnostic", "ungradable", "step_correct", "joint_task_evidence", "duplicate_responses")}
+            "independent", "assisted", "post_solution", "diagnostic", "ungradable", "step_correct", "joint_task_evidence", "duplicate_responses", "repeat_attempts")}
     return {
         "estimator": "evidence_tracker_v2", "skills": [skills[x] for x in sorted(skills)],
         "item_level_uncertain": item_uncertain,
         "event_count": len(accepted), "last_event_seq": max((x.event_seq for x in events), default=0),
         "totals": {kind: sum(x.event_type == "attempt_assessed" and x.evidence_kind == kind
-                    and not x.duplicate_response and x.task_purpose != "diagnostic" for x in accepted)
+                    and not x.duplicate_response and (kind != "independent" or not x.prior_task_attempt)
+                    and x.task_purpose != "diagnostic" for x in accepted)
                    for kind in ("independent", "assisted", "post_solution", "unknown")} | {
                        "duplicate_responses": sum(x.duplicate_response for x in accepted),
+                       "repeat_attempts": sum(x.prior_task_attempt for x in accepted),
                        "diagnostic": sum(x.event_type == "attempt_assessed" and x.task_purpose == "diagnostic" and not x.duplicate_response for x in accepted)},
     }
 

@@ -336,6 +336,18 @@ class MathTutorController:
             await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
         return context
 
+    async def _prepare_presentation(self, owner_id, session, verified):
+        """Must precede publishing a verified cycle to either HTTP or WebSocket."""
+        tracking = getattr(self.sessions, "student_state", None)
+        if tracking is None or not verified:
+            return
+        from mathtutor.learning.skill_graph import skills_for_problem
+        problem = verified[0]
+        await tracking.prepare_prediction(owner_id, prediction_id=f"presentation:{session.cycle.cycle_id}",
+            session_id=session.session_id, cycle_id=session.cycle.cycle_id,
+            problem_id=problem.problem_id, problem_revision=problem.content_hash,
+            item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem), at_presentation=True)
+
     async def _cycle_fact(self, owner_id, session, verified, event_type, *, lifecycle_status="active", task_purpose="practice"):
         tracking = getattr(self.sessions, "student_state", None)
         if tracking is None or not verified:
@@ -344,10 +356,7 @@ class MathTutorController:
         from mathtutor.learning.skill_graph import skills_for_problem
         problem = verified[0]
         if event_type == "problem_started":
-            await tracking.prepare_prediction(owner_id, prediction_id=f"presentation:{session.cycle.cycle_id}",
-                session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
-                problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
-                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem))
+            await self._prepare_presentation(owner_id, session, verified)
         await tracking.append_event(LearningEvent(event_id=f"{event_type}:{session.cycle.cycle_id}",
             student_id=owner_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
             event_type=event_type, problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
@@ -1251,6 +1260,9 @@ class MathTutorController:
             return
         await self._step(owner_id, session, CycleCommand.GROUNDING_OK)
         assert result.problem is not None
+        # HTTP session restoration must not expose the new task either if
+        # forecast persistence fails. Publish its binding only after this.
+        await self._prepare_presentation(owner_id, session, (result.problem, result.candidate, result.verified_ref))
         session.problem_id = result.problem.problem_id
         transition = await self._step(
             owner_id,
@@ -1353,11 +1365,21 @@ class MathTutorController:
             actual_assistance = CycleAssistance(max_level_issued=factual_level)
             context["legacy_provenance_uncertain"] |= exposure["provenance_uncertain"]
         prediction_id = f"prediction:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
+        submission_event_id = ""
         if tracking is not None:
-            await tracking.prepare_prediction(owner_id, prediction_id=prediction_id,
+            presentation = await tracking.presentation(owner_id, session.cycle.cycle_id)
+            if presentation is not None:
+                prediction_id = presentation["prediction_id"]
+            else:
+                # Pre-upgrade open cycles have no trustworthy presentation record.
+                context["legacy_provenance_uncertain"] = True
+            submission_event_id = f"submission:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
+            await tracking.record_submission(owner_id, event_id=submission_event_id,
                 session_id=session.session_id, cycle_id=session.cycle.cycle_id,
                 problem_id=problem.problem_id, problem_revision=problem.content_hash,
-                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem))
+                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem),
+                response_fingerprint=content_hash({"raw_response": raw_text_override if raw_text_override is not None else answer}),
+                prediction_id=prediction_id, task_purpose="diagnostic" if context.get("diagnostic_item") else "practice")
 
         # ---- COMPUTE: Phase 4 learning loop, pure and deterministic. ----
         attempt_index = await self.sessions.load_attempt_index(
@@ -1525,6 +1547,7 @@ class MathTutorController:
                 "item_family_id": problem.problem_type, "skill_ids": skills_for_problem(problem),
                 "assessment_id": str(student_attempt.attempt_id), "attempt_id": str(student_attempt.attempt_id),
                 "correctness": assessment.correctness.value, "prediction_id": prediction_id,
+                "submission_event_id": submission_event_id,
                 "completion_scope": "full_problem" if assessment.correctness is Correctness.CORRECT else "subgoal" if assessment.correctness is Correctness.PARTIAL else "full_problem",
                 "subgoal_id": current_subgoal(context)["id"],
                 "provenance_uncertain": context.get("legacy_provenance_uncertain", False),
@@ -2324,11 +2347,6 @@ class MathTutorController:
         # the SAME session + SAME state machine (§7.8), practice-bound only
         # (problem_id NULL — the XOR invariant; the problem binding lives in
         # the offer→release exact snapshot resolved by load_verified).
-        parent_transition = session.step(
-            CycleCommand.ACCEPT_PRACTICE_OFFER,
-            expected_version=expected_version,
-            idempotency_key=idempotency_key,
-        )
         child = TutoringSession(
             session_id=session.session_id,
             student_id=session.student_id,
@@ -2337,6 +2355,12 @@ class MathTutorController:
         child.step(CycleCommand.SUBMIT_PROBLEM)
         child.step(CycleCommand.GROUNDING_OK)
         child.step(CycleCommand.VERIFICATION_VERIFIED)
+        await self._prepare_presentation(owner_id, child, exact)
+        parent_transition = session.step(
+            CycleCommand.ACCEPT_PRACTICE_OFFER,
+            expected_version=expected_version,
+            idempotency_key=idempotency_key,
+        )
 
         # 8. Outbox events (written in the same transaction, §7.10).
         outbox_events = [
