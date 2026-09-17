@@ -431,6 +431,10 @@ class ProductState:
         self.student_state = StudentStateService(engine, Path(data_dir) / "models" / "dkt" / "model.npz") if engine is not None else None
         self.store.student_state = self.student_state
         self.store.practice_repository = self.practice_repository
+        from mathtutor.application.initial_assessment import InitialAssessmentService
+        self.initial_assessment = InitialAssessmentService(engine) if engine is not None else None
+        self.adaptive_practice.initial_assessment = self.initial_assessment
+        self.adaptive_practice.student_state = self.student_state
 
     @property
     def capability(self) -> MathTutorController:

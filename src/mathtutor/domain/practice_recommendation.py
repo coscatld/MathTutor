@@ -24,6 +24,8 @@ class RecommendationBasis(BaseModel):
     target_skill_ids: tuple[str, ...]
     purpose: PracticePurpose
     reason_code: Literal["parent_attempt", "related_task"]
+    initial_assessment_run_id: str | None = None
+    initial_assessment_policy: str | None = None
 
 
 class PracticeRecommendation(BaseModel):

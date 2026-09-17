@@ -45,12 +45,14 @@ def select_difficulty(
     for entry in context.recent_attempt_summary:
         if (entry.problem_id and entry.skill_id in context.target_skill_ids
                 and entry.effective_assistance_level == 0):
-            independent[entry.problem_id] = entry.correctness
+            independent.setdefault(entry.problem_id, entry.correctness)
     recent = list(independent.values())[-5:]
     if purpose in {"A1", "D", "E"} and len(recent) >= 3 and all(
         value == "correct" for value in recent[-3:]
     ):
         return min(5, baseline + 1), "至少三道不同题目的独立正确证据，提升一级"
+    if len(recent) >= 3 and all(value == "incorrect" for value in recent[-3:]):
+        return max(1, baseline - 1), "至少三道不同题目的首次独立作答遇到困难，降低一级"
     return baseline, "独立跨题证据不足或本次受助，保持当前离散难度"
 
 

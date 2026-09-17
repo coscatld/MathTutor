@@ -43,6 +43,7 @@ class LearningEvent(BaseModel):
     assessment_id: str = ""
     attempt_id: str = ""
     response_fingerprint: str = Field(default="", max_length=128)
+    response_format: Literal["free_response", "single_choice"] = "free_response"
     duplicate_response: bool = False
     prior_task_attempt: bool = False
     submission_event_id: str = ""
@@ -98,6 +99,7 @@ class LearningEvent(BaseModel):
             and self.correctness in {"correct", "incorrect"}
             and self.completion_scope == "full_problem"
             and self.task_purpose not in {"diagnostic", "error_analysis"}
+            and self.response_format == "free_response"
             and bool(self.skill_ids)
             and not self.provenance_uncertain
             and not self.duplicate_response

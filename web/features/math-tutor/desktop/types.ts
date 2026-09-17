@@ -7,6 +7,7 @@
  */
 
 export interface DesktopSettings {
+  initial_assessment_required?: boolean;
   vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
   model: string;
@@ -43,6 +44,7 @@ export interface TutorSettings {
 }
 
 export interface SettingsSaveResult {
+  initial_assessment_required?: boolean;
   vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
   model: string;

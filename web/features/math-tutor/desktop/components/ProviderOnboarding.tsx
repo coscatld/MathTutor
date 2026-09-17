@@ -55,7 +55,7 @@ export default function ProviderOnboarding() {
           fetchSettings(),
         ]);
         if (current.is_configured || current.onboarding_completed) {
-          router.replace("/math-tutor");
+          router.replace(current.initial_assessment_required ? "/onboarding/assessment" : "/math-tutor");
           return;
         }
         setPresets(available);
@@ -88,14 +88,14 @@ export default function ProviderOnboarding() {
     }
     setSaving(true);
     try {
-      await saveSettings({
+      const saved = await saveSettings({
         preset_id: currentPreset.preset_id,
         api_key: apiKey.trim() || undefined,
         base_url: currentPreset.editable_base_url ? baseUrl.trim() : undefined,
         model: model.trim() || undefined,
       });
       setApiKey("");
-      router.replace("/math-tutor");
+      router.replace(saved.initial_assessment_required ? "/onboarding/assessment" : "/math-tutor");
     } catch (reason) {
       setError(
         reason instanceof DesktopApiError

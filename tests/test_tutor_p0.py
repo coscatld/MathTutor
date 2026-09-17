@@ -247,7 +247,7 @@ def test_010_database_upgrade_keeps_conversation_history(tmp_path):
     with client_at(db) as client:
         assert summary(client)["messages"] == before
     with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "018"
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "019"
 
 
 @pytest.mark.asyncio

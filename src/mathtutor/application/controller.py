@@ -1014,7 +1014,7 @@ class MathTutorController:
             await self._submit_problem(session, owner_id, payload, expected_version, idempotency_key, stream)
         elif command in ("submit_attempt", "clarify_attempt"):
             await self._submit_attempt(
-                session, owner_id, {"answer": payload.get("answer", payload.get("text", ""))}, expected_version, idempotency_key,
+                session, owner_id, {**payload, "answer": payload.get("answer", payload.get("text", ""))}, expected_version, idempotency_key,
                 verified, assistance, stream,
             )
         elif command == "request_hint":
@@ -1350,6 +1350,14 @@ class MathTutorController:
         from mathtutor.learning.skill_graph import skills_for_problem
         from mathtutor.pedagogy.teaching_plan import apply_assessment, assessment_feedback, current_subgoal
         context = await self._teaching_context(owner_id, session, verified)
+        if "choice_id" in payload:
+            from mathtutor.application.multiple_choice import resolve_choice
+            try:
+                answer = resolve_choice(context.get("choices"), payload["choice_id"], payload.get("choice_version"))
+            except ValueError as exc:
+                await stream.error(str(exc), source=self.manifest.name)
+                return
+            raw_text_override = f"{payload['choice_id']}. {answer}"
         if context.get("teacher_error_example", {}).get("awaiting_response"):
             await self._assess_teacher_error(session, owner_id, context, answer, expected_version, idempotency_key, stream)
             return
@@ -1548,6 +1556,7 @@ class MathTutorController:
                 "assessment_id": str(student_attempt.attempt_id), "attempt_id": str(student_attempt.attempt_id),
                 "correctness": assessment.correctness.value, "prediction_id": prediction_id,
                 "submission_event_id": submission_event_id,
+                "response_format": "single_choice" if context.get("choices") else "free_response",
                 "completion_scope": "full_problem" if assessment.correctness is Correctness.CORRECT else "subgoal" if assessment.correctness is Correctness.PARTIAL else "full_problem",
                 "subgoal_id": current_subgoal(context)["id"],
                 "provenance_uncertain": context.get("legacy_provenance_uncertain", False),
@@ -2342,6 +2351,12 @@ class MathTutorController:
             )
             return
         problem, _candidate, _ref = exact
+        from mathtutor.application.multiple_choice import make_choices
+        try:
+            choices = make_choices(problem, _candidate, salt=str(release.release_id))
+        except ValueError:
+            await stream.error("这道旧练习暂不支持选择题，请重新邀请练习。", source=self.manifest.name)
+            return
 
         # 6/7. Parent closes (in memory); the child is a NEW TutoringCycle in
         # the SAME session + SAME state machine (§7.8), practice-bound only
@@ -2404,6 +2419,7 @@ class MathTutorController:
         )
         child_context = await self._teaching_context(owner_id, child, exact)
         child_context["resume_parent_cycle_id"] = str(session.cycle.cycle_id)
+        child_context["choices"] = choices
         await self.sessions.teaching.save(owner_id, child.cycle.cycle_id, child_context)
         recommendation = await self.practice.recommendation_for_offer(owner_id, offer_id)
         await self._cycle_fact(owner_id, child, exact, "problem_started",

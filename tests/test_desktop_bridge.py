@@ -640,6 +640,7 @@ async def test_get_settings_has_no_key_material() -> None:
             "base_url",
             "is_configured",
             "onboarding_completed",
+            "initial_assessment_required",
             "key_masked",
             "connection_status",
             "provider_configs",

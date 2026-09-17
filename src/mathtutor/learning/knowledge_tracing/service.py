@@ -213,7 +213,7 @@ class StudentStateService:
         event_id=None, provenance_uncertain=False, active_response_ms=None,
         difficulty=None, misconception_codes=(), verified_error_skill_ids=(),
         task_purpose="practice", graph_version=GRAPH_VERSION, leakage_group_id="", time_gap_ms=None,
-        response_fingerprint="", submission_event_id="", conn=None,
+        response_fingerprint="", submission_event_id="", response_format="free_response", conn=None,
     ) -> LearningEvent:
         student_id, cycle_id = str(student_id), str(cycle_id)
         event_id = event_id or f"attempt:{attempt_id}"
@@ -270,6 +270,7 @@ class StudentStateService:
                 active_response_ms=active_response_ms, difficulty=difficulty,
                 misconception_codes=tuple(misconception_codes), verified_error_skill_ids=tuple(verified_error_skill_ids),
                 task_purpose=task_purpose, graph_version=graph_version,
+                response_format=response_format,
             ))
             # Label is associated only after the immutable pre-outcome forecast.
             presentation_id = f"presentation:{cycle_id}"

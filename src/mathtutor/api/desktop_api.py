@@ -204,7 +204,10 @@ async def get_settings(
             "has_api_key": has_profile_key,
             "key_masked": profile_masked,
         }
+    assessment = get_product_state().initial_assessment
+    assessment_state = await assessment.read(owner.student_id) if assessment else None
     return {
+        "initial_assessment_required": bool(assessment_state and assessment_state["status"] in {"pending", "in_progress"}),
         "preset_id": preset_id,
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
@@ -268,6 +271,7 @@ async def put_settings(
     if friendly is not None:
         raise HTTPException(status_code=422, detail=friendly)
     service = _gateway_config_service()
+    was_configured = await service.is_ready()
     try:
         config = await service.apply_config(
             preset_id=update.preset_id,
@@ -280,6 +284,12 @@ async def put_settings(
         raise HTTPException(status_code=422, detail="配置无效，请检查填写内容。") from error
 
     get_product_state().refresh_model_writer()
+
+    assessment = get_product_state().initial_assessment
+    if assessment and not was_configured and update.api_key and await service.is_ready():
+        async with get_product_state().turn_requests.owner(owner.student_id):
+            await assessment.ensure(owner.student_id)
+    assessment_state = await assessment.read(owner.student_id) if assessment else None
 
     # Masked tail only — the response never carries the key value.
     store = _desktop_secret_store()
@@ -302,6 +312,7 @@ async def put_settings(
         "is_configured": await service.is_ready(),
         "onboarding_completed": service.onboarding_completed(),
         "connection_status": service.connection_status(),
+        "initial_assessment_required": bool(assessment_state and assessment_state["status"] in {"pending", "in_progress"}),
     }
 
 

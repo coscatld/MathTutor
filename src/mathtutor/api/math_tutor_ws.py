@@ -459,6 +459,8 @@ def _message_projection(user_message: str) -> tuple[str, str]:
         payload = {}
     text = next((str(payload.get(key) or "").strip() for key in ("text", "answer") if str(payload.get(key) or "").strip()), "")
     command = str(envelope.get("command") or "")
+    if command == "submit_attempt" and payload.get("choice_id") in {"A", "B", "C", "D"}:
+        text = f"选择 {payload['choice_id']}"
     if envelope.get("protocol_version", 1) == 1:
         command = LEGACY_COMMAND_ALIASES.get(command, command)
     if not text and not payload.get("attachment_ids"):

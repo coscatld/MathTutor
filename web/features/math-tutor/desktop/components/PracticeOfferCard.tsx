@@ -19,6 +19,7 @@ export default function PracticeOfferCard({offer, accepting, onStart, onFeedback
   return <li className={`rounded-2xl border bg-[var(--card)] p-5 sm:p-6 ${continuing ? "border-[var(--primary)]" : "border-[var(--border)]"}`}>
     <p className="text-xs font-medium text-[var(--muted-foreground)]">{continuing ? "进行中" : completed ? "已完成" : active ? (offer.feedback === "later" ? "稍后再做" : "待开始") : offer.status === "ACCEPTED" ? "已开始的历史练习" : "历史建议"}{active ? ` · ${offer.question_count ?? 1} 道题` : ""}</p>
     <h3 className="mt-3 font-serif text-xl font-semibold leading-8">{offer.title || offer.skill_labels.join("、") || "相关练习"}</h3>
+    {offer.difficulty && <p className="mt-2 text-xs text-[var(--muted-foreground)]">单选题 · 练习难度 {offer.difficulty}/5（不是学生等级）</p>}
     <p className="mt-2 text-sm leading-7 text-[var(--muted-foreground)]">{offer.reason || "围绕当前题目安排一次相关练习。"}</p>
     {!!offer.skill_labels.length && <p className="mt-2 text-xs text-[var(--muted-foreground)]">{offer.skill_labels.join(" · ")}</p>}
     {(active || continuing) && <p className="mt-3 text-sm leading-7">本次观察：{offer.observation_goal || "能否独立完成新题，哪些步骤仍需帮助。"}</p>}
