@@ -43,6 +43,7 @@ embedding = [
   "modelscope>=1.20",
 ]
 dev = [
+  "numpy>=1.26,<3",
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
 ]
