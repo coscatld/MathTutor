@@ -5,6 +5,7 @@ export type StartupDecision =
   | "waiting"
   | "workspace"
   | "onboarding"
+  | "assessment"
   | "login"
   | "blocked";
 
@@ -20,6 +21,7 @@ export function decideStartupRoute(
   if (bootstrap.readiness === "BLOCKED") return "blocked";
   if (bootstrap.phase !== "READY") return "waiting";
   if (!settings) return "waiting";
+  if (settings.initial_assessment_required) return "assessment";
   return settings.is_configured || settings.onboarding_completed
     ? "workspace"
     : "onboarding";

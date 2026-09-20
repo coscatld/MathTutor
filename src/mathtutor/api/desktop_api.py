@@ -204,7 +204,10 @@ async def get_settings(
             "has_api_key": has_profile_key,
             "key_masked": profile_masked,
         }
+    assessment = get_product_state().initial_assessment
+    assessment_state = await assessment.read(owner.student_id) if assessment else None
     return {
+        "initial_assessment_required": bool(assessment_state and assessment_state["status"] in {"pending", "in_progress"}),
         "preset_id": preset_id,
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
@@ -268,6 +271,7 @@ async def put_settings(
     if friendly is not None:
         raise HTTPException(status_code=422, detail=friendly)
     service = _gateway_config_service()
+    was_configured = await service.is_ready()
     try:
         config = await service.apply_config(
             preset_id=update.preset_id,
@@ -280,6 +284,12 @@ async def put_settings(
         raise HTTPException(status_code=422, detail="配置无效，请检查填写内容。") from error
 
     get_product_state().refresh_model_writer()
+
+    assessment = get_product_state().initial_assessment
+    if assessment and not was_configured and update.api_key and await service.is_ready():
+        async with get_product_state().turn_requests.owner(owner.student_id):
+            await assessment.ensure(owner.student_id)
+    assessment_state = await assessment.read(owner.student_id) if assessment else None
 
     # Masked tail only — the response never carries the key value.
     store = _desktop_secret_store()
@@ -302,6 +312,7 @@ async def put_settings(
         "is_configured": await service.is_ready(),
         "onboarding_completed": service.onboarding_completed(),
         "connection_status": service.connection_status(),
+        "initial_assessment_required": bool(assessment_state and assessment_state["status"] in {"pending", "in_progress"}),
     }
 
 
@@ -1039,7 +1050,12 @@ async def _restore_backup_while_quiesced(state, backup_path: Path) -> dict:
     # 1) stop the write runtime (relay loop + backup scheduler), checkpoint
     #    the WAL and dispose every engine — ProductState.shutdown_runtime
     #    guarantees no live connection and no active -wal/-shm remains.
-    await state.shutdown_runtime()
+    try:
+        await state.shutdown_runtime()
+    except Exception:
+        return {"ok": False, "message": "运行时未安全关闭，已取消恢复。"}
+    from mathtutor.infrastructure.lifecycle_trace import trace
+    trace(id(state), "restore_replacement_begin")
     # Preserve the exact checkpointed live database until BOTH replacement
     # and forward migration have succeeded.  ``restore_verified`` provides an
     # atomic file replacement, but migration is a later failure boundary; a
@@ -1111,8 +1127,8 @@ async def _rollback_failed_restore(
     from mathtutor.infrastructure.backup import BackupService
 
     try:
-        for suffix in ("-wal", "-shm"):
-            Path(f"{target_path}{suffix}").unlink(missing_ok=True)
+        if any(Path(f"{target_path}{suffix}").exists() for suffix in ("-wal", "-shm")):
+            raise RuntimeError("Rollback refused: database sidecars remain")
         await asyncio.to_thread(os.replace, rollback_path, target_path)
         integrity = await asyncio.to_thread(
             BackupService._verify_backup_file, target_path
@@ -1425,6 +1441,10 @@ async def rename_document(
     doc = await state.document_repository.get_document(owner.student_id, doc_uuid)
     if doc is None:
         raise HTTPException(status_code=404, detail="文档不存在。")
+    if getattr(state, "knowledge", None):
+        snapshot = await state.knowledge.snapshot(str(owner.student_id), str(doc_uuid))
+        if snapshot["provenance"].get("format") == "markdown":
+            raise HTTPException(409, "版本化 Markdown 请在知识库编辑标题并确认新版本。")
     from mathtutor.infrastructure.document_storage import sanitize_filename
 
     safe_name = sanitize_filename(update.filename.strip())
@@ -1478,6 +1498,11 @@ async def reparse_document(
     if doc is None or doc.deleted_at is not None:
         raise HTTPException(status_code=404, detail="文档不存在。")
     try:
+        if getattr(state, "knowledge", None):
+            snapshot = await state.knowledge.snapshot(str(owner.student_id), str(doc_uuid))
+            if snapshot["provenance"].get("format") == "markdown":
+                raise HTTPException(409, "版本化 Markdown 请在知识库编辑；不使用旧重解析入口。")
+            await state.knowledge.bump(str(owner.student_id))
         doc = await state.documents.reparse(owner.student_id, doc_uuid)
     except DocumentBusyError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
@@ -1519,6 +1544,8 @@ async def set_document_retrieval(
         doc = await state.documents.set_retrieval_enabled(
             owner.student_id, doc_uuid, toggle.enabled
         )
+        if getattr(state, "knowledge", None):
+            await state.knowledge.bump(str(owner.student_id))
     except ValueError as error:
         raise HTTPException(status_code=404, detail="文档不存在。") from error
     return _project_document(doc)

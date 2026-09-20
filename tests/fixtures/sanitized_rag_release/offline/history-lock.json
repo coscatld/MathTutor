@@ -1,0 +1,20 @@
+{
+  "tests/fixtures/sanitized_rag_release/degenerate/B-results.json": "414f7d95ffcf84df92fe52b7bc960fb980f671cca4cdc3b066fe64d6cacd4b6c",
+  "tests/fixtures/sanitized_rag_release/degenerate/request-072.json": "b05ba67f1779d20383c3e52f102f203d02e9a797959dc1c13c2c612f2307e54e",
+  "tests/fixtures/sanitized_rag_release/degenerate/request-073.json": "23c608e5db86ceaee1ab4966aad04f09e6197034a958b5c00ae9fa1aa2242bbe",
+  "tests/fixtures/sanitized_rag_release/degenerate/request-074.json": "e99d51292df07ccc79d3243e01d27176cbf5fecfec7f9446dc04ceb5910bf910",
+  "tests/fixtures/sanitized_rag_release/degenerate/request-075.json": "64483e108f2a5d704817ccb0691fb7d7ad1ca203c56b66ad92e3e41732688ad9",
+  "tests/fixtures/sanitized_rag_release/offline/degenerate-fixed-review.json": "961683136792b8e19bf1ec69748795c9a69cbb6c9d9c58cae5d1c3d2054d6c7d",
+  "tests/fixtures/sanitized_rag_release/offline/expression-fixed-review.json": "b6ff9405d536a0475d5e8c30db99c0f1850234a688a2b3af42c6d41599dd17e8",
+  "tests/fixtures/sanitized_rag_release/original/request-013.json": "9052df3d37afdf7d14f2891bbf7c20c528b742be1c597d7988b50f708e6472e5",
+  "tests/fixtures/sanitized_rag_release/original/request-014.json": "949d9907f45933ba4895a466d4280b14f89acb13419219d1e5cd663f92ede710",
+  "tests/fixtures/sanitized_rag_release/original/request-015.json": "5c916d9e5354a4a952692893908e5e174eba2831fa204da197b603f47be41552",
+  "tests/fixtures/sanitized_rag_release/original/request-018.json": "9052df3d37afdf7d14f2891bbf7c20c528b742be1c597d7988b50f708e6472e5",
+  "tests/fixtures/sanitized_rag_release/original/request-020.json": "9052df3d37afdf7d14f2891bbf7c20c528b742be1c597d7988b50f708e6472e5",
+  "tests/fixtures/sanitized_rag_release/original/request-021.json": "9052df3d37afdf7d14f2891bbf7c20c528b742be1c597d7988b50f708e6472e5",
+  "tests/fixtures/sanitized_rag_release/original/request-022.json": "9052df3d37afdf7d14f2891bbf7c20c528b742be1c597d7988b50f708e6472e5",
+  "tests/fixtures/sanitized_rag_release/original/request-024.json": "9052df3d37afdf7d14f2891bbf7c20c528b742be1c597d7988b50f708e6472e5",
+  "tests/fixtures/sanitized_rag_release/review/final-review.json": "ef66c76bb7ad39b67eca6cbd68d7d73f92910f533aa87eb33858585dac141fe8",
+  "tests/fixtures/sanitized_rag_release/review/original-B-atomic-review.json": "41890fd4f5ea16e77e89128d957a802f5fd12aa2bc3ce03c9905343e1d73d5c3",
+  "tests/fixtures/sanitized_rag_release/offline/human-review/packet.json": "8dd42427a95b59cb708292f1c62aba9445e8fa9eac0d11584a95bfff02e9ba02"
+}

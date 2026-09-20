@@ -17,6 +17,7 @@ any router exists — the app refuses to start, it does not warn.
 from __future__ import annotations
 
 from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
@@ -124,7 +125,11 @@ def create_math_tutor_app(
 
     # Initialize the product runtime BEFORE mounting routers (Phase 1B).
     # With a db path: migrate first (idempotent), then build the durable state.
-    from mathtutor.api.product_state import get_product_state
+    from mathtutor.api.product_state import get_product_state, current_product_state, reset_product_state
+
+    previous = current_product_state()
+    if previous is not None and previous.lifecycle_status == "STOPPED":
+        reset_product_state()
 
     if db_path is not None:
         from mathtutor.infrastructure.migrate import upgrade_db
@@ -132,7 +137,30 @@ def create_math_tutor_app(
         upgrade_db(db_path)
     get_product_state(db_path=None if db_path is None else Path(db_path))
 
+    @asynccontextmanager
+    async def lifespan(app):
+        async def run_handlers(handlers):
+            import inspect
+            for handler in handlers:
+                result = handler()
+                if inspect.isawaitable(result):
+                    await result
+        try:
+            await run_handlers(app.router.on_startup)
+        except BaseException:
+            try:
+                await run_handlers(app.router.on_shutdown)
+            except BaseException as cleanup_error:
+                from mathtutor.infrastructure.lifecycle_trace import trace
+                trace("app", "partial_startup_cleanup_failed", error=cleanup_error)
+            raise
+        try:
+            yield
+        finally:
+            await run_handlers(app.router.on_shutdown)
+
     app = FastAPI(
+        lifespan=lifespan,
         title="MathTutor Student Product",
         docs_url=None,
         redoc_url=None,
@@ -240,8 +268,7 @@ def create_math_tutor_app(
         """Stop the resident runtime (relay loop + backup scheduler).
 
         Uses the singleton WITHOUT creating it — shutdown must never build a
-        fresh in-memory state as a side effect. Idempotent; failures are
-        logged and never re-raised (shutdown continues).
+        fresh in-memory state as a side effect. Failures remain observable.
         """
         try:
             from mathtutor.api.product_state import (
@@ -257,6 +284,7 @@ def create_math_tutor_app(
             logging.getLogger("math_tutor").warning(
                 "runtime shutdown failed", exc_info=True
             )
+            raise
 
     # --- Explicit allowlist (default deny) --------------------------------
     app.include_router(math_tutor_ws.router, prefix="/api/v2/math-tutor")
@@ -268,6 +296,8 @@ def create_math_tutor_app(
     from mathtutor.api import desktop_api
     from mathtutor.api import learning_profile_api
     app.include_router(learning_profile_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
+    from mathtutor.api.knowledge_api import router as knowledge_router
+    app.include_router(knowledge_router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
 
     app.include_router(
         desktop_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX

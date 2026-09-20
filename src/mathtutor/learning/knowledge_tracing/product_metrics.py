@@ -75,6 +75,7 @@ def product_funnel(events, *, turn_records=()):
         first = next((x for x in attempts if not x.duplicate_response), None)
         first_help_seq = min((x.event_seq for x in relevant_help), default=float("inf"))
         independent_first = (first is not None and first.event_seq < first_help_seq
+                             and not first.prior_task_attempt
                              and not first.provenance_uncertain and not first.target_answer_exposed_before_attempt)
         if independent_first:
             counts["first_independent_opportunity"] += 1

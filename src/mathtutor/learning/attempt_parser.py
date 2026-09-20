@@ -23,6 +23,8 @@ Answer kinds (``ParsedAttempt.kind``):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from fractions import Fraction
+import re
 from typing import Literal
 from uuid import UUID, uuid5
 
@@ -30,7 +32,7 @@ from mathtutor.domain.attempt import StudentAttempt
 from mathtutor.solving import nodes as n
 from mathtutor.solving.parser import ParsedProblem, parse_problem
 
-AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "undeterminable"]
+AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "root_values", "undeterminable"]
 
 # uuid5 namespace for deterministic attempt ids: attempt_id = f(submission_id),
 # so a replayed submission yields the SAME attempt identity end to end —
@@ -67,6 +69,7 @@ class ParsedAttempt:
     kind: AttemptAnswerKind
     parsed: ParsedProblem | None = None
     reason: str = ""
+    root_values: tuple[Fraction, ...] = ()
 
     @classmethod
     def undeterminable(cls, reason: str) -> "ParsedAttempt":
@@ -89,7 +92,15 @@ def parse_student_attempt(
     ``{"kind": "unparsed", ...}`` step carrying the fail-closed reason.
     """
     stripped = raw_text.strip()
-    if stripped.lower() in EMPTY_ROOT_SET_TOKENS:
+    rational = r"[+-]?\d{1,18}(?:/\d{1,18})?"
+    if re.fullmatch(rf"{rational}\s*[,，]\s*{rational}", stripped):
+        try:
+            roots = [Fraction(value.strip()) for value in stripped.replace("，", ",").split(",")]
+            parsed_steps = ({"kind": "answer", "parse_kind": "root_values",
+                             "roots": [{"n": r.numerator, "d": r.denominator} for r in roots]},)
+        except (ValueError, ZeroDivisionError):
+            parsed_steps = ({"kind": "unparsed", "reason": "根的数值无效"},)
+    elif stripped.lower() in EMPTY_ROOT_SET_TOKENS:
         parsed_steps = ({"kind": "answer", "parse_kind": "empty_root_set"},)
     else:
         outcome = parse_problem(stripped)
@@ -145,6 +156,14 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
     if step.get("kind") != "answer":
         return ParsedAttempt.undeterminable(f"未知的作答步骤: {step.get('kind')!r}")
     parse_kind = step.get("parse_kind")
+    if parse_kind == "root_values":
+        try:
+            roots = step["roots"]
+            if len(roots) != 2:
+                return ParsedAttempt.undeterminable("根集格式无效")
+            return ParsedAttempt("root_values", root_values=tuple(Fraction(r["n"], r["d"]) for r in roots))
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            return ParsedAttempt.undeterminable("根集格式无效")
     if parse_kind == "empty_root_set":
         return ParsedAttempt("empty_root_set")
     if parse_kind not in ("value", "equation", "linear_system"):

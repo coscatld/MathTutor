@@ -54,6 +54,7 @@ from mathtutor.application.controller import MathTutorController
 from mathtutor.domain.retrieval_policy import RetrievalSource
 from mathtutor.infrastructure.document_storage import DocumentStorage
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
+from mathtutor.infrastructure.observability import MathTutorMetrics
 from mathtutor.infrastructure.gateway_config import GatewayConfigService, build_tutor_writer
 from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway, ModelRole
 from mathtutor.infrastructure.secret_store import (
@@ -204,6 +205,7 @@ class ProductState:
         db_path: Path | None = None,
         secret_store: SecretStore | None = None,
         embedding_runtime: EmbeddingRuntime | None = None,
+        metrics: MathTutorMetrics | None = None,
         verification_backend: VerificationBackend | None = None,
     ) -> None:
         self.store: SessionStoreProtocol = store or InMemorySessionStore()
@@ -215,6 +217,8 @@ class ProductState:
         self._maintenance_condition = asyncio.Condition()
         self._active_requests = 0
         self._maintenance_active = False
+        self.lifecycle_status = "RUNNING"
+        self._shutdown_task = None
 
         # ---- Phase 5/6 knowledge surface -------------------------------
         # The gateway is built FIRST so the capability's writer can be
@@ -224,6 +228,12 @@ class ProductState:
         # No embedding backend by default. User settings may replace it only
         # after an explicitly selected local/cloud configuration is ready.
         self.embedding_runtime = embedding_runtime or EmbeddingRuntime()
+        # Process-local metric registry. Until now MathTutorMetrics existed but
+        # was constructed only by tests, so nothing in production recorded
+        # latency/token/release-gate or RAG counters. Retrieval already reports
+        # a structured RetrievalExecution per turn; without this instance that
+        # report had nowhere to go.
+        self.metrics = metrics or MathTutorMetrics()
         # Durable/product mode uses one killable verifier process.  The
         # in-process backend is an explicit development/test profile only;
         # production never falls back to it after a worker failure.
@@ -396,6 +406,18 @@ class ProductState:
             storage=self.document_storage,
             index_manager=self.document_index,
         )
+        # ONE orchestrator for every initial-retrieval consumer: chat,
+        # knowledge QA, hint/explain and practice all go through this object.
+        from mathtutor.application.context_expansion import ContextExpander
+        from mathtutor.application.retrieval_orchestrator import (
+            ConversationRetrievalOrchestrator,
+        )
+
+        self.retrieval_orchestrator = ConversationRetrievalOrchestrator(
+            kernel=self.document_index,
+            expander=ContextExpander(self.document_repository),
+            metrics=self.metrics,
+        )
         self.context_assembler = self._build_context_assembler(engine)
         # Phase 5 (§7.4/§7.5): bank > template > LLM generator chain — the
         # gateway's PRACTICE_GENERATOR role when configured, deterministic
@@ -426,11 +448,26 @@ class ProductState:
         self.controller.chat_documents = ChatDocumentContext(
             self.documents, self.document_repository,
             self.document_index,
+            orchestrator=self.retrieval_orchestrator,
         )
         from mathtutor.learning.knowledge_tracing.service import StudentStateService
         self.student_state = StudentStateService(engine, Path(data_dir) / "models" / "dkt" / "model.npz") if engine is not None else None
         self.store.student_state = self.student_state
         self.store.practice_repository = self.practice_repository
+        from mathtutor.application.initial_assessment import InitialAssessmentService
+        self.initial_assessment = InitialAssessmentService(engine) if engine is not None else None
+        self.adaptive_practice.initial_assessment = self.initial_assessment
+        self.adaptive_practice.student_state = self.student_state
+        from mathtutor.application.knowledge import KnowledgeService
+        from mathtutor.application.knowledge_qa import KnowledgeQA
+        self.knowledge = KnowledgeService(self, engine) if engine is not None else None
+        self.controller.knowledge = self.knowledge
+        self.controller.knowledge_qa = KnowledgeQA(self) if self.knowledge else None
+        from mathtutor.application.stage_review import StageReviewService, ReviewDispatchSink
+        self.stage_review = StageReviewService(engine, self.student_state) if engine is not None else None
+        if self.stage_review:
+            self.student_state.stage_review = self.stage_review
+            self.outbox_relay.sink = ReviewDispatchSink(self.stage_review, self.outbox_relay.sink)
 
     @property
     def capability(self) -> MathTutorController:
@@ -474,6 +511,10 @@ class ProductState:
                 uow=self.uow,
             )
             self._data_lifecycle = lifecycle
+            lifecycle.knowledge = self.knowledge
+            # D2: deletion must remove the document's conversation bindings
+            # too, so the binding table cannot outlive the document it names.
+            lifecycle.conversations = self.conversations
         return lifecycle
 
     def _relay_wake(self) -> None:
@@ -490,7 +531,7 @@ class ProductState:
     async def admit_request(self) -> bool:
         """Admit one HTTP/WebSocket request unless restore owns the gate."""
         async with self._maintenance_condition:
-            if self._maintenance_active:
+            if self._maintenance_active or self.lifecycle_status != "RUNNING":
                 return False
             self._active_requests += 1
             return True
@@ -508,7 +549,7 @@ class ProductState:
         closed without touching the database.
         """
         async with self._maintenance_condition:
-            if self._maintenance_active:
+            if self._maintenance_active or self.lifecycle_status != "RUNNING":
                 return False
             self._maintenance_active = True
             try:
@@ -530,74 +571,98 @@ class ProductState:
             self._maintenance_condition.notify_all()
 
     async def shutdown_runtime(self) -> None:
-        """Stop the resident background runtime (relay loop + backup
-        scheduler), then checkpoint the WAL and dispose every engine.
-        Graceful and bounded (5s per stop); idempotent.
+        """Join one owned cleanup task, including when the caller is cancelled."""
+        if self.lifecycle_status == "STOPPED":
+            return
+        if self._shutdown_task is None or self._shutdown_task.done():
+            self._shutdown_restore = self._maintenance_active and self.lifecycle_status == "RUNNING"
+            self.lifecycle_status = "STOPPING"
+            self._maintenance_active = True
+            self._shutdown_task = asyncio.create_task(self._shutdown_owned(), name="product-shutdown")
+        task = self._shutdown_task
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            # Cancellation of the caller must not abandon connection cleanup.
+            await asyncio.shield(task)
+            from mathtutor.infrastructure.lifecycle_trace import trace
+            trace(id(self), "caller_cancellation_complete")
+            raise
 
-        Called by the app factory's shutdown event AND first by the backup
-        restore orchestration (spec 5.8: the write runtime must be stopped
-        and no live connection may hold the database file before it is
-        replaced — the checkpoint + dispose here guarantees no active
-        ``-wal``/``-shm`` remains).
-        """
+    async def _shutdown_owned(self) -> None:
         import sqlalchemy as sa
+        from mathtutor.infrastructure.lifecycle_trace import trace
 
-        relay = getattr(self, "outbox_relay", None)
-        if relay is not None:
-            await relay.stop(timeout=5.0)
-        scheduler = getattr(self, "backup_scheduler", None)
-        if scheduler is not None and scheduler.is_running:
-            await scheduler.stop(timeout=5.0)
+        errors = []
+        async def stage(name, action):
+            trace(id(self), name + "_begin")
+            try:
+                await action()
+            except BaseException as error:
+                errors.append(error)
+                trace(id(self), name + "_failed", error=error)
+            else:
+                trace(id(self), name + "_complete")
+
+        restore = self._shutdown_restore
+        self.lifecycle_status = "STOPPING"
+        self._maintenance_active = True
+        trace(id(self), "shutdown_begin")
+        async def drain():
+            async with self._maintenance_condition:
+                await asyncio.wait_for(self._maintenance_condition.wait_for(
+                    lambda: self._active_requests <= (1 if restore else 0)), timeout=5.0)
+        await stage("requests", drain)
+        for name in ("outbox_relay", "backup_scheduler"):
+            service = getattr(self, name, None)
+            if service is not None:
+                await stage(name, lambda service=service: service.stop(timeout=5.0))
+        backup = getattr(self, "backup_service", None)
+        if backup is not None:
+            await stage("backup_workers", backup.shutdown)
         worker_shutdown = getattr(self.verification_backend, "shutdown", None)
         if worker_shutdown is not None:
-            await worker_shutdown()
+            trace(id(self), "owned_verifier",
+                  verifier_pid=getattr(getattr(self.verification_backend, "_process", None), "pid", None))
+            await stage("verifier", worker_shutdown)
         uow = getattr(self, "uow", None)
-        checkpoint_complete = False
-        if uow is not None:
-            try:
-                async with uow.engine.connect() as conn:
-                    result = await conn.execute(
-                        sa.text("PRAGMA wal_checkpoint(TRUNCATE)")
-                    )
-                    row = result.first()
-                    if row is None or int(row[0]) != 0:
-                        raise RuntimeError(
-                            f"SQLite WAL checkpoint remained busy: {row!r}"
-                        )
-                    checkpoint_complete = True
-            except Exception:
-                # Restore must never proceed after a best-effort checkpoint:
-                # deleting/replacing the main DB while WAL pages may remain
-                # would risk losing committed data.  App shutdown callers also
-                # receive the failure instead of a false clean-stop claim.
-                await uow.engine.dispose()
-                raise
-            # ``await dispose()`` (not the sync call) — it actually closes
-            # the aiosqlite connections, which is what removes -wal/-shm.
-            await uow.engine.dispose()
-        store_engine = getattr(self.store, "engine", None)
-        if store_engine is not None and store_engine is not uow.engine:
-            await store_engine.dispose()
-        if checkpoint_complete and self.db_path is not None:
-            # SQLite can leave an empty/stale shared-memory sidecar briefly
-            # after the final pooled connection closes.  Once checkpoint is
-            # confirmed and every owned engine is disposed, WAL/SHM are
-            # derived files and may be removed.  Retry briefly to catch a
-            # delayed aiosqlite thread close; recreation means an undisposed
-            # connection and therefore fails closed.
-            sidecars = tuple(
-                Path(f"{self.db_path}{suffix}") for suffix in ("-wal", "-shm")
-            )
-            for _ in range(10):
-                for sidecar in sidecars:
-                    sidecar.unlink(missing_ok=True)
-                await asyncio.sleep(0.02)
-                if not any(sidecar.exists() for sidecar in sidecars):
-                    break
-            else:
-                raise RuntimeError(
-                    "SQLite WAL/SHM sidecars reappeared after runtime shutdown"
-                )
+        engines = []
+        for engine in (getattr(uow, "engine", None), getattr(self.store, "engine", None)):
+            if engine is not None and engine not in engines:
+                engines.append(engine)
+        trace(id(self), "owned_resources", engines=[id(engine) for engine in engines],
+              verifier_pid=getattr(getattr(self.verification_backend, "_process", None), "pid", None))
+        for engine in engines:
+            async def close_engine(engine=engine):
+                if getattr(engine.pool, "checkedout", lambda: 0)():
+                    raise RuntimeError("Database owners still have checked-out connections")
+                # Do not checkpoint while an earlier stage may still own work.
+                if not errors:
+                    async with engine.connect() as conn:
+                        row = (await conn.execute(sa.text("PRAGMA wal_checkpoint(TRUNCATE)"))).first()
+                        if row is None or int(row[0]) != 0:
+                            raise RuntimeError("SQLite checkpoint still has active owners")
+            await stage("checkpoint", close_engine)
+            async def dispose(engine=engine):
+                if getattr(engine.pool, "checkedout", lambda: 0)():
+                    raise RuntimeError("Cannot dispose while sessions still own connections")
+                await engine.dispose()
+            await stage("dispose", dispose)
+        # SQLite owns sidecar deletion. Presence after close is evidence that
+        # replacement is unsafe; it is never permission to unlink live files.
+        if self.db_path is not None and any(
+            Path(f"{self.db_path}{suffix}").exists() for suffix in ("-wal", "-shm")
+        ):
+            error = RuntimeError("Database owners or sidecars remain after shutdown")
+            errors.append(error)
+            trace(id(self), "sidecars_remain", error=error)
+        if errors:
+            self.lifecycle_status = "FAILED"
+            self.shutdown_errors = tuple(errors)
+            trace(id(self), "shutdown_failed", error=errors[0])
+            raise errors[0]
+        self.lifecycle_status = "STOPPED"
+        trace(id(self), "shutdown_complete")
 
     def _build_context_assembler(self, engine) -> ContextAssembler:
         """Wire the six sources; SQLite-backed education loaders when the
@@ -642,8 +707,12 @@ class ProductState:
                 RetrievalSource.PERSONAL_MEMORY: PersonalMemorySourceProvider(
                     self.memory_repository
                 ),
+                # F1: the structured path uses the SAME orchestrator as the
+                # chat and knowledge paths. The provider is now only a
+                # projection from the resulting EvidencePack and holds no
+                # retrieval logic of its own.
                 RetrievalSource.USER_DOCUMENTS: UserDocumentsSourceProvider(
-                    self.document_index
+                    orchestrator=self.retrieval_orchestrator
                 ),
             }
         )

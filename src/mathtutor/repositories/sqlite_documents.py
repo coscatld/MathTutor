@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Any, Sequence
 from uuid import UUID
 
-from sqlalchemy import or_, select, text
+from sqlalchemy import or_, select, text, bindparam
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from mathtutor.domain.documents import (
@@ -86,6 +86,8 @@ def _document_from_row(row: Any) -> UserDocument:
         status=row.status,
         size_bytes=int(row.size_bytes),
         parser_version=row.parser_version or "",
+        parser_id=getattr(row, "parser_id", None) or "",
+        classification=getattr(row, "classification", None) or "",
         is_global=bool(getattr(row, "is_global", False)),
         retrieval_enabled=bool(row.retrieval_enabled),
         parse_error=row.parse_error or "",
@@ -137,6 +139,8 @@ def _build_from_row(row: Any) -> IndexBuildRecord:
         embedding_dimension=int(row.embedding_dimension),
         chunker_version=row.chunker_version,
         parser_version=row.parser_version,
+        embedding_normalization=getattr(row, "embedding_normalization", None) or "",
+        embedding_runtime_version=getattr(row, "embedding_runtime_version", None) or "",
         built_at=_parse_dt(row.built_at) or datetime.now(timezone.utc),
     )
 
@@ -158,6 +162,8 @@ async def insert_user_document(
             status=doc.status,
             size_bytes=doc.size_bytes,
             parser_version=doc.parser_version,
+            parser_id=doc.parser_id,
+            classification=doc.classification,
             is_global=1 if doc.is_global else 0,
             retrieval_enabled=1 if doc.retrieval_enabled else 0,
             parse_error=doc.parse_error,
@@ -231,6 +237,8 @@ async def update_user_document(
             mime_type=doc.mime_type,
             status=doc.status,
             parser_version=doc.parser_version,
+            parser_id=doc.parser_id,
+            classification=doc.classification,
             is_global=1 if doc.is_global else 0,
             retrieval_enabled=1 if doc.retrieval_enabled else 0,
             parse_error=doc.parse_error,
@@ -311,7 +319,9 @@ async def replace_document_chunks(
                 fts_text=_stored_fts_text(chunk),
             )
         )
-    await sync_document_chunks_fts(conn)
+    # Scope the FTS sync to THIS document: a full rebuild would rewrite every
+    # other document's FTS rows on the interactive import path.
+    await sync_document_chunks_fts(conn, document_id=str(document_id))
 
 
 async def list_document_chunks(
@@ -323,6 +333,87 @@ async def list_document_chunks(
             document_chunks.c.document_id == str(document_id),
             document_chunks.c.student_id == student_id,
         )
+        .order_by(document_chunks.c.sequence)
+    )
+    rows = (await conn.execute(stmt)).all()
+    return [_chunk_from_row(row) for row in rows]
+
+
+async def list_retrievable_chunks(
+    conn: AsyncConnection, *, student_id: str, document_id: UUID
+) -> list[DocumentChunk]:
+    """Chunks of ONE document behind the same gate search uses.
+
+    Reuses the exact ``doc_where`` predicate of
+    :func:`search_document_chunks` (owner + retrieval_enabled + not deleted
+    + retrievable status) so a caller that skipped its own pre-filter still
+    cannot read a disabled, soft-deleted or needs_ocr document.
+    """
+    doc_where = (
+        (user_documents.c.student_id == student_id)
+        & (user_documents.c.retrieval_enabled == 1)
+        & (user_documents.c.deleted_at.is_(None))
+        & (user_documents.c.status.in_(tuple(RETRIEVABLE_DOCUMENT_STATUSES)))
+        & (user_documents.c.document_id == str(document_id))
+    )
+    visible = select(user_documents.c.document_id).where(doc_where).subquery()
+    stmt = (
+        select(document_chunks)
+        .join(visible, document_chunks.c.document_id == visible.c.document_id)
+        .where(document_chunks.c.student_id == student_id)
+        .order_by(document_chunks.c.sequence)
+    )
+    rows = (await conn.execute(stmt)).all()
+    return [_chunk_from_row(row) for row in rows]
+
+
+async def list_chunk_neighbourhood(
+    conn: AsyncConnection,
+    *,
+    student_id: str,
+    document_id: UUID,
+    sequence_start: int,
+    sequence_end: int,
+    chunk_ids: Sequence[UUID] = (),
+) -> list[DocumentChunk]:
+    """Chunks of ONE document within a ``sequence`` window OR by explicit id.
+
+    ``chunk_ids`` exists for parent resolution: a parent's sequence is not
+    derivable from the child, and reading the whole document to find it would
+    turn a bounded expansion into a full-document read. The visibility gate
+    below applies to both selectors — a parent is not implicitly readable
+    because its child was.
+
+    Adjacency is resolved from ``(document_id, sequence)`` at read time rather
+    than from persisted prev/next columns: ``document_chunks`` already carries
+    ``UNIQUE(document_id, sequence)``, so an extra pair of columns would buy
+    nothing and cost a migration plus a backfill to keep correct.
+
+    Carries the same visibility gate as :func:`search_document_chunks` —
+    context expansion must not become the way a disabled document's text
+    reaches a prompt.
+    """
+    if sequence_end < sequence_start:
+        return []
+    doc_where = (
+        (user_documents.c.student_id == student_id)
+        & (user_documents.c.retrieval_enabled == 1)
+        & (user_documents.c.deleted_at.is_(None))
+        & (user_documents.c.status.in_(tuple(RETRIEVABLE_DOCUMENT_STATUSES)))
+        & (user_documents.c.document_id == str(document_id))
+    )
+    visible = select(user_documents.c.document_id).where(doc_where).subquery()
+    within = (document_chunks.c.sequence >= sequence_start) & (
+        document_chunks.c.sequence <= sequence_end
+    )
+    if chunk_ids:
+        selector = or_(within, document_chunks.c.chunk_id.in_([str(c) for c in chunk_ids]))
+    else:
+        selector = within
+    stmt = (
+        select(document_chunks)
+        .join(visible, document_chunks.c.document_id == visible.c.document_id)
+        .where(document_chunks.c.student_id == student_id, selector)
         .order_by(document_chunks.c.sequence)
     )
     rows = (await conn.execute(stmt)).all()
@@ -422,6 +513,8 @@ async def record_index_build(
         embedding_dimension=record.embedding_dimension,
         chunker_version=record.chunker_version,
         parser_version=record.parser_version,
+        embedding_normalization=record.embedding_normalization,
+        embedding_runtime_version=record.embedding_runtime_version,
         built_at=_now(),
     )
     await conn.execute(document_index_builds.delete().where(
@@ -454,8 +547,9 @@ async def search_document_chunks(
     fine for the local desktop MVP; a future retrieval-infrastructure
     round may add an ANN index behind the same contract).
     """
-    tokens = list(query_tokens) or fts_query_tokens(query)
-    fts_tokens = fts_query_tokens(query) or tokens
+    fts_tokens = fts_query_tokens(query)
+    tokens = list(query_tokens) or fts_tokens
+    fts_tokens = fts_tokens or tokens
     match = fts_match_query(fts_tokens)
 
     doc_where = (
@@ -477,7 +571,8 @@ async def search_document_chunks(
     fts_ranks: dict[UUID, float] = {}
     used_fts = False
     if vector is None and match:
-        used_fts = await _fts_candidate_ids(conn, student_id, match, fts_ranks)
+        permitted_ids = list((await conn.execute(select(user_documents.c.document_id).where(doc_where))).scalars())
+        used_fts = await _fts_candidate_ids(conn, student_id, match, fts_ranks, permitted_ids)
     chunk_stmt = (
         select(document_chunks, visible.c.filename)
         .join(visible, document_chunks.c.document_id == visible.c.document_id)
@@ -578,18 +673,21 @@ async def _fts_candidate_ids(
     student_id: str,
     match: str,
     fts_ranks: dict[UUID, float],
+    document_ids: Sequence[str],
 ) -> bool:
     """Fill ``fts_ranks`` from FTS5. True when the FTS table was queried."""
     if not match or not await ensure_document_chunks_fts(conn):
         return False
+    if not document_ids:
+        return True
     try:
         result = await conn.execute(
             text(
                 f"SELECT chunk_id, bm25({FTS_TABLE}) AS fts_rank "
                 f"FROM {FTS_TABLE} "
-                f"WHERE {FTS_TABLE} MATCH :match AND student_id = :sid"
-            ),
-            {"match": match, "sid": student_id},
+                f"WHERE student_id = :sid AND document_id IN :doc_ids AND {FTS_TABLE} MATCH :match"
+            ).bindparams(bindparam("doc_ids", expanding=True)),
+            {"match": match, "sid": student_id, "doc_ids": list(document_ids)},
         )
     except Exception:
         return False
@@ -606,7 +704,9 @@ __all__ = [
     "get_chunk_vectors",
     "get_index_build",
     "insert_user_document",
+    "list_chunk_neighbourhood",
     "list_document_chunks",
+    "list_retrievable_chunks",
     "list_user_documents",
     "record_index_build",
     "replace_chunk_vectors",

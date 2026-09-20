@@ -125,11 +125,12 @@ async def test_repeated_same_answer_is_retained_but_not_extra_independent_eviden
     first = await attempt(service, "first", response_fingerprint="correct-answer")
     repeated = await attempt(service, "repeated", response_fingerprint="correct-answer")
     assert wrong.independent_target and not first.independent_target
+    assert first.prior_task_attempt
     assert repeated.duplicate_response and not repeated.independent_target
     rows = await service.events("alice")
     assert len(rows) == 3  # All physical attempts are still auditable.
     summary = await service.summary("alice")
-    assert summary["skills"][0]["independent"] == {"correct": 1, "incorrect": 1}
+    assert summary["skills"][0]["independent"] == {"correct": 0, "incorrect": 1}
     assert summary["totals"]["duplicate_responses"] == 1
     new_task = await service.record_attempt("alice", **context(problem_revision="new-task"),
         assessment_id="new", attempt_id="new", correctness="correct", response_fingerprint="correct-answer")

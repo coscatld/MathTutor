@@ -54,9 +54,11 @@ def run_migrations_online() -> None:
     from sqlalchemy import create_engine
 
     engine = create_engine(_database_url(), future=True)
-    with engine.connect() as connection:
-        do_run_migrations(connection)
-    engine.dispose()
+    try:
+        with engine.connect() as connection:
+            do_run_migrations(connection)
+    finally:
+        engine.dispose()
 
 
 if context.is_offline_mode():

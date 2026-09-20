@@ -170,6 +170,29 @@ class BackupService:
         self._engine = engine or create_db_engine()
         #: History of manifests created by this service instance.
         self.manifests: list[BackupManifest] = []
+        self._owned_workers: set[asyncio.Task] = set()
+        self._closing = False
+
+    async def _run_owned(self, function, *args):
+        if self._closing:
+            raise RuntimeError("Backup service is shutting down")
+        task = asyncio.create_task(asyncio.to_thread(function, *args))
+        self._owned_workers.add(task)
+        try:
+            return await asyncio.shield(task)
+        finally:
+            if task.done():
+                self._owned_workers.discard(task)
+
+    async def shutdown(self):
+        self._closing = True
+        if self._owned_workers:
+            done, pending = await asyncio.wait(self._owned_workers, timeout=5.0)
+            self._owned_workers.difference_update(done)
+            for task in done:
+                task.result()
+            if pending:
+                raise RuntimeError("Backup workers still own database connections")
 
     # ------------------------------------------------------------ backup
 
@@ -208,7 +231,7 @@ class BackupService:
                 f"源数据库完整性检查未通过（{integrity!r}），拒绝备份"
             )
 
-        await asyncio.to_thread(self._vacuum_into, path)
+        await self._run_owned(self._vacuum_into, path)
         if not path.is_file() or path.stat().st_size == 0:
             raise BackupError(f"备份文件未生成或为空: {path}")
 
@@ -756,16 +779,21 @@ class BackupScheduler:
             raise
         except Exception:  # noqa: BLE001 - shutdown must never hang
             logger.exception("backup scheduler exited with an error")
+            raise
         self._task = None
 
     @staticmethod
     async def _await_cancelled(task: asyncio.Task[Any]) -> None:
+        _, pending = await asyncio.wait({task}, timeout=5.0)
+        if pending:
+            raise RuntimeError("Owned background task did not finish cancellation")
         try:
             await task
         except asyncio.CancelledError:
             pass
         except Exception:  # noqa: BLE001 - teardown must not raise
             logger.exception("backup scheduler raised during force-cancel")
+            raise
 
 
 def _backup_dir_of(service: BackupService) -> Path:

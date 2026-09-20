@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 import pytest
 from test_tutor_p0 import client_at, send
 from mathtutor.api.product_state import get_product_state
@@ -26,7 +27,7 @@ def test_trash_retains_messages_restart_restore_and_blocks_stale_urls(tmp_path):
         with client.websocket_connect(BASE + "/ws") as ws:
             frames = send(ws, "send_message", "stale", {"text": "不得写入"}, session="A")
         assert any(f["payload"].get("error_code") == "CONVERSATION_DELETED" for f in frames)
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             assert conn.execute("select count(*) from conversation_messages where conversation_id='A'").fetchone()[0] == 1
     with client_at(db) as client:
         assert [r["conversation_id"] for r in client.get(BASE + "/trash").json()] == ["A"]
@@ -66,7 +67,7 @@ def test_permanent_delete_exclusive_attachments_but_retain_shared_and_global(tmp
         assert client.get(BASE + f"/desktop/documents/{docs[0]}").status_code == 404
         for doc in docs[1:]:
             assert client.get(BASE + f"/desktop/documents/{doc}").status_code == 200
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             assert conn.execute("select count(*) from conversation_messages where conversation_id='A'").fetchone()[0] == 0
             assert conn.execute("select count(*) from conversation_documents where conversation_id='A'").fetchone()[0] == 0
             assert conn.execute("select count(*) from document_chunks where document_id=?", (docs[0],)).fetchone()[0] == 0

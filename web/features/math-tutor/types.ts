@@ -123,11 +123,18 @@ export interface TeachingPlan {
 }
 
 export interface ProblemContext {
+  choices?: ChoiceSet | null;
   problem_id: string;
   display_text: string;
   skill_ids: string[];
   lifecycle: string;
   current_subgoal: { id: string; prompt_target: string; status: string } | null;
+}
+
+export interface ChoiceSet {
+  format: "single_choice";
+  version: string;
+  options: { id: string; text: string }[];
 }
 
 export interface EvidenceSummary {

@@ -35,6 +35,8 @@ async def enrich_offer(state, practice, sid, offer, public, *, history, feedback
     reason = "生成时的学习依据已不可用。"
     if basis:
         reason = "根据这道题的作答记录，换题检查独立完成情况。" if basis.reason_code == "parent_attempt" else "围绕当前题目安排一次相关练习。"
+        if basis.initial_assessment_run_id:
+            reason += "难度参考初评练习起点，并结合后续首次独立作答调整。"
     public.update({"purpose": purpose, "title": PURPOSE_LABELS.get(purpose, "相关练习"),
         "reason": reason,
         "observation_goal": "观察新题是否能独立完成，以及哪些步骤仍需帮助。",

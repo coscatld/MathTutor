@@ -558,6 +558,10 @@ user_documents = Table(
     Column("status", String(32), nullable=False),
     Column("size_bytes", Integer, nullable=False),
     Column("parser_version", Text, nullable=False, default=""),
+    # Which parser produced the text (pymupdf | pypdf | mineru | text), and what
+    # was observed about the text layer. '' = imported before migration 021.
+    Column("parser_id", String(16), nullable=False, server_default=""),
+    Column("classification", String(32), nullable=False, server_default=""),
     Column("is_global", Integer, nullable=False, server_default="0"),
     Column("retrieval_enabled", Integer, nullable=False, default=1),
     Column("parse_error", Text, nullable=False, default=""),
@@ -623,6 +627,11 @@ document_index_builds = Table(
     Column("embedding_dimension", Integer, nullable=False),
     Column("chunker_version", Text, nullable=False),
     Column("parser_version", Text, nullable=False),
+    # D4: normalization and runtime_version are part of the vector-signature
+    # contract (EmbeddingDescriptor carries both) but were never persisted, so
+    # a normalization change could not mark an index stale.
+    Column("embedding_normalization", String(32), nullable=False, server_default=""),
+    Column("embedding_runtime_version", String(64), nullable=False, server_default=""),
     Column("built_at", Text, nullable=False),
 )
 
@@ -697,3 +706,9 @@ from mathtutor.learning.knowledge_tracing.schema import metadata as _tracking_me
 for _tracking_table in _tracking_metadata.sorted_tables:
     globals()[_tracking_table.name] = _tracking_table.to_metadata(metadata)
     __all__.append(_tracking_table.name)
+
+from mathtutor.infrastructure.knowledge_schema import metadata as _knowledge_metadata
+
+for _knowledge_table in _knowledge_metadata.sorted_tables:
+    globals()[_knowledge_table.name] = _knowledge_table.to_metadata(metadata)
+    __all__.append(_knowledge_table.name)

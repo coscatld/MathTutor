@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import closing
 import json
 import hashlib
 import sqlite3
@@ -85,7 +86,7 @@ def _submit_solved_problem(client, text: str, answer: str, session_id: str) -> N
 
 
 def _cycle_count(db_file: Path) -> int:
-    with sqlite3.connect(str(db_file)) as conn:
+    with closing(sqlite3.connect(str(db_file))) as conn:
         return int(conn.execute("SELECT COUNT(*) FROM tutoring_cycles").fetchone()[0])
 
 

@@ -155,6 +155,8 @@ class AdaptivePracticeService:
         # lazily at call time to avoid a module cycle with practice_release
         # (which imports CandidateExercise from THIS module).
         self._release_service = release_service
+        self.initial_assessment = None
+        self.student_state = None
 
     async def generate_candidates(
         self,
@@ -189,8 +191,28 @@ class AdaptivePracticeService:
             desired_difficulty=self._desired_difficulty,
         )
         from mathtutor.application.practice_policy import MAX_CANDIDATES, select_difficulty
+        if self.student_state:
+            # Choice observations inform the RULE, not the free-response DKT loss.
+            from mathtutor.learning.knowledge_tracing.events import valid_events
+            from mathtutor.learning.skills import skill_for_problem_type
+            first = []
+            for event in valid_events(await self.student_state.events(student_id)):
+                if (event.event_type == "attempt_assessed" and event.evidence_kind == "independent"
+                        and event.correctness in {"correct", "incorrect"} and event.completion_scope == "full_problem"
+                        and event.task_purpose not in {"diagnostic", "error_analysis"}
+                        and not (event.provenance_uncertain or event.duplicate_response or event.prior_task_attempt
+                                 or event.target_answer_exposed_before_attempt)):
+                    try:
+                        family = skill_for_problem_type(event.item_family_id)
+                    except ValueError:
+                        continue
+                    first.append(AttemptSummaryEntry(skill_id=family, correctness=event.correctness,
+                        effective_assistance_level=0, attempt_index=1, created_at=event.occurred_at,
+                        problem_id=event.problem_revision))
+            context = context.model_copy(update={"recent_attempt_summary": tuple(first)})
+        initial = await self.initial_assessment.starting_difficulty(student_id, target_skill_ids) if self.initial_assessment else None
         difficulty, _ = select_difficulty(context, purpose=purpose,
-            baseline=current_difficulty or self._desired_difficulty, requested=requested_difficulty)
+            baseline=current_difficulty or initial or self._desired_difficulty, requested=requested_difficulty)
         context = context.model_copy(update={
             "desired_difficulty": difficulty, "practice_purpose": purpose,
             "excluded_problem_statements": tuple(excluded_problem_statements),
@@ -288,11 +310,14 @@ class AdaptivePracticeService:
             raise PracticeOfferError(str(exc)) from exc
         repository = self._release_service.repository
         from mathtutor.domain.practice_recommendation import RecommendationBasis
+        placement = await self.initial_assessment.read(student_id) if self.initial_assessment else None
         resolved_revision = target_revision or content_hash({"problem": problem_text, "skills": targets})
         basis = RecommendationBasis(
             history_cutoff_seq=history_cutoff_seq, evidence_ids=tuple(dict.fromkeys(evidence_ids)),
             target_revision=resolved_revision, target_skill_ids=targets, purpose=purpose,
             reason_code="parent_attempt" if evidence_ids else "related_task",
+            initial_assessment_run_id=placement["run_id"] if placement and placement["status"] == "completed" else None,
+            initial_assessment_policy=placement["policy_version"] if placement and placement["status"] == "completed" else None,
         ) if history_cutoff_seq is not None else None
         recommendation = PracticeRecommendation(
             student_id=student_uuid(student_id), parent_cycle_id=parent_cycle_id,
@@ -332,8 +357,11 @@ class AdaptivePracticeService:
                 try:
                     chain = await self._release_service.release_candidate(
                         candidate, source_type=source_type_for_generated_by(candidate.generated_by))
+                    from mathtutor.application.multiple_choice import make_choices
+                    make_choices(chain.problem, chain.candidate, salt=str(chain.release.release_id))
                     break
-                except ReleaseDeniedError:
+                except (ReleaseDeniedError, ValueError):
+                    chain = None
                     continue
             if chain is None:
                 raise PracticeOfferError("候选预算内没有通过技能匹配、去重与验证的练习；原题结果保持不变，可重试")

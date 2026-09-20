@@ -1,4 +1,14 @@
-"""LexicalScoreReranker — deterministic, model-free local reranker.
+"""DEPRECATED (Route 2, docs/CURRENT_STATE_RAG_AUDIT.md §4.3).
+
+Superseded by ``application/rerank.py::ProductionReranker``, which ranks
+real ``RetrievedChunk`` objects. This implementation reads
+``getattr(candidate, "text", "")`` — empty for a ``RetrievedChunk``, whose
+text lives at ``.chunk.text`` — so it scored every real hit zero. That is
+exactly why the production path needed a reranker written against the real
+contract rather than an adapter to this one.
+
+No production callers. Do NOT wire into a production path.
+LexicalScoreReranker — deterministic, model-free local reranker.
 
 Phase 6 第二轮检索基础设施。实现 :mod:`mathtutor.application
 .retrieval_router` 中声明的 ``Reranker`` Protocol（直接 import 该

@@ -1,0 +1,2 @@
+# Regression fixture hashes must identify the same bytes on Windows and Unix.
+tests/fixtures/** text eol=lf

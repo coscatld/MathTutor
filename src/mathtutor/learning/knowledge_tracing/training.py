@@ -36,6 +36,8 @@ def build_model(vocabulary, *, hidden_size=64, embedding_size=64):
             return self.prediction(torch.cat([state[0].reshape(-1), item])).reshape(())
 
         def update(self, state, event):
+            if event.event_type == "attempt_submitted":
+                return state
             value = torch.tanh(self.event_projection(torch.from_numpy(vocabulary.event(event))))
             return self.lstm(value.reshape(1, 1, -1), state)[1]
 

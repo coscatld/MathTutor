@@ -1,4 +1,16 @@
-"""Metadata-first retrieval router (Phase 6 §9.2) — resolver, not a store.
+"""DEPRECATED (Route 2, docs/CURRENT_STATE_RAG_AUDIT.md §4.3).
+
+``MetadataFirstRetriever`` / ``RetrievalItem`` / ``RetrievedResult`` have
+ZERO production callers: the only importers are ``tests/`` and
+``scripts/math_tutor_rc_benchmark.py``. The production retrieval kernel is
+``DocumentIndexManager.search``, orchestrated by
+``application/retrieval_orchestrator.py`` on top of real ``RetrievedChunk``
+objects. ``NoOpReranker`` is superseded by ``application/rerank.py``.
+
+Kept (not deleted) because ``tests/test_phase6_retrieval*.py`` still
+exercise it and the deletion gate in the requirements allows a documented
+DEPRECATED REMAINING. Do NOT wire any of this into a production path.
+Metadata-first retrieval router (Phase 6 §9.2) — resolver, not a store.
 
 The retrieval pipeline is:
 

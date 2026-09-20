@@ -9,10 +9,11 @@ degradation is the DEFAULT and stays tested).
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import text
 
 from mathtutor.application.desktop_files import PickedFile
 from mathtutor.application.document_ingestion import (
@@ -314,7 +315,7 @@ async def test_mixed_pdf_ready_with_warnings(service):
     assert doc.page_count == 3
     assert doc.empty_page_count == 2
     assert doc.chunk_count >= 1
-    assert "无文字" in doc.parse_warning
+    assert "无可提取文字层" in doc.parse_warning
     assert doc.is_retrievable() is True
     result = await service._index.search(_STUDENT_A, query="quadratic")
     assert len(result.hits) >= 1
@@ -629,3 +630,68 @@ async def test_sqlite_fts_formula_and_example_number(db, tmp_path: Path):
     assert len(formula.hits) >= 1
     numbered = await svc._index.search(_STUDENT_A, query="例1")
     assert len(numbered.hits) >= 1
+
+
+# ------------------------------------------------ FTS write amplification (D5)
+
+
+@pytest_asyncio.fixture()
+async def sqlite_service(tmp_path):
+    from mathtutor.infrastructure.db import create_db_engine
+    from mathtutor.infrastructure.migrate import upgrade_db
+    from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
+
+    db_file = tmp_path / "fts.db"
+    upgrade_db(str(db_file))
+    engine = create_db_engine(db_file)
+    repository = SQLiteDocumentRepository(engine)
+    service = DocumentIngestionService(
+        repository=repository, storage=DocumentStorage(tmp_path / "data")
+    )
+    yield service, repository, engine
+    await engine.dispose()
+
+
+async def test_fts_sync_is_document_scoped_not_whole_table(sqlite_service):
+    """Importing one document must not rewrite every other document's FTS rows.
+
+    Proven with a sentinel: a row written straight into the FTS table for a
+    DIFFERENT document survives a write to the first one. A whole-table
+    rebuild (delete-all + reinsert) would erase it.
+    """
+    from mathtutor.infrastructure.document_fts import FTS_TABLE
+
+    service, _repository, engine = sqlite_service
+    # Different bytes on purpose: identical content deduplicates to ONE
+    # document (owner + content_hash), which would make the sentinel target
+    # the same document being rewritten.
+    first = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="甲.txt", mime_type="text/plain",
+                   data="甲文档的独有内容：一元一次方程。".encode("utf-8")),
+    )
+    second = await service.ingest(
+        _STUDENT_A,
+        PickedFile(filename="乙.txt", mime_type="text/plain",
+                   data="乙文档的独有内容：一元二次方程。".encode("utf-8")),
+    )
+    assert first.document_id != second.document_id
+
+    sentinel = "sentinel-" + str(uuid4())
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                f"INSERT INTO {FTS_TABLE}(chunk_id, student_id, document_id, fts_text) "
+                "VALUES (:cid, :sid, :did, :body)"
+            ).bindparams(cid=sentinel, sid="sentinel-owner",
+                         did=str(second.document_id), body="哨兵内容 sentinel"),
+        )
+
+    # Re-parse the FIRST document — this rewrites its chunks and resyncs FTS.
+    await service.reparse(_STUDENT_A, first.document_id)
+
+    async with engine.connect() as conn:
+        rows = (await conn.execute(
+            text(f"SELECT COUNT(*) FROM {FTS_TABLE} WHERE chunk_id = :cid").bindparams(cid=sentinel)
+        )).scalar()
+    assert rows == 1, "the FTS table was rebuilt wholesale instead of per document"

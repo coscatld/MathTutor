@@ -27,7 +27,7 @@ Import invariants:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Sequence
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -49,7 +49,53 @@ RETRIEVABLE_DOCUMENT_STATUSES: frozenset[str] = frozenset(
     {"ready", "ready_with_warnings"}
 )
 
-ParseMode = Literal["text_layer", "empty", "mixed"]
+# ``recovered_external`` marks text that did NOT come from the PDF's own text
+# layer — it was produced by the optional external recovery adapter (MinerU).
+# Labelling such text ``text_layer`` would tell the user and telemetry that the
+# page always had selectable text.
+ParseMode = Literal["text_layer", "empty", "mixed", "recovered_external"]
+
+# Which parser actually produced this document's text. Recorded per document
+# because the shipped runtime does NOT provide PyMuPDF (see
+# docs/CURRENT_STATE_RAG_AUDIT.md §6.1): a document ingested on a machine with
+# PyMuPDF gets headings/tables/figures, one ingested without it cannot. Without
+# this column the degradation is invisible after the fact.
+ParserId = Literal["", "pymupdf", "pypdf", "mineru", "text"]
+
+# Per-page extractability. This is a statement about the TEXT LAYER only.
+#
+# NO_EXTRACTABLE_TEXT is deliberately NOT named "SCAN": a parser that extracts
+# no text cannot distinguish a scanned page from a blank page, a figure-only
+# page, a page drawn entirely with vector art, a page whose font the parser
+# cannot decode, or a genuinely scanned page. Only image-coverage analysis or a
+# real page classifier could make that claim, and this build has neither.
+PageTextLayer = Literal["TEXT_LAYER", "NO_EXTRACTABLE_TEXT"]
+
+# Document-level classification, derived from per-page facts or from the parse
+# failure that ended the attempt. Names state what was OBSERVED, not a guess
+# about why. A UI may render NO_TEXT_LAYER_PDF as "可能需要 OCR"; the data
+# model does not assert it.
+DocumentClassification = Literal[
+    "TEXT_PDF",                # every page yielded extractable text
+    "MIXED_TEXT_LAYER_PDF",    # some pages yielded text, some did not
+    "NO_TEXT_LAYER_PDF",       # no page yielded extractable text
+    "ENCRYPTED_PDF",           # password-protected; needs a key before parsing
+    "CORRUPTED_PDF",           # structurally broken; the parser could not read it
+    "TEXT_FILE",               # .txt / .md / .markdown / .tex — no page model
+]
+
+
+class DocumentParseError(Exception):
+    """Parsing failed for a *classified* reason.
+
+    ``ingest`` maps this onto ``status="failed"`` plus the recorded
+    classification, so an encrypted or corrupted upload is distinguishable
+    from a generic failure instead of collapsing into one message.
+    """
+
+    def __init__(self, classification: str, message: str) -> None:
+        super().__init__(message)
+        self.classification = classification
 
 # Lean parse IR (not a full math-role taxonomy). Chunking still reads
 # page/section/text; extra fields travel with the block for later stages.
@@ -100,12 +146,36 @@ class ParsedBlock(BaseModel):
     ocr_text: str | None = None
 
 
+class PdfPageProfile(BaseModel):
+    """Per-page extractability of one PDF page's text layer.
+
+    Carries ONLY the facts a baseline parser can prove. Fields such as
+    ``text_blocks``, ``image_count``, ``image_coverage`` or ``font_size`` are
+    deliberately absent: the shipped runtime parses PDFs with pypdf, which
+    cannot produce them (docs/CURRENT_STATE_RAG_AUDIT.md §6.1). An optional
+    rich parser may fill ``image_count`` when present; nothing may fabricate it.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    page_number: int = Field(ge=1)
+    extractable_text_chars: int = Field(ge=0, default=0)
+    text_layer: PageTextLayer = "NO_EXTRACTABLE_TEXT"
+    # Only populated by a rich parser (PyMuPDF). ``None`` means "not measured",
+    # never "zero images".
+    image_count: int | None = None
+
+    @property
+    def has_extractable_text(self) -> bool:
+        return self.text_layer == "TEXT_LAYER"
+
+
 class ParsedTextDocument(BaseModel):
     """Parser output: extracted text blocks plus extractability stats.
 
-    Parsing never executes files and never runs OCR. Empty pages of a
-    scanned PDF contribute to ``empty_pages`` / ``parse_mode`` rather than
-    to ``blocks`` (chunking is unchanged).
+    Parsing never executes files and never runs OCR. A page with no
+    extractable text contributes to ``empty_pages`` / ``parse_mode`` rather
+    than to ``blocks`` (chunking is unchanged).
     """
 
     model_config = ConfigDict(frozen=True)
@@ -118,9 +188,28 @@ class ParsedTextDocument(BaseModel):
     parse_mode: ParseMode = "empty"
     parse_warning: str = ""
     image_count: int = Field(ge=0, default=0)
+    pages: tuple[PdfPageProfile, ...] = ()
+    classification: DocumentClassification = "TEXT_FILE"
+    parser_id: ParserId = ""
 
     def full_text(self) -> str:
         return "\n".join(block.text for block in self.blocks)
+
+
+def classify_pdf(pages: Sequence[PdfPageProfile]) -> DocumentClassification:
+    """Classify a PDF from per-page text-layer facts only.
+
+    States only what was observed: how many pages yielded extractable text.
+    It does NOT claim any page is a scan — see :data:`PageTextLayer`.
+    """
+    if not pages:
+        return "NO_TEXT_LAYER_PDF"
+    with_text = sum(1 for page in pages if page.has_extractable_text)
+    if with_text == 0:
+        return "NO_TEXT_LAYER_PDF"
+    if with_text == len(pages):
+        return "TEXT_PDF"
+    return "MIXED_TEXT_LAYER_PDF"
 
 
 class UserDocument(BaseModel):
@@ -137,6 +226,12 @@ class UserDocument(BaseModel):
     status: DocumentStatus = "importing"
     size_bytes: int = Field(ge=0)
     parser_version: str = ""
+    # Which parser produced the text, and what was observed about the text
+    # layer. Both are per-document history: a document ingested on a runtime
+    # with PyMuPDF carries headings/tables, one ingested without it cannot, and
+    # neither fact is recoverable later from the bytes alone.
+    parser_id: ParserId = ""
+    classification: DocumentClassification = "TEXT_FILE"
     is_global: bool = False  # Explicit owner-local sharing across conversations.
     retrieval_enabled: bool = True
     parse_error: str = ""
@@ -244,6 +339,11 @@ class IndexBuildRecord(BaseModel):
     embedding_dimension: int = Field(ge=1)
     chunker_version: str
     parser_version: str
+    # D4: part of the descriptor's own signature. Empty means "recorded before
+    # this field existed" and is treated as a mismatch, so an old row rebuilds
+    # once rather than silently claiming currency.
+    embedding_normalization: str = ""
+    embedding_runtime_version: str = ""
     built_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def matches_signature(
@@ -258,6 +358,10 @@ class IndexBuildRecord(BaseModel):
             and self.embedding_model_id == descriptor.model_id
             and self.embedding_model_version == descriptor.model_version
             and self.embedding_dimension == descriptor.dimension
+            # D4: a normalization or runtime change alters the vectors for the
+            # same text, so it must invalidate the index like any other term.
+            and self.embedding_normalization == descriptor.normalization
+            and self.embedding_runtime_version == (descriptor.runtime_version or "")
             and self.chunker_version == chunker_version
             and self.parser_version == parser_version
         )
@@ -268,15 +372,21 @@ __all__ = [
     "ALLOWED_DOCUMENT_MIME_TYPES",
     "DOCUMENT_RETENTION_DELETE_IMMEDIATELY",
     "DocumentChunk",
+    "DocumentClassification",
+    "DocumentParseError",
     "DocumentQueryResult",
     "DocumentStatus",
     "IndexBuildRecord",
     "MAX_DOCUMENT_BYTES",
+    "PageTextLayer",
     "ParseMode",
     "ParsedBlock",
     "ParsedElementType",
     "ParsedTextDocument",
+    "ParserId",
+    "PdfPageProfile",
     "RETRIEVABLE_DOCUMENT_STATUSES",
     "RetrievedChunk",
     "UserDocument",
+    "classify_pdf",
 ]

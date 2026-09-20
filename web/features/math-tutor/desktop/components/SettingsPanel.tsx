@@ -441,6 +441,7 @@ export default function SettingsPanel({
       } : current);
       setMessage({ kind: "ok", text: currentPreset.local ? "Ollama 设置已保存。" : currentPreset.custom ? "自定义模型已保存并生效。" : "模型设置已保存并生效。" });
       toast({ title: "模型设置已保存", description: "Tutor 将在下一轮请求中使用这套配置。" });
+      if (result.initial_assessment_required) window.location.assign("/onboarding/assessment");
     } catch (err) {
       setMessage({
         kind: "error",

@@ -6,6 +6,7 @@ the assessment by passing its connection. Delivery never means comprehension.
 from copy import deepcopy
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
+import anyio
 
 from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert
@@ -22,8 +23,25 @@ class TeachingRepository:
         if conn is not None:
             yield conn
         elif self.engine is not None:
-            async with self.engine.begin() as opened:
+            transaction = self.engine.begin()
+            opened = await transaction.__aenter__()
+            try:
                 yield opened
+            except BaseException as original:
+                # ASGI disconnect uses level cancellation: every unshielded
+                # await can be cancelled again, including rollback/close.
+                from mathtutor.infrastructure.lifecycle_trace import trace
+                trace(id(self.engine), "transaction_cancel_or_error", error=original)
+                try:
+                    with anyio.fail_after(5, shield=True):
+                        await transaction.__aexit__(type(original), original, original.__traceback__)
+                except BaseException as cleanup_error:
+                    trace(id(self.engine), "transaction_cleanup_failed", error=cleanup_error)
+                    raise original from cleanup_error
+                raise
+            else:
+                with anyio.fail_after(5, shield=True):
+                    await transaction.__aexit__(None, None, None)
         else:
             yield None
 

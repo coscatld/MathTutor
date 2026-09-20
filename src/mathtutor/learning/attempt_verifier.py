@@ -194,6 +194,17 @@ def verify_attempt(
             **base,
         )
 
+    if parsed_answer.kind == "root_values":
+        base["policy_version"] = "mt-attempt-root-set-v1"
+        if problem.problem_type not in {"linear", "quadratic"}:
+            return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",), **base)
+        variable = _problem_variable(problem_ast)
+        expected = _roots_as_fractions(_expected_roots(problem_ast, problem.problem_type, variable))
+        claimed = tuple(sorted(set(parsed_answer.root_values)))
+        if set(claimed) == set(expected):
+            return AttemptAssessment(correctness=Correctness.CORRECT, score=1.0,
+                verified_claims=({"claim": "complete_root_set", "roots": [c.frac_to_dict(r) for r in claimed]},), **base)
+        return _judge_claimed_root_values(claimed, expected, base)
     if problem.problem_type == "arithmetic":
         return _verify_arithmetic(problem_ast, parsed_answer, base)
     if problem.problem_type == "polynomial":

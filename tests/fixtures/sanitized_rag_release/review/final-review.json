@@ -1,0 +1,429 @@
+{
+  "version": "0.4.1",
+  "human_review_status": "PENDING",
+  "reference_status": "PROVISIONAL",
+  "original_atomic_review_summary": {
+    "answer_count": 14,
+    "claim_count": 57,
+    "faithfulness_macro": 0.5201530612244898,
+    "faithfulness_min": 0.0,
+    "content_coverage_macro": 0.5714285714285714,
+    "task_complete": 6,
+    "task_denominator": 14,
+    "citation_links": 12,
+    "formal_acceptance": "INSUFFICIENT_EVIDENCE",
+    "development_quality": "FAIL"
+  },
+  "expressions": [
+    {
+      "case_id": "easy:canonical_term",
+      "final_answer": "你问的是核心概念，直接看定义就好。\n\n一元一次方程：**只含有一个未知数，并且未知数的次数是 1 的整式方程**。\n\n拆开看有三个要点：\n- 只有一个未知数，比如 \\(x\\)；\n- 未知数的最高次数是 1，不能出现 \\(x^2\\)；\n- 必须是整式方程，未知数不能出现在分母里。\n\n对照几个例子：\n- \\(3x+5=11\\) 是一元一次方程；\n- \\(2x^2-1=0\\) 不是，因为次数是 2；\n- \\(\\dfrac{1}{x}=4\\) 不是，因为未知数在分母上，它不是整式方程。\n\n【一次方程.md·片段#1】\n\n那再想一个小问题：\\(5x-2=3x+6\\) 算不算一元一次方程？判断时你会先看哪一点？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        32
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "定义三个条件及3x+5=11、二次和分式反例正确；末尾提问未冒充结论。",
+      "citation_labels": [
+        "【一次方程.md·片段#1】"
+      ],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:spoken_variant",
+      "final_answer": "可以的，这正是等式基本性质的一部分：等式两边同时加上或减去同一个数，等式仍然成立。所以“同时减同一个数”完全没问题。\n\n比如 \\(x+3=7\\)，两边同时减 \\(3\\)，得到 \\(x=4\\)。\n\n顺便问一下：如果方程是 \\(2x=6\\)，两边同时减 \\(2\\) 能得到 \\(x=2\\) 吗？你可以先想一想，再说说你的判断。",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        33
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "同减性质及x+3=7到x=4正确；2x=6减2得x=2以疑问题提出，不作错误断言。",
+      "citation_labels": [],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:transposition",
+      "final_answer": "要的，移项必须变号。\n\n道理来自等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。比如\n\n\\[\nx + 3 = 7\n\\]\n\n两边同时减去 \\(3\\)：\n\n\\[\nx + 3 - 3 = 7 - 3\n\\]\n\n左边剩下 \\(x\\)，右边是 \\(4\\)，所以 \\(x = 4\\)。写成移项的样子，就是把 \\(+3\\) 从左边移到右边，变成 \\(-3\\)：\n\n\\[\nx = 7 - 3\n\\]\n\n所以规则是：**从等式一边移到另一边，符号要反过来**，加变减、减变加。\n\n那再想一个小问题：如果方程是 \\(5x = 2x + 6\\)，把右边的 \\(2x\\) 移到左边，应该写成什么？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        34
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "移项推导和符号正确，最后提问未作答。",
+      "citation_labels": [],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:formula",
+      "final_answer": "你写出的这个式子正是**一元二次方程的求根公式**，方向完全正确。\n\n它适用于一般形式\n\n\\[\nax^2+bx+c=0 \\quad (a\\neq 0)\n\\]\n\n其中 \\(a\\) 是二次项系数，\\(b\\) 是一次项系数，\\(c\\) 是常数项。代入公式：\n\n\\[\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n\\]\n\n这里的 \\(\\pm\\) 表示两个根：一个取加号，一个取减号。\n\n根号里的部分\n\n\\[\n\\Delta=b^2-4ac\n\\]\n\n叫做**判别式**，它决定根的个数：\n\n- \\(\\Delta>0\\)：两个不相等的实根；\n- \\(\\Delta=0\\)：两个相等的实根；\n- \\(\\Delta<0\\)：没有实根。\n\n这些内容与资料【二次方程.md·片段#2】一致。\n\n一个小问题帮你检查理解：如果方程是\n\n\\[\nx^2-5x+6=0\n\\]\n\n那么 \\(a,b,c\\) 分别等于多少？先别急着算根，只把 \\(a,b,c\\) 找出来看看。",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        35
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "一般形式、a≠0、求根式、Δ实根分类正确；±两根需连同后文重根/实根限制阅读。",
+      "citation_labels": [
+        "【二次方程.md·片段#2】"
+      ],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:discriminant",
+      "final_answer": "你抓住了关键点：判别式确实决定根的个数。先把它写清楚：\n\n对一元二次方程 \\(ax^2+bx+c=0\\)（\\(a\\neq 0\\)），判别式\n\n\\[\n\\Delta=b^2-4ac\n\\]\n\n它出现在求根公式\n\n\\[\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n\\]\n\n的根号里，所以根号内的正负直接决定有没有实数根、有几个【二次方程.md·片段#2】。\n\n三种情况：\n\n- \\(\\Delta>0\\)：根号内是正数，\\(\\pm\\) 给出两个不同的值，所以有两个不相等的实根。\n- \\(\\Delta=0\\)：根号部分为 \\(0\\)，两个根重合，所以有两个相等的实根（也可以说只有一个实根）。\n- \\(\\Delta<0\\)：负数在实数范围内不能开平方，所以没有实根。\n\n举个快速判断的例子：\\(x^2-3x+2=0\\)，\\(\\Delta=9-8=1>0\\)，因此有两个不等实根。\n\n那我想顺着问你一个小问题：如果 \\(\\Delta=0\\)，方程 \\(x^2-4x+4=0\\) 的两个根具体是多少？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        36
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "完整交付；Δ三种情况正确；只有一个实根指一个不同实根，已解释重合。",
+      "citation_labels": [
+        "【二次方程.md·片段#2】"
+      ],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:commutative",
+      "final_answer": "你说得对，这正是**加法交换律**：两个数相加，交换加数的位置，和不变。\n\n用字母表示就是：\n\n\\[\na + b = b + a\n\\]\n\n比如 \\(3 + 5 = 8\\)，交换后 \\(5 + 3 = 8\\)，结果一样。\n\n顺便提一句，容易和它混的是**结合律**：结合律改变的是运算顺序，比如 \\((a+b)+c = a+(b+c)\\)；而交换律改变的是加数的位置。\n\n那如果换成三个数相加，比如 \\(2+7+3\\)，你觉得可以怎样交换位置让计算更省力呢？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        37
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "交换律、结合律区别、算术例子正确。",
+      "citation_labels": [],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:associative",
+      "final_answer": "你问的正是关键点：加法结合律说的是“三个数相加时，先加前两个还是先加后两个，结果不变”。\n\n字母表示是：\n\n\\[\n(a+b)+c=a+(b+c)\n\\]\n\n比如 \\((2+3)+4=5+4=9\\)，而 \\(2+(3+4)=2+7=9\\)，两边相等。\n\n这里有个容易混的地方：结合律改变的是**运算顺序**，交换律改变的是**数的位置**。那你能说说 \\(a+b=b+a\\) 属于哪一条吗？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        38
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "字母表示、两种分组算术均为9，区别正确。",
+      "citation_labels": [],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:cross_topic",
+      "final_answer": "你这个问题问得很到位——很多人解完分式方程就直接写答案，忽略了检验这一步。\n\n原因在于：**去分母这个操作，可能\"凭空造出\"原本不存在的根。**\n\n具体来说，解分式方程时，我们会在等式两边同乘最简公分母。但分母不能为零，所以乘的这个整式在某些 \\(x\\) 取值下可能等于 0。而\"等式两边同乘 0\"是没有意义的操作，这一步就把范围悄悄放大了。\n\n举个例子：\n\n\\[\n\\frac{1}{x-1} = \\frac{2}{x-1}\n\\]\n\n两边同乘 \\(x-1\\)，得到 \\(1 = 2\\)，无解。但如果方程是\n\n\\[\n\\frac{x}{x-1} = \\frac{1}{x-1}\n\\]\n\n两边同乘 \\(x-1\\) 得 \\(x = 1\\)。可 \\(x=1\\) 代回原方程，分母 \\(x-1=0\\)，原式根本没意义。这个 \\(x=1\\) 就是去分母过程中\"混进来\"的**增根**。\n\n所以检验的做法是：把求出的根代回**原方程**（或至少看它是否让原分母为 0），分母为 0 的就舍去。\n\n【分式笔记.md·片段#2】里也强调了这一点：去分母可能产生增根，解完必须代回原方程检验。\n\n顺带对比一下：解整式方程（比如一次方程）去分母时，乘的是具体数字，不会为零，所以一般不需要这种检验。\n\n那我想问你一个小问题：如果去分母后解出的根，代回原方程时分母不为 0，这个根就一定保留吗？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        39
+      ],
+      "mathematics": "FAIL",
+      "entire_prose_review": "‘等式两边同乘0是没有意义的操作’错误：同乘0有定义且保持已成立的等式，但不保留逆向等价；本题真正问题是分式定义域限制。两个例题算式正确不能抵消该正文错误。",
+      "citation_labels": [
+        "【分式笔记.md·片段#2】"
+      ],
+      "task_completion": "FAIL_MATH",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "easy:mixed_cjk_latex",
+      "final_answer": "你说得对，这正是关键前提。\n\n一元二次方程的一般形式是\n\n\\[\nax^2+bx+c=0 \\quad (a\\neq 0)\n\\]\n\n为什么 \\(a\\) 不能为零？因为如果 \\(a=0\\)，式子就变成\n\n\\[\nbx+c=0\n\\]\n\n这时 \\(x^2\\) 项消失了，方程不再是“二次”，而是一次方程（当 \\(b\\neq 0\\) 时）。所以规定 \\(a\\neq 0\\)，是为了保证方程确实含有二次项，才叫一元二次方程。\n\n这个前提在后面的求根公式里也很重要：\n\n\\[\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n\\]\n\n分母里有 \\(2a\\)，如果 \\(a=0\\)，分母就为零，公式也就没有意义了。\n\n顺便问一个小问题：如果 \\(a=0\\) 且 \\(b=0\\)，方程 \\(ax^2+bx+c=0\\) 会变成什么样子？这时还有解吗？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        40
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "本次明确一次方程须b≠0；公式分母非零正确，b=c=0作为开放问题而非断言。",
+      "citation_labels": [],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "hard:Q01",
+      "final_answer": "判别式的定义是：\n\n\\[\n\\Delta = b^2 - 4ac\n\\]\n\n它适用于**一元二次方程的一般形式**：\n\n\\[\nax^2 + bx + c = 0 \\quad (a \\neq 0)\n\\]\n\n也就是说，只有当方程确实是一元二次方程、即二次项系数 \\(a \\neq 0\\) 时，才能用这个判别式来判断实数根的个数。【判别式.md·片段#2】\n\n需要特别注意：如果 \\(a = 0\\)，方程就退化成一次方程，处理方式会随之改变，不能直接套用判别式。【判别式.md·片段#2】\n\n你能否试着说出：当 \\(\\Delta > 0\\)、\\(\\Delta = 0\\)、\\(\\Delta < 0\\) 时，方程分别有几个实数根？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        41
+      ],
+      "mathematics": "FAIL",
+      "entire_prose_review": "正文‘a=0则退化成一次方程’漏b≠0；原始hard语料也有此错误，因此可能忠于证据但数学错误。",
+      "citation_labels": [
+        "【判别式.md·片段#2】",
+        "【判别式.md·片段#2】"
+      ],
+      "task_completion": "FAIL_MATH",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "hard:Q02",
+      "final_answer": "你问的这道题正好是资料里给出的例题，我按步骤讲一遍。\n\n解方程 \\(2x+3=7\\)：\n\n1. 两边同时减去 3：\n\\[\n2x+3-3=7-3\n\\]\n得\n\\[\n2x=4\n\\]\n这一步的依据是等式的基本性质：等式两边同时减去同一个数，等式仍然成立。【例题.md·片段#2】\n\n2. 两边同时除以 2：\n\\[\n\\frac{2x}{2}=\\frac{4}{2}\n\\]\n得\n\\[\nx=2\n\\]\n这一步的依据是等式两边同时除以同一个不为零的数，等式仍然成立。【例题.md·片段#2】\n\n所以方程的解是 \\(x=2\\)。\n\n代入检验：\\(2\\times 2+3=4+3=7\\)，与右边相等，解正确。\n\n顺便提一句，这里用到的“把一项从一边移到另一边并改变符号”，就是移项，它的依据同样是等式的基本性质。【一元一次方程.md·片段#2】\n\n那我想问你一个小问题：如果题目换成 \\(2x-3=7\\)，第一步你会怎么做？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        42
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "完整减3、除2步骤、非零条件、代入检验正确。",
+      "citation_labels": [
+        "【例题.md·片段#2】",
+        "【例题.md·片段#2】",
+        "【一元一次方程.md·片段#2】"
+      ],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "hard:Q03",
+      "final_answer": "完全平方公式展开后，中间项是**两数乘积的两倍**。\n\n具体写出来：\n\n\\[\n(a+b)^2 = a^2 + 2ab + b^2\n\\]\n\n\\[\n(a-b)^2 = a^2 - 2ab + b^2\n\\]\n\n首项 \\(a^2\\)、末项 \\(b^2\\) 分别是两数的平方，中间项就是 \\(2ab\\)（或 \\(-2ab\\)）。这里的关键是别漏掉系数 2，符号则跟着括号里的加减号走【完全平方公式.md·片段#2】。\n\n顺着这个思路想一想：如果展开 \\((x+3)^2\\)，中间项应该是多少？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        43
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "和差平方式及中间项正负条件完整。",
+      "citation_labels": [
+        "【完全平方公式.md·片段#2】"
+      ],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "hard:Q04",
+      "final_answer": "完全平方公式展开后，中间那一项是**两个数乘积的两倍**。\n\n具体写出来就是：\n\n\\[\n(a+b)^2=a^2+2ab+b^2\n\\]\n\n\\[\n(a-b)^2=a^2-2ab+b^2\n\\]\n\n也就是说，中间项是 \\(2ab\\)，符号跟着括号里的符号走：加号对应 \\(+2ab\\)，减号对应 \\(-2ab\\)。\n\n你可以这样记：首平方、尾平方，中间是首尾乘积的两倍。\n\n顺便问一个小问题帮你确认理解：\\((x+3)^2\\) 展开后，中间那一项应该是多少？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        44
+      ],
+      "mathematics": "NO_ERROR_FOUND",
+      "entire_prose_review": "和差平方式与符号说明一致，末尾为练习问题。",
+      "citation_labels": [],
+      "task_completion": "COMPLETE_PROVISIONAL",
+      "human_review_status": "PENDING"
+    },
+    {
+      "case_id": "hard:Q05",
+      "final_answer": "你问的是很关键的一点：为什么一元二次方程要强调 \\(a \\neq 0\\)。\n\n因为“二次”这个名称，本质上是由最高次项决定的。方程\n\n\\[\nax^2+bx+c=0\n\\]\n\n里，\\(x^2\\) 这一项只有在 \\(a \\neq 0\\) 时才真正存在。如果 \\(a=0\\)，那么 \\(ax^2\\) 就变成 \\(0\\)，方程实际变成\n\n\\[\nbx+c=0\n\\]\n\n这已经是一次方程，不再是二次方程了。\n\n所以 \\(a \\neq 0\\) 不是额外限制，而是保证它仍然是“一元二次方程”的前提。也正因为如此，后面像判别式\n\n\\[\n\\Delta=b^2-4ac\n\\]\n\n韦达定理\n\n\\[\nx_1+x_2=-\\frac ba,\\qquad x_1x_2=\\frac ca\n\\]\n\n以及求根公式，都默认 \\(a \\neq 0\\)。如果 \\(a=0\\)，这些公式里会出现除以 \\(a\\) 的问题，方法也要换成解一元一次方程。\n\n可以这样记：  \n**看一个方程是不是一元二次方程，先看二次项系数是不是不为零。**\n\n那如果题目给出的是 \\(ax^2+bx+c=0\\)，但没有说明 \\(a \\neq 0\\)，你会先讨论哪种情况呢？",
+      "delivery": "NATURAL_STOP",
+      "request_record_ids": [
+        45
+      ],
+      "mathematics": "FAIL",
+      "entire_prose_review": "漏b≠0的一次方程断言；把判别式与除以a的公式一并说成‘这些公式里会出现除以a’也不严谨，Δ=b²-4ac本身不除a。",
+      "citation_labels": [],
+      "task_completion": "FAIL_MATH",
+      "human_review_status": "PENDING"
+    }
+  ],
+  "degenerate": [
+    {
+      "case_id": "degenerate:a0",
+      "final_answer": "你这个问题抓得很准：关键就在于 \\(a=0\\) 时，方程会“降级”，不能再叫二次方程了。我们按三种情况看。\n\n原式是\n\n\\[\nax^2+bx+c=0\n\\]\n\n当 \\(a=0\\) 时，二次项消失，方程变成\n\n\\[\nbx+c=0\n\\]\n\n所以它是不是一次方程，要看 \\(b\\)。\n\n**1. \\(b\\neq 0\\)**\n\n此时方程是\n\n\\[\nbx+c=0\n\\]\n\n这是一个标准的一元一次方程，解为\n\n\\[\nx=-\\frac{c}{b}\n\\]\n\n解集是\n\n\\[\n\\left\\{-\\frac{c}{b}\\right\\}\n\\]\n\n**2. \\(b=0\\) 且 \\(c\\neq 0\\)**\n\n方程变成\n\n\\[\n0\\cdot x+c=0\n\\]\n\n也就是\n\n\\[\nc=0\n\\]\n\n但已知 \\(c\\neq 0\\)，矛盾，所以无解。\n\n解集是空集：\n\n\\[\n\\varnothing\n\\]\n\n**3. \\(b=0\\) 且 \\(c=0\\)**\n\n方程变成\n\n\\[\n0=0\n\\]\n\n这对任意 \\(x\\) 都成立，所以解集是所有实数：\n\n\\[\n\\mathbb{R}\n\\]\n\n补充一句：第 3 种情况通常不叫“一次方程”，因为未知数实际上没有约束；第 2 种也不是一次方程，而是无解的矛盾等式。只有第 1 种，在 \\(a=0\\) 且 \\(b\\neq 0\\) 时，才是一元一次方程。\n\n那我想问你一个小问题：如果 \\(a\\neq 0\\)，但 \\(b=0\\)、\\(c=0\\)，方程 \\(ax^2=0\\) 的解集是什么？它和上面第 3 种情况有什么本质区别？",
+      "request_record_ids": [
+        71
+      ],
+      "delivery": "NATURAL_STOP",
+      "math_correctness": "NO_ERROR_FOUND",
+      "prose_completion": "COMPLETE",
+      "entire_prose_review": "b≠0为一次且x=-c/b；b=0,c≠0矛盾无解；b=c=0恒等且R，正文全部区分正确。",
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL"
+    },
+    {
+      "case_id": "degenerate:b0",
+      "final_answer": "你这个问题问得很到位：\\(b=0\\) 时形式变了，但“身份”没变，只是更特殊了。\n\n## 它仍然是二次方程\n\n一元二次方程的一般形式是\n\n\\[\nax^2+bx+c=0,\\quad a\\neq 0\n\\]\n\n判断是不是二次方程，只看最高次项是不是 \\(x^2\\)，也就是只看 \\(a\\neq 0\\)。所以当 \\(b=0\\) 时，方程写成\n\n\\[\nax^2+c=0\n\\]\n\n它依然是一元二次方程，只是缺少了一次项，属于“不完全的二次方程”。【二次方程.md·片段#1】\n\n## 解的情况\n\n由 \\(ax^2+c=0\\) 移项得\n\n\\[\nax^2=-c\n\\]\n\n因为 \\(a\\neq 0\\)，两边同除以 \\(a\\)：\n\n\\[\nx^2=-\\frac{c}{a}\n\\]\n\n接下来就看 \\(-\\frac{c}{a}\\) 的符号。\n\n**1. 当 \\(-\\frac{c}{a}>0\\) 时**\n\n右边是正数，可以开平方，得到两个互为相反数的实根：\n\n\\[\nx=\\pm\\sqrt{-\\frac{c}{a}}\n\\]\n\n例如 \\(x^2=4\\)，根是 \\(x=2\\) 和 \\(x=-2\\)。\n\n**2. 当 \\(-\\frac{c}{a}=0\\) 时**\n\n方程变成 \\(x^2=0\\)，只有一个实根：\n\n\\[\nx=0\n\\]\n\n这种情况通常说“有两个相等的实根”，也就是重根。\n\n**3. 当 \\(-\\frac{c}{a}<0\\) 时**\n\n右边是负数。在实数范围内任何数的平方都不小于 0，所以没有实根。\n\n## 用判别式看也一样\n\n判别式 \\(\\Delta=b^2-4ac\\)，当 \\(b=0\\) 时：\n\n\\[\n\\Delta=-4ac\n\\]\n\n- \\(\\Delta>0\\) 即 \\(-4ac>0\\)，也就是 \\(-\\frac{c}{a}>0\\)：两个不等实根；\n- \\(\\Delta=0\\) 即 \\(-\\frac{c}{a}=0\\)：两个相等实根；\n- \\(\\Delta<0\\) 即 \\(-\\frac{c}{a}<0\\)：无实根。\n\n这和上面的结论完全一致。【二次方程.md·片段#2】\n\n小结一下：\\(b=0\\) 不改变它是二次方程，只让求根变得简单刚才讲完了 \\(b=0\\) 时的三种情况，还差一个容易忽略的点：这三种情况其实对应抛物线与 \\(x\\) 轴的位置关系。\n\n## 从图像看\n\n函数 \\(y=ax^2+c\\) 的图像是一条抛物线，对称轴是 \\(y\\) 轴（因为一次项为 0）。方程 \\(ax^2+c=0\\) 的根，就是抛物线与 \\(x\\) 轴交点的横坐标。\n\n- \\(-\\frac{c}{a}>0\\)：抛物线与 \\(x\\) 轴有两个交点，对应两个不等实根；\n- \\(-\\frac{c}{a}=0\\)：抛物线顶点恰好落在 \\(x\\) 轴上，只有一个交点，对应重根；\n- \\(-\\frac{c}{a}<0\\)：抛物线与 \\(x\\) 轴没有交点，对应无实根。\n\n## 一个常见误区\n\n有同学看到 \\(b=0\\)，就以为“这不是二次方程了”。要记住：决定次数的只有 \\(a\\neq 0\\) 这一条，\\(b\\) 或 \\(c\\) 等于 0 只是让方程更简单，不会降次。\n\n## 检验一下\n\n如果题目给的是 \\(2x^2-8=0\\)，你能判断它属于上面哪一种情况，并写出根吗？",
+      "request_record_ids": [
+        72,
+        73
+      ],
+      "delivery": "NATURAL_STOP",
+      "math_correctness": "NO_ERROR_FOUND",
+      "prose_completion": "DEFECT_AT_CONTINUATION_JOIN",
+      "entire_prose_review": "a≠0所以仍二次；-c/a三种符号、重根及图像说明正确；续写接缝‘简单刚才’破坏句子，交付正文有瑕疵。",
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL"
+    },
+    {
+      "case_id": "degenerate:c0",
+      "final_answer": "你这个问题抓得很准，正好把二次方程里两种“退化”情形放在一起比较。先看一般形式：\n\n\\[\nax^2+bx+c=0,\\quad a\\neq 0\n\\]\n\n## 当 \\(c=0\\) 时\n\n方程变成\n\n\\[\nax^2+bx=0\n\\]\n\n两项都含 \\(x\\)，直接提取公因式：\n\n\\[\nx(ax+b)=0\n\\]\n\n这就是因式分解的结果。两个因式相乘为 0，说明至少有一个为 0：\n\n\\[\nx=0 \\quad \\text{或} \\quad ax+b=0\n\\]\n\n第二个式子解得 \\(x=-\\dfrac{b}{a}\\)。所以实根是\n\n\\[\nx_1=0,\\qquad x_2=-\\frac{b}{a}\n\\]\n\n这里 \\(a\\neq 0\\)，所以 \\(-\\frac{b}{a}\\) 一定有意义，两个根都是实数。用判别式看也一致：\\(\\Delta=b^2-4ac=b^2\\ge 0\\)，一定有实根；只有当 \\(b=0\\) 时两根重合。\n\n## 当 \\(b=0\\) 时\n\n这时方程是\n\n\\[\nax^2+c=0\n\\]\n\n注意它和上面是**不同**的情形，不能套用“提取 \\(x\\)”那一步，因为现在没有一次项了。移项得\n\n\\[\nax^2=-c \\quad\\Rightarrow\\quad x^2=-\\frac{c}{a}\n\\]\n\n接下来要看 \\(-\\dfrac{c}{a}\\) 的符号：\n\n- 若 \\(-\\dfrac{c}{a}>0\\)，即 \\(a\\) 与 \\(c\\) 异号，则有两个互为相反数的实根：\n\n\\[\nx=\\pm\\sqrt{-\\frac{c}{a}}\n\\]\n\n- 若 \\(-\\dfrac{c}{a}=0\\)，即 \\(c=0\\)，则 \\(x^2=0\\)，只有一个（二重）实根 \\(x=0\\)。\n- 若 \\(-\\dfrac{c}{a}<0\\)，即 \\(a\\) 与 \\(c\\) 同号，则 \\(x^2\\) 等于负数，在实数范围内无解。\n\n## 两种情况的关系\n\n如果 \\(b=0\\) **且** \\(c=0\\)，方程就是 \\(ax^2=0\\)，只有 \\(x=0\\) 一个根——这既是“\\(c=0\\) 时两根重合”的特例接着上面 \\(b=0\\) 且 \\(c=0\\) 的特例说：此时 \\(x_1=x_2=0\\)，两个根重合，所以通常说“有一个二重实根”，而不是“两个不同的根”。\n\n把两种情形对照一下，关键区别在于**有没有一次项**：\n\n- \\(c=0,\\ b\\neq 0\\)：有 \\(x\\) 项，能提公因式，根是 \\(0\\) 和 \\(-\\dfrac{b}{a}\\)，一正一负（或一零一非零），一定有两个不同实根。\n- \\(b=0,\\ c\\neq 0\\)：没有一次项，只能靠开平方，根是 \\(\\pm\\sqrt{-\\dfrac{c}{a}}\\)，要么两个相反数，要么无实根，取决于 \\(a,c\\) 是否异号。\n- \\(b=0,\\ c=0\\)：只剩 \\(ax^2=0\\)，唯一根 \\(x=0\\)。\n\n再补一句判别式的统一视角：\\(\\Delta=b^2-4ac\\)。\n\n- 当 \\(c=0\\) 时 \\(\\Delta=b^2\\)，只要 \\(b\\neq 0\\) 就 \\(\\Delta>0\\)，两个不等实根；\\(b=0\\) 时 \\(\\Delta=0\\)，二重根。\n- 当 \\(b=0,\\ c\\neq 0\\) 时 \\(\\Delta=-4ac\\)，异号则 \\(\\Delta>0\\) 有两实根，同号则 \\(\\Delta<0\\) 无实根。\n\n这样，因式分解、开平方、判别式三条线索给出的结论是一致的。\n\n留一个小问题给你想：如果 \\(a=1,\\ c=-4,\\ b=0\\)，方程 \\(x^2-4=0\\) 的根是什么？它属于上面哪一种情形？",
+      "request_record_ids": [
+        74,
+        75
+      ],
+      "delivery": "NATURAL_STOP",
+      "math_correctness": "FAIL",
+      "prose_completion": "DEFECT_AT_CONTINUATION_JOIN",
+      "entire_prose_review": "初段x(ax+b)=0与根0,-b/a正确；续写称其‘一正一负（或一零一非零）’是矛盾断言，零不为正或负。取a=b=1,c=0得0,-1。另‘只能靠开平方’过强，结尾自行列出判别式方法。续写接缝亦不完整。",
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL"
+    }
+  ],
+  "knowledge": [
+    {
+      "case_id": "K1_summary",
+      "request_record_ids": [
+        63,
+        64,
+        65
+      ],
+      "actual_mount": {
+        "space_ids": [],
+        "only_selected": false,
+        "document_ids": [],
+        "mode": "knowledge",
+        "save_space_id": "",
+        "tool_mode": "native",
+        "hints_only": false
+      },
+      "final_answer": "**原文摘录**\n\n&#35; 移项依据\n移项的依据是等式的基本性质。等式两边同时加上或减去同一个数，等式仍然成立。把等式一边的某项移到另一边时，该项的符号改变。\n\n来源：[移项依据&#46;md · v1 · L1–2](/math-tutor/knowledge?conversation=K1_summary&source=2a4f304f-44ad-41a7-8f74-f5106f25cbf5&version=1&start=0&end=67)\n\n**AI 总结（已做证据覆盖检查，仍需核对）**\n\n用我自己的话说：移项之所以要变号，是因为移项并不是“把项搬过去”这种随意的操作，它的合法性来自等式的基本性质——等式两边同时加上或减去同一个数，等式仍然成立。所谓“把某项移到另一边”，实际做法是在等式两边同时减去（或加上）这一项：这一边被抵消掉，看起来像“移走了”；而另一边则多出了这一项的相反数，所以那一项在另一边出现时符号就反了。因此变号不是额外规定，而是“两边同加减同一个数”这一性质在操作上的必然结果。\n\n来源：[移项依据&#46;md · v1 · L1–2](/math-tutor/knowledge?conversation=K1_summary&source=2a4f304f-44ad-41a7-8f74-f5106f25cbf5&version=1&start=0&end=67)\n\n未确定事项：\n- 资料只给出结论性表述（依据是等式的基本性质、两边同加减同一个数等式仍成立、移项后符号改变），没有给出具体例题或逐步推导，因此上面“两边同时减去该项、另一边出现相反数”的展开属于我基于该性质的解释，而非资料原文。\n- 资料未说明移项在不等式中的情形（不等号方向是否改变），也未涉及乘除运算的移项，故这些内容无依据可引。\n- 本次检索为降级模式（embedding_runtime_unavailable），仅命中一篇资料，可能存在未被检索到的相关章节。",
+      "finish_reason": "FINAL_ANSWER",
+      "actual_tools": [
+        {
+          "name": "read_source",
+          "ok": true
+        }
+      ],
+      "support_checks": [
+        {
+          "event": "support_check",
+          "claims": [
+            {
+              "claim": "用我自己的话说：移项之所以要变号，是因为移项并不是“把项搬过去”这种随意的操作，它的合法性来自等式的基本性质——等式两边同时加上或减去同一个数，等式仍然成立。所谓“把某项移到另一边”，实际做法是在等式两边同时减去（或加上）这一项：这一边被抵消掉，看起来像“移走了”；而另一边则多出了这一项的相反数，所以那一项在另一边出现时符号就反了。因此变号不是额外规定，而是“两边同加减同一个数”这一性质在操作上的必然结果。",
+              "evidence": [
+                "# 移项依据\n移项的依据是等式的基本性质。等式两边同时加上或减去同一个数，等式仍然成立。把等式一边的某项移到另一边时，该项的符号改变。"
+              ]
+            }
+          ],
+          "result": true,
+          "request_record_ids": [
+            65
+          ]
+        }
+      ],
+      "agent_search_hops": [],
+      "direct_seed_read_without_search": true,
+      "contract_assessment": "PASS_PROVISIONAL",
+      "human_review_status": "PENDING",
+      "review": "总结与可读证据相符且检查实际发生；非人工数学认证。"
+    },
+    {
+      "case_id": "K2_quote",
+      "request_record_ids": [
+        66,
+        67
+      ],
+      "actual_mount": {
+        "space_ids": [],
+        "only_selected": false,
+        "document_ids": [],
+        "mode": "knowledge",
+        "save_space_id": "",
+        "tool_mode": "native",
+        "hints_only": false
+      },
+      "final_answer": "**原文摘录**\n\n移项的依据是等式的基本性质。等式两边同时加上或减去同一个数，等式仍然成立。把等式一边的某项移到另一边时，该项的符号改变。\n\n来源：[移项依据&#46;md · v1 · L1–2](/math-tutor/knowledge?conversation=K2_quote&source=2a4f304f-44ad-41a7-8f74-f5106f25cbf5&version=1&start=0&end=67)\n\n未确定事项：\n- 资料仅给出移项依据的结论性表述，未提供具体例题或推导过程。\n- 检索处于降级状态（embedding_runtime_unavailable），仅命中单一资料，未做跨资料比对。",
+      "finish_reason": "FINAL_ANSWER",
+      "actual_tools": [
+        {
+          "name": "read_source",
+          "ok": true
+        }
+      ],
+      "support_checks": [],
+      "agent_search_hops": [],
+      "direct_seed_read_without_search": true,
+      "contract_assessment": "PASS_PROVISIONAL",
+      "human_review_status": "PENDING",
+      "review": "逐字引用可回溯；quote无需support_check。"
+    },
+    {
+      "case_id": "K3_absent",
+      "request_record_ids": [
+        68,
+        69,
+        70
+      ],
+      "actual_mount": {
+        "space_ids": [],
+        "only_selected": false,
+        "document_ids": [],
+        "mode": "knowledge",
+        "save_space_id": "",
+        "tool_mode": "native",
+        "hints_only": false
+      },
+      "final_answer": "**原文摘录**\n\n&#35; 移项依据\n移项的依据是等式的基本性质。等式两边同时加上或减去同一个数，等式仍然成立。把等式一边的某项移到另一边时，该项的符号改变。\n\n来源：[移项依据&#46;md · v1 · L1–2](/math-tutor/knowledge?conversation=K3_absent&source=2a4f304f-44ad-41a7-8f74-f5106f25cbf5&version=1&start=0&end=67)\n\n未确定事项：\n- 已读取的《移项依据.md》全文（第1–2行，共67字符）只包含移项依据的数学内容，未出现任何作者姓名。\n- 资料中未出现任何出生日期信息。\n- 二次检索（作者/元数据相关查询）仅返回同一篇文档的同一区间，无额外作者或元数据来源。\n- 因此无法回答该资料的作者姓名与出生日期；如需该信息，请提供含作者/出版信息的资料或元数据来源。",
+      "finish_reason": "FINAL_ANSWER",
+      "actual_tools": [
+        {
+          "name": "read_source",
+          "ok": true
+        },
+        {
+          "name": "search_knowledge",
+          "ok": true
+        }
+      ],
+      "support_checks": [],
+      "agent_search_hops": [
+        {
+          "hop_index": 2,
+          "kind": "AGENT_SEARCH",
+          "result_count": 1,
+          "query_fingerprint": "f65486f215154a338b05c5dbc487c69e4e0065f633b699d3df84339ca77b5174"
+        }
+      ],
+      "direct_seed_read_without_search": true,
+      "contract_assessment": "PASS_PROVISIONAL",
+      "human_review_status": "PENDING",
+      "review": "真实补搜仍无作者信息，最终说明缺口，没有编造姓名日期。"
+    },
+    {
+      "case_id": "K4_hint",
+      "request_record_ids": [],
+      "actual_mount": {
+        "space_ids": [],
+        "only_selected": false,
+        "document_ids": [],
+        "mode": "knowledge",
+        "save_space_id": "",
+        "tool_mode": "native",
+        "hints_only": false
+      },
+      "final_answer": "当前为仅提示范围：先指出你卡住的定义或步骤，再尝试一个小步骤。本轮不读取可能含答案的资料，也不检验候选答案；已有练习请使用题目内的提示入口。",
+      "finish_reason": "FINAL_ANSWER",
+      "actual_tools": [],
+      "support_checks": [],
+      "agent_search_hops": [],
+      "direct_seed_read_without_search": false,
+      "contract_assessment": "PASS_PROVISIONAL",
+      "human_review_status": "PENDING",
+      "review": "提示边界在检索前生效，没有工具或模型调用。"
+    }
+  ],
+  "status": {
+    "real_calls": "COMPLETE_WITH_RETAINED_FAILURES",
+    "delivery_fix": "14/14 original expression cases delivered after thinking-only change",
+    "expression_coverage": 14,
+    "knowledge_model_cases": 3,
+    "knowledge_hint_gate_cases": 1,
+    "semantic_scoring": "SAVED_ORIGINAL_B_ATOMIC_REVIEW_COMPLETE_PROVISIONAL",
+    "development_quality": "FAIL",
+    "formal_acceptance": "INSUFFICIENT_EVIDENCE",
+    "remaining": "Mathematical prose errors; continuation joins; no human-calibrated labels/holdout/repeats"
+  },
+  "budget": {
+    "requests": 75,
+    "charged_tokens": 293690,
+    "request_limit": 120,
+    "token_limit": 300000,
+    "historical_charge": 169364,
+    "policy": "Old reservations never refunded; new complete usage settles reservation, unknown retains full reserve",
+    "new_requests": 51,
+    "new_known_usage": 124326,
+    "original_known_usage": 14656,
+    "original_unknown_usage_requests": 6,
+    "automatic_retries": 0,
+    "note": "All 169364 original reservations retained; new complete usage settles only new reservations; unknown never zero"
+  }
+}

@@ -7,6 +7,55 @@ from mathtutor.application.learning_profile import evidence_page, revoke_pending
 
 router = APIRouter()
 
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
+
+
+class InitialAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    run_id: str = Field(min_length=1, max_length=64)
+    index: int = Field(ge=0, le=9)
+    option_id: Literal["A", "B", "C", "D", "unsure"]
+    version: str = Field(min_length=1, max_length=128)
+
+
+class InitialRun(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    run_id: str = Field(min_length=1, max_length=64)
+
+
+@router.get("/initial-assessment")
+async def initial_assessment(owner: StudentOwnerScope = Depends(require_student_owner)):
+    service = tracking_state().initial_assessment
+    return service.public(await service.read(owner.student_id))
+
+
+@router.post("/initial-assessment/start")
+async def start_initial_assessment(owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = tracking_state()
+    async with state.turn_requests.owner(owner.student_id):
+        return await state.initial_assessment.ensure(owner.student_id)
+
+
+@router.post("/initial-assessment/answer")
+async def answer_initial_assessment(body: InitialAnswer, owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = tracking_state()
+    async with state.turn_requests.owner(owner.student_id):
+        try:
+            return await state.initial_assessment.submit(owner.student_id, **body.model_dump())
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/initial-assessment/skip")
+async def skip_initial_assessment(body: InitialRun, owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = tracking_state()
+    async with state.turn_requests.owner(owner.student_id):
+        try:
+            return await state.initial_assessment.skip(owner.student_id, body.run_id)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
 
 def tracking_state():
     state = get_product_state()

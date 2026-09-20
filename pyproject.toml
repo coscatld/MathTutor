@@ -4,11 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mathtutor"
-version = "0.3.3"
+version = "0.4.2"
 description = "Standalone K12 MathTutor product runtime"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = { text = "Apache-2.0" }
+# Core requirements = what the PRODUCT PATH actually needs to run. Everything
+# the shipped desktop runtime intentionally omits lives in an extra below, so
+# this list never again claims a capability the release does not carry.
+#
+# Guaranteed PDF baseline is pypdf; see docs/CURRENT_STATE_RAG_AUDIT.md D19 and
+# desktop/package_allowlist.json (required_import_roots lists pypdf, and
+# forbidden_feature_packages removes torch / sentence_transformers / modelscope).
 dependencies = [
   "aiosqlite>=0.19",
   "alembic>=1.13",
@@ -16,18 +23,27 @@ dependencies = [
   "fastapi>=0.100",
   "httpx>=0.27",
   "pydantic>=2.0",
-  "pymupdf>=1.24",
   "pypdf>=4.0",
   "python-jose[cryptography]>=3.3",
   "python-multipart>=0.0.6",
-  "modelscope>=1.20",
-  "sentence-transformers>=3.0,<6",
   "sqlalchemy[asyncio]>=2.0",
   "uvicorn[standard]>=0.24",
 ]
 
 [project.optional-dependencies]
+# Optional rich PDF parsing: headings, tables, embedded images. NOT part of the
+# shipped runtime; the parser degrades to the pypdf baseline when absent.
+pdf-rich = [
+  "pymupdf>=1.24",
+]
+# Optional embedding backends. Retrieval is lexical-only (and fully usable)
+# whenever these are absent — embeddings are never a blocking dependency.
+embedding = [
+  "sentence-transformers>=3.0,<6",
+  "modelscope>=1.20",
+]
 dev = [
+  "numpy>=1.26,<3",
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
 ]

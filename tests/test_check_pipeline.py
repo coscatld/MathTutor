@@ -24,7 +24,7 @@ def test_source_verification_explicitly_skips_unprovisioned_distribution(monkeyp
     assert ['npm', 'run', 'test:contracts'] in commands
     assert ['npm', 'run', 'test:distribution'] not in commands
     assert 'target packaging runtime not provisioned' in capsys.readouterr().out
-    assert 'SKIPPED' in (tmp_path / 'summary.md').read_text()
+    assert 'SKIPPED' in (tmp_path / 'summary.md').read_text(encoding='utf-8')
 
 
 def test_provisioned_but_invalid_distribution_fails_check(monkeypatch):
@@ -40,3 +40,18 @@ def test_provisioned_but_invalid_distribution_fails_check(monkeypatch):
     with pytest.raises(subprocess.CalledProcessError):
         check.main()
     assert ['npm', 'run', 'test:distribution'] in commands
+
+
+def test_verification_disables_telemetry_only_for_child_processes(monkeypatch, tmp_path):
+    check = load_check()
+    calls = []
+    monkeypatch.setenv('NEXT_TELEMETRY_DISABLED', '0')
+    monkeypatch.setenv('MATHTUTOR_CHECK_FIXTURE', 'preserved')
+    monkeypatch.setattr(check.subprocess, 'run', lambda command, **kwargs: calls.append((command, kwargs)))
+    check.run(['npm', 'run', 'build'], cwd=tmp_path)
+    command, options = calls[0]
+    assert command == ['npm', 'run', 'build']
+    assert options['cwd'] == tmp_path and options['check'] is True
+    assert options['env']['NEXT_TELEMETRY_DISABLED'] == '1'
+    assert options['env']['MATHTUTOR_CHECK_FIXTURE'] == 'preserved'
+    assert check.os.environ['NEXT_TELEMETRY_DISABLED'] == '0'

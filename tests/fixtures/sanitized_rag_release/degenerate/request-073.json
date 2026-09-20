@@ -1,0 +1,22 @@
+{
+  "fixture_kind": "SANITIZED_RESPONSE_ONLY_WITH_SYNTHETIC_INPUT",
+  "messages": [
+    {
+      "role": "user",
+      "content": "离线响应回放，不调用模型。"
+    }
+  ],
+  "parameters": {
+    "temperature": 0.4,
+    "max_tokens": 512,
+    "max_retries": 0
+  },
+  "response": {
+    "text": "刚才讲完了 \\(b=0\\) 时的三种情况，还差一个容易忽略的点：这三种情况其实对应抛物线与 \\(x\\) 轴的位置关系。\n\n## 从图像看\n\n函数 \\(y=ax^2+c\\) 的图像是一条抛物线，对称轴是 \\(y\\) 轴（因为一次项为 0）。方程 \\(ax^2+c=0\\) 的根，就是抛物线与 \\(x\\) 轴交点的横坐标。\n\n- \\(-\\frac{c}{a}>0\\)：抛物线与 \\(x\\) 轴有两个交点，对应两个不等实根；\n- \\(-\\frac{c}{a}=0\\)：抛物线顶点恰好落在 \\(x\\) 轴上，只有一个交点，对应重根；\n- \\(-\\frac{c}{a}<0\\)：抛物线与 \\(x\\) 轴没有交点，对应无实根。\n\n## 一个常见误区\n\n有同学看到 \\(b=0\\)，就以为“这不是二次方程了”。要记住：决定次数的只有 \\(a\\neq 0\\) 这一条，\\(b\\) 或 \\(c\\) 等于 0 只是让方程更简单，不会降次。\n\n## 检验一下\n\n如果题目给的是 \\(2x^2-8=0\\)，你能判断它属于上面哪一种情况，并写出根吗？",
+    "provider_id": "deepseek",
+    "model": "deepseek-flash",
+    "finish_reason": "stop",
+    "input_tokens": 1510,
+    "output_tokens": 273
+  }
+}

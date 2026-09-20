@@ -1,0 +1,3 @@
+# Sanitized regression fixtures
+
+Response bodies and provisional review labels from synthetic development cases only. No original Provider request logs, credentials, private documents, live budget or gateway settings. Replay inputs are synthetic, reconstructed by tests; these files are not current model-quality evidence. Original raw records remain local and read-only. All references remain PROVISIONAL_AI / human PENDING. This tree is never a desktop resource or default knowledge corpus. The local-only historical/budget integrity check is retained in local evidence; CI checks hashes of these published fixtures.

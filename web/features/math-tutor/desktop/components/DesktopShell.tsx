@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/math-tutor/profile", label: "学习画像", icon: ShieldCheck },
   { href: "/math-tutor/offers", label: "推荐练习", icon: BookOpen },
   { href: "/math-tutor/documents", label: "资料", icon: FileText },
+  { href: "/math-tutor/knowledge", label: "知识库", icon: BookOpen },
   { href: "/math-tutor/memory", label: "记忆", icon: BrainCircuit },
 ];
 

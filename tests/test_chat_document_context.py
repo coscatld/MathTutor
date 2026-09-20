@@ -14,6 +14,7 @@ from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway, 
 from mathtutor.infrastructure.secret_store import InMemorySecretStore
 from mathtutor.infrastructure.vision import content_token_estimate
 from mathtutor.application.chat_documents import ChatDocumentContext, MAX_CONTEXT_CHARS
+from mathtutor.domain.documents import DocumentQueryResult, RetrievedChunk
 from mathtutor.application.conversation_scope import set_document_scope, reset_document_scope
 
 PREFIX = "/api/v2/math-tutor/desktop"
@@ -76,12 +77,31 @@ def test_chat_rag_and_folder_survive_restart(tmp_path, with_image):
 
 @pytest.mark.parametrize("eligible", [False, True])
 async def test_scope_and_long_file_budget(eligible):
+    """D1: retrieval now comes from the orchestrator, so the fake kernel must
+    honour the real DocumentQueryResult contract — which is the point of the
+    unification: there is no second, chat-specific retrieval shape."""
     doc_id = uuid4()
     doc = SimpleNamespace(document_id=doc_id, filename="长文.txt", deleted_at=None, status="ready", retrieval_enabled=eligible, can_enable_retrieval=lambda: True)
-    chunks = [SimpleNamespace(chunk_id=uuid4(), sequence=i, text=f"{i}:" + "甲" * 3000) for i in range(20)]
+    from mathtutor.domain.documents import DocumentChunk
+    from mathtutor.security.scopes import student_uuid
+
+    chunks = [
+        DocumentChunk(
+            chunk_id=uuid4(), document_id=doc_id, student_id=student_uuid("owner"),
+            sequence=i, text=f"{i}:" + "甲" * 3000, content_hash=f"h{i}",
+        )
+        for i in range(20)
+    ]
     documents = SimpleNamespace(get_document=AsyncMock(return_value=doc))
-    repo = SimpleNamespace(list_chunks=AsyncMock(return_value=chunks))
-    search = SimpleNamespace(search=AsyncMock(return_value=SimpleNamespace(hits=[SimpleNamespace(filename=doc.filename, chunk=chunks[-1])])) )
+    repo = SimpleNamespace(list_retrievable_chunks=AsyncMock(return_value=chunks))
+
+    hit = RetrievedChunk(
+        chunk=chunks[-1], document_id=doc_id, filename=doc.filename,
+        score=0.9, lexical_score=0.9,
+    )
+    search = SimpleNamespace(search=AsyncMock(return_value=DocumentQueryResult(
+        query="总结长文", hits=(hit,), vector_used=False, degraded=True,
+    )))
     service = ChatDocumentContext(documents, repo, search)
     assert await service.build("owner", "长文") is None
     token = set_document_scope([doc_id])

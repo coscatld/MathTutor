@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from fractions import Fraction
@@ -187,7 +188,7 @@ async def test_duplicate_accept_after_expiry_replays_same_child_cycle(tmp_path: 
 
         # A consumed offer may expire afterwards. Replaying the prior receipt
         # must be checked before expiry; it is not a new acceptance grant.
-        with sqlite3.connect(db_file) as conn:
+        with closing(sqlite3.connect(db_file)) as conn, conn:
             conn.execute("UPDATE practice_offers SET expires_at=? WHERE offer_id=?",
                          ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), offer_id))
         # Second accept: same child cycle, flagged as idempotent replay.
@@ -231,7 +232,7 @@ async def test_concurrent_accept_opens_only_one_child_cycle(tmp_path: Path) -> N
             assert len(started) == 1
             children.append(started[0]["extra"]["child_cycle_id"])
         assert children[0] == children[1]
-        with sqlite3.connect(db_file) as conn:
+        with closing(sqlite3.connect(db_file)) as conn, conn:
             assert conn.execute("SELECT count(*) FROM tutoring_cycles WHERE practice_offer_id=?", (offer_id,)).fetchone()[0] == 1
         assert client.get("/api/v2/math-tutor/offers").json()[0]["status"] == "ACCEPTED"
     reset_product_state()

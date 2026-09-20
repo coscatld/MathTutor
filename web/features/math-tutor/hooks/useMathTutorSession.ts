@@ -287,7 +287,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
         return false;
       }
       const visibleText = payload.text || payload.answer || ({ request_hint: "给我一点提示", request_explanation: "讲解这个知识点", request_example: "给我一个类似例子", request_solution: "查看完整答案", request_practice: "我想独立练一道", resume_problem: "回到刚才那道题", end_problem: "结束本题", start_diagnostic: "先了解一下我的基础", skip_diagnostic: "跳过诊断，继续辅导", accept_practice_offer: "接受这道练习", decline_practice_offer: "暂不练习，保留当前题目" } as Record<string, string>)[command];
-      dispatch({ type: "command_sent", command, text: typeof visibleText === "string" ? visibleText : "", attachments });
+      dispatch({ type: "command_sent", command, text: typeof visibleText === "string" ? visibleText : typeof payload.choice_id === "string" ? `选择 ${payload.choice_id}` : "", attachments });
       return true;
     },
     [],

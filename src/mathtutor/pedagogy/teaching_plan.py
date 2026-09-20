@@ -198,7 +198,7 @@ def assessment_feedback(record):
 
 
 def public_context(context):
-    return {key: deepcopy(context[key]) for key in ("problem_id", "display_text", "skill_ids", "lifecycle")} | {"current_subgoal": current_subgoal(context)}
+    return {key: deepcopy(context[key]) for key in ("problem_id", "display_text", "skill_ids", "lifecycle")} | {"current_subgoal": current_subgoal(context), "choices": deepcopy(context.get("choices"))}
 
 
 def grounded_template(problem_view, disclosure, action):

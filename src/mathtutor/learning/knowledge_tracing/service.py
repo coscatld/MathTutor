@@ -7,6 +7,8 @@ every summary can be rebuilt from append-only events. No UI/cache is a source.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -42,7 +44,7 @@ class StudentStateService:
 
     async def append_event(self, event: LearningEvent, *, conn=None):
         """Trusted application lifecycle/self-report events; no client payloads."""
-        if event.event_type in {"attempt_assessed", "evidence_invalidated"}:
+        if event.event_type in {"attempt_assessed", "evidence_invalidated", "attempt_submitted"}:
             raise ValueError("use the assessment/invalidation API for learning labels")
         async with self._transaction(conn) as db:
             result = await self._append(db, event)
@@ -102,6 +104,8 @@ class StudentStateService:
         await db.execute(learning_events.insert().values(student_id=event.student_id,
             event_id=event.event_id, event_seq=event.event_seq, event_type=event.event_type,
             cycle_id=event.cycle_id, payload=event.model_dump(mode="json")))
+        if getattr(self, "stage_review", None) is not None:
+            await self.stage_review.on_event(db, event)
         return event
 
     async def _recurrent_state(self, db, student_id, history):
@@ -120,13 +124,13 @@ class StudentStateService:
             except (ValueError, KeyError, TypeError):
                 pass
         for event in valid_events(history):
-            if event.event_seq > cutoff:
+            if event.event_seq > cutoff and event.event_type != "attempt_submitted":
                 state = tracker.update(state, event)
         return state
 
     async def prepare_prediction(
         self, student_id, *, prediction_id, session_id, cycle_id, problem_id,
-        problem_revision, item_family_id, skill_ids, difficulty=None, conn=None,
+        problem_revision, item_family_id, skill_ids, difficulty=None, at_presentation=False, conn=None,
     ) -> dict:
         """Persist the prediction before verification, with no outcome input."""
         student_id = str(student_id)
@@ -159,10 +163,50 @@ class StudentStateService:
                     result["shadow_probability"] = self.tracker.predict(state, context)
                 except (ValueError, KeyError, TypeError, ArithmeticError):
                     result["mode"] = "out_of_coverage_fallback"
+            result["prediction_timing"] = "before_task_display" if at_presentation else "legacy_before_assessment"
+            if at_presentation:
+                # Frozen target contract is separate from the existing evidence baseline.
+                # Source DKT weights do not certify MathTutor task equivalence.
+                observed = [x for x in history if x.event_type != "attempt_submitted"]
+                last = observed[-1] if observed else None
+                result["frozen_forecast"] = {
+                    "presentation_id": prediction_id, "task_identity": str(problem_revision),
+                    "query_sha256": hashlib.sha256(json.dumps(context, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+                    "visible_event_boundary": cutoff,
+                    "state_cutoff": {"event_id": last.event_id, "event_seq": last.event_seq} if last else None,
+                    "state_scope": "existing_product_event_tracker",
+                    "model_identity": result["model_version"],
+                    "probability": None, "probability_source": "none",
+                    "coverage_status": "unsupported_target", "product_runtime_enabled": False,
+                    "reason": "target_task_mapping_and_predictor_not_validated",
+                }
             await db.execute(learning_predictions.insert().values(
                 student_id=student_id, prediction_id=prediction_id,
                 history_cutoff_seq=cutoff, payload=result))
             return result
+
+    async def presentation(self, student_id, cycle_id, *, conn=None):
+        """Lookup only. A response path may never invent an earlier presentation."""
+        async with self._transaction(conn) as db:
+            return (await db.execute(select(learning_predictions.c.payload).where(
+                learning_predictions.c.student_id == str(student_id),
+                learning_predictions.c.prediction_id == f"presentation:{cycle_id}"))).scalar_one_or_none()
+
+    async def record_submission(self, student_id, *, event_id, session_id, cycle_id, problem_id,
+                                problem_revision, item_family_id, skill_ids, response_fingerprint,
+                                prediction_id="", task_purpose="practice", conn=None):
+        """Durable first-slot reservation before parsing/judging; supplies no correctness.
+
+        Raw text is retained by the existing owner-scoped request journal. This fact
+        binds its request identity and digest, and survives a judge failure.
+        """
+        async with self._transaction(conn) as db:
+            event = LearningEvent(event_id=event_id, student_id=str(student_id), session_id=str(session_id),
+                cycle_id=str(cycle_id), event_type="attempt_submitted", problem_id=str(problem_id),
+                problem_revision=str(problem_revision), item_family_id=item_family_id, skill_ids=tuple(skill_ids),
+                response_fingerprint=response_fingerprint, prediction_id=prediction_id, task_purpose=task_purpose,
+                supervision_policy_version="first_content_submission_v1")
+            return await self._append(db, event)
 
     async def record_attempt(
         self, student_id, *, session_id, cycle_id, problem_id, problem_revision,
@@ -171,7 +215,7 @@ class StudentStateService:
         event_id=None, provenance_uncertain=False, active_response_ms=None,
         difficulty=None, misconception_codes=(), verified_error_skill_ids=(),
         task_purpose="practice", graph_version=GRAPH_VERSION, leakage_group_id="", time_gap_ms=None,
-        response_fingerprint="", conn=None,
+        response_fingerprint="", submission_event_id="", response_format="free_response", conn=None,
     ) -> LearningEvent:
         student_id, cycle_id = str(student_id), str(cycle_id)
         event_id = event_id or f"attempt:{attempt_id}"
@@ -185,6 +229,19 @@ class StudentStateService:
                     raise ValueError("attempt identity conflict")
                 return existing
             history = await self.events(student_id, conn=db)
+            submission = None
+            if submission_event_id:
+                submission = next((x for x in history if x.event_id == submission_event_id), None)
+                if (submission is None or submission.event_type != "attempt_submitted"
+                        or submission.problem_revision != str(problem_revision) or submission.cycle_id != cycle_id
+                        or submission.problem_id != str(problem_id)):
+                    raise ValueError("submission binding mismatch")
+                if any(x.event_type == "attempt_assessed" and x.submission_event_id == submission_event_id for x in history):
+                    raise ValueError("submission already assessed")
+            # Invalidating an assessment cannot erase the fact of its submission.
+            prior_task_attempt = any(x.problem_revision == str(problem_revision)
+                and x.event_type in {"attempt_submitted", "attempt_assessed"}
+                and (submission is None or x.event_seq < submission.event_seq) for x in history)
             repeated = bool(response_fingerprint) and any(
                 x.event_type == "attempt_assessed" and x.problem_revision == str(problem_revision)
                 and x.response_fingerprint == response_fingerprint and x.completion_scope == completion_scope
@@ -207,31 +264,34 @@ class StudentStateService:
                 leakage_group_id=leakage_group_id, time_gap_ms=time_gap_ms,
                 attempt_id=str(attempt_id), prediction_id=prediction_id, correctness=normalized,
                 response_fingerprint=response_fingerprint, duplicate_response=repeated,
-                prior_task_attempt=any(x.event_type == "attempt_assessed" and x.completion_scope == "full_problem"
-                    and x.problem_revision == str(problem_revision) for x in history),
+                prior_task_attempt=prior_task_attempt, submission_event_id=submission_event_id,
+                supervision_policy_version=LABEL_POLICY,
                 completion_scope=completion_scope, subgoal_id=subgoal_id, evidence_kind=kind,
                 target_answer_exposed_before_attempt=answer_exposed,
                 prior_help_event_ids=tuple(x.event_id for x in helps), provenance_uncertain=uncertain,
                 active_response_ms=active_response_ms, difficulty=difficulty,
                 misconception_codes=tuple(misconception_codes), verified_error_skill_ids=tuple(verified_error_skill_ids),
                 task_purpose=task_purpose, graph_version=graph_version,
+                response_format=response_format,
             ))
             # Label is associated only after the immutable pre-outcome forecast.
-            prediction = {**prediction, "assessment_id": str(assessment_id),
-                          "observed_event_seq": event.event_seq,
-                          "prediction_label": int(normalized == "correct") if event.independent_target else None}
-            await db.execute(learning_predictions.update().where(
-                learning_predictions.c.student_id == student_id,
-                learning_predictions.c.prediction_id == prediction_id).values(payload=prediction))
+            presentation_id = f"presentation:{cycle_id}"
+            label = int(normalized == "correct") if event.independent_target else None
+            if "observed_event_seq" not in prediction and (
+                    prediction_id != presentation_id or completion_scope == "full_problem"):
+                prediction = {**prediction, "assessment_id": str(assessment_id),
+                              "observed_event_seq": event.event_seq, "prediction_label": label}
+                await db.execute(learning_predictions.update().where(
+                    learning_predictions.c.student_id == student_id,
+                    learning_predictions.c.prediction_id == prediction_id).values(payload=prediction))
             # Presentation-time forecast is labelled once. Later help or a
             # repeated success cannot overwrite the first independent failure.
-            presentation_id = f"presentation:{cycle_id}"
             presented = (await db.execute(select(learning_predictions.c.payload).where(
                 learning_predictions.c.student_id == student_id,
                 learning_predictions.c.prediction_id == presentation_id))).scalar_one_or_none()
             if presented and completion_scope == "full_problem" and not presented.get("observed_event_seq"):
                 presented = {**presented, "observed_event_seq": event.event_seq,
-                    "assessment_id": str(assessment_id), "prediction_label": prediction["prediction_label"]}
+                    "assessment_id": str(assessment_id), "prediction_label": label}
                 await db.execute(learning_predictions.update().where(
                     learning_predictions.c.student_id == student_id,
                     learning_predictions.c.prediction_id == presentation_id).values(payload=presented))
@@ -312,7 +372,8 @@ class StudentStateService:
         if self.tracker:
             recurrent = self.tracker.initialize()
             for event in valid_events(history):
-                recurrent = self.tracker.update(recurrent, event)
+                if event.event_type != "attempt_submitted":
+                    recurrent = self.tracker.update(recurrent, event)
             snapshot = self.tracker.snapshot(recurrent, student_id=student_id,
                                              last_event_seq=snapshot["last_event_seq"])
         snapshot["evidence_summary"] = evidence_summary(history)

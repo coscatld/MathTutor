@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import json
+from math import isfinite
 import multiprocessing
 from multiprocessing.connection import Connection
 import os
@@ -75,6 +76,9 @@ class VerificationWorkerBudget:
     max_steps: int = 512
     max_pending_requests: int = 4
     shutdown_timeout_seconds: float = 1.0
+    # Process spawn/import and health are not mathematical computation. Keep
+    # this bounded and platform-neutral; verify/verify_attempt still get 2s.
+    startup_time_seconds: float = 10.0
 
     def __post_init__(self) -> None:
         for name in (
@@ -85,9 +89,12 @@ class VerificationWorkerBudget:
             "max_steps",
             "max_pending_requests",
             "shutdown_timeout_seconds",
+            "startup_time_seconds",
         ):
             if getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be positive")
+        if not isfinite(self.startup_time_seconds):
+            raise ValueError("startup_time_seconds must be finite")
 
 
 @dataclass(frozen=True, slots=True)
@@ -442,7 +449,8 @@ class VerifierWorkerManager:
             assert connection is not None and process is not None
             try:
                 connection.send_bytes(raw)
-                if not connection.poll(self.budget.wall_time_seconds):
+                timeout = self.budget.startup_time_seconds if request.operation == "health" else self.budget.wall_time_seconds
+                if not connection.poll(timeout):
                     self._restart_sync()
                     raise VerificationTimeoutError("verifier wall-clock deadline exceeded")
                 response_raw = connection.recv_bytes(self.budget.max_payload_bytes + 1)
@@ -481,7 +489,7 @@ class VerifierWorkerManager:
         )
         try:
             connection.send_bytes(_json_bytes(request))
-            if not connection.poll(self.budget.wall_time_seconds):
+            if not connection.poll(self.budget.startup_time_seconds):
                 return False
             response = _ResponseEnvelope.model_validate_json(
                 connection.recv_bytes(self.budget.max_payload_bytes + 1)
@@ -506,8 +514,10 @@ class VerifierWorkerManager:
             if process.is_alive() and hasattr(process, "kill"):
                 process.kill()
                 process.join(self.budget.shutdown_timeout_seconds)
-            if not process.is_alive():
-                process.join(timeout=0)
+            if process.is_alive():
+                self._process = process
+                raise RuntimeError("Owned verifier process did not terminate")
+            process.join(timeout=0)
 
     async def shutdown(self) -> None:
         self._accepting = False
@@ -516,7 +526,7 @@ class VerifierWorkerManager:
         try:
             await asyncio.wait_for(
                 self._request_lock.acquire(),
-                timeout=self.budget.wall_time_seconds + self.budget.shutdown_timeout_seconds,
+                timeout=max(self.budget.wall_time_seconds, self.budget.startup_time_seconds) + self.budget.shutdown_timeout_seconds,
             )
         except asyncio.TimeoutError:
             await asyncio.to_thread(self._dispose_sync)

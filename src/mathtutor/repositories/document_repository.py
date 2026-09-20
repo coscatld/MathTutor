@@ -109,6 +109,36 @@ class DocumentRepository(Protocol):
         self, student_id: str, document_id: UUID
     ) -> list[DocumentChunk]: ...
 
+    async def list_chunk_neighbourhood(
+        self,
+        student_id: str,
+        document_id: UUID,
+        *,
+        sequence_start: int,
+        sequence_end: int,
+        chunk_ids: Sequence[UUID] = (),
+    ) -> list[DocumentChunk]:
+        """Chunks within an inclusive ``sequence`` window or by explicit id,
+        visibility-gated.
+
+        Adjacency for context expansion is resolved from
+        ``(document_id, sequence)`` at read time; no prev/next columns exist.
+        """
+        ...
+
+    async def list_retrievable_chunks(
+        self, student_id: str, document_id: UUID
+    ) -> list[DocumentChunk]:
+        """Owner-scoped chunk read that ALSO enforces the visibility gate.
+
+        ``list_chunks`` is owner-scoped only: it is the right primitive for
+        versioning (``snapshot``) and index building, which must see the
+        document even while it is disabled. Anything that feeds retrieved
+        text to a model must use this method instead, so visibility no
+        longer depends on the caller having pre-filtered correctly.
+        """
+        ...
+
     # vectors (derived projection; replaced on rebuild) -------------------
 
     async def replace_vectors(
@@ -246,6 +276,40 @@ class InMemoryDocumentRepository:
         owner = student_uuid(student_id)
         chunks = self._chunks.get(document_id, [])
         return [chunk for chunk in chunks if chunk.student_id == owner]
+
+    async def list_retrievable_chunks(
+        self, student_id: str, document_id: UUID
+    ) -> list[DocumentChunk]:
+        owner = student_uuid(student_id)
+        doc = self._documents.get(document_id)
+        if doc is None or doc.student_id != owner or not doc.is_retrievable():
+            return []
+        chunks = self._chunks.get(document_id, [])
+        return [chunk for chunk in chunks if chunk.student_id == owner]
+
+    async def list_chunk_neighbourhood(
+        self,
+        student_id: str,
+        document_id: UUID,
+        *,
+        sequence_start: int,
+        sequence_end: int,
+        chunk_ids: Sequence[UUID] = (),
+    ) -> list[DocumentChunk]:
+        owner = student_uuid(student_id)
+        doc = self._documents.get(document_id)
+        if doc is None or doc.student_id != owner or not doc.is_retrievable():
+            return []
+        wanted = {str(c) for c in chunk_ids}
+        return [
+            chunk
+            for chunk in self._chunks.get(document_id, [])
+            if chunk.student_id == owner
+            and (
+                sequence_start <= chunk.sequence <= sequence_end
+                or str(chunk.chunk_id) in wanted
+            )
+        ]
 
     # ------------------------------------------------------------- vectors
 

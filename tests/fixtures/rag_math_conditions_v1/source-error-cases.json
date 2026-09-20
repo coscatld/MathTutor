@@ -1,0 +1,30 @@
+[
+  {
+    "filename": "判别式.md",
+    "historical_body_sha256": "dcd271fa30d38cbc40a8405dd202cddb52032db29790c8ca3150efce3adbbabf",
+    "erroneous_excerpt": "若二次项系数为零，则方程退化为一次方程，处理方式随之改变。",
+    "cohort": "SOURCE_CONTAINS_ERROR",
+    "evidence_support": "DIRECT",
+    "mathematics": "FALSE_WITHOUT_b_NONZERO",
+    "counterexample": "a=b=0,c=1 -> 1=0；a=b=c=0 -> 0=0",
+    "reference_status": "PROVISIONAL_AI",
+    "historical_failures": [
+      "expression-fixed:hard:Q01",
+      "expression-fixed:hard:Q05"
+    ]
+  },
+  {
+    "filename": "完全平方公式.md",
+    "historical_body_sha256": "11fcf1eb6394f587cafe9fa74f7c2b59329acd97fbb7587a48f127fa1de12ae0",
+    "erroneous_excerpt": "若二次项系数为零，则方程退化为一次方程，处理方式随之改变。",
+    "cohort": "SOURCE_CONTAINS_ERROR",
+    "evidence_support": "DIRECT",
+    "mathematics": "FALSE_WITHOUT_b_NONZERO",
+    "counterexample": "a=b=0,c=1 -> 1=0；a=b=c=0 -> 0=0",
+    "reference_status": "PROVISIONAL_AI",
+    "historical_failures": [
+      "expression-fixed:hard:Q01",
+      "expression-fixed:hard:Q05"
+    ]
+  }
+]

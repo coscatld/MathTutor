@@ -6,6 +6,7 @@ exercise authorization, state commits, history, and replay independently of LLM.
 import asyncio
 import json
 import sqlite3
+from contextlib import closing
 from contextlib import contextmanager
 
 import pytest
@@ -60,7 +61,7 @@ def summary(client, session="p0"):
 
 
 def count(db, table):
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         return conn.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]
 
 
@@ -222,7 +223,7 @@ def test_abandoned_claim_is_not_executed_again(tmp_path):
         send(ws, "request_hint", "abandoned")
         before = summary(client)["state_version"]
     # Simulate a process lost after commit but before recording the terminal.
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         conn.execute("UPDATE turn_requests SET status='RUNNING', frames='[]' WHERE request_id='abandoned'")
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         ws.send_json(request)
@@ -246,8 +247,8 @@ def test_010_database_upgrade_keeps_conversation_history(tmp_path):
     upgrade_db(str(db))
     with client_at(db) as client:
         assert summary(client)["messages"] == before
-    with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "018"
+    with closing(sqlite3.connect(db)) as conn, conn:
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "023"
 
 
 @pytest.mark.asyncio

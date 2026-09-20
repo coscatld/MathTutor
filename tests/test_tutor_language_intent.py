@@ -6,6 +6,7 @@ real keys or network calls. Metaphors test the LLM path, not keyword coverage.
 import asyncio
 import json
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -182,7 +183,7 @@ async def test_semantic_call_has_its_own_one_call_budget_and_does_not_consume_wr
 
 
 def stored_context(db, cycle_id):
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         return json.loads(conn.execute("SELECT payload FROM teaching_contexts WHERE cycle_id=?", (cycle_id,)).fetchone()[0])
 
 

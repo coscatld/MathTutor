@@ -1,5 +1,5 @@
 /** Public projections are shared by live frames and restart hydration. */
-import type { ActiveOffer, DiagnosisSummary, EvidenceSummary, ProblemContext, TeachingPlan } from "../types";
+import type { ActiveOffer, ChoiceSet, DiagnosisSummary, EvidenceSummary, ProblemContext, TeachingPlan } from "../types";
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -20,8 +20,17 @@ export function projectProblemContext(value: unknown): ProblemContext | null {
   const raw = record(value);
   if (!raw || !text(raw.problem_id)) return null;
   const subgoal = record(raw.current_subgoal);
+  const choices = projectChoices(raw.choices);
   return { problem_id: text(raw.problem_id), display_text: text(raw.display_text), skill_ids: strings(raw.skill_ids),
-    lifecycle: text(raw.lifecycle), current_subgoal: subgoal ? { id: text(subgoal.id), prompt_target: text(subgoal.prompt_target), status: text(subgoal.status) } : null };
+    lifecycle: text(raw.lifecycle), ...(choices ? {choices} : {}), current_subgoal: subgoal ? { id: text(subgoal.id), prompt_target: text(subgoal.prompt_target), status: text(subgoal.status) } : null };
+}
+
+export function projectChoices(value: unknown): ChoiceSet | null {
+  const raw = record(value);
+  if (!raw || raw.format !== "single_choice" || !text(raw.version) || !Array.isArray(raw.options) || raw.options.length !== 4) return null;
+  const options = raw.options.map(record).map(row => ({ id: text(row?.id), text: text(row?.text) }));
+  if (options.some(row => !/^[A-D]$/.test(row.id) || !row.text) || new Set(options.map(row => row.id)).size !== 4) return null;
+  return {format: "single_choice", version: text(raw.version), options};
 }
 
 export function projectEvidenceSummary(value: unknown): EvidenceSummary | null {

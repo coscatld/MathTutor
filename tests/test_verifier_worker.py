@@ -44,6 +44,61 @@ def _hang_worker(connection, budget) -> None:
     time.sleep(10)
 
 
+def _slow_start_worker(connection, budget) -> None:
+    time.sleep(3)  # cold import/scheduling, before accepting any math request
+    _worker_main(connection, budget)
+
+
+async def test_cold_start_has_separate_budget_without_relaxing_math_deadline():
+    worker = VerifierWorkerManager(worker_target=_slow_start_worker)
+    try:
+        await worker.start()
+        assert await worker.health()
+        assert worker.budget.wall_time_seconds == 2.0
+        problem, candidate = _case()
+        assert (await worker.verify(problem, candidate)).verdict == "VERIFIED"
+    finally:
+        await worker.shutdown()
+
+
+async def test_health_and_both_math_operations_select_separate_deadlines(monkeypatch):
+    from mathtutor.infrastructure.verifier_worker import _RequestEnvelope, _response
+    from mathtutor.application.verification_backend import VERIFICATION_SCHEMA_VERSION, AUTHORITATIVE_VERIFIER_VERSION
+    timeouts = []
+    class Pipe:
+        def send_bytes(self, raw):
+            self.request = json.loads(raw)
+        def poll(self, timeout):
+            timeouts.append(timeout)
+            return True
+        def recv_bytes(self, limit):
+            return _response(UUID(self.request["request_id"]))
+    worker = VerifierWorkerManager()
+    monkeypatch.setattr(worker, "_ensure_started_sync", lambda: None)
+    worker._connection, worker._process = Pipe(), object()
+    for operation in ("health", "verify", "verify_attempt"):
+        worker._round_trip_sync(_RequestEnvelope(schema_version=VERIFICATION_SCHEMA_VERSION,
+            verification_version=AUTHORITATIVE_VERIFIER_VERSION, request_id=uuid4(), operation=operation))
+    assert timeouts == [10.0, 2.0, 2.0]
+
+
+async def test_health_timeout_is_still_bounded_and_fail_closed(monkeypatch):
+    seen, restarted = [], []
+    class Pipe:
+        def send_bytes(self, raw):
+            pass
+        def poll(self, timeout):
+            seen.append(timeout)
+            return False
+    worker = VerifierWorkerManager(VerificationWorkerBudget(startup_time_seconds=0.125))
+    monkeypatch.setattr(worker, "_ensure_started_sync", lambda: None)
+    monkeypatch.setattr(worker, "_restart_sync", lambda: restarted.append(True))
+    worker._connection, worker._process = Pipe(), object()
+    with pytest.raises(VerificationTimeoutError):
+        await worker.health()
+    assert seen == [0.125] and restarted == [True]
+
+
 def _crash_worker(connection, budget) -> None:
     connection.recv_bytes()
     os._exit(19)
@@ -150,7 +205,7 @@ async def test_oversized_payload_and_ast_budget_rejected() -> None:
 
 async def test_timeout_hard_kills_worker_and_fails_closed() -> None:
     worker = VerifierWorkerManager(
-        VerificationWorkerBudget(wall_time_seconds=0.1), worker_target=_hang_worker
+        VerificationWorkerBudget(wall_time_seconds=0.1, startup_time_seconds=0.1), worker_target=_hang_worker
     )
     problem, candidate = _case()
     with pytest.raises(VerificationTimeoutError):
@@ -207,7 +262,7 @@ async def test_attempt_response_with_wrong_student_binding_is_rejected() -> None
 
 async def test_backpressure_is_bounded_and_fails_fast() -> None:
     worker = VerifierWorkerManager(
-        VerificationWorkerBudget(wall_time_seconds=0.15, max_pending_requests=1),
+        VerificationWorkerBudget(wall_time_seconds=0.15, startup_time_seconds=0.15, max_pending_requests=1),
         worker_target=_hang_worker,
     )
     problem, candidate = _case()
@@ -225,7 +280,7 @@ async def test_backpressure_is_bounded_and_fails_fast() -> None:
 async def test_timeout_cannot_attest_and_crash_cannot_release() -> None:
     problem, _ = _case()
     timeout_worker = VerifierWorkerManager(
-        VerificationWorkerBudget(wall_time_seconds=0.1), worker_target=_hang_worker
+        VerificationWorkerBudget(wall_time_seconds=0.1, startup_time_seconds=0.1), worker_target=_hang_worker
     )
     result = await MathTutorApplicationService(
         verification_backend=timeout_worker

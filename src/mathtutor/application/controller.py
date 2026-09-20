@@ -336,6 +336,18 @@ class MathTutorController:
             await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
         return context
 
+    async def _prepare_presentation(self, owner_id, session, verified):
+        """Must precede publishing a verified cycle to either HTTP or WebSocket."""
+        tracking = getattr(self.sessions, "student_state", None)
+        if tracking is None or not verified:
+            return
+        from mathtutor.learning.skill_graph import skills_for_problem
+        problem = verified[0]
+        await tracking.prepare_prediction(owner_id, prediction_id=f"presentation:{session.cycle.cycle_id}",
+            session_id=session.session_id, cycle_id=session.cycle.cycle_id,
+            problem_id=problem.problem_id, problem_revision=problem.content_hash,
+            item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem), at_presentation=True)
+
     async def _cycle_fact(self, owner_id, session, verified, event_type, *, lifecycle_status="active", task_purpose="practice"):
         tracking = getattr(self.sessions, "student_state", None)
         if tracking is None or not verified:
@@ -344,10 +356,7 @@ class MathTutorController:
         from mathtutor.learning.skill_graph import skills_for_problem
         problem = verified[0]
         if event_type == "problem_started":
-            await tracking.prepare_prediction(owner_id, prediction_id=f"presentation:{session.cycle.cycle_id}",
-                session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
-                problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
-                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem))
+            await self._prepare_presentation(owner_id, session, verified)
         await tracking.append_event(LearningEvent(event_id=f"{event_type}:{session.cycle.cycle_id}",
             student_id=owner_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
             event_type=event_type, problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
@@ -388,6 +397,10 @@ class MathTutorController:
             return
         payload = envelope.get("payload") or {}
         if payload.get("attachment_ids"):
+            knowledge = getattr(self, "knowledge", None)
+            if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
+                await self._dialogue(stream, session, "知识库问答只读取显式挂载的资料。请先在知识库导入文档；图片题目请切回辅导模式。", "TUTOR_CHAT")
+                return
             # Images are expression input, never a verified math answer or a
             # permission to advance the bound teaching cycle.
             try:
@@ -398,6 +411,28 @@ class MathTutorController:
                 await stream.error(str(exc), source=self.manifest.name)
             return
         if command == SEND_MESSAGE_COMMAND:
+            knowledge = getattr(self, "knowledge", None)
+            if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
+                from mathtutor.application.student_contract import REVIEW_STATES, session_contract
+                if bound_verified and session.state not in REVIEW_STATES and session.state != CycleState.CLOSED:
+                    await self._dialogue(stream, session, "当前题目仍在练习中，知识库问答不能绕过答案披露限制。请先使用题目提示，或结束本题后再进入知识库问答。", "TUTOR_CHAT")
+                    return
+                text = str(payload.get("text", ""))
+                practice = None
+                import re
+                if session and re.search(r"(?:给|来|做|要).*练习|练习(?:题|一下)", text) and not re.search(r"不要|不必|不用", text):
+                    contract = await session_contract(self.sessions, owner.student_id, session)
+                    if "request_practice" in contract.get("allowed_next_inputs", []):
+                        async def practice():
+                            await self._run_explicit(request, session, "request_practice", {}, envelope, stream)
+                            offers = await self.practice.offers_for_student(owner.student_id)
+                            return {"offers": [{"offer_id": str(x.offer_id), "status": x.status} for x in offers if x.status == "ACTIVE" and x.parent_cycle_id == session.cycle.cycle_id],
+                                    "release_gate": "existing_verified_pipeline"}
+                message = await self.knowledge_qa.respond(owner.student_id, request.session_id, text,
+                    request.conversation_messages, practice=practice)
+                if message:
+                    await self._dialogue(stream, session, message, "TUTOR_CHAT")
+                return
             await self._route_send_message(request, session, payload, envelope, stream)
             return
         from mathtutor.application.student_contract import REVIEW_STATES, TEACHING_COMMANDS
@@ -1005,7 +1040,7 @@ class MathTutorController:
             await self._submit_problem(session, owner_id, payload, expected_version, idempotency_key, stream)
         elif command in ("submit_attempt", "clarify_attempt"):
             await self._submit_attempt(
-                session, owner_id, {"answer": payload.get("answer", payload.get("text", ""))}, expected_version, idempotency_key,
+                session, owner_id, {**payload, "answer": payload.get("answer", payload.get("text", ""))}, expected_version, idempotency_key,
                 verified, assistance, stream,
             )
         elif command == "request_hint":
@@ -1251,6 +1286,9 @@ class MathTutorController:
             return
         await self._step(owner_id, session, CycleCommand.GROUNDING_OK)
         assert result.problem is not None
+        # HTTP session restoration must not expose the new task either if
+        # forecast persistence fails. Publish its binding only after this.
+        await self._prepare_presentation(owner_id, session, (result.problem, result.candidate, result.verified_ref))
         session.problem_id = result.problem.problem_id
         transition = await self._step(
             owner_id,
@@ -1338,6 +1376,14 @@ class MathTutorController:
         from mathtutor.learning.skill_graph import skills_for_problem
         from mathtutor.pedagogy.teaching_plan import apply_assessment, assessment_feedback, current_subgoal
         context = await self._teaching_context(owner_id, session, verified)
+        if "choice_id" in payload:
+            from mathtutor.application.multiple_choice import resolve_choice
+            try:
+                answer = resolve_choice(context.get("choices"), payload["choice_id"], payload.get("choice_version"))
+            except ValueError as exc:
+                await stream.error(str(exc), source=self.manifest.name)
+                return
+            raw_text_override = f"{payload['choice_id']}. {answer}"
         if context.get("teacher_error_example", {}).get("awaiting_response"):
             await self._assess_teacher_error(session, owner_id, context, answer, expected_version, idempotency_key, stream)
             return
@@ -1353,11 +1399,21 @@ class MathTutorController:
             actual_assistance = CycleAssistance(max_level_issued=factual_level)
             context["legacy_provenance_uncertain"] |= exposure["provenance_uncertain"]
         prediction_id = f"prediction:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
+        submission_event_id = ""
         if tracking is not None:
-            await tracking.prepare_prediction(owner_id, prediction_id=prediction_id,
+            presentation = await tracking.presentation(owner_id, session.cycle.cycle_id)
+            if presentation is not None:
+                prediction_id = presentation["prediction_id"]
+            else:
+                # Pre-upgrade open cycles have no trustworthy presentation record.
+                context["legacy_provenance_uncertain"] = True
+            submission_event_id = f"submission:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
+            await tracking.record_submission(owner_id, event_id=submission_event_id,
                 session_id=session.session_id, cycle_id=session.cycle.cycle_id,
                 problem_id=problem.problem_id, problem_revision=problem.content_hash,
-                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem))
+                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem),
+                response_fingerprint=content_hash({"raw_response": raw_text_override if raw_text_override is not None else answer}),
+                prediction_id=prediction_id, task_purpose="diagnostic" if context.get("diagnostic_item") else "practice")
 
         # ---- COMPUTE: Phase 4 learning loop, pure and deterministic. ----
         attempt_index = await self.sessions.load_attempt_index(
@@ -1525,6 +1581,8 @@ class MathTutorController:
                 "item_family_id": problem.problem_type, "skill_ids": skills_for_problem(problem),
                 "assessment_id": str(student_attempt.attempt_id), "attempt_id": str(student_attempt.attempt_id),
                 "correctness": assessment.correctness.value, "prediction_id": prediction_id,
+                "submission_event_id": submission_event_id,
+                "response_format": "single_choice" if context.get("choices") else "free_response",
                 "completion_scope": "full_problem" if assessment.correctness is Correctness.CORRECT else "subgoal" if assessment.correctness is Correctness.PARTIAL else "full_problem",
                 "subgoal_id": current_subgoal(context)["id"],
                 "provenance_uncertain": context.get("legacy_provenance_uncertain", False),
@@ -1879,6 +1937,13 @@ class MathTutorController:
         if problem_view is not None:
             problem_view = problem_view.model_copy(update={"student_request": student_request,
                                                            "skill_id": skill_for_problem(problem)})
+            review_service = getattr(getattr(self, "knowledge", None), "state", None)
+            review_service = getattr(review_service, "stage_review", None)
+            if review_service and owner_id:
+                from mathtutor.application.stage_review import STYLES
+                stage = await review_service.read(str(owner_id))
+                style = stage.get("preferences", {}).get("style", "default")
+                problem_view = problem_view.model_copy(update={"review_style": STYLES.get(style, STYLES["default"])})
             if plan:
                 from mathtutor.pedagogy.student_evidence_view import progress_view, assessment_view
                 example = await self._verified_example(problem) if action.action == "SHOW_EXAMPLE" else None
@@ -2319,16 +2384,17 @@ class MathTutorController:
             )
             return
         problem, _candidate, _ref = exact
+        from mathtutor.application.multiple_choice import make_choices
+        try:
+            choices = make_choices(problem, _candidate, salt=str(release.release_id))
+        except ValueError:
+            await stream.error("这道旧练习暂不支持选择题，请重新邀请练习。", source=self.manifest.name)
+            return
 
         # 6/7. Parent closes (in memory); the child is a NEW TutoringCycle in
         # the SAME session + SAME state machine (§7.8), practice-bound only
         # (problem_id NULL — the XOR invariant; the problem binding lives in
         # the offer→release exact snapshot resolved by load_verified).
-        parent_transition = session.step(
-            CycleCommand.ACCEPT_PRACTICE_OFFER,
-            expected_version=expected_version,
-            idempotency_key=idempotency_key,
-        )
         child = TutoringSession(
             session_id=session.session_id,
             student_id=session.student_id,
@@ -2337,6 +2403,12 @@ class MathTutorController:
         child.step(CycleCommand.SUBMIT_PROBLEM)
         child.step(CycleCommand.GROUNDING_OK)
         child.step(CycleCommand.VERIFICATION_VERIFIED)
+        await self._prepare_presentation(owner_id, child, exact)
+        parent_transition = session.step(
+            CycleCommand.ACCEPT_PRACTICE_OFFER,
+            expected_version=expected_version,
+            idempotency_key=idempotency_key,
+        )
 
         # 8. Outbox events (written in the same transaction, §7.10).
         outbox_events = [
@@ -2380,6 +2452,7 @@ class MathTutorController:
         )
         child_context = await self._teaching_context(owner_id, child, exact)
         child_context["resume_parent_cycle_id"] = str(session.cycle.cycle_id)
+        child_context["choices"] = choices
         await self.sessions.teaching.save(owner_id, child.cycle.cycle_id, child_context)
         recommendation = await self.practice.recommendation_for_offer(owner_id, offer_id)
         await self._cycle_fact(owner_id, child, exact, "problem_started",

@@ -62,6 +62,8 @@ export default function StartupBoundary({ children, entry = false }: Props) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     } else if (decision === "onboarding") {
       router.replace("/onboarding/provider");
+    } else if (decision === "assessment") {
+      router.replace("/onboarding/assessment");
     } else if (decision === "workspace" && entry) {
       router.replace("/math-tutor");
     }

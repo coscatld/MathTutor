@@ -256,7 +256,7 @@ def verify(data_root: Path, expected_path: Path, namespace: str) -> dict[str, An
         )
         checks = {
             "migration_head": version.json().get("release_config", {}).get("migration_head")
-            == "018",
+            == "023",
             "document_survives": documents.status_code == 200
             and any(item["document_id"] == expected["document_id"] for item in documents.json()),
             "memory_survives": memories.status_code == 200

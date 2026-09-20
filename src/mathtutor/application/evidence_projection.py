@@ -15,6 +15,8 @@ def public_evidence(events):
             key = "diagnostic"
         else:
             key = event.evidence_kind
+        if key == "independent" and event.prior_task_attempt:
+            continue
         counts[key if key in counts else "ungradable"] += 1
     counts["status"] = "已有独立作答记录，仍需跨题验证" if counts["independent"] else "已看过解答，需换题独立检测" if counts["post_solution"] else "尚无整题独立作答证据"
     return counts

@@ -14,7 +14,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def run(command: list[str], *, cwd: Path = PROJECT_ROOT) -> None:
     print(f"[check] {cwd.name}: {' '.join(command)}", flush=True)
-    subprocess.run(command, cwd=cwd, check=True)
+    # Verification must not depend on a writable global telemetry config.
+    # Scope this to child processes; do not modify the user's preferences.
+    env = dict(os.environ, NEXT_TELEMETRY_DISABLED="1")
+    subprocess.run(command, cwd=cwd, check=True, env=env)
 
 
 def main() -> None:

@@ -15,9 +15,12 @@ async def purge_conversation(state, owner, cid):
     for doc_id in await repo.document_ids(owner, cid):
         doc = await state.documents.get_document(owner, doc_id)
         memberships = await repo.conversation_ids_for_document(owner, doc_id)
-        if doc and not doc.is_global and not (set(memberships) - {cid}):
+        persistent = getattr(state, "knowledge", None) and await state.knowledge.persistent_member(owner, doc_id)
+        if doc and not doc.is_global and not (set(memberships) - {cid}) and not persistent:
             await state.data_lifecycle.delete_document(owner, doc_id)
     for image_id in image_ids:
         await state.images.remove(owner, image_id)
     await repo.purge(owner, cid)
+    if getattr(state, "knowledge", None):
+        await state.knowledge.purge_conversation(owner, cid)
     await state.turn_requests.forget(owner, cid)

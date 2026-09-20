@@ -1,6 +1,7 @@
 """Frozen recommendation reasons and erasure, including accepted exercises."""
 import json
 import sqlite3
+from contextlib import closing
 from urllib.parse import quote
 
 import pytest
@@ -50,7 +51,7 @@ def test_basis_is_frozen_and_erased_without_losing_accepted_exercise(tmp_path, o
         assert restored["history_cutoff_seq"] is None
         assert "不可用" in restored["reason"]
         assert client.post(f"/api/v2/math-tutor/offers/{original['offer_id']}/resume").status_code == 200
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         payload = json.loads(conn.execute("SELECT payload FROM practice_recommendations WHERE offer_id=?", (original["offer_id"],)).fetchone()[0])
         assert payload["basis"] is None and payload["decision_reason"] == ""
         assert evidence_id not in json.dumps(payload)
@@ -66,7 +67,7 @@ def test_legacy_recommendation_does_not_backfill_reason_from_current_history(tmp
             _collect(ws)
             _send(ws, "submit_attempt", {"answer": "2"})
             _collect(ws)
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         row = conn.execute("SELECT recommendation_id,payload FROM practice_recommendations").fetchone()
         payload = json.loads(row[1])
         payload.pop("basis")
