@@ -33,10 +33,38 @@ async def ensure_document_chunks_fts(conn: AsyncConnection) -> bool:
         return False
 
 
-async def sync_document_chunks_fts(conn: AsyncConnection) -> None:
-    """Rebuild the whole FTS5 table from ``document_chunks.fts_text``."""
+async def sync_document_chunks_fts(
+    conn: AsyncConnection, *, document_id: str | None = None
+) -> None:
+    """Synchronize the FTS5 table from ``document_chunks.fts_text``.
+
+    With ``document_id`` given, only that document's rows are replaced. Every
+    chunk write used to rebuild the WHOLE table, so importing one document
+    deleted and re-inserted the FTS rows of every other document the student
+    owned — write amplification proportional to the whole corpus, on the
+    interactive import path.
+
+    Without ``document_id`` the full rebuild is retained for the migration
+    backfill path, which genuinely needs to populate a fresh table.
+    """
     if not await ensure_document_chunks_fts(conn):
         return
+
+    if document_id is not None:
+        await conn.execute(
+            text(f"DELETE FROM {FTS_TABLE} WHERE document_id = :document_id"),
+            {"document_id": str(document_id)},
+        )
+        await conn.execute(
+            text(
+                f"INSERT INTO {FTS_TABLE}(chunk_id, student_id, document_id, fts_text) "
+                "SELECT chunk_id, student_id, document_id, COALESCE(fts_text, '') "
+                "FROM document_chunks WHERE document_id = :document_id"
+            ),
+            {"document_id": str(document_id)},
+        )
+        return
+
     try:
         await conn.execute(text(f"INSERT INTO {FTS_TABLE}({FTS_TABLE}) VALUES('delete-all')"))
     except Exception:

@@ -1,0 +1,469 @@
+{
+  "group": "degenerate-fixed",
+  "generating_version": "0.4.1",
+  "review_version": "0.4.2",
+  "source_results_sha256": "9e3b8ab2b5e9c4964c4c16c3e802f2a5a4fad43a81351bd5645d0f2a22ad28c8",
+  "original_B_scores_reused": false,
+  "semantic_labels": "NEW_INDEPENDENT_AI_PROVISIONAL",
+  "faithfulness_macro": null,
+  "human_review_status": "PENDING",
+  "rows": [
+    {
+      "case_id": "degenerate:a0",
+      "question": "请解释 ax^2+bx+c=0 在 a=0 时是否一定是一次方程。分别讨论 b不等于0、b=0且c不等于0、b=c=0 的方程类型和解集。",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "degenerate-fixed",
+      "request_record_ids": [
+        71
+      ],
+      "request_sha256": {
+        "71": "dc117af31eb51a3b5c37ce1cf4bde31372e061465706538d4acc0fd56c01612a"
+      },
+      "final_answer": "你这个问题抓得很准：关键就在于 \\(a=0\\) 时，方程会“降级”，不能再叫二次方程了。我们按三种情况看。\n\n原式是\n\n\\[\nax^2+bx+c=0\n\\]\n\n当 \\(a=0\\) 时，二次项消失，方程变成\n\n\\[\nbx+c=0\n\\]\n\n所以它是不是一次方程，要看 \\(b\\)。\n\n**1. \\(b\\neq 0\\)**\n\n此时方程是\n\n\\[\nbx+c=0\n\\]\n\n这是一个标准的一元一次方程，解为\n\n\\[\nx=-\\frac{c}{b}\n\\]\n\n解集是\n\n\\[\n\\left\\{-\\frac{c}{b}\\right\\}\n\\]\n\n**2. \\(b=0\\) 且 \\(c\\neq 0\\)**\n\n方程变成\n\n\\[\n0\\cdot x+c=0\n\\]\n\n也就是\n\n\\[\nc=0\n\\]\n\n但已知 \\(c\\neq 0\\)，矛盾，所以无解。\n\n解集是空集：\n\n\\[\n\\varnothing\n\\]\n\n**3. \\(b=0\\) 且 \\(c=0\\)**\n\n方程变成\n\n\\[\n0=0\n\\]\n\n这对任意 \\(x\\) 都成立，所以解集是所有实数：\n\n\\[\n\\mathbb{R}\n\\]\n\n补充一句：第 3 种情况通常不叫“一次方程”，因为未知数实际上没有约束；第 2 种也不是一次方程，而是无解的矛盾等式。只有第 1 种，在 \\(a=0\\) 且 \\(b\\neq 0\\) 时，才是一元一次方程。\n\n那我想问你一个小问题：如果 \\(a\\neq 0\\)，但 \\(b=0\\)、\\(c=0\\)，方程 \\(ax^2=0\\) 的解集是什么？它和上面第 3 种情况有什么本质区别？",
+      "answer_sha256": "774a4868a305971d97b9b038037f15cc202d2e80827b42d12f2d6b57d0d67378",
+      "actual_visible_evidence": [
+        {
+          "filename": "一次方程.md",
+          "chunk": 1,
+          "text": "只含有一个未知数、未知数次数为一的整式方程叫做一元一次方程。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 2,
+          "text": "去分母、去括号、移项、合并同类项、系数化为1。\n移项要变号：把等式一边的某项移到另一边时，符号必须改变。\n等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "a=0消去二次项，得bx+c=0",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:a0:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b≠0为一次方程，x=-c/b",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:a0:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b=0,c≠0时矛盾无解",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "逻辑正确；可见资料未列该分类，常量方程验证器UNKNOWN",
+          "disputed": true,
+          "claim_id": "degenerate:a0:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b=c=0为0=0，任意实数皆为解",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "逻辑正确；常量方程验证器UNKNOWN，不能由算术0的VERIFIED冒充方程认证",
+          "disputed": true,
+          "claim_id": "degenerate:a0:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "后两种不是一次方程，只有a=0,b≠0才是一次",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:a0:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [
+        "degenerate:a0:C03",
+        "degenerate:a0:C04"
+      ],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "degenerate:b0",
+      "question": "请解释 ax^2+bx+c=0 在 a不等于0、b=0 时仍是什么方程，并讨论 -c/a 为正、零、负的实根情况。",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "degenerate-fixed",
+      "request_record_ids": [
+        72,
+        73
+      ],
+      "request_sha256": {
+        "72": "154ffd4d9d60b3af9306cdc4e5d62ea5b426328a4c138f33cc43dfa5a06df236",
+        "73": "ae8cdb7b7205671e4539ae78ba9888c456382dd3cc1b97318a5af26d793b63a0"
+      },
+      "final_answer": "你这个问题问得很到位：\\(b=0\\) 时形式变了，但“身份”没变，只是更特殊了。\n\n## 它仍然是二次方程\n\n一元二次方程的一般形式是\n\n\\[\nax^2+bx+c=0,\\quad a\\neq 0\n\\]\n\n判断是不是二次方程，只看最高次项是不是 \\(x^2\\)，也就是只看 \\(a\\neq 0\\)。所以当 \\(b=0\\) 时，方程写成\n\n\\[\nax^2+c=0\n\\]\n\n它依然是一元二次方程，只是缺少了一次项，属于“不完全的二次方程”。【二次方程.md·片段#1】\n\n## 解的情况\n\n由 \\(ax^2+c=0\\) 移项得\n\n\\[\nax^2=-c\n\\]\n\n因为 \\(a\\neq 0\\)，两边同除以 \\(a\\)：\n\n\\[\nx^2=-\\frac{c}{a}\n\\]\n\n接下来就看 \\(-\\frac{c}{a}\\) 的符号。\n\n**1. 当 \\(-\\frac{c}{a}>0\\) 时**\n\n右边是正数，可以开平方，得到两个互为相反数的实根：\n\n\\[\nx=\\pm\\sqrt{-\\frac{c}{a}}\n\\]\n\n例如 \\(x^2=4\\)，根是 \\(x=2\\) 和 \\(x=-2\\)。\n\n**2. 当 \\(-\\frac{c}{a}=0\\) 时**\n\n方程变成 \\(x^2=0\\)，只有一个实根：\n\n\\[\nx=0\n\\]\n\n这种情况通常说“有两个相等的实根”，也就是重根。\n\n**3. 当 \\(-\\frac{c}{a}<0\\) 时**\n\n右边是负数。在实数范围内任何数的平方都不小于 0，所以没有实根。\n\n## 用判别式看也一样\n\n判别式 \\(\\Delta=b^2-4ac\\)，当 \\(b=0\\) 时：\n\n\\[\n\\Delta=-4ac\n\\]\n\n- \\(\\Delta>0\\) 即 \\(-4ac>0\\)，也就是 \\(-\\frac{c}{a}>0\\)：两个不等实根；\n- \\(\\Delta=0\\) 即 \\(-\\frac{c}{a}=0\\)：两个相等实根；\n- \\(\\Delta<0\\) 即 \\(-\\frac{c}{a}<0\\)：无实根。\n\n这和上面的结论完全一致。【二次方程.md·片段#2】\n\n小结一下：\\(b=0\\) 不改变它是二次方程，只让求根变得简单刚才讲完了 \\(b=0\\) 时的三种情况，还差一个容易忽略的点：这三种情况其实对应抛物线与 \\(x\\) 轴的位置关系。\n\n## 从图像看\n\n函数 \\(y=ax^2+c\\) 的图像是一条抛物线，对称轴是 \\(y\\) 轴（因为一次项为 0）。方程 \\(ax^2+c=0\\) 的根，就是抛物线与 \\(x\\) 轴交点的横坐标。\n\n- \\(-\\frac{c}{a}>0\\)：抛物线与 \\(x\\) 轴有两个交点，对应两个不等实根；\n- \\(-\\frac{c}{a}=0\\)：抛物线顶点恰好落在 \\(x\\) 轴上，只有一个交点，对应重根；\n- \\(-\\frac{c}{a}<0\\)：抛物线与 \\(x\\) 轴没有交点，对应无实根。\n\n## 一个常见误区\n\n有同学看到 \\(b=0\\)，就以为“这不是二次方程了”。要记住：决定次数的只有 \\(a\\neq 0\\) 这一条，\\(b\\) 或 \\(c\\) 等于 0 只是让方程更简单，不会降次。\n\n## 检验一下\n\n如果题目给的是 \\(2x^2-8=0\\)，你能判断它属于上面哪一种情况，并写出根吗？",
+      "answer_sha256": "3a53908b84fb16d7aedcc3a1084fcffbcba842de79ecac8e13f4a022cbc69b21",
+      "actual_visible_evidence": [
+        {
+          "filename": "二次方程.md",
+          "chunk": 1,
+          "text": "一元二次方程的一般形式是 ax^2 + bx + c = 0，其中 a 不等于零。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "二次方程.md",
+          "chunk": 2,
+          "text": "求根公式：x = (-b ± √(b²-4ac)) / (2a)。\n判别式 Δ = b²-4ac 决定根的个数：Δ>0 有两个不等实根，Δ=0 有两个相等实根，Δ<0 无实根。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "结合律.md",
+          "chunk": 1,
+          "text": "三个数相加，先把前两个数相加，或者先把后两个数相加，和不变。\n用字母表示：(a + b) + c = a + (b + c)。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "数学史话.md",
+          "chunk": 1,
+          "text": "中国古代数学名著《九章算术》成书于汉代，其中记载了方程术与正负术。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "分式笔记.md",
+          "chunk": 2,
+          "text": "去分母可能产生增根，所以解分式方程后必须把根代回原方程检验。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 1,
+          "text": "只含有一个未知数、未知数次数为一的整式方程叫做一元一次方程。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 2,
+          "text": "去分母、去括号、移项、合并同类项、系数化为1。\n移项要变号：把等式一边的某项移到另一边时，符号必须改变。\n等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "a≠0,b=0仍二次，成为ax²+c=0",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x²=-c/a",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "-c/a>0时根为±√(-c/a)",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x²=4根为±2",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "-c/a=0时x=0为二重根",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "-c/a<0无实根",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ=-4ac与-c/a同号，三种分类一致",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C07",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "y=ax²+c为抛物线，对称轴y轴",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "数学正确但可见摘录未提供函数图像性质",
+          "disputed": true,
+          "claim_id": "degenerate:b0:C08",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "方程根是抛物线与x轴交点横坐标",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "数学正确，资料未给函数零点定义",
+          "disputed": true,
+          "claim_id": "degenerate:b0:C09",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "正时两个交点、零时顶点在x轴、负时无交点",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "基于图像性质，不能混作当前证据原句",
+          "disputed": true,
+          "claim_id": "degenerate:b0:C10",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b或c为0不会在a≠0前提下降次",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:b0:C11",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【二次方程.md·片段#1】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        },
+        {
+          "label": "【二次方程.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [
+        "degenerate:b0:C08",
+        "degenerate:b0:C09",
+        "degenerate:b0:C10"
+      ],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "degenerate:c0",
+      "question": "请解释 ax^2+bx+c=0 在 a不等于0、c=0 时的因式分解和实根，并单独说明 b=0 时会怎样。",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "degenerate-fixed",
+      "request_record_ids": [
+        74,
+        75
+      ],
+      "request_sha256": {
+        "74": "5d2261ba57c4de51691365dc8ffe8cc857feeacb3e1b0c404cac2424e9758a12",
+        "75": "f65ea1891d61716fd59c144159e18730a7aa359636a22fe4a4e8caf117248169"
+      },
+      "final_answer": "你这个问题抓得很准，正好把二次方程里两种“退化”情形放在一起比较。先看一般形式：\n\n\\[\nax^2+bx+c=0,\\quad a\\neq 0\n\\]\n\n## 当 \\(c=0\\) 时\n\n方程变成\n\n\\[\nax^2+bx=0\n\\]\n\n两项都含 \\(x\\)，直接提取公因式：\n\n\\[\nx(ax+b)=0\n\\]\n\n这就是因式分解的结果。两个因式相乘为 0，说明至少有一个为 0：\n\n\\[\nx=0 \\quad \\text{或} \\quad ax+b=0\n\\]\n\n第二个式子解得 \\(x=-\\dfrac{b}{a}\\)。所以实根是\n\n\\[\nx_1=0,\\qquad x_2=-\\frac{b}{a}\n\\]\n\n这里 \\(a\\neq 0\\)，所以 \\(-\\frac{b}{a}\\) 一定有意义，两个根都是实数。用判别式看也一致：\\(\\Delta=b^2-4ac=b^2\\ge 0\\)，一定有实根；只有当 \\(b=0\\) 时两根重合。\n\n## 当 \\(b=0\\) 时\n\n这时方程是\n\n\\[\nax^2+c=0\n\\]\n\n注意它和上面是**不同**的情形，不能套用“提取 \\(x\\)”那一步，因为现在没有一次项了。移项得\n\n\\[\nax^2=-c \\quad\\Rightarrow\\quad x^2=-\\frac{c}{a}\n\\]\n\n接下来要看 \\(-\\dfrac{c}{a}\\) 的符号：\n\n- 若 \\(-\\dfrac{c}{a}>0\\)，即 \\(a\\) 与 \\(c\\) 异号，则有两个互为相反数的实根：\n\n\\[\nx=\\pm\\sqrt{-\\frac{c}{a}}\n\\]\n\n- 若 \\(-\\dfrac{c}{a}=0\\)，即 \\(c=0\\)，则 \\(x^2=0\\)，只有一个（二重）实根 \\(x=0\\)。\n- 若 \\(-\\dfrac{c}{a}<0\\)，即 \\(a\\) 与 \\(c\\) 同号，则 \\(x^2\\) 等于负数，在实数范围内无解。\n\n## 两种情况的关系\n\n如果 \\(b=0\\) **且** \\(c=0\\)，方程就是 \\(ax^2=0\\)，只有 \\(x=0\\) 一个根——这既是“\\(c=0\\) 时两根重合”的特例接着上面 \\(b=0\\) 且 \\(c=0\\) 的特例说：此时 \\(x_1=x_2=0\\)，两个根重合，所以通常说“有一个二重实根”，而不是“两个不同的根”。\n\n把两种情形对照一下，关键区别在于**有没有一次项**：\n\n- \\(c=0,\\ b\\neq 0\\)：有 \\(x\\) 项，能提公因式，根是 \\(0\\) 和 \\(-\\dfrac{b}{a}\\)，一正一负（或一零一非零），一定有两个不同实根。\n- \\(b=0,\\ c\\neq 0\\)：没有一次项，只能靠开平方，根是 \\(\\pm\\sqrt{-\\dfrac{c}{a}}\\)，要么两个相反数，要么无实根，取决于 \\(a,c\\) 是否异号。\n- \\(b=0,\\ c=0\\)：只剩 \\(ax^2=0\\)，唯一根 \\(x=0\\)。\n\n再补一句判别式的统一视角：\\(\\Delta=b^2-4ac\\)。\n\n- 当 \\(c=0\\) 时 \\(\\Delta=b^2\\)，只要 \\(b\\neq 0\\) 就 \\(\\Delta>0\\)，两个不等实根；\\(b=0\\) 时 \\(\\Delta=0\\)，二重根。\n- 当 \\(b=0,\\ c\\neq 0\\) 时 \\(\\Delta=-4ac\\)，异号则 \\(\\Delta>0\\) 有两实根，同号则 \\(\\Delta<0\\) 无实根。\n\n这样，因式分解、开平方、判别式三条线索给出的结论是一致的。\n\n留一个小问题给你想：如果 \\(a=1,\\ c=-4,\\ b=0\\)，方程 \\(x^2-4=0\\) 的根是什么？它属于上面哪一种情形？",
+      "answer_sha256": "03605294ca2fd167e118bcd28e4ec9d755b274eae4859c778b5b013084727963",
+      "actual_visible_evidence": [
+        {
+          "filename": "二次方程.md",
+          "chunk": 1,
+          "text": "一元二次方程的一般形式是 ax^2 + bx + c = 0，其中 a 不等于零。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "二次方程.md",
+          "chunk": 2,
+          "text": "求根公式：x = (-b ± √(b²-4ac)) / (2a)。\n判别式 Δ = b²-4ac 决定根的个数：Δ>0 有两个不等实根，Δ=0 有两个相等实根，Δ<0 无实根。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "c=0得ax²+bx=0，提取x得到x(ax+b)=0",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "乘积为零至少一个因式为零",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "零积性质正确，但可见摘录未陈述",
+          "disputed": true,
+          "claim_id": "degenerate:c0:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "根为0和-b/a，a≠0使分母有意义",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ=b²≥0，只有b=0时两根重合",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b=0时ax²+c=0，x²=-c/a",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "现在没有一次项，不能套用提取x",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "若同时c=0，则ax²=x(ax)仍可提x；是否可提公因式不由缺少一次项单独决定",
+          "disputed": true,
+          "claim_id": "degenerate:c0:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "-c/a正、零、负分别两个相反根、二重零根、无实根",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C07",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b=c=0时唯一不同实根0，重数为2",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C08",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "c=0,b≠0的0与-b/a一正一负（或一零一非零）",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "零既非正也非负，括号中的或不能撤回错误；a=b=1,c=0得到0,-1",
+          "disputed": true,
+          "claim_id": "degenerate:c0:C09",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b=0,c≠0时只能靠开平方",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "仍可使用求根公式或判别式；有实根时可因式分解，‘只能’过强",
+          "disputed": true,
+          "claim_id": "degenerate:c0:C10",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b=0,c≠0时a,c异号两实根，同号无实根",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C11",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "c=0时Δ=b²，b≠0两不同根；b=0二重根",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "degenerate:c0:C12",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_FAILURE",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [
+        "degenerate:c0:C02",
+        "degenerate:c0:C06",
+        "degenerate:c0:C09",
+        "degenerate:c0:C10"
+      ],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    }
+  ]
+}

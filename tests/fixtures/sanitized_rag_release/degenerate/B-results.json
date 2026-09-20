@@ -1,0 +1,6 @@
+[
+  {
+    "case_id": "degenerate:c0",
+    "question": "请解释 ax^2+bx+c=0 在 a不等于0、c=0 时的因式分解和实根，并单独说明 b=0 时会怎样。"
+  }
+]

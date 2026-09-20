@@ -1,4 +1,12 @@
-"""SqliteVecVectorIndex — optional sqlite-vec ANN adapter (Phase 6 第二轮).
+"""DEFERRED — OPTIONAL ADAPTER, NOT A DEAD MODULE.
+
+Production vector retrieval today is a naive cosine scan inside
+``repositories/sqlite_documents.py``; this ANN adapter has no production
+importer. It is retained deliberately: `production sqlite-vec ANN` is on
+the FROZEN DEFERRED list (docs/RAG_IMPLEMENTATION_REPORT.md §4), and
+deleting it would also delete the only sqlite-vec test coverage without
+removing the capability decision.
+SqliteVecVectorIndex — optional sqlite-vec ANN adapter (Phase 6 第二轮).
 
 **这是可选 adapter，绝不进入生产默认接线。** 本模块的存在前提是
 2026-08-21 的第二轮实测（docs/PHASE6_SQLITE_VEC_EVALUATION.md）：

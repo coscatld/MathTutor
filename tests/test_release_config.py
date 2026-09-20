@@ -16,9 +16,9 @@ def test_release_config_freezes_authoritative_runtime_contracts() -> None:
     from alembic.script import ScriptDirectory
     from mathtutor.infrastructure.migrate import alembic_config
     assert ScriptDirectory.from_config(alembic_config()).get_current_head() == MIGRATION_HEAD
-    assert RELEASE_CONFIG.app_version == "0.3.3"
+    assert RELEASE_CONFIG.app_version == "0.4.2"
     assert RELEASE_CONFIG.schema_version == SCHEMA_VERSION
-    assert RELEASE_CONFIG.migration_head == MIGRATION_HEAD == "019"
+    assert RELEASE_CONFIG.migration_head == MIGRATION_HEAD == "023"
     assert RELEASE_CONFIG.curriculum_active_version == StaticCurriculumProvider.VERSION_CODE
     assert RELEASE_CONFIG.curriculum_default_version == StaticCurriculumProvider.VERSION_CODE
     assert RELEASE_CONFIG.verifier_version == AUTHORITATIVE_VERIFIER_VERSION
@@ -36,7 +36,7 @@ def test_release_config_freezes_authoritative_runtime_contracts() -> None:
 
 def test_release_config_public_manifest_is_secret_free_and_json_safe() -> None:
     manifest = RELEASE_CONFIG.public_manifest()
-    assert manifest["migration_head"] == "019"
+    assert manifest["migration_head"] == "023"
     assert manifest["stage_policy_versions"] == {
         "high": "2",
         "middle": "2",

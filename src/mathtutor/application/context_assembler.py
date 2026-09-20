@@ -1,6 +1,6 @@
 """ContextAssembler — the ONLY path from repositories to LLM consumers.
 
-Resolves the RetrievalPolicy → loads REQUIRED sources → optionally
+Resolves the PracticeRetrievalPolicy → loads REQUIRED sources → optionally
 retrieves OPTIONAL sources (router + user permission + token budget) →
 projects each into a typed context → records provenance. LLM consumers
 (TutorWriter, practice generators) receive :class:`AssembledContext` and
@@ -50,7 +50,7 @@ from mathtutor.domain.assembled_context import (
 from mathtutor.domain.retrieval_policy import (
     RetrievalIntent,
     RetrievalPlan,
-    RetrievalPolicy,
+    PracticeRetrievalPolicy,
     RetrievalSource,
 )
 from mathtutor.repositories.memory_repository import MemoryRepository
@@ -409,8 +409,16 @@ class UserDocumentsSourceProvider(BaseContextSourceProvider):
 
     source = RetrievalSource.USER_DOCUMENTS
 
-    def __init__(self, searchable: Any) -> None:  # DocumentSearchable
+    def __init__(self, searchable: Any = None, *, orchestrator: Any = None) -> None:
+        """The orchestrator is the supported constructor.
+
+        ``searchable`` is retained only so an un-migrated caller still builds;
+        it is NOT used for retrieval — see ``retrieve``. The point of the
+        unified path is that there is exactly one place that decides scope,
+        rewrites the query, searches, reranks and expands.
+        """
         self._searchable = searchable
+        self._orchestrator = orchestrator
 
     async def load(
         self,
@@ -434,45 +442,63 @@ class UserDocumentsSourceProvider(BaseContextSourceProvider):
         from mathtutor.application.conversation_scope import current_document_scope
 
         document_ids = current_document_scope()
-        if document_ids is not None and not document_ids:
+        if document_ids is None:
+            # No conversation scope was established for this task. Failing
+            # closed is the only safe reading — the repository treats a None
+            # document_ids as "no filter", i.e. every document the owner has.
+            return LoadOutcome(empty_data=True, detail="no conversation document scope")
+        if not document_ids:
             return LoadOutcome(empty_data=True, detail="conversation has no documents")
-        result = await self._searchable.search(
-            student_id,
-            query=query_hint,
-            limit=MAX_DOCUMENT_CHUNKS,
-            document_ids=document_ids,
+        if self._orchestrator is None:
+            # Refuse rather than silently falling back to a second retrieval
+            # implementation: a second entry point is exactly the defect this
+            # provider was changed to remove.
+            return LoadOutcome(empty_data=True, detail="no retrieval orchestrator wired")
+
+        pack = await self._orchestrator.retrieve_for_turn(
+            student_id, list(document_ids), query_hint
         )
-        if not result.hits:
+        if pack.empty:
             return LoadOutcome(empty_data=True, detail="no document hits")
-        retriever = "lexical+vector" if result.vector_used else "lexical"
-        selections: dict[UUID, list[DocumentChunkRef]] = {}
-        filenames: dict[UUID, str] = {}
-        for hit in result.hits:
-            selections.setdefault(hit.document_id, []).append(
+        return LoadOutcome(payload=self._project_pack(pack))
+
+    @staticmethod
+    def _project_pack(pack) -> tuple:
+        """EvidencePack → DocumentContextSelection. Pure projection.
+
+        Touches no repository and runs no query: the evidence is already the
+        finished retrieval output. Chunks are grouped per document and ordered
+        by strongest hit, matching the projection this provider always produced.
+        """
+        selections: dict = {}
+        filenames: dict = {}
+        for item in pack.evidences:
+            selections.setdefault(item.document_id, []).append(
                 DocumentChunkRef(
-                    chunk_id=hit.chunk.chunk_id,
-                    document_id=hit.document_id,
-                    sequence=hit.chunk.sequence,
-                    page=hit.chunk.page,
-                    filename=hit.filename,
-                    text=hit.chunk.text[:MAX_PROJECTED_CHUNK_CHARS],
-                    score=hit.score,
-                    retriever=retriever,
+                    chunk_id=item.chunk_id,
+                    document_id=item.document_id,
+                    sequence=item.sequence,
+                    page=item.page,
+                    filename=item.filename,
+                    text=item.text[:MAX_PROJECTED_CHUNK_CHARS],
+                    score=max(0.0, float(item.rerank_score or item.score)),
+                    retriever=item.retriever,
                 )
             )
-            filenames.setdefault(hit.document_id, hit.filename)
-        ordered = sorted(selections, key=lambda doc_id: -max(
-            (chunk.score for chunk in selections[doc_id]), default=0.0
-        ))
-        payload = tuple(
-            DocumentContextSelection(
-                document_id=doc_id,
-                filename=filenames[doc_id],
-                chunks=tuple(selections[doc_id]),
-            )
-            for doc_id in ordered
+            filenames[item.document_id] = item.filename
+        ordered = sorted(
+            selections,
+            key=lambda document_id: -max(ref.score for ref in selections[document_id]),
         )
-        return LoadOutcome(payload=payload)
+        return tuple(
+            DocumentContextSelection(
+                document_id=document_id,
+                filename=filenames[document_id],
+                chunks=tuple(selections[document_id]),
+            )
+            for document_id in ordered
+        )
+
 
 
 class StaticCurriculumProvider(CurriculumSourceProvider):
@@ -563,12 +589,12 @@ class ContextAssembler:
         self,
         *,
         providers: Mapping[RetrievalSource, ContextSourceProvider],
-        policy: RetrievalPolicy | None = None,
+        policy: PracticeRetrievalPolicy | None = None,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
         router: ContextRouter | None = None,
     ) -> None:
         self._providers = dict(providers)
-        self._policy = policy if policy is not None else RetrievalPolicy()
+        self._policy = policy if policy is not None else PracticeRetrievalPolicy()
         self._token_budget = token_budget
         self._router = router if router is not None else ContextRouter()
 
@@ -592,7 +618,7 @@ class ContextAssembler:
                     ContextProvenance(
                         source=source,
                         status="forbidden",
-                        schema_version=RetrievalPolicy.POLICY_VERSION,
+                        schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                     )
                 )
 
@@ -621,7 +647,7 @@ class ContextAssembler:
                         ContextProvenance(
                             source=source,
                             status="disabled_by_user",
-                            schema_version=RetrievalPolicy.POLICY_VERSION,
+                            schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                             detail=outcome.detail,
                         )
                     )
@@ -633,7 +659,7 @@ class ContextAssembler:
                         ContextProvenance(
                             source=source,
                             status="empty",
-                            schema_version=RetrievalPolicy.POLICY_VERSION,
+                            schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                             detail=outcome.detail,
                         )
                     )
@@ -648,7 +674,7 @@ class ContextAssembler:
                     source=source,
                     status="loaded" if _item_count(outcome.payload) > 0 else "empty",
                     item_count=_item_count(outcome.payload),
-                    schema_version=RetrievalPolicy.POLICY_VERSION,
+                    schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                 )
             )
 
@@ -662,7 +688,7 @@ class ContextAssembler:
                     ContextProvenance(
                         source=source,
                         status="router_skipped",
-                        schema_version=RetrievalPolicy.POLICY_VERSION,
+                        schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                     )
                 )
                 continue
@@ -672,7 +698,7 @@ class ContextAssembler:
                     ContextProvenance(
                         source=source,
                         status="unavailable",
-                        schema_version=RetrievalPolicy.POLICY_VERSION,
+                        schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                         detail="no provider registered",
                     )
                 )
@@ -699,7 +725,7 @@ class ContextAssembler:
                     ContextProvenance(
                         source=source,
                         status=status,
-                        schema_version=RetrievalPolicy.POLICY_VERSION,
+                        schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                         detail=outcome.detail,
                     )
                 )
@@ -710,7 +736,7 @@ class ContextAssembler:
                     ContextProvenance(
                         source=source,
                         status="budget_trimmed",
-                        schema_version=RetrievalPolicy.POLICY_VERSION,
+                        schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                         detail=f"needs ~{tokens} tokens, {budget.remaining()} left",
                     )
                 )
@@ -722,14 +748,14 @@ class ContextAssembler:
                     source=source,
                     status="loaded" if _item_count(outcome.payload) > 0 else "empty",
                     item_count=_item_count(outcome.payload),
-                    schema_version=RetrievalPolicy.POLICY_VERSION,
+                    schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
                 )
             )
 
         return AssembledContext(
             intent=intent,
             student_id=student_uuid(student_id),
-            policy_version=RetrievalPolicy.POLICY_VERSION,
+            policy_version=PracticeRetrievalPolicy.POLICY_VERSION,
             plan=plan,
             student_model=fields.get(RetrievalSource.STUDENT_MODEL),
             curriculum=fields.get(RetrievalSource.CURRICULUM),

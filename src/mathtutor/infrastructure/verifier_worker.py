@@ -514,8 +514,10 @@ class VerifierWorkerManager:
             if process.is_alive() and hasattr(process, "kill"):
                 process.kill()
                 process.join(self.budget.shutdown_timeout_seconds)
-            if not process.is_alive():
-                process.join(timeout=0)
+            if process.is_alive():
+                self._process = process
+                raise RuntimeError("Owned verifier process did not terminate")
+            process.join(timeout=0)
 
     async def shutdown(self) -> None:
         self._accepting = False

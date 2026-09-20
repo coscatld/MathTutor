@@ -14,6 +14,7 @@ general DeepTutor ``/ws`` surface is NOT part of the product app.
 from __future__ import annotations
 
 import asyncio
+import anyio
 import json
 import logging
 import time
@@ -163,11 +164,20 @@ async def math_tutor_websocket(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     finally:
-        reader.cancel()
-        if active_task is not None and not active_task.done():
-            active_task.cancel()
-            await asyncio.gather(active_task, return_exceptions=True)
-        await asyncio.gather(reader, return_exceptions=True)
+        with anyio.fail_after(5, shield=True):
+            owned = {reader}
+            if active_task is not None:
+                owned.add(active_task)
+            for task in owned:
+                if not task.done():
+                    task.cancel()
+            results = await asyncio.gather(*owned, return_exceptions=True)
+            from mathtutor.infrastructure.lifecycle_trace import trace
+            for task, result in zip(owned, results):
+                trace(id(state), "websocket_task_joined", owned_task=id(task),
+                      error=result if isinstance(result, BaseException) else None)
+                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+                    raise result
 
 
 def _canonical_envelope(user_message: str) -> dict:
@@ -304,15 +314,18 @@ async def _process_request(state, owner, session_id, user_message, event_key,
             token = None
             turn_token = current_turn.set(turn)
             try:
-                document_ids = await state.conversations.document_ids(owner.student_id, session_id)
-                global_ids = [d.document_id for d in await state.documents.list_documents(owner.student_id) if d.is_global]
-                token = set_document_scope(list(dict.fromkeys(document_ids + global_ids)))
+                if getattr(state, "knowledge", None):
+                    document_ids = await state.knowledge.scope(owner.student_id, session_id)
+                else:
+                    document_ids = await state.conversations.document_ids(owner.student_id, session_id)
+                    document_ids += [d.document_id for d in await state.documents.list_documents(owner.student_id) if d.is_global]
+                token = set_document_scope(list(dict.fromkeys(document_ids)))
                 if recovery:
                     await state.controller.recover_expression(request, recovery, stream)
                 else:
                     await state.controller.run(request, stream)
             except asyncio.CancelledError:
-                turn.stop(cancellation_reason(), "\n\n".join(texts))
+                turn.stop(cancellation_reason(), "\n\n".join(texts) or getattr(turn, "knowledge_receipt_text", ""))
             except Exception:
                 logger.exception("Tutor request failed conversation_id=%s", session_id)
                 turn.stop(FinishReason.INTERNAL_ERROR, "\n\n".join(texts))
@@ -366,6 +379,13 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
             set_active(None, session_id)
+        knowledge_receipt = getattr(turn, "knowledge_receipt_text", "")
+        if not texts and knowledge_receipt:
+            # Only the runtime's fixed, application-generated save/draft receipt
+            # survives here; no unfinished model prose is ever published.
+            texts.append(knowledge_receipt)
+            await state.conversations.save_turn_message(*key, role="tutor", content=knowledge_receipt,
+                status=turn.status, finish_reason=turn.finish_reason.value)
         turn.final_text = "\n\n".join(texts)
         if error_text:
             turn.stop(FinishReason.INTERNAL_ERROR, turn.final_text)

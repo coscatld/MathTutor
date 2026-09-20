@@ -1,6 +1,7 @@
 """V2 public learning paths through real owner-scoped SQLite and WebSocket."""
 import json
 import sqlite3
+from contextlib import closing
 import pytest
 
 from test_tutor_p0 import client_at, send, summary, count
@@ -11,7 +12,7 @@ def terminal(frames):
 
 
 def event_rows(db):
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         return [json.loads(row[0]) for row in conn.execute("SELECT payload FROM learning_events ORDER BY event_seq")]
 
 
@@ -159,7 +160,7 @@ def test_final_disclosure_downgrade_is_consistent_across_action_delivery_and_evi
         assert current["state"] == "awaiting_attempt" and current["active_offer"] is None
         assert current["teaching_plan"]["max_assistance_level"] == 1
         assert "x=2" not in answer["payload"]["final_text"]
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             assert conn.execute("SELECT action,effective_assistance_level,solution_visibility FROM tutor_actions").fetchall() == [("GIVE_HINT", 1, "hint")]
         assert all(not e["target_answer_exposed"] for e in event_rows(db) if e["event_type"].startswith("help_"))
 
@@ -185,7 +186,7 @@ def test_teacher_error_analysis_is_verified_but_not_original_task_evidence(tmp_p
         assert shown["teaching_plan"]["strategy"] == "teacher_error_example"
         assert "教师故意写错" in shown["messages"][-1]["content"]
         send(ws, "send_message", "restatement", {"text": "5z+4=39"})
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             saved = json.loads(conn.execute("SELECT payload FROM teaching_contexts WHERE cycle_id=?", (cycle,)).fetchone()[0])
         assert saved["teacher_error_example"]["awaiting_response"]
         send(ws, "send_message", "repair", {"text": "5z=35"})

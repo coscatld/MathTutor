@@ -104,6 +104,8 @@ class StudentStateService:
         await db.execute(learning_events.insert().values(student_id=event.student_id,
             event_id=event.event_id, event_seq=event.event_seq, event_type=event.event_type,
             cycle_id=event.cycle_id, payload=event.model_dump(mode="json")))
+        if getattr(self, "stage_review", None) is not None:
+            await self.stage_review.on_event(db, event)
         return event
 
     async def _recurrent_state(self, db, student_id, history):

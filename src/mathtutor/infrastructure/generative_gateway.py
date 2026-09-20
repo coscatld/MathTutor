@@ -48,6 +48,10 @@ class ModelRole(str, Enum):
 class GenerativeProviderError(RuntimeError):
     """Provider call failed after retries (transport / HTTP / malformed)."""
 
+    def __init__(self, message: str, *, diagnostics: dict | None = None):
+        super().__init__(message)
+        self.diagnostics = diagnostics or {}
+
 
 class GenerativeConfigError(RuntimeError):
     """Gateway/role misconfiguration (no provider registered, missing key)."""
@@ -65,6 +69,8 @@ class CompletionResult(BaseModel):
     input_tokens: int | None = None
     output_tokens: int | None = None
     turn_result: dict | None = None
+    tool_calls: tuple[dict, ...] = ()
+    diagnostics: dict = Field(default_factory=dict)
 
 
 class ProviderPreset(BaseModel):
@@ -208,6 +214,8 @@ class OpenAICompatibleProvider:
         from mathtutor.infrastructure.vision import openai_vision_model
         return openai_vision_model(self.provider_id, self.model)
 
+    supports_native_tools = True
+
     async def complete(
         self,
         messages: Sequence[dict],
@@ -215,6 +223,7 @@ class OpenAICompatibleProvider:
         temperature: float = 0.4,
         max_tokens: int | None = None,
         max_retries: int = 0,
+        tools: Sequence[dict] | None = None,
     ) -> CompletionResult:
         if not self._model:
             raise GenerativeConfigError(
@@ -228,16 +237,19 @@ class OpenAICompatibleProvider:
         }
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+        if tools is not None:
+            payload["tools"] = list(tools)
         if self.provider_id == "moonshot" and self._model in {"kimi-k2.5", "kimi-k2.6"}:
             payload.pop("temperature", None)
+            payload["thinking"] = {"type": "disabled"}
+        if self.provider_id == "deepseek":
+            # The bounded tutoring/tool budget is for visible content. A default
+            # reasoning mode can consume it entirely before delivering any text.
             payload["thinking"] = {"type": "disabled"}
         if self.provider_id == "deepseek" and any(
             isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"])
             for m in messages
         ):
-            # Image tutoring uses a bounded answer budget; reserve it for visible
-            # content, not the provider's default high-effort reasoning.
-            payload["thinking"] = {"type": "disabled"}
             import json
             if len(json.dumps(payload).encode("utf-8")) > 48 * 1024 * 1024:
                 raise GenerativeConfigError("图片编码后的请求超过 DeepSeek 48 MiB 限制，请减少图片数量或压缩图片。")
@@ -250,8 +262,9 @@ class OpenAICompatibleProvider:
                 if attempt < max_retries:
                     await asyncio.sleep(0.5 * (attempt + 1))
         raise GenerativeProviderError(
-            f"provider {self.provider_id!r} failed after {max_retries + 1} attempt(s): {last_error}"
-        )
+            f"provider {self.provider_id!r} failed after {max_retries + 1} attempt(s): {last_error}",
+            diagnostics=getattr(last_error, "diagnostics", None),
+        ) from last_error
 
     async def probe_connection(self, messages: Sequence[dict]) -> CompletionResult:
         """A bounded connectivity probe, independent of teaching-turn policy."""
@@ -289,17 +302,33 @@ class OpenAICompatibleProvider:
             )
         try:
             data = response.json()
-            text = data["choices"][0]["message"]["content"]
+            message = data["choices"][0]["message"]
+            text = message.get("content") or ""
+            tool_calls = message.get("tool_calls") or []
+            if not isinstance(tool_calls, list) or len(tool_calls) > 8 or any(not isinstance(c, dict) for c in tool_calls):
+                raise ValueError("invalid tool calls")
             finish_reason = data["choices"][0].get("finish_reason") or ""
         except (KeyError, IndexError, ValueError) as error:
             raise GenerativeProviderError(
                 f"provider {self.provider_id!r} malformed response: {response.text[:300]!r}"
             ) from error
+        # Retain only bounded response metadata, never hidden reasoning or keys.
+        usage = data.get("usage") or {}
+        diagnostics = {
+            "http_status": response.status_code, "server_model": data.get("model"),
+            "finish_reason": finish_reason, "content_chars": len(text) if isinstance(text, str) else None,
+            "reasoning_chars": len(message.get("reasoning_content") or ""),
+            "tool_calls_count": len(tool_calls), "request_max_tokens": payload.get("max_tokens"),
+            "request_thinking": payload.get("thinking"),
+            "usage": {key: usage[key] for key in ("prompt_tokens", "completion_tokens", "total_tokens",
+                      "completion_tokens_details") if key in usage},
+        }
         if finish_reason in {"length", "max_tokens"} and (not isinstance(text, str) or not text.strip()):
-            raise GenerativeProviderError(f"provider {self.provider_id!r} output truncated before final content")
-        if not isinstance(text, str) or not text.strip():
+            raise GenerativeProviderError(f"provider {self.provider_id!r} output truncated before final content",
+                                          diagnostics=diagnostics)
+        if not isinstance(text, str) or (not text.strip() and not tool_calls):
             raise GenerativeProviderError(
-                f"provider {self.provider_id!r} returned empty content"
+                f"provider {self.provider_id!r} returned empty content", diagnostics=diagnostics
             )
         return CompletionResult(
             text=text,
@@ -308,6 +337,8 @@ class OpenAICompatibleProvider:
             finish_reason=finish_reason,
             input_tokens=(data.get("usage") or {}).get("prompt_tokens"),
             output_tokens=(data.get("usage") or {}).get("completion_tokens"),
+            tool_calls=tuple(tool_calls),
+            diagnostics=diagnostics,
         )
 
     async def fetch_models(self) -> list[str]:
@@ -581,6 +612,8 @@ class GenerativeModelGateway:
         max_tokens: int | None = None,
         max_retries: int = 0,
         connection_probe: bool = False,
+        tool_executor=None,
+        structured_tools: bool = False,
     ) -> CompletionResult:
         provider = self._by_role.get(role)
         if provider is None:
@@ -599,6 +632,10 @@ class GenerativeModelGateway:
             if not await supports_vision(provider):
                 raise GenerativeConfigError(VISION_UNSUPPORTED)
         if role == ModelRole.TUTOR_WRITER:
+            if tool_executor is not None:
+                from mathtutor.application.tutor_runtime import complete_tools
+                return await complete_tools(provider, messages, executor=tool_executor,
+                    structured=structured_tools, temperature=temperature, max_tokens=max_tokens)
             from mathtutor.application.tutor_runtime import complete_tutor
             return await complete_tutor(provider, messages, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries)
         from mathtutor.application.tutor_runtime import complete_auxiliary

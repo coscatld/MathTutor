@@ -48,6 +48,11 @@ def create_db_engine(db_path: Path | None = None) -> AsyncEngine:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     engine = create_async_engine(f"sqlite+aiosqlite:///{path}", future=True)
+    from mathtutor.infrastructure.lifecycle_trace import trace
+    for event_name in ("connect", "checkout", "checkin", "close"):
+        def record(connection, record, *args, stage=event_name):
+            trace(id(engine), "pool_" + stage, connection=id(connection))
+        event.listen(engine.sync_engine, event_name, record)
 
     @event.listens_for(engine.sync_engine, "connect")
     def _set_sqlite_pragmas(dbapi_connection, _record) -> None:  # pragma: no cover - dbapi callback

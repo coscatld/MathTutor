@@ -1,0 +1,90 @@
+{
+  "version": "math-conditions-corpus/1",
+  "parent_version": "hard-corpus/2",
+  "annotation_version": "math-conditions-annotations/1",
+  "human_review_status": "PENDING",
+  "reference_status": "PROVISIONAL_AI",
+  "historical_fixture_sha256": "f1eda9fdfb3aff22a96c0fa01566ca52fbe63d67d9c5e4bd2064bca11972fa30",
+  "documents": [
+    {
+      "key": "neighbour",
+      "filename": "乘法公式.md",
+      "historical_sha256": "b808e305ac69d273f72c969530c3724e4fb083ed0bf0b81eb5b6feba18c840d0",
+      "corrected_sha256": "b808e305ac69d273f72c969530c3724e4fb083ed0bf0b81eb5b6feba18c840d0",
+      "replacements": 0
+    },
+    {
+      "key": "disc",
+      "filename": "判别式.md",
+      "historical_sha256": "dcd271fa30d38cbc40a8405dd202cddb52032db29790c8ca3150efce3adbbabf",
+      "corrected_sha256": "d9493594b7ca96a90dd33751a848f8fe148ae8730044258d5f55bda56d0d4a48",
+      "replacements": 8
+    },
+    {
+      "key": "example",
+      "filename": "例题.md",
+      "historical_sha256": "1ca1e18435888631cb608e96bb45c86c27588e988bc1e7266cd34be31fb5395b",
+      "corrected_sha256": "1ca1e18435888631cb608e96bb45c86c27588e988bc1e7266cd34be31fb5395b",
+      "replacements": 0
+    },
+    {
+      "key": "boundary",
+      "filename": "完全平方公式.md",
+      "historical_sha256": "11fcf1eb6394f587cafe9fa74f7c2b59329acd97fbb7587a48f127fa1de12ae0",
+      "corrected_sha256": "08f6c1f815bab58db545f9ea0df1c9c78285a40a65bc968e69a31ee72f7e5c1d",
+      "replacements": 8
+    },
+    {
+      "key": "weida",
+      "filename": "韦达定理.md",
+      "historical_sha256": "c1cc9de440c7654c427824feac78e82ef594c82b6577844d00f3f4372f1ea9af",
+      "corrected_sha256": "c1cc9de440c7654c427824feac78e82ef594c82b6577844d00f3f4372f1ea9af",
+      "replacements": 0
+    },
+    {
+      "key": "linear",
+      "filename": "一元一次方程.md",
+      "historical_sha256": "bcfe4952072eba201a5392b848d27ca0551ab1361b400dcb9e4ca1d3334c7b86",
+      "corrected_sha256": "bcfe4952072eba201a5392b848d27ca0551ab1361b400dcb9e4ca1d3334c7b86",
+      "replacements": 0
+    },
+    {
+      "key": "fraction",
+      "filename": "分式方程.md",
+      "historical_sha256": "7c8b5361c20a602bbe4775715d041cd4e73f4c82a0053b6a9313721de9af95a2",
+      "corrected_sha256": "7c8b5361c20a602bbe4775715d041cd4e73f4c82a0053b6a9313721de9af95a2",
+      "replacements": 0
+    },
+    {
+      "key": "inequality",
+      "filename": "一元一次不等式.md",
+      "historical_sha256": "4f45ba6a180b2c9d85a5fbe2abb56275c188e5571380ceb359b936bd159b7b2c",
+      "corrected_sha256": "4f45ba6a180b2c9d85a5fbe2abb56275c188e5571380ceb359b936bd159b7b2c",
+      "replacements": 0
+    },
+    {
+      "key": "conditions",
+      "filename": "参数与等价变形.md",
+      "historical_sha256": null,
+      "corrected_sha256": "f115115df0d03a1e43480bc94710b186dd5c273801c09aec61494632656ed105",
+      "replacements": 0
+    }
+  ],
+  "changes": [
+    {
+      "document": "判别式.md",
+      "before": "若二次项系数为零，则方程退化为一次方程，处理方式随之改变。",
+      "after": "若二次项系数为零且一次项系数不为零，则为一元一次方程；若二者均为零，常数项非零时无解，常数项也为零时任意实数均为解。",
+      "count": 8
+    },
+    {
+      "document": "完全平方公式.md",
+      "before": "若二次项系数为零，则方程退化为一次方程，处理方式随之改变。",
+      "after": "若二次项系数为零且一次项系数不为零，则为一元一次方程；若二者均为零，常数项非零时无解，常数项也为零时任意实数均为解。",
+      "count": 8
+    }
+  ],
+  "source_errors": "source-error-cases.json",
+  "boundaries": "Text changes alter chunk boundaries; do not reuse old chunk IDs, annotations, retrieval metrics or Faithfulness scores",
+  "new_material_live_evaluation": "NOT_RUN"
+}

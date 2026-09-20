@@ -13,6 +13,7 @@ import ConnectionStatus from "./ConnectionStatus";
 import TutorActionCard from "./TutorActionCard";
 import TutorToolsPanel, { type ToolView } from "./TutorToolsPanel";
 import { CurrentProblem } from "./TeachingContext";
+import Link from "next/link";
 
 export default function MathTutorPage() {
   const search = useSearchParams();
@@ -42,6 +43,7 @@ function TutorConversation({ sessionId }: { sessionId: string }) {
           {tool ? <Tooltip label="收起"><button type="button" aria-label="收起右侧工具" onClick={() => setTool(null)} className="rounded-lg p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><PanelRightClose className="h-4 w-4" aria-hidden="true" /></button></Tooltip> : null}
         </div>
       </header>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2 text-sm"><span className="text-[var(--muted-foreground)]">知识库问答需显式挂载；不会自动使用其他会话附件。</span><Link className="inline-flex min-h-11 items-center text-[var(--primary)] underline" href={`/math-tutor/knowledge?conversation=${encodeURIComponent(sessionId)}`}>知识库与问答范围</Link></div>
       <div className="mt-reading-region">
       <div ref={scroll.viewport} onScroll={scroll.onScroll} role="log" aria-live="polite" aria-label="辅导对话" tabIndex={0} data-chat-scroll-root="true" className="mt-chat-log">
         <div ref={scroll.content} className="mt-reading-width flex flex-col gap-7">

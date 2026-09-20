@@ -6,6 +6,7 @@ models an old checkpoint which no longer matches the current verified task.
 """
 import json
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -40,19 +41,19 @@ def install_writer(provider):
 
 
 def context_row(db, cycle_id):
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         row = conn.execute("SELECT payload FROM teaching_contexts WHERE cycle_id=?", (cycle_id,)).fetchone()
         return json.loads(row[0])
 
 
 def table_ids(db, table, column, cycle_id):
     # Table/column names are fixed test constants, never client-controlled SQL.
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         return [row[0] for row in conn.execute(f'SELECT "{column}" FROM "{table}" WHERE cycle_id=? ORDER BY "{column}"', (cycle_id,))]
 
 
 def help_events(db, cycle_id):
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         return [json.loads(row[0]) for row in conn.execute("SELECT payload FROM learning_events ORDER BY event_seq")
                 if json.loads(row[0]).get("cycle_id") == cycle_id and json.loads(row[0])["event_type"].startswith("help_")]
 
@@ -107,7 +108,7 @@ def test_approved_expression_recovers_same_bytes_ids_and_single_effect_after_res
         assert context_row(db, cycle_id)["help_without_progress"] == 1
         help_before = help_events(db, cycle_id)
     if journal_status == "abandoned":
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             conn.execute("UPDATE turn_requests SET status='RUNNING', frames=? WHERE request_id='hint'",
                          (json.dumps([failed[0]]),))
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
@@ -170,7 +171,7 @@ def test_old_checkpoint_cannot_resume_after_cycle_or_revision_changes(tmp_path, 
         actions = count(db, "tutor_actions")
         helps = help_events(db, old_cycle)
     if change == "revision":
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             context = context_row(db, old_cycle)
             context["pending_expression"]["problem_revision"] = "superseded-test-revision"
             conn.execute("UPDATE teaching_contexts SET payload=? WHERE cycle_id=?", (json.dumps(context), old_cycle))
@@ -189,7 +190,7 @@ def test_focus_changed_while_model_runs_discards_old_expression_before_delivery(
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "submit_problem", "p", {"text": "2x+3=7"})
         old_cycle = summary(client)["cycle_id"]
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             owner = conn.execute("SELECT student_id FROM tutoring_cycles WHERE cycle_id=?", (old_cycle,)).fetchone()[0]
         changed = []
         class FocusChangingProvider(OneCallProvider):

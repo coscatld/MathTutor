@@ -1,5 +1,6 @@
 """Batch 2: real entrypoint -> current problem -> verifier -> durable evidence."""
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -27,7 +28,7 @@ def test_main_input_is_assessed_against_the_same_problem(tmp_path, answer, verdi
         assert summary(client)["cycle_id"] == before["cycle_id"]
         assert summary(client)["problem_revision"] == before["problem_revision"]
         assert count(db, "attempt_assessments") == 1
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             assert conn.execute("SELECT raw_text FROM attempt_submissions").fetchone()[0] == answer
 
 
@@ -78,7 +79,7 @@ def test_composite_request_commits_answer_before_assistance(tmp_path, text, foll
         assert not [f for f in result if f["event_type"] == "turn_error"]
         assert followup in str(result)
         assert count(db, "attempt_assessments") == 1
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             assert conn.execute("SELECT effective_assistance_level FROM mastery_evidence").fetchone()[0] == 0
             assert conn.execute("SELECT raw_text FROM attempt_submissions").fetchone()[0] == text
         assert send(ws, "send_message", "composite", {"text": text}) == result
@@ -149,7 +150,7 @@ def test_legacy_solution_review_uses_verified_body_without_duplicate_exposure(tm
         send(ws, "send_message", "problem", {"text": "2x+3=7"})
         send(ws, "request_solution", "solution")
         n = count(db, "tutor_actions")
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         conn.execute("UPDATE conversation_messages SET continuation_context = '{}' WHERE role = 'tutor'")
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         review = send(ws, "request_solution", "legacy-review")

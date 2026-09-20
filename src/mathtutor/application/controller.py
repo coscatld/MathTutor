@@ -397,6 +397,10 @@ class MathTutorController:
             return
         payload = envelope.get("payload") or {}
         if payload.get("attachment_ids"):
+            knowledge = getattr(self, "knowledge", None)
+            if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
+                await self._dialogue(stream, session, "知识库问答只读取显式挂载的资料。请先在知识库导入文档；图片题目请切回辅导模式。", "TUTOR_CHAT")
+                return
             # Images are expression input, never a verified math answer or a
             # permission to advance the bound teaching cycle.
             try:
@@ -407,6 +411,28 @@ class MathTutorController:
                 await stream.error(str(exc), source=self.manifest.name)
             return
         if command == SEND_MESSAGE_COMMAND:
+            knowledge = getattr(self, "knowledge", None)
+            if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
+                from mathtutor.application.student_contract import REVIEW_STATES, session_contract
+                if bound_verified and session.state not in REVIEW_STATES and session.state != CycleState.CLOSED:
+                    await self._dialogue(stream, session, "当前题目仍在练习中，知识库问答不能绕过答案披露限制。请先使用题目提示，或结束本题后再进入知识库问答。", "TUTOR_CHAT")
+                    return
+                text = str(payload.get("text", ""))
+                practice = None
+                import re
+                if session and re.search(r"(?:给|来|做|要).*练习|练习(?:题|一下)", text) and not re.search(r"不要|不必|不用", text):
+                    contract = await session_contract(self.sessions, owner.student_id, session)
+                    if "request_practice" in contract.get("allowed_next_inputs", []):
+                        async def practice():
+                            await self._run_explicit(request, session, "request_practice", {}, envelope, stream)
+                            offers = await self.practice.offers_for_student(owner.student_id)
+                            return {"offers": [{"offer_id": str(x.offer_id), "status": x.status} for x in offers if x.status == "ACTIVE" and x.parent_cycle_id == session.cycle.cycle_id],
+                                    "release_gate": "existing_verified_pipeline"}
+                message = await self.knowledge_qa.respond(owner.student_id, request.session_id, text,
+                    request.conversation_messages, practice=practice)
+                if message:
+                    await self._dialogue(stream, session, message, "TUTOR_CHAT")
+                return
             await self._route_send_message(request, session, payload, envelope, stream)
             return
         from mathtutor.application.student_contract import REVIEW_STATES, TEACHING_COMMANDS
@@ -1911,6 +1937,13 @@ class MathTutorController:
         if problem_view is not None:
             problem_view = problem_view.model_copy(update={"student_request": student_request,
                                                            "skill_id": skill_for_problem(problem)})
+            review_service = getattr(getattr(self, "knowledge", None), "state", None)
+            review_service = getattr(review_service, "stage_review", None)
+            if review_service and owner_id:
+                from mathtutor.application.stage_review import STYLES
+                stage = await review_service.read(str(owner_id))
+                style = stage.get("preferences", {}).get("style", "default")
+                problem_view = problem_view.model_copy(update={"review_style": STYLES.get(style, STYLES["default"])})
             if plan:
                 from mathtutor.pedagogy.student_evidence_view import progress_view, assessment_view
                 example = await self._verified_example(problem) if action.action == "SHOW_EXAMPLE" else None

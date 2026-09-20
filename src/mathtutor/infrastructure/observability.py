@@ -47,8 +47,50 @@ _SENSITIVE_VALUE_MARKERS: tuple[str, ...] = (
 #: Latency histogram bucket upper bounds (ms).
 LATENCY_BUCKETS_MS: tuple[float, ...] = (10, 50, 100, 250, 500, 1000, 2500, 5000)
 
-_LATENCY_KINDS = ("turn", "attempt", "offer")
+_LATENCY_KINDS = (
+    "turn",
+    "attempt",
+    "offer",
+    # RAG stages. Recorded separately because "retrieval is slow" and
+    # "reranking is slow" call for completely different fixes.
+    "retrieval",
+    "rerank",
+    "context_build",
+)
 _RELEASE_GATE_OUTCOMES = ("passed", "denied")
+
+#: RAG counter allowlist. Fixed, because :meth:`MathTutorMetrics.assert_sanitized`
+#: is structural: it can only guarantee "no sensitive key ever appears" if the
+#: key set is closed.
+#:
+#: NOTE on ``rag_reranker_unavailable_total`` from the requirements list: it is
+#: deliberately ABSENT. The production reranker is deterministic and shipped
+#: with the app, so it has no "unavailable" state — a counter that cannot fire
+#: would imply a capability gap that does not exist. An optional model reranker
+#: would introduce one, and should add the counter then.
+_RAG_COUNTERS: tuple[str, ...] = (
+    "rag_retrieval_requested_total",
+    "rag_retrieval_skipped_total",
+    "rag_empty_retrieval_total",
+    "rag_lexical_only_total",
+    "rag_hybrid_total",
+    "rag_degraded_total",
+    "rag_vector_unavailable_total",
+    "rag_expansion_used_total",
+    "rag_candidates_considered",
+    "rag_evidence_items",
+    "rag_evidence_chars",
+    "tool_search_calls",
+    "tool_read_calls",
+    "citation_count",
+    "unsupported_claim_count",
+    # Turn-level denominators. `second_retrieval_rate` is defined over TURNS,
+    # not calls: one turn that searches three times is still one turn the
+    # initial retrieval did not satisfy.
+    "rag_turns_total",
+    "rag_turns_with_initial_total",
+    "rag_turns_with_second_total",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +175,9 @@ class MathTutorMetrics:
         self._release_gate: dict[str, int] = {outcome: 0 for outcome in _RELEASE_GATE_OUTCOMES}
         self._outbox_pending: int | None = None
         self._outbox_oldest_seconds: float | None = None
+        self._rag: dict[str, int] = {name: 0 for name in _RAG_COUNTERS}
+        self._turn_had_initial_retrieval = False
+        self._turn_had_second = False
 
     # ----------------------------------------------------------- record
 
@@ -160,6 +205,178 @@ class MathTutorMetrics:
         self._outbox_oldest_seconds = (
             float(oldest_seconds) if oldest_seconds is not None else None
         )
+
+    # --------------------------------------------------------------- RAG
+
+    def record_retrieval(
+        self,
+        execution: Any,
+        *,
+        latency_ms: float | None = None,
+        rerank_ms: float | None = None,
+        context_chars: int = 0,
+    ) -> None:
+        """Fold one turn's :class:`RetrievalExecution` into the counters.
+
+        Takes the execution object directly so the recorded facts are the ones
+        the retrieval stack actually reported, not a re-derivation from config.
+        Only counts and reason codes are stored — never chunk text.
+        """
+        asked = bool(getattr(execution, "retrieval_ran", False))
+        decision = str(getattr(execution, "decision", "") or "")
+        if asked:
+            self._rag["rag_retrieval_requested_total"] += 1
+            self._turn_had_initial_retrieval = True
+        elif decision:
+            self._rag["rag_retrieval_skipped_total"] += 1
+
+        mode = str(getattr(execution, "mode", "lexical"))
+        if asked:
+            key = "rag_hybrid_total" if mode == "hybrid" else "rag_lexical_only_total"
+            self._rag[key] += 1
+
+        reasons = tuple(getattr(execution, "degraded_reasons", ()) or ())
+        if reasons:
+            self._rag["rag_degraded_total"] += 1
+        if "embedding_runtime_unavailable" in reasons:
+            self._rag["rag_vector_unavailable_total"] += 1
+        if bool(getattr(execution, "expansion_used", False)):
+            self._rag["rag_expansion_used_total"] += 1
+
+        items = int(getattr(execution, "items_returned", 0) or 0)
+        if asked and items == 0:
+            self._rag["rag_empty_retrieval_total"] += 1
+        self._rag["rag_candidates_considered"] += int(
+            getattr(execution, "candidates_considered", 0) or 0
+        )
+        self._rag["rag_evidence_items"] += items
+        self._rag["rag_evidence_chars"] += int(context_chars or 0)
+
+        if latency_ms is not None:
+            self.record_latency("retrieval", latency_ms)
+        if rerank_ms is not None:
+            self.record_latency("rerank", rerank_ms)
+
+    def record_tool_call(self, tool_name: str) -> None:
+        """Count an executed application-tool call by name.
+
+        Only the two retrieval tools are counted; anything else is ignored
+        rather than growing the key set at runtime.
+        """
+        if tool_name == "search_knowledge":
+            self._rag["tool_search_calls"] += 1
+            # Turn-level flag for `second_retrieval_rate`. Guarded so three
+            # searches in one turn still count as ONE turn that needed a
+            # second retrieval — a call-count ratio would overstate how often
+            # the initial retrieval was insufficient.
+            if self._turn_had_initial_retrieval and not self._turn_had_second:
+                self._turn_had_second = True
+        elif tool_name == "read_source":
+            self._rag["tool_read_calls"] += 1
+
+    def end_retrieval_turn(self) -> None:
+        """Close the current turn's retrieval bookkeeping.
+
+        Must be called once per turn by the turn owner. Without it the turn
+        denominators never accumulate and the rates read as 0 forever — an
+        absent measurement, not a healthy one.
+        """
+        self._rag["rag_turns_total"] += 1
+        if self._turn_had_initial_retrieval:
+            self._rag["rag_turns_with_initial_total"] += 1
+            if self._turn_had_second:
+                self._rag["rag_turns_with_second_total"] += 1
+        self._turn_had_initial_retrieval = False
+        self._turn_had_second = False
+
+    def record_citations(self, count: int, *, unsupported: int = 0) -> None:
+        """Count citations in a final answer, plus any that failed support."""
+        self._rag["citation_count"] += max(0, int(count))
+        self._rag["unsupported_claim_count"] += max(0, int(unsupported))
+
+    def rag(self) -> dict[str, Any]:
+        """RAG counters plus the rates that are meaningful only as ratios.
+
+        The rates answer different questions and use different denominators on
+        purpose:
+
+        ``second_retrieval_rate``
+            ``turns_with_second_retrieval / turns_with_initial_retrieval``.
+            "Of the turns where the system retrieved, how many needed the
+            agent to search again?" — the diagnostic for whether the initial
+            retrieval is adequate.
+
+        ``average_second_search_calls``
+            ``tool_search_calls / turns_with_initial_retrieval``. "How many
+            searches does a turn take on average?" — a cost signal. Kept
+            separate so neither number is mistaken for the other.
+        """
+        requested = self._rag["rag_retrieval_requested_total"]
+        turns_initial = self._rag["rag_turns_with_initial_total"]
+        turns_second = self._rag["rag_turns_with_second_total"]
+        searched = self._rag["tool_search_calls"]
+        return {
+            **dict(self._rag),
+            "second_retrieval_rate": (
+                round(turns_second / turns_initial, 4) if turns_initial else 0.0
+            ),
+            "average_second_search_calls": (
+                round(searched / turns_initial, 4) if turns_initial else 0.0
+            ),
+            "empty_retrieval_rate": (
+                round(self._rag["rag_empty_retrieval_total"] / requested, 4)
+                if requested
+                else 0.0
+            ),
+        }
+
+    def rag_health(self) -> dict[str, float]:
+        """Scalar-only RAG health aggregate (mirrors ``loop_health``).
+
+        Structural guarantee: every value is a number. No query text, document
+        name, student id or conversation id can appear here — there is no
+        field for one.
+        """
+        turns_initial = self._rag["rag_turns_with_initial_total"]
+        requested = self._rag["rag_retrieval_requested_total"]
+        retrieval = self.latency_histogram("retrieval")
+        rerank = self.latency_histogram("rerank")
+        context = self.latency_histogram("context_build")
+        citations = self._rag["citation_count"]
+
+        def rate(numerator: int, denominator: int) -> float:
+            return round(numerator / denominator, 4) if denominator else 0.0
+
+        return {
+            # Share of ALL closed turns where the system actually retrieved.
+            # Dividing by `turns_initial` here would make this 9.0 for nine
+            # searches in one turn — a ratio that cannot exceed 1 mislabelled
+            # as a rate.
+            "retrieval_request_rate": rate(
+                self._rag["rag_turns_with_initial_total"], self._rag["rag_turns_total"]
+            ),
+            "empty_retrieval_rate": rate(
+                self._rag["rag_empty_retrieval_total"], requested
+            ),
+            "second_retrieval_rate": rate(
+                self._rag["rag_turns_with_second_total"], turns_initial
+            ),
+            "average_retrieved_candidates": rate(
+                self._rag["rag_candidates_considered"], requested
+            ),
+            "average_context_chunks": rate(
+                self._rag["rag_evidence_items"], requested
+            ),
+            "average_context_chars": rate(
+                self._rag["rag_evidence_chars"], requested
+            ),
+            "average_retrieval_latency": retrieval.mean_ms,
+            "average_rerank_latency": rerank.mean_ms,
+            "average_context_build_latency": context.mean_ms,
+            "citation_invalid_rate": rate(
+                self._rag["unsupported_claim_count"], citations
+            ),
+        }
 
     # ------------------------------------------------------------ read
 
@@ -200,6 +417,8 @@ class MathTutorMetrics:
             "tokens": dict(self._tokens),
             "release_gate": dict(self._release_gate),
             "outbox_lag": self.outbox_lag(),
+            "rag": self.rag(),
+            "rag_health": self.rag_health(),
         }
 
     def assert_sanitized(self) -> None:

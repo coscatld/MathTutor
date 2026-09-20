@@ -73,11 +73,13 @@ def ingest_outcome_from_parse(
 ) -> dict:
     """Map parser stats onto persisted document fields.
 
-    extractable_chars == 0 (or zero chunks) is never ``ready``:
-    scanned PDFs become ``needs_ocr``, other empty files become ``failed``.
-    Mixed PDFs with a high empty-page ratio become ``ready_with_warnings``.
-    ``image_count`` is the number of extracted original images (0 when
-    none were saved). Empty text still never becomes ``ready``.
+    extractable_chars == 0 (or zero chunks) is never ``ready``: PDFs become
+    ``needs_ocr``, other empty files become ``failed``. A partially empty PDF
+    becomes ``ready_with_warnings``. Empty text still never becomes ``ready``.
+
+    ``classification`` and ``parser_id`` record what was observed and which
+    parser observed it — both are per-document history that cannot be
+    reconstructed later from the stored bytes.
     """
     warning = parsed.parse_warning
     empty = parsed.extractable_chars <= 0 or chunk_count <= 0
@@ -95,6 +97,8 @@ def ingest_outcome_from_parse(
             "image_count": image_count,
             "empty_page_count": parsed.empty_pages,
             "parse_warning": message,
+            "classification": parsed.classification,
+            "parser_id": parsed.parser_id,
         }
     status = "ready_with_warnings" if warning and parsed.parse_mode == "mixed" else "ready"
     return {
@@ -106,6 +110,8 @@ def ingest_outcome_from_parse(
         "image_count": image_count,
         "empty_page_count": parsed.empty_pages,
         "parse_warning": warning,
+        "classification": parsed.classification,
+        "parser_id": parsed.parser_id,
     }
 
 
@@ -131,6 +137,24 @@ def validate_import(filename: str, mime_type: str, size_bytes: int) -> str:
             f"MIME 类型 {mime_type!r} 不在允许列表中"
         )
     return extension
+
+
+def _failure_update(error: BaseException) -> dict:
+    """Map a parse failure onto persisted fields.
+
+    A :class:`DocumentParseError` carries a real classification (encrypted /
+    corrupted), so it is recorded instead of collapsing into a generic
+    message. Any other exception is left unclassified rather than guessed at.
+    """
+    update = {
+        "status": "failed",
+        "parse_error": str(error)[:500],
+        "retrieval_enabled": False,
+    }
+    classification = getattr(error, "classification", "")
+    if classification:
+        update["classification"] = classification
+    return update
 
 
 def _content_hash(data: bytes) -> str:
@@ -213,17 +237,12 @@ class DocumentIngestionService:
                 student_id, doc, parsed, chunks, preserve_retrieval=False
             )
         except Exception as error:  # parse layer failure — mark, never crash the import
-            doc = await self._repo.update_document(
-                student_id,
-                doc.model_copy(
-                    update={
-                        "status": "failed",
-                        "parse_error": str(error)[:500],
-                        "retrieval_enabled": False,
-                    }
-                ),
-            )
-            return doc
+            failed = doc.model_copy(update=_failure_update(error))
+            stored = await self._repo.update_document(student_id, failed)
+            # A concurrent delete makes the update a no-op. Returning None
+            # here would reach the route as `_project_document(None)` and 500;
+            # the caller is entitled to a stable failed projection either way.
+            return stored if stored is not None else failed
 
         await self._maybe_build_index(student_id, document_id, doc)
         return doc
@@ -250,13 +269,7 @@ class DocumentIngestionService:
         except Exception as error:
             doc = await self._repo.update_document(
                 student_id,
-                doc.model_copy(
-                    update={
-                        "status": "failed",
-                        "parse_error": str(error)[:500],
-                        "retrieval_enabled": False,
-                    }
-                ),
+                doc.model_copy(update=_failure_update(error)),
             )
             if doc is None:
                 raise ValueError(f"document not found: {document_id}") from error
@@ -487,6 +500,8 @@ class DocumentIndexManager:
             embedding_dimension=descriptor.dimension,
             chunker_version=CHUNKER_VERSION,
             parser_version=doc.parser_version,
+            embedding_normalization=descriptor.normalization,
+            embedding_runtime_version=descriptor.runtime_version or "",
         )
         await self._repo.record_index_build(student_id, document_id, record)
         return record

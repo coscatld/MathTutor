@@ -1,0 +1,22 @@
+{
+  "fixture_kind": "SANITIZED_RESPONSE_ONLY_WITH_SYNTHETIC_INPUT",
+  "messages": [
+    {
+      "role": "user",
+      "content": "离线响应回放，不调用模型。"
+    }
+  ],
+  "parameters": {
+    "temperature": 0.4,
+    "max_tokens": 512,
+    "max_retries": 0
+  },
+  "response": {
+    "text": "你这个问题抓得很准，正好把二次方程里两种“退化”情形放在一起比较。先看一般形式：\n\n\\[\nax^2+bx+c=0,\\quad a\\neq 0\n\\]\n\n## 当 \\(c=0\\) 时\n\n方程变成\n\n\\[\nax^2+bx=0\n\\]\n\n两项都含 \\(x\\)，直接提取公因式：\n\n\\[\nx(ax+b)=0\n\\]\n\n这就是因式分解的结果。两个因式相乘为 0，说明至少有一个为 0：\n\n\\[\nx=0 \\quad \\text{或} \\quad ax+b=0\n\\]\n\n第二个式子解得 \\(x=-\\dfrac{b}{a}\\)。所以实根是\n\n\\[\nx_1=0,\\qquad x_2=-\\frac{b}{a}\n\\]\n\n这里 \\(a\\neq 0\\)，所以 \\(-\\frac{b}{a}\\) 一定有意义，两个根都是实数。用判别式看也一致：\\(\\Delta=b^2-4ac=b^2\\ge 0\\)，一定有实根；只有当 \\(b=0\\) 时两根重合。\n\n## 当 \\(b=0\\) 时\n\n这时方程是\n\n\\[\nax^2+c=0\n\\]\n\n注意它和上面是**不同**的情形，不能套用“提取 \\(x\\)”那一步，因为现在没有一次项了。移项得\n\n\\[\nax^2=-c \\quad\\Rightarrow\\quad x^2=-\\frac{c}{a}\n\\]\n\n接下来要看 \\(-\\dfrac{c}{a}\\) 的符号：\n\n- 若 \\(-\\dfrac{c}{a}>0\\)，即 \\(a\\) 与 \\(c\\) 异号，则有两个互为相反数的实根：\n\n\\[\nx=\\pm\\sqrt{-\\frac{c}{a}}\n\\]\n\n- 若 \\(-\\dfrac{c}{a}=0\\)，即 \\(c=0\\)，则 \\(x^2=0\\)，只有一个（二重）实根 \\(x=0\\)。\n- 若 \\(-\\dfrac{c}{a}<0\\)，即 \\(a\\) 与 \\(c\\) 同号，则 \\(x^2\\) 等于负数，在实数范围内无解。\n\n## 两种情况的关系\n\n如果 \\(b=0\\) **且** \\(c=0\\)，方程就是 \\(ax^2=0\\)，只有 \\(x=0\\) 一个根——这既是“\\(c=0\\) 时两根重合”的特例",
+    "provider_id": "deepseek",
+    "model": "deepseek-flash",
+    "finish_reason": "length",
+    "input_tokens": 652,
+    "output_tokens": 512
+  }
+}

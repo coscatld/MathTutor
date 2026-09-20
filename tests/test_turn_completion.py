@@ -57,9 +57,10 @@ async def test_grace_call_before_step_cap():
     provider = Provider(result('length', '先把23拆成'), result('stop', '20+3。'))
     turn = await run(provider)
     assert turn.grace_call_used and turn.steps_used == 2
-    assert turn.final_text == '先把23拆成20+3。'
+    assert '先把23拆成' in turn.final_text and turn.final_text.endswith('20+3。')
+    assert '续写接缝待核对' in turn.final_text
     assert '最后一次' in provider.calls[1][0][-1]['content']
-    assert turn.status == 'COMPLETED'
+    assert turn.status == 'PARTIAL'
     assert turn.input_tokens == 24
 
 
@@ -135,7 +136,7 @@ def test_partial_message_can_continue(tmp_path):
     from mathtutor.infrastructure.generative_gateway import ModelRole
     reset_product_state()
     app = create_math_tutor_app(MathTutorSecuritySettings(environment='development', host='127.0.0.1'), auth_enabled=False, db_path=str(tmp_path / 'turn.db'))
-    provider = Provider(result('length', '第一部分'), result('length', '第二部分'), result('stop', '接下来的结论。'))
+    provider = Provider(result('length', '第一部分。'), result('length', '第二部分。'), result('stop', '接下来的结论。'))
     provider.model = 'test'
     provider.provider_id = 'fake'
     def collect(ws):
@@ -154,12 +155,12 @@ def test_partial_message_can_continue(tmp_path):
             assert first[-2]['event_type'] == 'assistant_partial'
             rows = client.get('/api/v2/math-tutor/sessions/c').json()['messages']
             assert rows[-1]['status'] == 'PARTIAL'
-            assert rows[-1]['content'] == '第一部分第二部分'
+            assert rows[-1]['content'] == '第一部分。\n\n第二部分。'
             ws.send_json({'command': 'send_message', 'payload': {'text': '继续'}, 'session_id': 'c'})
             second = collect(ws)
             assert second[-2]['event_type'] == 'assistant_complete'
-            assert second[-2]['payload']['final_text'] == '接下来的结论。'
-            assert any(m['content'] == '第一部分第二部分' for m in provider.calls[-1][0])
+            assert second[-2]['payload']['final_text'].strip() == '接下来的结论。'
+            assert any(m['content'] == '第一部分。\n\n第二部分。' for m in provider.calls[-1][0])
     reset_product_state()
 
 

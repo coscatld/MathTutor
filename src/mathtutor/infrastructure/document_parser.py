@@ -4,11 +4,24 @@ Parsing turns stored bytes into :class:`ParsedTextDocument` blocks.
 
 PDF decision tree:
 
-    1. Digital PDF → PyMuPDF (text layer, embedded images, empty-page
-       detection). pypdf is a fallback when PyMuPDF is absent.
-    2. No extractable text layer → optional local MinerU.
-    3. MinerU missing or failing → parse_mode=empty (ingest marks
-       needs_ocr). Never pretend a scan is ready.
+    1. BASELINE parse with the best available local parser:
+
+           PyMuPDF   optional rich parser (headings, tables, images)
+           pypdf     guaranteed baseline — the shipped runtime has only this
+                     (docs/CURRENT_STATE_RAG_AUDIT.md §6.1)
+
+       Both raise :class:`DocumentParseError` for encrypted / corrupted
+       files, so the outcome is classified rather than generic.
+    2. If the baseline extracted no usable text, attempt the OPTIONAL
+       external recovery adapter (MinerU). This step does NOT depend on
+       step 1's parser choice — a pypdf baseline can still recover.
+    3. Nothing available → parse_mode=empty; ingest marks needs_ocr.
+       Never pretend a page with no text layer is ready.
+
+Per page we record only what a parser can prove: how many characters its
+text layer yielded. A page with none is ``NO_EXTRACTABLE_TEXT``, which is
+NOT the same claim as "this page is a scan" — see
+:data:`mathtutor.domain.documents.PageTextLayer`.
 
 OCR/VLM is never added opportunistically and never requires a cloud key.
 Docling / LlamaParse adapters exist but are not invoked here.
@@ -20,18 +33,21 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Sequence
 
 from mathtutor.domain.documents import (
     ALLOWED_DOCUMENT_EXTENSIONS,
+    DocumentParseError,
     ParseMode,
     ParsedBlock,
     ParsedElementType,
     ParsedTextDocument,
+    PdfPageProfile,
+    classify_pdf,
 )
-from mathtutor.infrastructure.parse_adapters import mineru_available, try_mineru_parse
+from mathtutor.infrastructure.parse_adapters import try_mineru_parse
 
-PARSER_VERSION = "mt-local-parser-v2"
+PARSER_VERSION = "mt-local-parser-v3"
 
 # Empty-page fraction at or above this value sets parse_warning (mixed PDFs).
 EMPTY_PAGE_WARNING_RATIO = 0.3
@@ -55,6 +71,21 @@ _DISPLAY_FORMULA = re.compile(
     r"^(\$\$.*\$\$|\\\[.*\\\]|\\begin\{equation\*?\}.*\\end\{equation\*?\})$",
     re.S,
 )
+
+
+def _pymupdf():
+    """The optional rich parser, or ``None`` when it is not installed.
+
+    A named seam rather than an inline ``import fitz``: the baseline choice is
+    the single most consequential branch in PDF handling, and tests need to
+    exercise the degraded configuration deterministically on a machine that
+    happens to have PyMuPDF.
+    """
+    try:
+        import fitz  # PyMuPDF — optional rich parser
+    except ImportError:
+        return None
+    return fitz
 
 
 class DocumentParser(Protocol):
@@ -119,34 +150,57 @@ class LocalDocumentParser:
         asset_dir: str | None,
         asset_ref_prefix: str,
     ) -> tuple[list[ParsedBlock], dict]:
-        try:
-            import fitz  # PyMuPDF
-        except ImportError:
-            return self._parse_pdf_pypdf(file_path)
+        """Baseline parse, then optional external recovery.
 
-        blocks, stats = self._parse_pdf_pymupdf(
-            fitz, file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix
+        The baseline is pypdf whenever PyMuPDF is absent — which is the shipped
+        configuration (docs/CURRENT_STATE_RAG_AUDIT.md §6.1). Recovery is
+        attempted for ANY baseline that extracted no usable text, so MinerU
+        reachability does not depend on PyMuPDF being installed.
+        """
+        blocks, stats = self._parse_pdf_baseline(
+            file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix
         )
         if stats["extractable_chars"] > 0:
             return blocks, stats
 
-        # Empty text layer: optional local MinerU. Failure stays empty.
-        mineru_doc = try_mineru_parse(
+        # No usable text from the document's own text layer. The optional
+        # external adapter is the only remaining source — and it is allowed to
+        # be absent, in which case this stays an honest "no text layer".
+        recovered = try_mineru_parse(
             file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix
         )
-        if mineru_doc is not None and mineru_doc.extractable_chars > 0:
-            return list(mineru_doc.blocks), {
-                "total_pages": mineru_doc.total_pages,
-                "text_pages": mineru_doc.text_pages,
-                "empty_pages": mineru_doc.empty_pages,
-                "extractable_chars": mineru_doc.extractable_chars,
-                "parse_mode": mineru_doc.parse_mode,
-                "parse_warning": mineru_doc.parse_warning,
-                "image_count": mineru_doc.image_count,
+        if recovered is not None and recovered.extractable_chars > 0:
+            return list(recovered.blocks), {
+                "total_pages": recovered.total_pages,
+                "text_pages": recovered.text_pages,
+                "empty_pages": recovered.empty_pages,
+                "extractable_chars": recovered.extractable_chars,
+                # Never "text_layer": this text did not come from the PDF's own
+                # layer, and saying otherwise would misreport the source.
+                "parse_mode": "recovered_external",
+                "parse_warning": recovered.parse_warning,
+                "image_count": recovered.image_count,
+                "pages": (),
+                "classification": "NO_TEXT_LAYER_PDF",
+                "parser_id": "mineru",
             }
-        if stats["parse_warning"] and not mineru_available():
-            stats["parse_warning"] = NO_TEXT_LAYER_WARNING
+        stats["parse_warning"] = NO_TEXT_LAYER_WARNING
         return blocks, stats
+
+    def _parse_pdf_baseline(
+        self,
+        file_path: Path,
+        *,
+        asset_dir: str | None,
+        asset_ref_prefix: str,
+    ) -> tuple[list[ParsedBlock], dict]:
+        """Best available local parser: PyMuPDF when present, else pypdf."""
+        fitz = _pymupdf()
+        if fitz is None:
+            return self._parse_pdf_pypdf(file_path)
+        return self._parse_pdf_pymupdf(
+            fitz, file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix
+        )
 
     def _parse_pdf_pymupdf(
         self,
@@ -156,8 +210,17 @@ class LocalDocumentParser:
         asset_dir: str | None,
         asset_ref_prefix: str,
     ) -> tuple[list[ParsedBlock], dict]:
-        document = fitz.open(str(file_path))
+        """Optional rich parser. Only reachable when PyMuPDF is installed."""
         try:
+            document = fitz.open(str(file_path))
+        except Exception as error:
+            raise DocumentParseError("CORRUPTED_PDF", f"PDF 结构无法读取：{error}") from error
+        try:
+            if getattr(document, "needs_pass", False):
+                raise DocumentParseError(
+                    "ENCRYPTED_PDF",
+                    "PDF 已加密，需要密码才能解析；当前版本不支持加密文档。",
+                )
             return self._extract_pymupdf_document(
                 document,
                 asset_dir=asset_dir,
@@ -174,6 +237,7 @@ class LocalDocumentParser:
         asset_ref_prefix: str,
     ) -> tuple[list[ParsedBlock], dict]:
         blocks: list[ParsedBlock] = []
+        pages: list[PdfPageProfile] = []
         total_pages = document.page_count
         text_pages = 0
         empty_pages = 0
@@ -247,6 +311,16 @@ class LocalDocumentParser:
                 extractable_chars += page_chars
             else:
                 empty_pages += 1
+            pages.append(
+                PdfPageProfile(
+                    page_number=page_number,
+                    extractable_text_chars=page_chars,
+                    text_layer="TEXT_LAYER" if page_chars else "NO_EXTRACTABLE_TEXT",
+                    # PyMuPDF can actually measure this; pypdf cannot. Kept as a
+                    # measured value rather than inferred from the text layer.
+                    image_count=len(saved),
+                )
+            )
 
         stats = _parse_stats(
             total_pages=total_pages,
@@ -255,38 +329,80 @@ class LocalDocumentParser:
             extractable_chars=extractable_chars,
             empty_warning=NO_TEXT_LAYER_WARNING,
             image_count=image_count,
+            pages=pages,
+            parser_id="pymupdf",
         )
         return blocks, stats
 
     def _parse_pdf_pypdf(self, file_path: Path) -> tuple[list[ParsedBlock], dict]:
-        """Fallback when PyMuPDF is not installed (text only, no images)."""
-        from pypdf import PdfReader
+        """The guaranteed PDF baseline: text-layer extraction only.
 
-        reader = PdfReader(str(file_path))
+        pypdf cannot report tables, images, fonts or layout, so nothing here
+        invents them. Raises :class:`DocumentParseError` when the file is
+        encrypted or structurally unreadable, so ingestion can record a real
+        classification instead of a generic failure.
+        """
+        from pypdf import PdfReader
+        from pypdf.errors import FileNotDecryptedError, PdfReadError, PyPdfError
+
+        try:
+            reader = PdfReader(str(file_path))
+        except PyPdfError as error:
+            raise DocumentParseError("CORRUPTED_PDF", f"PDF 结构无法读取：{error}") from error
+        except Exception as error:
+            raise DocumentParseError("CORRUPTED_PDF", f"PDF 结构无法读取：{error}") from error
+
+        if reader.is_encrypted:
+            raise DocumentParseError(
+                "ENCRYPTED_PDF",
+                "PDF 已加密，需要密码才能解析；当前版本不支持加密文档。",
+            )
+
         blocks: list[ParsedBlock] = []
-        total_pages = len(reader.pages)
+        pages: list[PdfPageProfile] = []
         text_pages = 0
         empty_pages = 0
         extractable_chars = 0
-        for page_number, page in enumerate(reader.pages, start=1):
-            text = (page.extract_text() or "").strip()
-            if not text:
-                empty_pages += 1
-                continue
-            text_pages += 1
-            extractable_chars += len(text)
-            blocks.extend(
-                _sized_blocks(type="paragraph", page=page_number, text=part)
-                for part in _split_oversize(text)
-            )
-        return blocks, _parse_stats(
+        try:
+            total_pages = len(reader.pages)
+            for page_number, page in enumerate(reader.pages, start=1):
+                text = (page.extract_text() or "").strip()
+                if not text:
+                    empty_pages += 1
+                    pages.append(PdfPageProfile(page_number=page_number))
+                    continue
+                text_pages += 1
+                extractable_chars += len(text)
+                pages.append(
+                    PdfPageProfile(
+                        page_number=page_number,
+                        extractable_text_chars=len(text),
+                        text_layer="TEXT_LAYER",
+                    )
+                )
+                blocks.extend(
+                    _sized_blocks(type="paragraph", page=page_number, text=part)
+                    for part in _split_oversize(text)
+                )
+        except FileNotDecryptedError as error:
+            raise DocumentParseError(
+                "ENCRYPTED_PDF",
+                "PDF 已加密，需要密码才能解析；当前版本不支持加密文档。",
+            ) from error
+        except PyPdfError as error:
+            raise DocumentParseError("CORRUPTED_PDF", f"PDF 页面无法读取：{error}") from error
+
+        stats = _parse_stats(
             total_pages=total_pages,
             text_pages=text_pages,
             empty_pages=empty_pages,
             extractable_chars=extractable_chars,
             empty_warning=NO_TEXT_LAYER_WARNING,
             image_count=0,
+            pages=pages,
+            parser_id="pypdf",
         )
+        return blocks, stats
 
     # ------------------------------------------------------------- text
 
@@ -353,6 +469,8 @@ class LocalDocumentParser:
             extractable_chars=extractable_chars,
             empty_warning=NO_TEXT_FILE_WARNING,
             image_count=0,
+            parser_id="text",
+            classification="TEXT_FILE",
         )
 
 
@@ -395,8 +513,14 @@ def _parse_stats(
     extractable_chars: int,
     empty_warning: str,
     image_count: int = 0,
+    pages: Sequence[PdfPageProfile] = (),
+    parser_id: str = "",
+    classification: str = "",
 ) -> dict:
-    """Derive parse_mode / parse_warning. Does not change block extraction."""
+    """Derive parse_mode / parse_warning / classification from page facts.
+
+    Does not change block extraction.
+    """
     parse_mode: ParseMode
     parse_warning = ""
     if extractable_chars <= 0:
@@ -406,10 +530,17 @@ def _parse_stats(
         parse_mode = "mixed"
         if empty_pages / total_pages >= EMPTY_PAGE_WARNING_RATIO:
             parse_warning = (
-                f"共 {total_pages} 页，其中 {empty_pages} 页无文字，可能含扫描页。"
+                f"共 {total_pages} 页，其中 {empty_pages} 页无可提取文字层，可能需要 OCR。"
             )
     else:
         parse_mode = "text_layer"
+    if classification:
+        resolved = classification
+    elif pages:
+        resolved = classify_pdf(tuple(pages))
+    else:
+        # No page model at all (plain text input, or a PDF that never opened).
+        resolved = "NO_TEXT_LAYER_PDF"
     return {
         "total_pages": total_pages,
         "text_pages": text_pages,
@@ -418,6 +549,9 @@ def _parse_stats(
         "parse_mode": parse_mode,
         "parse_warning": parse_warning,
         "image_count": image_count,
+        "pages": tuple(pages),
+        "classification": resolved,
+        "parser_id": parser_id,
     }
 
 

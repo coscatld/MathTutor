@@ -44,6 +44,7 @@ class PublicProblemView(BaseModel):
     display_latex: str
     skill_id: str = ""
     student_request: str = ""
+    review_style: str = ""
     teaching_plan: dict[str, Any] = Field(default_factory=dict)
     task_context: dict[str, Any] = Field(default_factory=dict)
     language_understanding: dict[str, Any] = Field(default_factory=dict)
@@ -316,6 +317,8 @@ def _build_user_prompt(
         "已披露的教学内容（解题步骤仍以披露材料为准）：",
         _disclosure_material(disclosure),
     ]
+    if problem_view.review_style:
+        parts.append("用户明确讲解偏好（只调整措辞，不改变判题、掌握事实或披露级别）：" + problem_view.review_style)
     if problem_view.student_request:
         parts.extend([
             f"当前知识点：{problem_view.skill_id}",

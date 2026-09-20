@@ -197,6 +197,33 @@ class SQLiteDocumentRepository:
                 conn, student_id=student_id, document_id=document_id
             )
 
+    async def list_retrievable_chunks(
+        self, student_id: str, document_id: UUID
+    ) -> list[DocumentChunk]:
+        async with self.uow.transaction() as conn:
+            return await sd.list_retrievable_chunks(
+                conn, student_id=student_id, document_id=document_id
+            )
+
+    async def list_chunk_neighbourhood(
+        self,
+        student_id: str,
+        document_id: UUID,
+        *,
+        sequence_start: int,
+        sequence_end: int,
+        chunk_ids: Sequence[UUID] = (),
+    ) -> list[DocumentChunk]:
+        async with self.uow.transaction() as conn:
+            return await sd.list_chunk_neighbourhood(
+                conn,
+                student_id=student_id,
+                document_id=document_id,
+                sequence_start=sequence_start,
+                sequence_end=sequence_end,
+                chunk_ids=chunk_ids,
+            )
+
     async def replace_vectors(
         self,
         student_id: str,

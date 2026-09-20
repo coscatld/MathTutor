@@ -27,3 +27,5 @@ node_modules/
 coverage/
 test-results/
 *.tsbuildinfo
+artifacts/
+*.exe

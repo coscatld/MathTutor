@@ -7,6 +7,7 @@ import {ArrowUpRight, BookOpen, RefreshCw} from "lucide-react";
 import {fetchStudentSummary} from "../lib/desktop-api";
 import type {StudentSummary, SkillSummary} from "../types";
 import SkillEvidenceDrawer from "./SkillEvidenceDrawer";
+import StageReviewPanel from "../../knowledge/StageReviewPanel";
 
 export function SkillObservation({skill, onEvidence}: {skill: SkillSummary; onEvidence: () => void}) {
   return <article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 sm:p-6">
@@ -36,6 +37,7 @@ export default function LearningProfilePanel() {
   const unchecked = summary?.skills.filter(s => !s.evidence_count) || [];
   return <div className="mt-page">
     <header className="flex items-start justify-between gap-5"><div><p className="text-xs font-semibold tracking-widest text-[var(--primary)]">从作答中了解自己</p><h1 className="mt-2 font-serif text-3xl font-bold">学习画像</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">每条观察都来自本设备上的可核验记录。查看依据，决定下一步练什么。</p></div><button type="button" onClick={() => void load()} disabled={loading} aria-label="刷新学习画像" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden="true" /></button></header>
+    <StageReviewPanel />
     {loading && !summary && <p role="status" className="py-10">正在读取学习观察…</p>}
     <Link href="/onboarding/assessment" className="inline-flex min-h-11 items-center text-sm text-[var(--primary)] underline underline-offset-4">查看初评与练习起点</Link>
     {error && <p role="alert" className="rounded-xl bg-[var(--muted)] p-4">画像暂时无法加载。<button className="ml-2 min-h-11 underline" onClick={() => void load()}>重新加载</button></p>}

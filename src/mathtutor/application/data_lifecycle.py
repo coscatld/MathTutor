@@ -104,6 +104,19 @@ DATA_CATEGORY_VALUES: frozenset[str] = frozenset(
 
 #: table → category, covering EVERY business table in infrastructure/schema.py.
 DATA_CATEGORIES: dict[str, str] = {
+    "knowledge_spaces": CATEGORY_USER_CONTROLLED,
+    "knowledge_members": CATEGORY_USER_CONTROLLED,
+    "knowledge_bindings": CATEGORY_USER_CONTROLLED,
+    "knowledge_versions": CATEGORY_USER_CONTROLLED,
+    "knowledge_generations": CATEGORY_SYSTEM,
+    "knowledge_operations": CATEGORY_DERIVED,
+    "knowledge_drafts": CATEGORY_USER_CONTROLLED,
+    # Citation receipts record that a range was surfaced. They are removed
+    # with the document (privacy deletion overrides historical citation
+    # availability), so they are user-controlled content, not system state.
+    "knowledge_citation_receipts": CATEGORY_USER_CONTROLLED,
+    "stage_reviews": CATEGORY_DERIVED,
+    "stage_preferences": CATEGORY_USER_CONTROLLED,
     # runtime / identity — account and session skeleton, never per-student
     # lifecycle data.
     "users": CATEGORY_SYSTEM,
@@ -161,6 +174,16 @@ DATA_CATEGORIES: dict[str, str] = {
 
 #: 分类理由（表 → 一句话依据），来源：infrastructure/schema.py + 设计文档。
 DATA_CATEGORY_REASONS: dict[str, str] = {
+    "knowledge_spaces": "用户显式创建的资料空间，随资料清除",
+    "knowledge_members": "显式资料归属，删除资料或空间时清除",
+    "knowledge_bindings": "会话显式挂载，随会话或资料清除",
+    "knowledge_versions": "真实读取的资料版本，随资料删除",
+    "knowledge_generations": "无内容的删除代次，防止旧任务回写",
+    "knowledge_operations": "幂等保存回执，删除或禁用时清除",
+    "knowledge_drafts": "用户笔记草稿，删除或禁用时清除",
+    "knowledge_citation_receipts": "已 surfaced 引用的凭证，随资料删除；不保存正文副本",
+    "stage_reviews": "学习事件派生复盘，随教育历史删除",
+    "stage_preferences": "用户明确学习偏好，随教育历史删除",
     "users": "账户/角色身份（Phase 0 身份），非学生数据，永不随学生生命周期删除",
     "student_profiles": "user→student 身份映射，SYSTEM 骨架",
     "learning_sessions": "会话骨架（客户端会话 id 唯一约束），非教育结果",
@@ -461,16 +484,55 @@ class DataLifecycleService:
         if doc is None:
             _log_summary("delete_document", {"doc_id": str(document_id), "deleted": False})
             return False
+        knowledge = getattr(self, "knowledge", None)
+        if knowledge is not None:
+            await knowledge.forget_document(student_id, document_id)
         deleted = await service.delete(student_id, document_id)  # soft delete + file removal
         if not deleted:
             _log_summary("delete_document", {"doc_id": str(document_id), "deleted": False})
             return False
+        if knowledge is not None:
+            # Final sweep after the tombstone closes a concurrent lazy-snapshot
+            # window; late snapshot commits also check the live document row.
+            await knowledge.forget_document(student_id, document_id)
         repository = self._require_document_repository()
         await repository.replace_chunks(student_id, document_id, [])  # chunk facts removed
         await repository.replace_vectors(student_id, document_id, [])  # derived vectors removed
         await self._delete_index_build(student_id, document_id)
+        # D2: the legacy conversation binding outlived the document. Retrieval
+        # was still correct (the SQL gate drops tombstoned documents), but the
+        # binding table disagreed with the document table, and every reader
+        # had to know that to reason about it. Deletion now removes its own.
+        await self._detach_from_conversations(student_id, document_id)
         _log_summary("delete_document", {"doc_id": str(document_id), "deleted": True})
         return True
+
+    async def _detach_from_conversations(self, student_id: str, document_id: Any) -> int:
+        """Remove this document's conversation bindings (owner-scoped).
+
+        Optional dependency, like ``knowledge``: a lifecycle service built
+        without a conversation repository is a valid configuration (tests,
+        partial wiring) and simply has no bindings to clean.
+        """
+        conversations = getattr(self, "conversations", None)
+        if conversations is None:
+            return 0
+        try:
+            conversation_ids = await conversations.conversation_ids_for_document(
+                student_id, document_id
+            )
+        except Exception:
+            return 0
+        detached = 0
+        for conversation_id in conversation_ids:
+            try:
+                if await conversations.detach_document(
+                    student_id, conversation_id, document_id
+                ):
+                    detached += 1
+            except Exception:
+                continue
+        return detached
 
     async def purge_user_documents(self, student_id: str) -> dict[str, int]:
         """Wipe ALL of one student's document data (live AND already
@@ -480,6 +542,9 @@ class DataLifecycleService:
         repository = self._require_document_repository()
         storage = self._require_storage()
         docs = await repository.list_documents(student_id, include_deleted=True)
+        knowledge = getattr(self, "knowledge", None)
+        if knowledge is not None:
+            await knowledge.purge(student_id)
         summary = {
             "documents_soft_deleted": 0,
             "chunks_removed": 0,
@@ -500,6 +565,8 @@ class DataLifecycleService:
             summary["index_builds_removed"] += 1
             if await storage.remove(doc.storage_ref):
                 summary["storage_files_removed"] += 1
+        if knowledge is not None:
+            await knowledge.purge(student_id)
         _log_summary("purge_user_documents", summary)
         return summary
 
@@ -666,7 +733,8 @@ class DataLifecycleService:
             await revoke_pending(conn, student_id)
             await conn.execute(insert(learning_generations).values(student_id=student_id, generation=1)
                 .on_conflict_do_update(index_elements=["student_id"], set_={"generation": learning_generations.c.generation + 1}))
-            for table in (learning_predictions, student_state_snapshots, learning_events, practice_feedback, initial_assessments):
+            from mathtutor.infrastructure.knowledge_schema import reviews, preferences
+            for table in (learning_predictions, student_state_snapshots, learning_events, practice_feedback, initial_assessments, reviews, preferences):
                 result = await conn.execute(sa_delete(table).where(table.c.student_id == student_id))
                 deleted_by_table[table.name] = result.rowcount
             teaching_rows = (await conn.execute(select(teaching_contexts).where(

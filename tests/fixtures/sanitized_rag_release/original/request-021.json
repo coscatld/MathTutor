@@ -1,0 +1,15 @@
+{
+  "fixture_kind": "SANITIZED_RESPONSE_ONLY_WITH_SYNTHETIC_INPUT",
+  "messages": [
+    {
+      "role": "user",
+      "content": "离线响应回放，不调用模型。"
+    }
+  ],
+  "parameters": {
+    "temperature": 0.4,
+    "max_tokens": 512,
+    "max_retries": 0
+  },
+  "error_category": "response_incomplete"
+}

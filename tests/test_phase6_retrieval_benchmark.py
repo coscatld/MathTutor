@@ -1,4 +1,15 @@
-"""Phase 6 第二轮 — 检索评测 benchmark（小规模、确定性、进常规套件）。
+"""DEPRECATED — SUPERSEDED.
+
+Replaced by ``tests/test_rag_production_benchmark.py``, which scores the
+REAL production contract (real SQLite corpus -> DocumentIndexManager ->
+ConversationRetrievalOrchestrator -> ProductionReranker -> EvidencePack)
+instead of hand-built ``RetrievalItem`` projections. Its frozen numbers
+responded to nothing in the product.
+
+Kept only until the last consumer of ``MetadataFirstRetriever`` is removed;
+it is NOT an official benchmark any more. The official one is the migrated
+file named above.
+Phase 6 第二轮 — 检索评测 benchmark（小规模、确定性、进常规套件）。
 
 三链路对比（同一固定语料 + 同一 ground truth）：
 

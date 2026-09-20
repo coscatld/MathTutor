@@ -1,0 +1,22 @@
+{
+  "fixture_kind": "SANITIZED_RESPONSE_ONLY_WITH_SYNTHETIC_INPUT",
+  "messages": [
+    {
+      "role": "user",
+      "content": "离线响应回放，不调用模型。"
+    }
+  ],
+  "parameters": {
+    "temperature": 0.4,
+    "max_tokens": 512,
+    "max_retries": 0
+  },
+  "response": {
+    "text": "你说得对，这正是二次方程里判别式最核心的作用。\n\n对方程\n\n\\[ ax^2+bx+c=0 \\quad (a\\neq 0) \\]\n\n判别式定义为\n\n\\[ \\Delta=b^2-4ac \\]\n\n它决定根的个数，依据的是求根公式 \\( x=\\dfrac{-b\\pm\\sqrt{b^2-4ac}}{2a} \\)【二次方程.md·片段#2】：\n\n| 判别式 | 根的情况 |\n| --- | --- |\n| \\( \\Delta>0 \\) | 两个不相等的实根 |\n| \\( \\Delta=0 \\) | 两个相等的实根 |\n| \\( \\Delta<0 \\) | 无实根 |\n\n关键就在公式里那个 \\( \\sqrt{\\Delta} \\)：\n\n- \\( \\Delta>0 \\) 时，根号算得出正数，前面的 \\( \\pm \\) 给出两个不同的值；\n- \\( \\Delta=0 \\) 时，根号是 0，\\( \\pm 0 \\) 不产生差别，两个根\"挤\"成了一个，所以是相等的两根；\n- \\( \\Delta<0 \\) 时，负数在实数范围内开不出平方根，因此没有实根。\n\n举个例子：\\( x^2-5x+6=0 \\)，\\( \\Delta=25-24=1>0 \\)，确实有两个不等实根 \\( x=2 \\) 和 \\( x=3 \\)；而 \\( x^2-4x+4=0 \\)，\\( \\Delta=16-16=",
+    "provider_id": "deepseek",
+    "model": "deepseek-flash",
+    "finish_reason": "length",
+    "input_tokens": 760,
+    "output_tokens": 512
+  }
+}

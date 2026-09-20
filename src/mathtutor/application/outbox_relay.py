@@ -10,10 +10,11 @@ Guarantees:
   the originating transaction rolled back (the outbox row simply does not
   exist).
 - Idempotent: every dispatch is recorded in ``outbox_dispatch_ledger`` in
-  the SAME transaction as the read; the ledger's unique key
+  a short transaction after dispatch; the ledger's unique key
   ``(aggregate_type, aggregate_id, aggregate_version, event_sequence)``
   (mirroring the outbox's own key) makes a replayed event impossible to
-  dispatch twice, and an interrupted run resumes from its ledger watermark.
+  acquire duplicate ledger records. A crash after delivery can redeliver;
+  consumers must be idempotent, and restart uses the durable ledger watermark.
 - Failure isolation: a failing sink records ``attempts``/``last_error`` in
   the ledger and does NOT block subsequent events; failed events are
   retried by a later batch (their ledger row still has ``last_error``).
@@ -153,10 +154,10 @@ class LoggingDispatchSink:
 class OutboxRelayService:
     """Relay over the product UoW: read committed outbox → sink → ledger.
 
-    One short UoW transaction per ``process_batch`` call: pending rows are
-    read, dispatched and ledgered inside the SAME transaction, so a crash
-    before commit only risks at-least-once redelivery (never loss, never a
-    duplicate ledger record).
+    Short transactions read candidates and record individual receipts.
+    Dispatch runs outside database transactions, allowing sinks to commit
+    projections without holding SQLite's writer lock across external work.
+    A crash after delivery can cause at-least-once redelivery, not loss.
 
     Resident mode (spec 5.1): :meth:`start` spawns the drain loop;
     :meth:`wake` accelerates a drain after new events were appended;
@@ -257,16 +258,21 @@ class OutboxRelayService:
             raise
         except Exception:  # noqa: BLE001 - a crashed loop must never block shutdown
             logger.exception("outbox relay loop exited with an error")
+            raise
         self._task = None
 
     @staticmethod
     async def _await_cancelled(task: asyncio.Task[Any]) -> None:
+        _, pending = await asyncio.wait({task}, timeout=5.0)
+        if pending:
+            raise RuntimeError("Owned background task did not finish cancellation")
         try:
             await task
         except asyncio.CancelledError:
             pass
         except Exception:  # noqa: BLE001 - teardown must not raise
             logger.exception("outbox relay loop raised during force-cancel")
+            raise
 
     async def run_loop(self) -> None:
         """Resident drain loop (spec 5.1). Spawned by :meth:`start`; may
@@ -355,36 +361,36 @@ class OutboxRelayService:
                     self._candidate_select().limit(limit * _CANDIDATE_WINDOW_FACTOR)
                 )
             ).all()
-            for row in rows:
-                if dispatched + failed >= limit:
-                    break  # 本批配额已满，未检查的行留待下一批
-                if not self._row_eligible(row, now_dt):
-                    skipped += 1
-                    continue
-                event = {
-                    "outbox_id": row.outbox_id,
-                    "aggregate_type": row.aggregate_type,
-                    "aggregate_id": row.aggregate_id,
-                    "aggregate_version": row.aggregate_version,
-                    "event_sequence": row.event_sequence,
-                    "event_type": row.event_type,
-                    "audience": row.audience,
-                    "payload": row.payload,
-                    "created_at": row.created_at,
-                }
-                error: str | None = None
-                try:
-                    await self.sink.dispatch(event)
-                    dispatched += 1
-                except Exception as exc:  # noqa: BLE001 - one bad sink must not block the batch
-                    failed += 1
-                    error = str(exc)[:_MAX_ERROR_LEN]
-                    if self._next_attempts(row.ledger_attempts) >= self.max_attempts:
-                        # 达到封顶：本次即最后一次尝试，之后永久停用（parked）。
-                        error = f"attempt limit exceeded: {error}"
-                await self._record_dispatch(
-                    conn, event, dispatched_at=now, error=error
-                )
+        # Dispatch outside the read transaction: consumers may write projections.
+        # At-least-once delivery requires each sink to be idempotent.
+        for row in rows:
+            if dispatched + failed >= limit:
+                break
+            if not self._row_eligible(row, now_dt):
+                skipped += 1
+                continue
+            event = {
+                "outbox_id": row.outbox_id,
+                "aggregate_type": row.aggregate_type,
+                "aggregate_id": row.aggregate_id,
+                "aggregate_version": row.aggregate_version,
+                "event_sequence": row.event_sequence,
+                "event_type": row.event_type,
+                "audience": row.audience,
+                "payload": row.payload,
+                "created_at": row.created_at,
+            }
+            error: str | None = None
+            try:
+                await self.sink.dispatch(event)
+                dispatched += 1
+            except Exception as exc:  # noqa: BLE001 - isolate failing consumers
+                failed += 1
+                error = str(exc)[:_MAX_ERROR_LEN]
+                if self._next_attempts(row.ledger_attempts) >= self.max_attempts:
+                    error = f"attempt limit exceeded: {error}"
+            async with self.uow.transaction() as conn:
+                await self._record_dispatch(conn, event, dispatched_at=now, error=error)
         return {
             "pending": dispatched + failed + skipped,
             "dispatched": dispatched,

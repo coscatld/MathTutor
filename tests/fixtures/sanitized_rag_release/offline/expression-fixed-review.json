@@ -1,0 +1,1584 @@
+{
+  "group": "expression-fixed",
+  "generating_version": "0.4.1",
+  "review_version": "0.4.2",
+  "source_results_sha256": "7f39da3f9442105622e4ac662e87773377c730170482172190b893e7c56cbd30",
+  "original_B_scores_reused": false,
+  "semantic_labels": "NEW_INDEPENDENT_AI_PROVISIONAL",
+  "faithfulness_macro": null,
+  "human_review_status": "PENDING",
+  "rows": [
+    {
+      "case_id": "easy:canonical_term",
+      "question": "一元一次方程的定义是什么",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        32
+      ],
+      "request_sha256": {
+        "32": "512c59ff26a5671adc864285d0d725a6858a865e72e06d06b5be4461cbdd0e50"
+      },
+      "final_answer": "你问的是核心概念，直接看定义就好。\n\n一元一次方程：**只含有一个未知数，并且未知数的次数是 1 的整式方程**。\n\n拆开看有三个要点：\n- 只有一个未知数，比如 \\(x\\)；\n- 未知数的最高次数是 1，不能出现 \\(x^2\\)；\n- 必须是整式方程，未知数不能出现在分母里。\n\n对照几个例子：\n- \\(3x+5=11\\) 是一元一次方程；\n- \\(2x^2-1=0\\) 不是，因为次数是 2；\n- \\(\\dfrac{1}{x}=4\\) 不是，因为未知数在分母上，它不是整式方程。\n\n【一次方程.md·片段#1】\n\n那再想一个小问题：\\(5x-2=3x+6\\) 算不算一元一次方程？判断时你会先看哪一点？",
+      "answer_sha256": "b0b223031496555c7411f6e3afe94476d9809da58ff4cc359bbf4823887ff305",
+      "actual_visible_evidence": [
+        {
+          "filename": "一次方程.md",
+          "chunk": 1,
+          "text": "只含有一个未知数、未知数次数为一的整式方程叫做一元一次方程。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 2,
+          "text": "去分母、去括号、移项、合并同类项、系数化为1。\n移项要变号：把等式一边的某项移到另一边时，符号必须改变。\n等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "只含一个未知数",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:canonical_term:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "未知数最高次数为1",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:canonical_term:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "整式方程，未知数不能在分母",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:canonical_term:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "3x+5=11 是一元一次方程",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:canonical_term:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "2x²-1=0 不是一次方程",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:canonical_term:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "1/x=4 不是整式方程",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:canonical_term:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【一次方程.md·片段#1】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:spoken_variant",
+      "question": "等式两边同时减同一个数可以吗",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        33
+      ],
+      "request_sha256": {
+        "33": "f0b9e8142aa9f138229c938f97762e1e24a7da5bea7e93cd87d1723bf098e0ee"
+      },
+      "final_answer": "可以的，这正是等式基本性质的一部分：等式两边同时加上或减去同一个数，等式仍然成立。所以“同时减同一个数”完全没问题。\n\n比如 \\(x+3=7\\)，两边同时减 \\(3\\)，得到 \\(x=4\\)。\n\n顺便问一下：如果方程是 \\(2x=6\\)，两边同时减 \\(2\\) 能得到 \\(x=2\\) 吗？你可以先想一想，再说说你的判断。",
+      "answer_sha256": "f309ef48a31ec663c72574b7248e4724e253a6f3e13896b390a660944da966d6",
+      "actual_visible_evidence": [
+        {
+          "filename": "一次方程.md",
+          "chunk": 2,
+          "text": "去分母、去括号、移项、合并同类项、系数化为1。\n移项要变号：把等式一边的某项移到另一边时，符号必须改变。\n等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 1,
+          "text": "只含有一个未知数、未知数次数为一的整式方程叫做一元一次方程。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "分式笔记.md",
+          "chunk": 1,
+          "text": "分式的分母不能为零，这是分式有意义的前提条件。\n分式的基本性质：分子分母同乘或同除以一个不为零的整式，分式的值不变。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "交换律.md",
+          "chunk": 1,
+          "text": "两个数相加，交换加数的位置，和不变。\n用字母表示：a + b = b + a。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "结合律.md",
+          "chunk": 1,
+          "text": "三个数相加，先把前两个数相加，或者先把后两个数相加，和不变。\n用字母表示：(a + b) + c = a + (b + c)。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "二次方程.md",
+          "chunk": 2,
+          "text": "求根公式：x = (-b ± √(b²-4ac)) / (2a)。\n判别式 Δ = b²-4ac 决定根的个数：Δ>0 有两个不等实根，Δ=0 有两个相等实根，Δ<0 无实根。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "两边同加或同减同一个数仍相等",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:spoken_variant:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x+3=7 同减3得x=4",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:spoken_variant:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:transposition",
+      "question": "移项要变号吗",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        34
+      ],
+      "request_sha256": {
+        "34": "f40791708d3f1c9e093338baa59912b816dedc7dbb313b321947f1d9c726cc69"
+      },
+      "final_answer": "要的，移项必须变号。\n\n道理来自等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。比如\n\n\\[\nx + 3 = 7\n\\]\n\n两边同时减去 \\(3\\)：\n\n\\[\nx + 3 - 3 = 7 - 3\n\\]\n\n左边剩下 \\(x\\)，右边是 \\(4\\)，所以 \\(x = 4\\)。写成移项的样子，就是把 \\(+3\\) 从左边移到右边，变成 \\(-3\\)：\n\n\\[\nx = 7 - 3\n\\]\n\n所以规则是：**从等式一边移到另一边，符号要反过来**，加变减、减变加。\n\n那再想一个小问题：如果方程是 \\(5x = 2x + 6\\)，把右边的 \\(2x\\) 移到左边，应该写成什么？",
+      "answer_sha256": "4c29af23a2bc5aaa2d4f04a40d78889e7c267fbe28b9e3a9c5259252945e1710",
+      "actual_visible_evidence": [
+        {
+          "filename": "一次方程.md",
+          "chunk": 2,
+          "text": "去分母、去括号、移项、合并同类项、系数化为1。\n移项要变号：把等式一边的某项移到另一边时，符号必须改变。\n等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 1,
+          "text": "只含有一个未知数、未知数次数为一的整式方程叫做一元一次方程。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "移项必须变号",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:transposition:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "依据两边同加减的等式性质",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:transposition:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x+3=7 两边减3得x+3-3=7-3",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:transposition:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x=4",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:transposition:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x=7-3，移项加变减、减变加",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:transposition:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:formula",
+      "question": "求根公式 x = (-b ± √(b²-4ac)) / (2a)",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        35
+      ],
+      "request_sha256": {
+        "35": "80e9a6bf98463c14795516ce5ab08046ce4eb1eb86a95a1990f6858faad62604"
+      },
+      "final_answer": "你写出的这个式子正是**一元二次方程的求根公式**，方向完全正确。\n\n它适用于一般形式\n\n\\[\nax^2+bx+c=0 \\quad (a\\neq 0)\n\\]\n\n其中 \\(a\\) 是二次项系数，\\(b\\) 是一次项系数，\\(c\\) 是常数项。代入公式：\n\n\\[\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n\\]\n\n这里的 \\(\\pm\\) 表示两个根：一个取加号，一个取减号。\n\n根号里的部分\n\n\\[\n\\Delta=b^2-4ac\n\\]\n\n叫做**判别式**，它决定根的个数：\n\n- \\(\\Delta>0\\)：两个不相等的实根；\n- \\(\\Delta=0\\)：两个相等的实根；\n- \\(\\Delta<0\\)：没有实根。\n\n这些内容与资料【二次方程.md·片段#2】一致。\n\n一个小问题帮你检查理解：如果方程是\n\n\\[\nx^2-5x+6=0\n\\]\n\n那么 \\(a,b,c\\) 分别等于多少？先别急着算根，只把 \\(a,b,c\\) 找出来看看。",
+      "answer_sha256": "3cbcb0a08815b00866db6761a449f7061f39d4b402740c591519a18e96d07426",
+      "actual_visible_evidence": [
+        {
+          "filename": "二次方程.md",
+          "chunk": 2,
+          "text": "求根公式：x = (-b ± √(b²-4ac)) / (2a)。\n判别式 Δ = b²-4ac 决定根的个数：Δ>0 有两个不等实根，Δ=0 有两个相等实根，Δ<0 无实根。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "二次方程.md",
+          "chunk": 1,
+          "text": "一元二次方程的一般形式是 ax^2 + bx + c = 0，其中 a 不等于零。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "求根公式适用于ax²+bx+c=0且a≠0",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:formula:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "a二次项系数、b一次项系数、c常数项",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:formula:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x=(-b±√(b²-4ac))/(2a)",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:formula:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "±对应两个根；零判别式时重合",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "必须连同后文实根条件读，非无条件两个不同实根",
+          "disputed": false,
+          "claim_id": "easy:formula:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ=b²-4ac",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:formula:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ>0两个不等实根",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:formula:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ=0两个相等实根",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:formula:C07",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ<0没有实根",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:formula:C08",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【二次方程.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:discriminant",
+      "question": "判别式决定根的个数",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        36
+      ],
+      "request_sha256": {
+        "36": "09bcbfddb5dfe494929646f331aa472b117cd3c35fc320b2463d7224e3b8a0a1"
+      },
+      "final_answer": "你抓住了关键点：判别式确实决定根的个数。先把它写清楚：\n\n对一元二次方程 \\(ax^2+bx+c=0\\)（\\(a\\neq 0\\)），判别式\n\n\\[\n\\Delta=b^2-4ac\n\\]\n\n它出现在求根公式\n\n\\[\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n\\]\n\n的根号里，所以根号内的正负直接决定有没有实数根、有几个【二次方程.md·片段#2】。\n\n三种情况：\n\n- \\(\\Delta>0\\)：根号内是正数，\\(\\pm\\) 给出两个不同的值，所以有两个不相等的实根。\n- \\(\\Delta=0\\)：根号部分为 \\(0\\)，两个根重合，所以有两个相等的实根（也可以说只有一个实根）。\n- \\(\\Delta<0\\)：负数在实数范围内不能开平方，所以没有实根。\n\n举个快速判断的例子：\\(x^2-3x+2=0\\)，\\(\\Delta=9-8=1>0\\)，因此有两个不等实根。\n\n那我想顺着问你一个小问题：如果 \\(\\Delta=0\\)，方程 \\(x^2-4x+4=0\\) 的两个根具体是多少？",
+      "answer_sha256": "a114bd22f34ca95808db8232a1c57bc5c86b9d8b6012db561ae2c1865166f1ba",
+      "actual_visible_evidence": [
+        {
+          "filename": "二次方程.md",
+          "chunk": 2,
+          "text": "求根公式：x = (-b ± √(b²-4ac)) / (2a)。\n判别式 Δ = b²-4ac 决定根的个数：Δ>0 有两个不等实根，Δ=0 有两个相等实根，Δ<0 无实根。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "交换律.md",
+          "chunk": 1,
+          "text": "两个数相加，交换加数的位置，和不变。\n用字母表示：a + b = b + a。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "结合律.md",
+          "chunk": 1,
+          "text": "三个数相加，先把前两个数相加，或者先把后两个数相加，和不变。\n用字母表示：(a + b) + c = a + (b + c)。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 2,
+          "text": "去分母、去括号、移项、合并同类项、系数化为1。\n移项要变号：把等式一边的某项移到另一边时，符号必须改变。\n等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "一般形式ax²+bx+c=0，a≠0",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "该题可见二次方程片段#2未陈述a≠0；数学条件正确，但不能当成来源原句",
+          "disputed": true,
+          "claim_id": "easy:discriminant:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ=b²-4ac",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:discriminant:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "求根公式中√Δ决定实根个数",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:discriminant:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ>0有两个不等实根",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:discriminant:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ=0根重合，有两个相等实根，也可说只有一个实根",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_DISPUTED",
+          "basis": "按重数和按不同值计数两种口径，应明确‘一个不同实根’，不判算式错误",
+          "disputed": true,
+          "claim_id": "easy:discriminant:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ<0没有实根",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:discriminant:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "负数在实数范围内没有平方根",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "数学正确，但摘录未陈述实平方根定义",
+          "disputed": true,
+          "claim_id": "easy:discriminant:C07",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x²-3x+2=0 的Δ=1>0，有两个不等实根",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:discriminant:C08",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【二次方程.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [
+        "easy:discriminant:C01",
+        "easy:discriminant:C05",
+        "easy:discriminant:C07"
+      ],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:commutative",
+      "question": "交换加数的位置和不变",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        37
+      ],
+      "request_sha256": {
+        "37": "f3000d96f0f90bb0934014b70e78fe1a2cd8cd6441e6a2d74c9311215f06c36e"
+      },
+      "final_answer": "你说得对，这正是**加法交换律**：两个数相加，交换加数的位置，和不变。\n\n用字母表示就是：\n\n\\[\na + b = b + a\n\\]\n\n比如 \\(3 + 5 = 8\\)，交换后 \\(5 + 3 = 8\\)，结果一样。\n\n顺便提一句，容易和它混的是**结合律**：结合律改变的是运算顺序，比如 \\((a+b)+c = a+(b+c)\\)；而交换律改变的是加数的位置。\n\n那如果换成三个数相加，比如 \\(2+7+3\\)，你觉得可以怎样交换位置让计算更省力呢？",
+      "answer_sha256": "43a1f6e0b46fb8a124014d3a6209579737ae1f5948ad8d4f7cb694c9d930426d",
+      "actual_visible_evidence": [
+        {
+          "filename": "交换律.md",
+          "chunk": 1,
+          "text": "两个数相加，交换加数的位置，和不变。\n用字母表示：a + b = b + a。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "结合律.md",
+          "chunk": 2,
+          "text": "结合律改变的是运算顺序，交换律改变的是运算对象的位置。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "结合律.md",
+          "chunk": 1,
+          "text": "三个数相加，先把前两个数相加，或者先把后两个数相加，和不变。\n用字母表示：(a + b) + c = a + (b + c)。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "交换律.md",
+          "chunk": 2,
+          "text": "乘法也有交换律：a × b = b × a。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "分式笔记.md",
+          "chunk": 1,
+          "text": "分式的分母不能为零，这是分式有意义的前提条件。\n分式的基本性质：分子分母同乘或同除以一个不为零的整式，分式的值不变。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "交换两加数位置和不变",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:commutative:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "a+b=b+a",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:commutative:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "3+5=8和5+3=8",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:commutative:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "结合律(a+b)+c=a+(b+c)",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:commutative:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "结合律变分组先后，交换律变加数位置",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:commutative:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:associative",
+      "question": "加法结合律的字母表示",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        38
+      ],
+      "request_sha256": {
+        "38": "32a8d6d32f6ac56d20fcae87f81f0ee0fc37186511e1560d88dec27b92ef60c0"
+      },
+      "final_answer": "你问的正是关键点：加法结合律说的是“三个数相加时，先加前两个还是先加后两个，结果不变”。\n\n字母表示是：\n\n\\[\n(a+b)+c=a+(b+c)\n\\]\n\n比如 \\((2+3)+4=5+4=9\\)，而 \\(2+(3+4)=2+7=9\\)，两边相等。\n\n这里有个容易混的地方：结合律改变的是**运算顺序**，交换律改变的是**数的位置**。那你能说说 \\(a+b=b+a\\) 属于哪一条吗？",
+      "answer_sha256": "53e4c9888257f85d16bc39dd9b8bd536e7debeef2667082649a9755d29a22a3a",
+      "actual_visible_evidence": [
+        {
+          "filename": "结合律.md",
+          "chunk": 1,
+          "text": "三个数相加，先把前两个数相加，或者先把后两个数相加，和不变。\n用字母表示：(a + b) + c = a + (b + c)。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "结合律.md",
+          "chunk": 2,
+          "text": "结合律改变的是运算顺序，交换律改变的是运算对象的位置。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "先加前两个或后两个结果不变",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:associative:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "(a+b)+c=a+(b+c)",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:associative:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "(2+3)+4=9",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:associative:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "2+(3+4)=9",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:associative:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "结合律变运算顺序，交换律变位置",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:associative:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:cross_topic",
+      "question": "去分母后为什么要检验",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        39
+      ],
+      "request_sha256": {
+        "39": "50163d48cd98acc393fbfeec678f3c1ed590f1ef47bd1aed1d3e19b0e79fbcd0"
+      },
+      "final_answer": "你这个问题问得很到位——很多人解完分式方程就直接写答案，忽略了检验这一步。\n\n原因在于：**去分母这个操作，可能\"凭空造出\"原本不存在的根。**\n\n具体来说，解分式方程时，我们会在等式两边同乘最简公分母。但分母不能为零，所以乘的这个整式在某些 \\(x\\) 取值下可能等于 0。而\"等式两边同乘 0\"是没有意义的操作，这一步就把范围悄悄放大了。\n\n举个例子：\n\n\\[\n\\frac{1}{x-1} = \\frac{2}{x-1}\n\\]\n\n两边同乘 \\(x-1\\)，得到 \\(1 = 2\\)，无解。但如果方程是\n\n\\[\n\\frac{x}{x-1} = \\frac{1}{x-1}\n\\]\n\n两边同乘 \\(x-1\\) 得 \\(x = 1\\)。可 \\(x=1\\) 代回原方程，分母 \\(x-1=0\\)，原式根本没意义。这个 \\(x=1\\) 就是去分母过程中\"混进来\"的**增根**。\n\n所以检验的做法是：把求出的根代回**原方程**（或至少看它是否让原分母为 0），分母为 0 的就舍去。\n\n【分式笔记.md·片段#2】里也强调了这一点：去分母可能产生增根，解完必须代回原方程检验。\n\n顺带对比一下：解整式方程（比如一次方程）去分母时，乘的是具体数字，不会为零，所以一般不需要这种检验。\n\n那我想问你一个小问题：如果去分母后解出的根，代回原方程时分母不为 0，这个根就一定保留吗？",
+      "answer_sha256": "74358a88ce765aa3b125fee2a913f6a5a5fce0a7b8d03c8568001c6c872d3666",
+      "actual_visible_evidence": [
+        {
+          "filename": "分式笔记.md",
+          "chunk": 2,
+          "text": "去分母可能产生增根，所以解分式方程后必须把根代回原方程检验。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "一次方程.md",
+          "chunk": 2,
+          "text": "去分母、去括号、移项、合并同类项、系数化为1。\n移项要变号：把等式一边的某项移到另一边时，符号必须改变。\n等式的基本性质：等式两边同时加上或减去同一个数，等式仍然成立。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "分式笔记.md",
+          "chunk": 1,
+          "text": "分式的分母不能为零，这是分式有意义的前提条件。\n分式的基本性质：分子分母同乘或同除以一个不为零的整式，分式的值不变。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "去分母可能产生增根",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:cross_topic:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "原分母不能为0",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:cross_topic:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "在两边同乘最简公分母",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "操作常识正确，但本题可见片段没有明说最简公分母",
+          "disputed": true,
+          "claim_id": "easy:cross_topic:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "等式两边同乘0是没有意义的操作",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "同乘0有定义并保留正向蕴含，但可能扩大解集而不等价；x=1与0x=0在x=0处真假不同",
+          "disputed": true,
+          "claim_id": "easy:cross_topic:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "1/(x-1)=2/(x-1)在定义域x≠1内无解",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "1=2矛盾；受限方程验证器不支持分式方程，整段判定为AI推理而非VERIFIED",
+          "disputed": false,
+          "claim_id": "easy:cross_topic:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "x/(x-1)=1/(x-1)去分母得x=1，但x=1使原式未定义",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "有定义域反例；原分式方程自动验证仍UNKNOWN",
+          "disputed": false,
+          "claim_id": "easy:cross_topic:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "解应代回原方程；原分母为0应舍去",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:cross_topic:C07",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "整式方程去分母乘的是非零数字，一般不需这种检验",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_DISPUTED",
+          "basis": "仅适用于清除数值分母的语境；不能外推为整式解答不需检验，原文没有此比较",
+          "disputed": true,
+          "claim_id": "easy:cross_topic:C08",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【分式笔记.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_FAILURE",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [
+        "easy:cross_topic:C03",
+        "easy:cross_topic:C04",
+        "easy:cross_topic:C08"
+      ],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "easy:mixed_cjk_latex",
+      "question": "ax^2 + bx + c = 0 中 a 不能为零",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        40
+      ],
+      "request_sha256": {
+        "40": "e65bc2cd8812b8ee4610dd49db406e2385681e4277136b16d9aa2b121ca41e5b"
+      },
+      "final_answer": "你说得对，这正是关键前提。\n\n一元二次方程的一般形式是\n\n\\[\nax^2+bx+c=0 \\quad (a\\neq 0)\n\\]\n\n为什么 \\(a\\) 不能为零？因为如果 \\(a=0\\)，式子就变成\n\n\\[\nbx+c=0\n\\]\n\n这时 \\(x^2\\) 项消失了，方程不再是“二次”，而是一次方程（当 \\(b\\neq 0\\) 时）。所以规定 \\(a\\neq 0\\)，是为了保证方程确实含有二次项，才叫一元二次方程。\n\n这个前提在后面的求根公式里也很重要：\n\n\\[\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n\\]\n\n分母里有 \\(2a\\)，如果 \\(a=0\\)，分母就为零，公式也就没有意义了。\n\n顺便问一个小问题：如果 \\(a=0\\) 且 \\(b=0\\)，方程 \\(ax^2+bx+c=0\\) 会变成什么样子？这时还有解吗？",
+      "answer_sha256": "c7652c339f57da275d35df12ea6e5784d99f87db1ad66cb58c9223b5198eeae5",
+      "actual_visible_evidence": [
+        {
+          "filename": "二次方程.md",
+          "chunk": 1,
+          "text": "一元二次方程的一般形式是 ax^2 + bx + c = 0，其中 a 不等于零。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "分式笔记.md",
+          "chunk": 1,
+          "text": "分式的分母不能为零，这是分式有意义的前提条件。\n分式的基本性质：分子分母同乘或同除以一个不为零的整式，分式的值不变。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "二次方程.md",
+          "chunk": 2,
+          "text": "求根公式：x = (-b ± √(b²-4ac)) / (2a)。\n判别式 Δ = b²-4ac 决定根的个数：Δ>0 有两个不等实根，Δ=0 有两个相等实根，Δ<0 无实根。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "二次方程ax²+bx+c=0要求a≠0",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:mixed_cjk_latex:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "a=0后二次项消失成为bx+c=0",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:mixed_cjk_latex:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "b≠0时才为一次方程",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:mixed_cjk_latex:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "a≠0保证二次项存在",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:mixed_cjk_latex:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "求根公式分母2a，因此a=0时公式无意义",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "easy:mixed_cjk_latex:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "hard:Q01",
+      "question": "判别式的定义是什么，它适用于什么样的方程",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        41
+      ],
+      "request_sha256": {
+        "41": "c9db90e86f175f120b044422fafe4e0fec8c6238b4ef7fdcc7986bbeaeb6fc90"
+      },
+      "final_answer": "判别式的定义是：\n\n\\[\n\\Delta = b^2 - 4ac\n\\]\n\n它适用于**一元二次方程的一般形式**：\n\n\\[\nax^2 + bx + c = 0 \\quad (a \\neq 0)\n\\]\n\n也就是说，只有当方程确实是一元二次方程、即二次项系数 \\(a \\neq 0\\) 时，才能用这个判别式来判断实数根的个数。【判别式.md·片段#2】\n\n需要特别注意：如果 \\(a = 0\\)，方程就退化成一次方程，处理方式会随之改变，不能直接套用判别式。【判别式.md·片段#2】\n\n你能否试着说出：当 \\(\\Delta > 0\\)、\\(\\Delta = 0\\)、\\(\\Delta < 0\\) 时，方程分别有几个实数根？",
+      "answer_sha256": "6e16c81fffcfd81108fbabb345948f37f589fd84e0e8e1e42132ec799f5053c4",
+      "actual_visible_evidence": [
+        {
+          "filename": "判别式.md",
+          "chunk": 2,
+          "text": "现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数\n对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "判别式.md",
+          "chunk": 1,
+          "text": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数",
+          "selection": "上下文扩展"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "Δ=b²-4ac",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q01:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "适用于一元二次方程ax²+bx+c=0且a≠0",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q01:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "不能用二次方程实根判别规则直接处理a=0",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q01:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "a=0就退化为一次方程",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "来源原句也含错。a=b=0,c=1为矛盾；a=b=c=0为恒等式。忠于资料不能证明数学正确",
+          "disputed": true,
+          "claim_id": "hard:Q01:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【判别式.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        },
+        {
+          "label": "【判别式.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_FAILURE",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [
+        "hard:Q01:C04"
+      ],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "hard:Q02",
+      "question": "解方程 2x + 3 = 7 的完整步骤是什么",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        42
+      ],
+      "request_sha256": {
+        "42": "1f832877b105b579355d334b4efad24f4264630bdb35d0e0472af834aaea3cb5"
+      },
+      "final_answer": "你问的这道题正好是资料里给出的例题，我按步骤讲一遍。\n\n解方程 \\(2x+3=7\\)：\n\n1. 两边同时减去 3：\n\\[\n2x+3-3=7-3\n\\]\n得\n\\[\n2x=4\n\\]\n这一步的依据是等式的基本性质：等式两边同时减去同一个数，等式仍然成立。【例题.md·片段#2】\n\n2. 两边同时除以 2：\n\\[\n\\frac{2x}{2}=\\frac{4}{2}\n\\]\n得\n\\[\nx=2\n\\]\n这一步的依据是等式两边同时除以同一个不为零的数，等式仍然成立。【例题.md·片段#2】\n\n所以方程的解是 \\(x=2\\)。\n\n代入检验：\\(2\\times 2+3=4+3=7\\)，与右边相等，解正确。\n\n顺便提一句，这里用到的“把一项从一边移到另一边并改变符号”，就是移项，它的依据同样是等式的基本性质。【一元一次方程.md·片段#2】\n\n那我想问你一个小问题：如果题目换成 \\(2x-3=7\\)，第一步你会怎么做？",
+      "answer_sha256": "30051e24f4b95587693c88d19c506d4cd677dc4dde44da07467c69525abff82d",
+      "actual_visible_evidence": [
+        {
+          "filename": "例题.md",
+          "chunk": 1,
+          "text": "例1：解方程 2x + 3 = 7。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "例题.md",
+          "chunk": 2,
+          "text": "解：两边同时减去 3，得到 2x = 4，这一步依据等式的基本性质中两边同时减去同一个数等式仍成立；再同时除以 2，得到 x = 2，这一步依据等式两边同时除以同一个不为零的数等式仍成立。\n例1：解方程 2x + 3 = 7。",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "一元一次方程.md",
+          "chunk": 2,
+          "text": "移项的依据是等式的基本性质，把某一项从等式的一边移到另一边时需要改变符号。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "判别式.md",
+          "chunk": 2,
+          "text": "现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数\n对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 2,
+          "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍\n完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 1,
+          "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "判别式.md",
+          "chunk": 1,
+          "text": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "分式方程.md",
+          "chunk": 1,
+          "text": "解分式方程的第一步通常是去分母，两边同乘各分母的最简公分母。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "2x+3=7 两边减3得到2x=4",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q02:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "依据同减等式性质",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q02:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "两边除2得x=2",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q02:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "同除非零数保持等式",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q02:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "代回2*2+3=7",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q02:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "移项变号依据等式性质",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q02:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【例题.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        },
+        {
+          "label": "【例题.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        },
+        {
+          "label": "【一元一次方程.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "hard:Q03",
+      "question": "完全平方公式展开后的中间项是什么",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        43
+      ],
+      "request_sha256": {
+        "43": "49c5f25dd1dceb59c594e05311646a7610698e7d4df33856a22b5cea5d411097"
+      },
+      "final_answer": "完全平方公式展开后，中间项是**两数乘积的两倍**。\n\n具体写出来：\n\n\\[\n(a+b)^2 = a^2 + 2ab + b^2\n\\]\n\n\\[\n(a-b)^2 = a^2 - 2ab + b^2\n\\]\n\n首项 \\(a^2\\)、末项 \\(b^2\\) 分别是两数的平方，中间项就是 \\(2ab\\)（或 \\(-2ab\\)）。这里的关键是别漏掉系数 2，符号则跟着括号里的加减号走【完全平方公式.md·片段#2】。\n\n顺着这个思路想一想：如果展开 \\((x+3)^2\\)，中间项应该是多少？",
+      "answer_sha256": "1f32f07050f6f58c4965774a55e3f247902b7817a64c72de7aa836344f4371af",
+      "actual_visible_evidence": [
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 2,
+          "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍\n完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 1,
+          "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 3,
+          "text": "分母有理化指把分母中的根号去掉，通常通过分子分母同乘分母的有理化因式来完成。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "完全平方中间项为两数乘积的两倍",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q03:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "(a+b)²=a²+2ab+b²",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q03:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "(a-b)²=a²-2ab+b²",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q03:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "首末为a²、b²",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q03:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "中间项+2ab或-2ab取决于和差",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q03:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [
+        {
+          "label": "【完全平方公式.md·片段#2】",
+          "source_visible": true,
+          "assessment": "PROVISIONAL_LOCAL_ATTRIBUTION; does not support every uncited sentence"
+        }
+      ],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "hard:Q04",
+      "question": "完全平方公式展开之后中间的那一项是什么",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        44
+      ],
+      "request_sha256": {
+        "44": "f3a8d062a243dc9f1b3c84cf4e668a8ab96370444158cd48cec6e30eb043da65"
+      },
+      "final_answer": "完全平方公式展开后，中间那一项是**两个数乘积的两倍**。\n\n具体写出来就是：\n\n\\[\n(a+b)^2=a^2+2ab+b^2\n\\]\n\n\\[\n(a-b)^2=a^2-2ab+b^2\n\\]\n\n也就是说，中间项是 \\(2ab\\)，符号跟着括号里的符号走：加号对应 \\(+2ab\\)，减号对应 \\(-2ab\\)。\n\n你可以这样记：首平方、尾平方，中间是首尾乘积的两倍。\n\n顺便问一个小问题帮你确认理解：\\((x+3)^2\\) 展开后，中间那一项应该是多少？",
+      "answer_sha256": "e770a05f534ce7c3807a1c702a48dbde4994c7860ab6feaad5ec514586f821ce",
+      "actual_visible_evidence": [
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 2,
+          "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍\n完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 1,
+          "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 3,
+          "text": "分母有理化指把分母中的根号去掉，通常通过分子分母同乘分母的有理化因式来完成。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "中间项为两数乘积的两倍",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q04:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "(a+b)²=a²+2ab+b²",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q04:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "(a-b)²=a²-2ab+b²",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q04:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "和式+2ab，差式-2ab",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q04:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "首尾平方，中间首尾乘积两倍",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q04:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_REVIEW_PENDING_HUMAN",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    },
+    {
+      "case_id": "hard:Q05",
+      "question": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零是为什么",
+      "generating_version": "0.4.1",
+      "review_version": "0.4.2",
+      "review_method": "OFFLINE_INDEPENDENT_AI",
+      "source_group": "expression-fixed",
+      "request_record_ids": [
+        45
+      ],
+      "request_sha256": {
+        "45": "805e7093490776c78d78c603fd10730bb28d4d244a43700c3c9764211851b0a9"
+      },
+      "final_answer": "你问的是很关键的一点：为什么一元二次方程要强调 \\(a \\neq 0\\)。\n\n因为“二次”这个名称，本质上是由最高次项决定的。方程\n\n\\[\nax^2+bx+c=0\n\\]\n\n里，\\(x^2\\) 这一项只有在 \\(a \\neq 0\\) 时才真正存在。如果 \\(a=0\\)，那么 \\(ax^2\\) 就变成 \\(0\\)，方程实际变成\n\n\\[\nbx+c=0\n\\]\n\n这已经是一次方程，不再是二次方程了。\n\n所以 \\(a \\neq 0\\) 不是额外限制，而是保证它仍然是“一元二次方程”的前提。也正因为如此，后面像判别式\n\n\\[\n\\Delta=b^2-4ac\n\\]\n\n韦达定理\n\n\\[\nx_1+x_2=-\\frac ba,\\qquad x_1x_2=\\frac ca\n\\]\n\n以及求根公式，都默认 \\(a \\neq 0\\)。如果 \\(a=0\\)，这些公式里会出现除以 \\(a\\) 的问题，方法也要换成解一元一次方程。\n\n可以这样记：  \n**看一个方程是不是一元二次方程，先看二次项系数是不是不为零。**\n\n那如果题目给出的是 \\(ax^2+bx+c=0\\)，但没有说明 \\(a \\neq 0\\)，你会先讨论哪种情况呢？",
+      "answer_sha256": "cf7c62fd326bb384b7d4874c9e91d88d8df84fadba2e10ada3808259cecb434c",
+      "actual_visible_evidence": [
+        {
+          "filename": "判别式.md",
+          "chunk": 1,
+          "text": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "判别式.md",
+          "chunk": 2,
+          "text": "现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数\n对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "韦达定理.md",
+          "chunk": 1,
+          "text": "韦达定理描述一元二次方程根与系数的关系：x1 + x2 = -b/a，x1 * x2 = c/a。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 2,
+          "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "完全平方公式.md",
+          "chunk": 1,
+          "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "例题.md",
+          "chunk": 2,
+          "text": "解：两边同时减去 3，得到 2x = 4，这一步依据等式的基本性质中两边同时减去同一个数等式仍成立；再同时除以 2，得到 x = 2，这一步依据等式两边同时除以同一个不为零的数等式仍成立。\n例1：解方程 2x + 3 = 7。",
+          "selection": "上下文扩展"
+        },
+        {
+          "filename": "一元一次不等式.md",
+          "chunk": 2,
+          "text": "一元一次不等式的解集通常在数轴上用区间表示，端点是否包含要用空心点区分。",
+          "selection": "检索命中"
+        },
+        {
+          "filename": "例题.md",
+          "chunk": 1,
+          "text": "例1：解方程 2x + 3 = 7。",
+          "selection": "检索命中"
+        }
+      ],
+      "claims": [
+        {
+          "statement": "二次由最高次数决定，a≠0保证x²项存在",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q05:C01",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "a=0变成bx+c=0",
+          "evidence_support": "DERIVED",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q05:C02",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "这已经是一次方程",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "来源含相同漏条件错误，需b≠0；a=b=0另分c=0和c≠0",
+          "disputed": true,
+          "claim_id": "hard:Q05:C03",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "Δ=b²-4ac",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_NO_ERROR_FOUND",
+          "basis": "可见规则的局部应用；须人工复核",
+          "disputed": false,
+          "claim_id": "hard:Q05:C04",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "韦达根和=-b/a，根积=c/a",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_DISPUTED",
+          "basis": "a≠0且根存在于选定数域；未明确实数/复数范围，应人工审阅适用范围",
+          "disputed": true,
+          "claim_id": "hard:Q05:C05",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "这些公式里会出现除以a的问题（将判别式并列）",
+          "evidence_support": "UNSUPPORTED",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "Δ=b²-4ac本身不除a；韦达和求根式才含该分母",
+          "disputed": true,
+          "claim_id": "hard:Q05:C06",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        },
+        {
+          "statement": "a=0后方法要换成解一元一次方程",
+          "evidence_support": "DIRECT",
+          "mathematical_correctness": "AI_FALSE",
+          "basis": "再次遗漏b=0的常量方程分支",
+          "disputed": true,
+          "claim_id": "hard:Q05:C07",
+          "human_review_status": "PENDING",
+          "reference_status": "PROVISIONAL_AI"
+        }
+      ],
+      "citation_attribution": [],
+      "task_completion": "AI_FAILURE",
+      "provider_stop_reason": "NATURAL_STOP",
+      "faithfulness_score": null,
+      "human_review_status": "PENDING",
+      "reference_status": "PROVISIONAL_AI",
+      "disputes": [
+        "hard:Q05:C03",
+        "hard:Q05:C05",
+        "hard:Q05:C06",
+        "hard:Q05:C07"
+      ],
+      "non_claims": "Encouragement and unanswered teaching questions excluded; complete prose retained for human checking"
+    }
+  ]
+}

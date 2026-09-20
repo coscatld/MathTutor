@@ -1,11 +1,24 @@
-"""RetrievalPolicy — the deterministic source matrix for LLM consumers.
+"""PracticeRetrievalPolicy — the deterministic source matrix for LLM consumers.
 
-Which knowledge sources may/ must feed a tutoring or practice LLM call is
-decided HERE, not by the model. The LLM never chooses whether to read the
-Student Model, misconception history or documents; the application service
-resolves the policy, loads REQUIRED sources, optionally retrieves OPTIONAL
-sources (router-decided), and only then calls the model via the assembled
-typed context (ContextAssembler).
+SCOPE (read this before assuming the matrix governs "retrieval"):
+
+This matrix governs the **structured ContextAssembler path only** — the
+actions that hand a typed :class:`AssembledContext` to a writer:
+
+    GENERATE_PRACTICE    adaptive_practice.py:180
+    REQUEST_HINT         controller.py:2243   (GIVE_HINT action)
+    EXPLAIN_CONCEPT      controller.py:2245   (EXPLAIN_CONCEPT action)
+
+It does NOT govern the conversational retrieval paths. Chat turns are
+served by ``ChatDocumentContext`` and knowledge-QA turns by
+``KnowledgeTools``; both are gated by the conversation binding
+(``config.mode`` / ``hints_only``) plus the conversation document scope,
+and neither consults this matrix. See docs/CURRENT_STATE_RAG_AUDIT.md §6.5.
+
+:data:`PRODUCTION_INTENTS` lists the rows a product request can actually
+resolve. The remaining rows are exercised only by tests; they are retained
+because the matrix is exhaustive by construction, but nothing may cite them
+as evidence that this policy drives the product.
 
 Decision semantics:
 
@@ -53,6 +66,23 @@ class RetrievalIntent(str, Enum):
     GENERATE_PRACTICE = "generate_practice"
     GENERATE_ERROR_REVIEW = "generate_error_review"
     USE_MY_DOCUMENT = "use_my_document"
+
+
+#: Rows a product request can actually resolve, with the call site that does
+#: it. Anything outside this set is TEST_ONLY — pinned by
+#: tests/test_retrieval_policy.py::test_only_declared_intents_are_reachable.
+#:
+#: USE_MY_DOCUMENT is deliberately NOT here. It is the one row that makes
+#: USER_DOCUMENTS REQUIRED, so reading the matrix alone suggests the policy
+#: forces document retrieval for "use my document" questions. No production
+#: path resolves it; the chat path answers those through ChatDocumentContext.
+PRODUCTION_INTENTS: frozenset[RetrievalIntent] = frozenset(
+    {
+        RetrievalIntent.GENERATE_PRACTICE,
+        RetrievalIntent.REQUEST_HINT,
+        RetrievalIntent.EXPLAIN_CONCEPT,
+    }
+)
 
 
 # The authoritative policy matrix (design spec §21). Rows are intents,
@@ -130,7 +160,7 @@ class RetrievalPlan:
         return self.resolve(source) is RetrievalDecision.FORBIDDEN
 
 
-class RetrievalPolicy:
+class PracticeRetrievalPolicy:
     """Deterministic, versioned policy resolver over the matrix."""
 
     POLICY_VERSION = "mt-retrieval-policy-v1"
@@ -144,11 +174,18 @@ class RetrievalPolicy:
         return RetrievalPlan(intent=intent, decisions=MappingProxyType(dict(row)))
 
 
-DEFAULT_RETRIEVAL_POLICY = RetrievalPolicy()
+DEFAULT_PRACTICE_RETRIEVAL_POLICY = PracticeRetrievalPolicy()
+# Compatibility for callers of the previous public name; production uses the
+# scoped name. Matrix semantics and persisted policy version remain unchanged.
+RetrievalPolicy = PracticeRetrievalPolicy
+DEFAULT_RETRIEVAL_POLICY = DEFAULT_PRACTICE_RETRIEVAL_POLICY
 
 
 __all__ = [
     "DEFAULT_RETRIEVAL_POLICY",
+    "DEFAULT_PRACTICE_RETRIEVAL_POLICY",
+    "PracticeRetrievalPolicy",
+    "PRODUCTION_INTENTS",
     "RetrievalDecision",
     "RetrievalIntent",
     "RetrievalPlan",

@@ -529,7 +529,7 @@ async def test_preset_url_defaults_and_override_survive_restart(tmp_path, preset
     assert restored.current_config()["base_url"] == PRESETS[preset_id].base_url
 
 
-async def test_deepseek_probe_disables_thinking_without_changing_chat(tmp_path):
+async def test_deepseek_probe_and_bounded_chat_disable_thinking(tmp_path):
     _, gateway, service, _ = await _configured(tmp_path, preset="deepseek", model="deepseek-flash")
     requests = []
     async def handler(request):
@@ -544,7 +544,8 @@ async def test_deepseek_probe_disables_thinking_without_changing_chat(tmp_path):
     assert requests[0]["max_tokens"] == 128
     assert requests[0]["thinking"] == {"type": "disabled"}
     await gateway.client_for(ModelRole.TUTOR_WRITER).complete(prompt="你好", max_retries=0)
-    assert "thinking" not in requests[-1]
+    assert requests[-1]["thinking"] == {"type": "disabled"}
+    assert requests[-1]["max_tokens"] == 512
 
 
 @pytest.mark.parametrize("finish_reason,content", [("length", ""), ("length", "partial"), ("stop", "")])

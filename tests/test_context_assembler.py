@@ -53,6 +53,10 @@ from mathtutor.domain.retrieval_policy import (
     RetrievalPolicy,
     RetrievalSource,
 )
+from mathtutor.application.conversation_scope import (
+    reset_document_scope,
+    set_document_scope,
+)
 from mathtutor.repositories.memory_repository import InMemoryMemoryRepository
 from mathtutor.security.scopes import student_uuid
 
@@ -160,6 +164,53 @@ def _providers_for_practice() -> dict[RetrievalSource, StubProvider]:
             ),
         ),
     }
+
+
+
+class StubOrchestrator:
+    """Stands in for ConversationRetrievalOrchestrator in projection tests.
+
+    The provider no longer searches (F1): it projects an EvidencePack. These
+    tests therefore exercise the PROJECTION, while retrieval/ranking themselves
+    are covered by tests/test_retrieval_orchestration.py.
+    """
+
+    def __init__(self, result: DocumentQueryResult):
+        self.result = result
+        self.calls: list = []
+
+    async def retrieve_for_turn(self, owner, document_ids, user_query, **kwargs):
+        from mathtutor.domain.evidence import (
+            Evidence,
+            RetrievalExecution,
+            build_evidence_pack,
+            make_source_id,
+            text_hash,
+        )
+
+        self.calls.append({"document_ids": list(document_ids)})
+        evidences = [
+            Evidence(
+                source_id=make_source_id(hit.document_id, hit.chunk.chunk_id),
+                document_id=hit.document_id,
+                filename=hit.filename,
+                chunk_id=hit.chunk.chunk_id,
+                sequence=hit.chunk.sequence,
+                page=hit.chunk.page,
+                section=hit.chunk.section,
+                text=hit.chunk.text,
+                text_hash=text_hash(hit.chunk.text),
+                score=hit.score,
+                lexical_score=hit.lexical_score,
+                rerank_score=hit.score,
+            )
+            for hit in self.result.hits
+        ]
+        return build_evidence_pack(
+            query=user_query,
+            evidences=evidences,
+            execution=RetrievalExecution(retrieval_ran=True, decision="conversation_documents"),
+        )
 
 
 # --------------------------------------------------------- budget / estimates
@@ -377,7 +428,9 @@ async def test_use_my_document_no_hits_is_empty_state():
             on_load=LoadOutcome(payload=CurriculumContext(version_code="v")),
         ),
         RetrievalSource.USER_DOCUMENTS: UserDocumentsSourceProvider(
-            StubSearchable(DocumentQueryResult(query="求根公式", hits=(), degraded=True))
+            orchestrator=StubOrchestrator(
+                DocumentQueryResult(query="求根公式", hits=(), degraded=True)
+            )
         ),
     }
     context = await ContextAssembler(providers=providers).assemble(
@@ -390,27 +443,37 @@ async def test_use_my_document_no_hits_is_empty_state():
 async def test_document_selection_projected_ranked_and_capped():
     doc_a = UUID(int=10)
     doc_b = UUID(int=11)
-    searchable = StubSearchable(
-        DocumentQueryResult(
-            query="求根公式",
-            hits=(
-                _hit(doc_a, filename="a.md", sequence=0, text="A0" * 400, score=0.7),
-                _hit(doc_b, filename="b.md", sequence=0, text="B0", score=0.9),
-                _hit(doc_a, filename="a.md", sequence=1, text="A1", score=0.5),
-            ),
-            degraded=True,
-        )
+    result = DocumentQueryResult(
+        query="求根公式",
+        hits=(
+            _hit(doc_a, filename="a.md", sequence=0, text="A0" * 400, score=0.7),
+            _hit(doc_b, filename="b.md", sequence=0, text="B0", score=0.9),
+            _hit(doc_a, filename="a.md", sequence=1, text="A1", score=0.5),
+        ),
+        degraded=True,
     )
     providers = {
         RetrievalSource.CURRICULUM: StubProvider(
             RetrievalSource.CURRICULUM,
             on_load=LoadOutcome(payload=CurriculumContext(version_code="v")),
         ),
-        RetrievalSource.USER_DOCUMENTS: UserDocumentsSourceProvider(searchable),
+        RetrievalSource.USER_DOCUMENTS: UserDocumentsSourceProvider(
+            orchestrator=StubOrchestrator(result)
+        ),
     }
-    context = await ContextAssembler(providers=providers).assemble(
-        student_id=_STUDENT, intent=RetrievalIntent.USE_MY_DOCUMENT, query_hint="求根公式"
-    )
+    # Production always establishes the conversation scope before the
+    # controller runs (math_tutor_ws.py:312). Retrieval is no longer allowed
+    # to fall back to owner-wide when that scope is absent.
+    token = set_document_scope([doc_a, doc_b])
+    try:
+        context = await ContextAssembler(providers=providers).assemble(
+            student_id=_STUDENT, intent=RetrievalIntent.USE_MY_DOCUMENT, query_hint="求根公式"
+        )
+    finally:
+        reset_document_scope(token)
+    # NOTE: this exercises the PROJECTION (EvidencePack -> DocumentContextSelection).
+    # Retrieval itself is covered by test_retrieval_orchestration.py; the
+    # provider deliberately has no search of its own any more (F1).
     assert context.provenance_for(RetrievalSource.USER_DOCUMENTS).status == "loaded"
     selections = context.user_documents
     assert [s.document_id for s in selections] == [doc_b, doc_a]  # ranked by max score

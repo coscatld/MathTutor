@@ -6,6 +6,7 @@ verification, learning commits, capabilities and persisted messages stay real.
 import json
 import re
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -77,7 +78,7 @@ def test_c05_all_observed_enabled_capabilities_are_public_parseable_commands(tmp
         inspect()
         # Advance the fixture's clock past the actual review window. No label
         # or skill is invented; the real successful event remains the authority.
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             rows = conn.execute("SELECT event_id,payload FROM learning_events WHERE event_type='attempt_assessed'").fetchall()
             for event_id, payload in rows:
                 event = json.loads(payload)
@@ -206,7 +207,7 @@ def test_p05_failed_candidates_keep_the_assessment_but_never_publish_an_empty_of
         assert count(db, "practice_offers") == 0
         assert after["active_offer"] is None
         assert not {"accept_practice_offer", "decline_practice_offer"} & set(after["allowed_next_inputs"])
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             record = json.loads(conn.execute("SELECT payload FROM practice_recommendations").fetchone()[0])
         assert record["status"] == "FAILED" and record["candidate_count"] == 3
 
