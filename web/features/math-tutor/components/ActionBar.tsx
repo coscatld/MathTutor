@@ -38,7 +38,7 @@ const COMMAND_ICONS: Partial<Record<MathTutorCommand, LucideIcon>> = {
 
 const VARIANT_CLASSES: Record<ActionVariant, string> = {
   primary:
-    "bg-[#1D4ED8] text-white hover:bg-[#1E40AF] border-transparent shadow-sm",
+    "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] border-transparent shadow-sm",
   secondary:
     "border-[var(--border)] bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--muted)]",
   solution:
@@ -46,7 +46,7 @@ const VARIANT_CLASSES: Record<ActionVariant, string> = {
   quiet:
     "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:bg-[var(--muted)]",
   offer:
-    "bg-[#1D4ED8] text-white hover:bg-[#1E40AF] border-transparent shadow-sm",
+    "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] border-transparent shadow-sm",
 };
 
 interface ActionBarProps {
@@ -74,11 +74,11 @@ export default function ActionBar({ allowed, actions, offer, busy, disabled, onC
 
   return (
     <section
-      className="rounded-2xl border border-[#deddd7] bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+      className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4"
       aria-label="可用操作"
     >
       <h2 className="mb-2.5 text-sm font-semibold text-[var(--foreground)]">可用操作</h2>
-      {validOffer ? <div className="mb-3 rounded-xl bg-blue-50 p-3 dark:bg-blue-950/30"><p className="text-xs font-medium text-[#1d5fd1] dark:text-blue-300">{offerPurposeLabel(offer.purpose)}</p>{offer.title ? <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">{offer.title}</p> : null}</div> : null}
+      {validOffer ? <div className="mb-3 rounded-xl bg-[var(--primary-soft)] p-3"><p className="text-xs font-medium text-[var(--primary-text)]">{offerPurposeLabel(offer.purpose)}</p>{offer.title ? <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{offer.title}</p> : null}</div> : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 lg:grid-cols-2">
         {buttons.map((spec: ActionButtonSpec) => {
           const Icon = COMMAND_ICONS[spec.command] ?? Lightbulb;
@@ -105,7 +105,7 @@ export default function ActionBar({ allowed, actions, offer, busy, disabled, onC
           );
         })}
       </div>
-      {[...reasons].map(([code, description]) => <p key={code} id={`action-reason-${code}`} className="mt-3 text-xs leading-5 text-slate-500">{description}</p>)}
+      {[...reasons].map(([code, description]) => <p key={code} id={`action-reason-${code}`} className="mt-3 text-xs leading-5 text-[var(--muted-foreground)]">{description}</p>)}
     </section>
   );
 }

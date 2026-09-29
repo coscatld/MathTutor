@@ -94,7 +94,7 @@ export default function ProblemComposer({
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#1D4ED8] px-5 py-2 text-[15px] font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2 text-[15px] font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

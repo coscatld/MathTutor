@@ -9,8 +9,8 @@ import type { DesktopDocument } from "../types";
 const STATUS_DOT: Record<string, string> = {
   ready: "bg-emerald-500",
   ready_with_warnings: "bg-amber-500",
-  importing: "bg-blue-500",
-  parsing: "bg-blue-500",
+  importing: "bg-[var(--primary)]",
+  parsing: "bg-[var(--primary)]",
   needs_ocr: "bg-orange-500",
   failed: "bg-red-500",
 };
@@ -57,11 +57,11 @@ export default function DocumentRow({
       {scopeError ? <p role="alert" className="text-sm text-red-600">{scopeError}</p> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10">
-            <FileText className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)]">
+            <FileText className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            {editing ? <div className="flex items-center gap-1"><input aria-label="资料名称" value={name} onChange={(event) => setName(event.target.value)} className="h-8 min-w-0 rounded-lg border border-[#9db8df] bg-transparent px-2 text-sm outline-none" /><button type="button" aria-label="保存名称" onClick={async () => { if (!name.trim()) return; onUpdated(await renameDocument(document.document_id, name)); setEditing(false); }} className="rounded-md p-1 text-emerald-600"><Check className="h-4 w-4" /></button><button type="button" aria-label="取消重命名" onClick={() => { setName(document.filename); setEditing(false); }} className="rounded-md p-1 text-slate-500"><X className="h-4 w-4" /></button></div> : <div className="flex items-center gap-1"><p className="truncate text-sm font-medium text-[var(--foreground)]" title={document.filename}>{document.filename}</p><button type="button" onClick={() => setEditing(true)} aria-label={`重命名 ${document.filename}`} className="rounded p-1 text-slate-400 hover:text-[#1d5fd1]"><Pencil className="h-3.5 w-3.5" /></button></div>}
+            {editing ? <div className="flex items-center gap-1"><input aria-label="资料名称" value={name} onChange={(event) => setName(event.target.value)} className="h-8 min-w-0 rounded-lg border border-[var(--primary-border)] bg-transparent px-2 text-sm outline-none" /><button type="button" aria-label="保存名称" onClick={async () => { if (!name.trim()) return; onUpdated(await renameDocument(document.document_id, name)); setEditing(false); }} className="rounded-md p-1 text-emerald-600"><Check className="h-4 w-4" /></button><button type="button" aria-label="取消重命名" onClick={() => { setName(document.filename); setEditing(false); }} className="rounded-md p-1 text-[var(--muted-foreground)]"><X className="h-4 w-4" /></button></div> : <div className="flex items-center gap-1"><p className="truncate text-sm font-medium text-[var(--foreground)]" title={document.filename}>{document.filename}</p><button type="button" onClick={() => setEditing(true)} aria-label={`重命名 ${document.filename}`} className="rounded p-1 text-[var(--muted-foreground)] hover:text-[var(--primary-text)]"><Pencil className="h-3.5 w-3.5" /></button></div>}
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--muted-foreground)]">
               <span className="inline-flex items-center gap-1">
                 <span className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[document.status] ?? "bg-[var(--muted-foreground)]"}`} aria-hidden="true" />
@@ -127,7 +127,7 @@ export default function DocumentRow({
           checked={document.retrieval_enabled && canToggleRetrieval(document)}
           onChange={(e) => onToggleRetrieval(e.target.checked)}
           disabled={busy || !canToggleRetrieval(document)}
-          className="h-4 w-4 cursor-pointer accent-[#2563EB] disabled:cursor-not-allowed"
+          className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:cursor-not-allowed"
         />
         允许 Tutor 检索此资料
       </label>

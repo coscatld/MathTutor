@@ -195,7 +195,7 @@ export default function BackupPanel({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
-            <DatabaseBackup className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
+            <DatabaseBackup className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
             数据备份
           </h2>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
@@ -206,7 +206,7 @@ export default function BackupPanel({
           type="button"
           onClick={handleBackup}
           disabled={busy !== null}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy === "backup" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />}
           {busy === "backup" ? "备份中…" : "立即备份"}

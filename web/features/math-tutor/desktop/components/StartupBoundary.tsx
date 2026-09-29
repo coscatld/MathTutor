@@ -76,7 +76,7 @@ export default function StartupBoundary({ children, entry = false }: Props) {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--background)] p-6">
       <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_80%_75%,rgba(176,80,30,0.10),transparent_32%)]" />
       <section className="relative w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 text-center shadow-[0_24px_80px_rgba(28,24,22,0.10)]">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2563EB]/10 text-[#2563EB]">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary-soft)] text-[var(--primary-text)]">
           {blocked ? (
             <TriangleAlert className="h-6 w-6" aria-hidden="true" />
           ) : (
@@ -95,7 +95,7 @@ export default function StartupBoundary({ children, entry = false }: Props) {
           <button
             type="button"
             onClick={() => void check()}
-            className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2 text-sm font-medium text-white transition hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+            className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             重新检查

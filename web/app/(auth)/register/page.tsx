@@ -65,7 +65,7 @@ export default function RegisterPage() {
 
       {/* First-user notice */}
       {!checkingFirst && isFirst && (
-        <div className="mb-4 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-600 dark:text-blue-400">
+        <div className="mb-4 rounded-lg border border-[var(--primary-border)] bg-[var(--primary-soft)] px-4 py-3 text-sm text-[var(--primary-text)]">
           <strong>{t("First user:")}</strong>{" "}
           {t(
             "You will be granted admin privileges and can manage other users from the admin dashboard.",

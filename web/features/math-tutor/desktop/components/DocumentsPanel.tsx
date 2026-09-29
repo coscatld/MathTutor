@@ -154,7 +154,7 @@ export default function DocumentsPanel({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--foreground)]">
-            <FolderOpen className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
+            <FolderOpen className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
             我的资料
           </h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
@@ -172,7 +172,7 @@ export default function DocumentsPanel({
           type="button"
           onClick={handleNativePick}
           disabled={picking}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {picking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FilePlus2 className="h-4 w-4" aria-hidden="true" />}
           {picking ? "正在导入…" : "添加资料"}

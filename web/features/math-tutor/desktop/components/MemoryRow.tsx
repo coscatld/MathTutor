@@ -96,7 +96,7 @@ export default function MemoryRow({
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}
                   保存
@@ -135,7 +135,7 @@ export default function MemoryRow({
                 }
               }}
               disabled={busy || confirming}
-              className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl bg-[#2563EB] px-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl bg-[var(--primary)] px-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {confirming ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <BadgeCheck className="h-4 w-4" aria-hidden="true" />}
               确认
@@ -171,7 +171,7 @@ export default function MemoryRow({
             checked={memory.retrieval_enabled}
             onChange={(e) => onToggleRetrieval(e.target.checked)}
             disabled={busy}
-            className="h-4 w-4 cursor-pointer accent-[#2563EB] disabled:cursor-not-allowed"
+            className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:cursor-not-allowed"
           />
           参与个性化回忆
         </label>

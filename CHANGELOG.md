@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3 — Calm workspace UI
+
+- Restyle the student workspace for primary and secondary school learners: a single cool-blue accent on a white canvas, hairline borders and generous whitespace, with colour reserved for actions and the current location.
+- Replace roughly 470 hard-coded colour utilities across 30 components with semantic theme tokens. `--primary` (fill, always white text) and `--primary-text` (text/icons) are split because no single blue passes 4.5:1 both under white text and on the dark canvas.
+- Use a system sans-serif stack for Chinese and Latin text; no network fonts. The serif token now resolves to the same stack.
+- Empty conversations centre the greeting and composer together; the first message returns the composer to the bottom. The knowledge-scope entry moves to a header icon, and the scope notice now appears in the empty state.
+- Redesign the sidebar (tinted background, soft new-chat button, highlighted current item, hover-revealed delete), the composer (24px radius, round send button), student bubbles and toasts.
+- No change to teaching policy, retrieval, verification, persistence or the database (migration head remains 023).
+
 ## 0.4.2 — RAG integration
 
 - Share retrieval orchestration across product paths; retain conversation/owner scope, source ranges and persistent citation receipts. Deletion removes receipts; disabling a source blocks new retrieval while preserving authorized historical receipt reads.

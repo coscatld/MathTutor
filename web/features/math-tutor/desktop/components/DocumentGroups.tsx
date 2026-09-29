@@ -32,7 +32,7 @@ export default function DocumentGroups({documents, conversations = [], renderDoc
       <summary className={heading}>对话资料 · {groups.conversations.length} 个对话</summary>
       <div className="space-y-2 p-3">{groups.conversations.map(group => <ConversationSection key={group.id} id={group.id}>
         <summary className={heading}>{group.title}<span className="ml-3 font-normal text-[var(--muted-foreground)]">{group.documents.length} 份</span></summary>
-        <a className="mx-4 text-xs text-blue-700 underline dark:text-blue-400" href={`/math-tutor?session=${encodeURIComponent(group.id)}`}>打开对话与图片记录</a>
+        <a className="mx-4 text-xs text-[var(--primary-text)] underline" href={`/math-tutor?session=${encodeURIComponent(group.id)}`}>打开对话与图片记录</a>
         {list(group.documents)}
       </ConversationSection>)}{!groups.conversations.length ? <p className="px-1 text-sm text-[var(--muted-foreground)]">还没有关联对话的文档。</p> : null}</div>
     </details>

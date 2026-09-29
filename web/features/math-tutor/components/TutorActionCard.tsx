@@ -22,7 +22,7 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
         className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3"
         role="alert"
       >
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--muted-foreground)]" aria-hidden="true" />
         <div className="min-w-0 text-sm leading-relaxed text-[var(--foreground)]">
           {message.text}
           {onRecover && <button type="button" className="ml-3 underline underline-offset-2" onClick={onRecover}>重新同步</button>}
@@ -40,25 +40,25 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
         className="mt-tutor-avatar"
         aria-hidden="true"
       >
-        <GraduationCap className="h-4 w-4 text-[#1D4ED8] dark:text-blue-400" />
+        <GraduationCap className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
           {label && (
-            <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs font-medium text-[var(--muted-foreground)]">
+            <span className="rounded-md bg-[var(--muted)] px-2 py-0.5 text-xs font-medium text-[var(--muted-foreground)]">
               {label}
             </span>
           )}
           {level > 0 && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
+            <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
               已展示：{supportExposureLabel(level)}
             </span>
           )}
         </div>
         <div className="mt-answer-text">
           <MarkdownRenderer content={message.text} enableMath />
-          {message.status === "PARTIAL" && <div className="mt-3 text-sm text-slate-500">这次回答没有完整生成。{onContinue && <button className="ml-2 text-blue-600 underline" onClick={onContinue}>继续生成</button>}</div>}
-          {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-blue-600 underline" onClick={onRecover}>重新同步</button>}
+          {message.status === "PARTIAL" && <div className="mt-3 text-sm text-[var(--muted-foreground)]">这次回答没有完整生成。{onContinue && <button className="ml-2 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>继续生成</button>}</div>}
+          {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-[var(--primary-text)] underline underline-offset-2" onClick={onRecover}>重新同步</button>}
         </div>
       </div>
     </div>

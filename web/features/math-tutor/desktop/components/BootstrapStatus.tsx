@@ -169,7 +169,7 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
               type="button"
               onClick={onRefresh}
               disabled={refreshing}
-              className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-[#1D4ED8] transition-colors duration-200 hover:bg-[#2563EB]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-400"
+              className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-[var(--primary-text)] transition-colors duration-200 hover:bg-[var(--primary-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
               重新检测

@@ -86,7 +86,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
       className="flex flex-col gap-5 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm"
       aria-label="AI 模型设置"
     >
-      <div className="flex items-center justify-between gap-3"><div><h3 className="font-serif text-lg font-bold">生成模型</h3><p className="mt-1 text-xs text-slate-500">用于 Tutor 表达与练习候选生成；数学验证仍由确定性后端完成。</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${connectionLabel === "连接成功" ? "bg-emerald-100 text-emerald-700" : connectionLabel === "连接失败" ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"}`}>{connectionLabel}</span></div>
+      <div className="flex items-center justify-between gap-3"><div><h3 className="font-serif text-lg font-bold">生成模型</h3><p className="mt-1 text-xs text-[var(--muted-foreground)]">用于 Tutor 表达与练习候选生成；数学验证仍由确定性后端完成。</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${connectionLabel === "连接成功" ? "bg-emerald-100 text-emerald-700" : connectionLabel === "连接失败" ? "bg-rose-100 text-rose-700" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}>{connectionLabel}</span></div>
       {/* Provider */}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium text-[var(--foreground)]">模型服务商</span>
@@ -102,7 +102,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 onClick={() => handlers.onPresetChange(preset.preset_id)}
                 className={`inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
                   selected
-                    ? "border-[#2563EB] bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-400"
+                    ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]"
                     : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--ring)]"
                 }`}
               >
@@ -141,7 +141,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
             data.confirmingRemoval ? (
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
                 <span className="mr-auto">移除后将立即回到模板教学，学习数据不会被删除。</span>
-                <button type="button" onClick={handlers.onCancelRemove} disabled={data.removing} className="min-h-[40px] rounded-lg px-3 font-medium hover:bg-white/60">
+                <button type="button" onClick={handlers.onCancelRemove} disabled={data.removing} className="min-h-[40px] rounded-lg px-3 font-medium hover:bg-[var(--accent)]">
                   取消
                 </button>
                 <button type="button" onClick={handlers.onRemove} disabled={data.removing} className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-red-600 px-3 font-medium text-white disabled:opacity-50">
@@ -168,7 +168,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
           type="button"
           onClick={handlers.onToggleAdvanced}
           aria-expanded={data.advancedOpen}
-          className="inline-flex min-h-[40px] w-fit cursor-pointer items-center gap-1.5 text-sm font-medium text-[#1D4ED8] dark:text-blue-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+          className="inline-flex min-h-[40px] w-fit cursor-pointer items-center gap-1.5 text-sm font-medium text-[var(--primary-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
         >
           {currentPreset?.custom ? "自定义模型" : "高级选项"}
           <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${data.advancedOpen ? "rotate-180" : ""}`} aria-hidden="true" />
@@ -190,7 +190,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] read-only:cursor-default read-only:bg-[var(--muted)] read-only:text-[var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
               />
               <p className="text-xs text-[var(--muted-foreground)]">默认使用服务商地址，可修改。API Key 将发送到此地址，请仅填写可信服务。</p>
-              {currentPreset?.base_url && <button type="button" onClick={() => handlers.onBaseUrlChange(currentPreset.base_url!)} className="w-fit text-xs text-blue-600">恢复默认地址</button>}
+              {currentPreset?.base_url && <button type="button" onClick={() => handlers.onBaseUrlChange(currentPreset.base_url!)} className="w-fit text-xs text-[var(--primary-text)]">恢复默认地址</button>}
             </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="settings-model" className="text-sm font-medium text-[var(--foreground)]">
@@ -211,7 +211,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 type="button"
                 onClick={handlers.onDiscoverModels}
                 disabled={data.discovering || !providerSaved}
-                className="inline-flex min-h-[44px] w-fit cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-[44px] w-fit cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {data.discovering ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
                 {currentPreset?.local ? "读取本机模型" : "发现可用模型"}
@@ -230,7 +230,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
             {data.models !== null && data.models.length > 0 && (
               <ul className="flex flex-wrap gap-2" aria-label="发现到的模型">
                 {data.models.map((m) => (
-                  <li key={m}><button type="button" onClick={() => handlers.onModelChange(m)} className={`rounded-full border px-3 py-1.5 text-xs ${data.model === m ? "border-[#2563EB] bg-[#2563EB]/10 text-[#1D4ED8]" : "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"}`}>{m}</button></li>
+                  <li key={m}><button type="button" onClick={() => handlers.onModelChange(m)} className={`rounded-full border px-3 py-1.5 text-xs ${data.model === m ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]" : "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"}`}>{m}</button></li>
                 ))}
               </ul>
             )}
@@ -258,7 +258,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
           <button
             type="submit"
             disabled={data.saving}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {data.saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             {data.saving ? "保存中…" : "保存设置"}
@@ -582,19 +582,19 @@ export default function SettingsPanel({
   ] as const;
   return (
     <div className="mt-settings-layout">
-      <aside className="mt-settings-nav"><h1 className="mb-5 flex items-center gap-2 px-2 font-serif text-lg font-bold"><Settings2 className="h-5 w-5 text-[#1d5fd1]" />设置</h1><nav aria-label="设置分类" className="space-y-1">{sections.map(([id, label]) => <button key={id} type="button" aria-current={section === id ? "page" : undefined} onClick={() => setSection(id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${section === id ? "bg-[var(--card)] font-semibold text-[var(--primary)] shadow-sm" : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]"}`}>{label}</button>)}</nav></aside>
+      <aside className="mt-settings-nav"><h1 className="mb-5 flex items-center gap-2 px-2 font-serif text-lg font-bold"><Settings2 className="h-5 w-5 text-[var(--primary-text)]" />设置</h1><nav aria-label="设置分类" className="space-y-1">{sections.map(([id, label]) => <button key={id} type="button" aria-current={section === id ? "page" : undefined} onClick={() => setSection(id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${section === id ? "bg-[var(--card)] font-semibold text-[var(--primary)] shadow-sm" : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]"}`}>{label}</button>)}</nav></aside>
       <div className="mt-settings-content"><div className="mx-auto max-w-4xl">
       {section === "trash" ? <ConversationTrashPanel /> : null}
-      {section === "general" ? <section><h2 className="font-serif text-xl font-bold">通用</h2><div className="mt-4 rounded-2xl border border-[#deddd7] bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><p className="text-sm font-semibold">开箱即用</p><p className="mt-2 text-sm leading-6 text-slate-500">Embedding 与 OCR 等增强能力默认关闭；未配置模型时，核心练习、模板辅导和关键词检索仍可使用。</p></div></section> : null}
-      {section === "model" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">模型与 API</h2><p className="mt-1 text-sm text-slate-500">配置生成模型和可选的资料 Embedding。密钥只进入系统安全凭据存储。</p></div>{modelPanel}{modelTest ? <ModelTestCard result={modelTest} /> : null}{settings && !settings.is_configured && (
+      {section === "general" ? <section><h2 className="font-serif text-xl font-bold">通用</h2><div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm font-semibold">开箱即用</p><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">Embedding 与 OCR 等增强能力默认关闭；未配置模型时，核心练习、模板辅导和关键词检索仍可使用。</p></div></section> : null}
+      {section === "model" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">模型与 API</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">配置生成模型和可选的资料 Embedding。密钥只进入系统安全凭据存储。</p></div>{modelPanel}{modelTest ? <ModelTestCard result={modelTest} /> : null}{settings && !settings.is_configured && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400">
           尚未配置 AI 模型 —— 核心练习功能不受影响，配置后可解锁个性化辅导与推荐练习。
         </p>
       )}<EmbeddingSettingsPanel /></div> : null}
       {section === "tutor" ? <TutorPersonalityPanel /> : null}
       {section === "data" ? <DataPrivacySettings /> : null}
-      {section === "appearance" ? <section><h2 className="font-serif text-xl font-bold">外观</h2><div className="mt-4 rounded-2xl border border-[#deddd7] bg-white p-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-900">界面跟随应用主题，并使用适合长时间学习的暖白画布与高对比文字。</div></section> : null}
-      {section === "advanced" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">高级</h2><p className="mt-1 text-sm text-slate-500">备份、恢复与维护操作。</p></div><BackupPanel /></div> : null}
+      {section === "appearance" ? <section><h2 className="font-serif text-xl font-bold">外观</h2><div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 text-sm leading-6 text-[var(--muted-foreground)]">界面跟随应用主题，并使用适合长时间学习的暖白画布与高对比文字。</div></section> : null}
+      {section === "advanced" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">高级</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">备份、恢复与维护操作。</p></div><BackupPanel /></div> : null}
       </div></div>
     </div>
   );

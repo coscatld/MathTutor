@@ -322,7 +322,7 @@ export default function PrivacyPanel({
       <div className={embedded ? "flex w-full flex-col" : "flex max-h-[calc(100vh-4rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xl"}>
         <header className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-5 py-3.5">
           <h1 id="privacy-title" className="flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">
-            <ShieldCheck className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
+            <ShieldCheck className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
             数据与隐私
           </h1>
           {onClose && (
@@ -361,7 +361,7 @@ export default function PrivacyPanel({
               {/* Profile — read-only display */}
               {!embedded && <section className="flex flex-col gap-2" aria-label="我的资料">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
-                  <UserRound className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
+                  <UserRound className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
                   我的资料
                 </h2>
                 <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -387,7 +387,7 @@ export default function PrivacyPanel({
               {/* Memories — delete with double confirm */}
               <section className="flex flex-col gap-2" aria-label="我的记忆">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
-                  <BrainCircuit className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
+                  <BrainCircuit className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
                   我的记忆
                 </h2>
                 {memories.length === 0 ? (
@@ -414,7 +414,7 @@ export default function PrivacyPanel({
               {/* Documents — delete with double confirm */}
               <section className="flex flex-col gap-2" aria-label="我的资料文档">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
-                  <FileText className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
+                  <FileText className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
                   我的资料文档
                 </h2>
                 {documents.length === 0 ? (
@@ -441,7 +441,7 @@ export default function PrivacyPanel({
               {/* Student model summary — strictly read-only */}
               {!embedded && <section className="flex flex-col gap-2" aria-label="学习模型摘要">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
-                  <ShieldCheck className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
+                  <ShieldCheck className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
                   学习模型摘要
                 </h2>
                 {summary ? <PrivacySummary summary={summary} /> : null}
@@ -450,7 +450,7 @@ export default function PrivacyPanel({
               {/* Data tools — non-destructive */}
               <section className="flex flex-col gap-2" aria-label="数据工具">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
-                  <DatabaseZap className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
+                  <DatabaseZap className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
                   数据工具
                 </h2>
                 <div className="flex flex-wrap gap-2">

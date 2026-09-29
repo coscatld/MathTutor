@@ -162,7 +162,7 @@ export default function MemoryPanel({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--foreground)]">
-            <BrainCircuit className="h-5 w-5 text-[#2563EB]" aria-hidden="true" />
+            <BrainCircuit className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
             我的记忆
           </h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
@@ -173,7 +173,7 @@ export default function MemoryPanel({
         <button
           type="button"
           onClick={() => setAdding((v) => !v)}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           添加记忆
@@ -193,7 +193,7 @@ export default function MemoryPanel({
               onClick={() => setFilter(tab.key)}
               className={`inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
                 active
-                  ? "border-[#2563EB] bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-400"
+                  ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]"
                   : "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -249,7 +249,7 @@ export default function MemoryPanel({
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
               保存记忆
