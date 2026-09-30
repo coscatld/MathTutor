@@ -1208,7 +1208,7 @@ async def student_summary(
     history = await state.student_state.events(str(owner.student_id)) if state.student_state else []
     conversations = await state.conversations.list(owner.student_id)
     result = profile_projection(history, has_conversations=bool(conversations),
-        model_status=state.student_state.model_status if state.student_state else "not_trained")
+        model_status=state.student_state.dkt_mode if state.student_state else "not_trained")
     result["evidence_summary"] = public_evidence(history)
     return result
 

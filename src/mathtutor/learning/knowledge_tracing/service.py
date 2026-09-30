@@ -20,7 +20,7 @@ from .schema import learning_events, learning_predictions, student_state_snapsho
 
 
 class StudentStateService:
-    def __init__(self, engine, model_path: str | Path | None = None):
+    def __init__(self, engine, model_path: str | Path | None = None, source_package: str | Path | None = None):
         self.engine = engine
         self.tracker = None
         self.model_status = "not_trained"
@@ -31,6 +31,29 @@ class StudentStateService:
                 self.model_status = "shadow"
             except (ImportError, OSError, ValueError, KeyError, TypeError):
                 self.model_status = "unavailable_fallback"
+        # Bundled research model: shadow only, no teaching control, and no
+        # probability for MathTutor tasks until a reviewed target mapping exists.
+        self.source_model = None
+        self.source_model_status = "not_bundled"
+        if source_package:
+            try:
+                from .model_package import SourceModelPackage
+                self.source_model = SourceModelPackage(source_package)
+                self.source_model_status = "shadow"
+            except (ImportError, OSError, ValueError, KeyError, TypeError):
+                self.source_model_status = "unavailable_fallback"
+
+    @property
+    def dkt_mode(self) -> str:
+        """Overall DKT state; any loaded model is shadow, never policy."""
+        if self.tracker is not None or self.source_model is None:
+            return self.model_status
+        return self.source_model_status
+
+    def source_model_summary(self) -> dict:
+        if self.source_model is None:
+            return {"status": self.source_model_status, "controls_teaching": False}
+        return {**self.source_model.identity, "status": self.source_model_status}
 
     @classmethod
     async def create_memory(cls, model_path=None):
@@ -179,6 +202,7 @@ class StudentStateService:
                     "probability": None, "probability_source": "none",
                     "coverage_status": "unsupported_target", "product_runtime_enabled": False,
                     "reason": "target_task_mapping_and_predictor_not_validated",
+                    "shadow_model": self.source_model_summary(),
                 }
             await db.execute(learning_predictions.insert().values(
                 student_id=student_id, prediction_id=prediction_id,
@@ -417,8 +441,9 @@ class StudentStateService:
         async with self._transaction(conn) as db:
             history = await self.events(str(student_id), conn=db)
             result = evidence_summary(history)
-            result.update({"policy_source": "evidence_tracker_v2", "dkt_mode": self.model_status,
-                           "dkt_controls_teaching": False, "training_data": {
+            result.update({"policy_source": "evidence_tracker_v2", "dkt_mode": self.dkt_mode,
+                           "dkt_controls_teaching": False, "dkt_source_model": self.source_model_summary(),
+                           "training_data": {
                 "events": len(history), "independent_targets": sum(x.independent_target for x in valid_events(history)),
                 "uncertain_provenance": sum(x.provenance_uncertain for x in valid_events(history)),
             }})

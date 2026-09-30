@@ -103,7 +103,9 @@ Context Redundancy 的记录值为 0.913，但 hard fixture 在检索前已经�
 
 ## 版本与发布状态
 
-当前源码版本为 **0.4.3**。源码版本、安装包工程验证和真实回答质量分别记录。
+当前源码版本为 **0.4.4**。源码版本、安装包工程验证和真实回答质量分别记录。
+
+0.4.4 随安装包附带已训练的 DKT 模型（ASSISTments 2009 来源域），启动时以**影子模式**加载：不参与教学决策，对 MathTutor 题目不输出概率（`unsupported_target`），教学与推荐仍由证据跟踪器决定。详见 [0.4.4 发布说明](docs/RELEASE_0.4.4.md)。
 
 0.4.3 是界面版本：面向小初高学生重做了工作台视觉（单一冷蓝、白色画布、细边框、语义颜色变量），不改变教学策略、检索、验证、数据与数据库结构（migration head 仍为 023）。详见 [0.4.3 发布说明](docs/RELEASE_0.4.3.md)。
 
@@ -210,7 +212,7 @@ python -m pip install -e ".[pdf-rich]"
 - 源码后端默认使用当前目录下的 `data/`；可通过 `MATHTUTOR_DATA_ROOT` 指定数据目录，或通过 `MATHTUTOR_DB_PATH` 指定数据库路径。
 - 桌面版使用独立的用户数据目录，退出应用会停止本地子进程，并保留学习资料和历史。
 - API Key 通过 `SecretStore` 管理；macOS 使用 Keychain，Windows 使用 Credential Manager。不要把凭据、私人配置、用户数据库或原始模型请求日志提交到仓库。
-- 0.4.3 的数据库 migration head 为 **023**（与 0.4.2 相同）。升级前使用应用内备份功能创建并验证备份，再正常退出应用。
+- 0.4.4 的数据库 migration head 为 **023**（与 0.4.2 相同）。升级前使用应用内备份功能创建并验证备份，再正常退出应用。
 - 恢复旧备份可能缺少之后产生的新资料和聊天，请先保存当前数据。代码回滚不会自动恢复数据库；不要手动删除活跃数据库的 WAL/SHM 文件。
 
 ## 开发与测试
@@ -250,16 +252,16 @@ npm ci
 npm run package:win
 ```
 
-现有脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器。0.4.3 产物路径为：
+现有脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器。0.4.4 产物路径为：
 
 ```text
-desktop/dist/MathTutor-0.4.3-win-x64.exe
+desktop/dist/MathTutor-0.4.4-win-x64.exe
 ```
 
 本地构建默认未签名。公开发行需满足现有工作流的 Authenticode 签名要求，并对最终产物重新进行包外验证；构建成功不等于正式发布。下载后可用 PowerShell 检查摘要，与对应发行记录比较：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\MathTutor-0.4.3-win-x64.exe
+Get-FileHash -Algorithm SHA256 .\MathTutor-0.4.4-win-x64.exe
 ```
 
 使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。

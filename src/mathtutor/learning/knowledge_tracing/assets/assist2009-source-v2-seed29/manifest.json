@@ -1,0 +1,173 @@
+{
+  "schema": "mathtutor_student_model_package_v1",
+  "package_id": "assist2009-source-v2-seed29",
+  "model": {
+    "file": "model.json",
+    "format": "tutor_model_dkt_v1",
+    "bytes": 924184,
+    "sha256": "d30fb23c69ce995874ad6466d7a32ec41accca2f6afcebe2e62dd3603a3c03a4",
+    "source_skills": 122,
+    "event_size": 147,
+    "item_size": 124,
+    "hidden_size": 64,
+    "calibration_temperature": 1.299393705484411
+  },
+  "provenance": {
+    "dataset": "ASSISTments 2009-2010 skill builder (corrected, collapsed); public research dataset",
+    "research_run": "assist2009-windows-source-v2 / dkt_init29",
+    "selection": "lowest validation (selection) student-macro log loss among seeds 17/29/43; test split not consulted",
+    "best_selection_loss": 0.538249,
+    "research_delivery_manifest_sha256": "d30fb23c69ce995874ad6466d7a32ec41accca2f6afcebe2e62dd3603a3c03a4",
+    "torch_numpy_parity": {
+      "status": "passed",
+      "steps": 64,
+      "max_logit_absolute_error": 2.384185791015625e-07,
+      "source": "deliverables/acceptance/new_model_runtime.json"
+    }
+  },
+  "policy": {
+    "serving_mode": "shadow",
+    "controls_teaching": false,
+    "target_coverage": "unsupported_target",
+    "target_domain_validated": false,
+    "reason": "ASSISTments source skills have no approved runtime mapping to MathTutor skills (source_skill_mapping_v1: runtime_enabled=false); MathTutor task probabilities stay null."
+  },
+  "self_check": {
+    "method": "independent float64 reference; synthetic one-hot source vectors",
+    "tolerance": 1e-05,
+    "event_indices": [
+      [
+        0,
+        122
+      ],
+      [
+        7,
+        123
+      ],
+      [
+        14,
+        124
+      ],
+      [
+        21,
+        125
+      ],
+      [
+        28,
+        126
+      ],
+      [
+        35,
+        127
+      ],
+      [
+        42,
+        128
+      ],
+      [
+        49,
+        129
+      ],
+      [
+        56,
+        130
+      ],
+      [
+        63,
+        131
+      ],
+      [
+        70,
+        132
+      ],
+      [
+        77,
+        133
+      ],
+      [
+        84,
+        134
+      ],
+      [
+        91,
+        135
+      ],
+      [
+        98,
+        136
+      ],
+      [
+        105,
+        137
+      ]
+    ],
+    "query_indices": [
+      [
+        3
+      ],
+      [
+        14
+      ],
+      [
+        25
+      ],
+      [
+        36
+      ],
+      [
+        47
+      ],
+      [
+        58
+      ],
+      [
+        69
+      ],
+      [
+        80
+      ],
+      [
+        91
+      ],
+      [
+        102
+      ],
+      [
+        113
+      ],
+      [
+        2
+      ],
+      [
+        13
+      ],
+      [
+        24
+      ],
+      [
+        35
+      ],
+      [
+        46
+      ]
+    ],
+    "expected_probabilities": [
+      0.45135318592922186,
+      0.7405476331061158,
+      0.5506324712804869,
+      0.6634230177360967,
+      0.5428037207735973,
+      0.49696943148015765,
+      0.5738043161857581,
+      0.5684616662332066,
+      0.8225885973203397,
+      0.3708555446400619,
+      0.9197229577704821,
+      0.6361490863345929,
+      0.4129009251313922,
+      0.7001150192434602,
+      0.7479084253399851,
+      0.5424579529935998
+    ]
+  }
+}

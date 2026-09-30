@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.4 — Bundled shadow DKT
+
+- Bundle a trained DKT model (ASSISTments 2009 source domain, seed 29, calibrated) as a hash-pinned student-model package and load it at startup in shadow mode.
+- Verify package bytes, format, dimensions, finite weights, calibration bounds and a numeric self-check against an independent float64 reference; read JSON only.
+- Keep teaching on the evidence tracker: the shadow model never controls teaching, and MathTutor task probabilities stay null (`unsupported_target`) because no reviewed runtime skill mapping exists.
+- Declare NumPy as a runtime dependency and require it in the packaged runtime; ship the model assets through the package allowlist. Torch stays excluded.
+- Fall back cleanly (`unavailable_fallback`) when the package is missing or damaged.
+
 ## 0.4.3 — Calm workspace UI
 
 - Restyle the student workspace for primary and secondary school learners: a single cool-blue accent on a white canvas, hairline borders and generous whitespace, with colour reserved for actions and the current location.

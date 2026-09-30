@@ -1,2 +1,5 @@
 # Regression fixture hashes must identify the same bytes on Windows and Unix.
 tests/fixtures/** text eol=lf
+
+# Bundled student-model packages are hash-pinned; never convert their bytes.
+src/mathtutor/learning/knowledge_tracing/assets/** -text

@@ -450,8 +450,11 @@ class ProductState:
             self.document_index,
             orchestrator=self.retrieval_orchestrator,
         )
+        from mathtutor.learning.knowledge_tracing.package_paths import BUNDLED_PACKAGE
         from mathtutor.learning.knowledge_tracing.service import StudentStateService
-        self.student_state = StudentStateService(engine, Path(data_dir) / "models" / "dkt" / "model.npz") if engine is not None else None
+        self.student_state = StudentStateService(
+            engine, Path(data_dir) / "models" / "dkt" / "model.npz", source_package=BUNDLED_PACKAGE,
+        ) if engine is not None else None
         self.store.student_state = self.student_state
         self.store.practice_repository = self.practice_repository
         from mathtutor.application.initial_assessment import InitialAssessmentService
