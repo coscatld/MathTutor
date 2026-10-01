@@ -12,6 +12,7 @@ from hashlib import sha256
 from dataclasses import dataclass, asdict
 
 from mathtutor.learning.skill_graph import GRAPH_VERSION, SKILLS, skills_for_problem, skills_for_subgoal
+from mathtutor.domain.dual_channel_gate import evidence_kind, math_state_from_correctness
 
 _STUCK = re.compile(r"不会|没懂|不懂|不明白|看不懂|还是不|没思路|卡住")
 
@@ -88,7 +89,8 @@ def assessment_record(assessment, raw_text, assistance, *, diagnostic=False):
         "remaining_requirements": list(assessment.remaining_requirements),
         "misconception_candidates": list(assessment.signals),
         "help_before_attempt": assistance.max_level_issued,
-        "evidence_kind": "diagnostic" if diagnostic else "ungradable" if verdict == "undetermined" else "post_solution" if assistance.max_level_issued >= 5 else "assisted" if assistance.max_level_issued else "independent",
+        "evidence_kind": evidence_kind(math_state_from_correctness(verdict),
+                                       max_assistance_level=assistance.max_level_issued, diagnostic=diagnostic),
     }
 
 

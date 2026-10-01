@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 import json
 import re
+import unicodedata
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -137,8 +138,13 @@ class TutorOutputGuard:
         rejects unauthorized equivalent solution equations. Both paths exclude
         the source statement reconstructed from verified candidate material.
         """
+        # Full-width forms (＝ ： ； digits) are the same symbols to a reader.
+        text = unicodedata.normalize("NFKC", text).replace("−", "-")
         final = candidate.final_answer
         kind = final.get("kind")
+        coverage = _value_coverage(text, candidate)
+        if coverage is not None:
+            return coverage
         fragments = _answer_fragments(text)
         asserted = bool(_ANSWER_ASSERTION.search(text))
         if kind == "rational":
@@ -211,7 +217,76 @@ class TutorOutputGuard:
         return None
 
 
-_ANSWER_ASSERTION = re.compile(r"(?:答案|结果|解|根)(?:最后)?(?:就)?(?:是|为|等于|[:：])|最终(?:会)?(?:得到|得出)|所以(?:可得)?|answer\s*(?:is|=|:)", re.IGNORECASE)
+_ANSWER_ASSERTION = re.compile(r"(?:答案|结果|解|根)(?:最后)?(?:就)?(?:是|为|等于|[:：])|最终(?:会)?(?:得到|得出)|所以(?:可得)?|(?:未知数|[A-Za-z])(?:的值)?(?:最后|最终)?(?:就)?(?:是|为|等于)|answer\s*(?:is|=|:)", re.IGNORECASE)
+
+
+_STANDALONE_NUMBER = re.compile(r"(?<![A-Za-z0-9.^/_])-?\d+(?:\.\d+)?(?:/\d+)?(?![A-Za-z0-9.^/_(])")
+
+
+def _expected_values(final):
+    kind = final.get("kind")
+    try:
+        if kind == "rational":
+            return [common.frac_from_dict(final["value"])]
+        if kind == "assignments":
+            return [common.frac_from_dict(value) for value in final["values"].values()]
+        if kind == "roots":
+            roots = final.get("roots", ())
+            if roots and all(root.get("kind") == "rational" for root in roots):
+                return [common.frac_from_dict(root["value"]) for root in roots]
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return []
+    return []
+
+
+def _statement_constants(candidate):
+    """Magnitudes of the numbers in the problem statement (from the first step)."""
+    found = set()
+
+    def walk(node):
+        if isinstance(node, dict):
+            if set(node) == {"n", "d"}:
+                try:
+                    found.add(abs(Fraction(int(node["n"]), int(node["d"]))))
+                except (TypeError, ValueError, ZeroDivisionError):
+                    pass
+                return
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, (list, tuple)):
+            for value in node:
+                walk(value)
+
+    if candidate.steps:
+        first = candidate.steps[0]
+        walk({key: first[key] for key in ("before", "a", "b", "c", "source_rows", "expr") if key in first})
+    return found
+
+
+def _value_coverage(text, candidate):
+    """Every answer value written out as a standalone number = the answer, whatever the phrasing.
+
+    "x 应该填 5", "5 就是要求的 x", "两个解分别为 2、3" carry no '=' and no
+    assertion keyword, but state the complete answer. Values that also occur
+    in the problem statement are ambiguous (a hint may name the coefficient),
+    so coverage only decides when every answer value is absent from it;
+    otherwise the structural checks below still apply.
+    """
+    expected = _expected_values(candidate.final_answer)
+    if not expected:
+        return None
+    constants = _statement_constants(candidate)
+    if any(abs(value) in constants for value in expected):
+        return None
+    mentioned = set()
+    for token in _STANDALONE_NUMBER.findall(text):
+        try:
+            mentioned.add(Fraction(token))
+        except (ValueError, ZeroDivisionError):
+            continue
+    if all(value in mentioned for value in expected):
+        return "answer_values_mentioned"
+    return None
 
 
 def _answer_fragments(text):
@@ -219,6 +294,8 @@ def _answer_fragments(text):
     text = re.sub(r"\\text\{[^}]*\}", "，", text)
     text = re.sub(r"\\(?:quad|qquad|left|right|,|;|!|\(|\)|\[|\])", " ", text)
     text = re.sub(r"([A-Za-z])_(?:\{\d+\}|\d+)", r"\1", text)
+    # Indexed roots "x1=2, x₂=3" name the same variable as "x=2".
+    text = re.sub(r"([A-Za-z])[0-9₀-₉](?=\s*=)", r"\1", text)
     return [part.strip() for part in re.findall(r"[A-Za-z0-9+*/^=().{}\\√−\-\s]+", text)
             if part.strip() and any(ch.isdigit() or ch.isalpha() for ch in part)]
 
@@ -267,6 +344,11 @@ def _nonzero_coefficients(coefficients):
 
 def _original_equation(parsed, candidate):
     if not isinstance(parsed.ast, n.Equation) or not parsed.variable or not candidate.steps:
+        return False
+    # A product of factors restates the roots, not the problem: (x-2)(x-3)=0
+    # has the original coefficients but IS the answer in disguise.
+    if any(isinstance(side, n.Mul) and sum(not isinstance(f, n.Num) for f in side.factors) >= 2
+           for side in (parsed.ast.lhs, parsed.ast.rhs)):
         return False
     before = candidate.steps[0].get("before")
     if not before:

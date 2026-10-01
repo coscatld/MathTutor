@@ -254,7 +254,7 @@ async def complete_tools(provider, messages, *, executor, structured=False, temp
         "检索命中不是证据，必须 read_source 后引用真实 source_id 和逐字 quote。最终回复是符合该 Schema 的 JSON："
         + json.dumps(final_schema, ensure_ascii=False)
         + "。无证据则 claims=[]，明确缺口，不编造。跨资料整理先给出最多4节 plan，每节检索和读取，再 draft_note；"
-        "原文 quote 与 AI summary 分开。仅明确授权才 save_note；用户要求保存时必须真正调用并检查成功收据。")
+        "原文 quote 与 AI summary 分开。回答中的每个数学结论都写进 math_assertions（题目 expression、结论 answer、所属 claim_index），由应用的确定性验证器核验；来源支持不等于数学正确。仅明确授权才 save_note；用户要求保存时必须真正调用并检查成功收据。")
     if not native:
         instruction += ("工具兼容协议：只输出 JSON {\"tool_calls\":[{\"id\":\"唯一调用ID\",\"name\":\"工具名\",\"arguments\":{...}}]}；"
             "收到应用工具收据后继续。最终输出上述回答 JSON，不能输出代码块。工具 Schema：" + json.dumps(definitions, ensure_ascii=False))

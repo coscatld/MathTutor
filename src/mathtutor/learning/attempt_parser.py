@@ -93,6 +93,14 @@ def parse_student_attempt(
     """
     stripped = raw_text.strip()
     rational = r"[+-]?\d{1,18}(?:/\d{1,18})?"
+    # Two roots of ONE variable written the way students write them —
+    # "x=2或x=3", "x1=2, x2=3", "x=2,3" — read as the bare root list. The
+    # variable letter must repeat, so a system answer "x=3, y=2" is untouched.
+    two_roots = re.fullmatch(
+        rf"([a-z])(?:_?[12₁₂])?\s*=\s*({rational})\s*(?:[,，;；]|或|or)\s*(?:\1(?:_?[12₁₂])?\s*=\s*)?({rational})",
+        stripped, flags=re.IGNORECASE)
+    if two_roots:
+        stripped = f"{two_roots.group(2)},{two_roots.group(3)}"
     if re.fullmatch(rf"{rational}\s*[,，]\s*{rational}", stripped):
         try:
             roots = [Fraction(value.strip()) for value in stripped.replace("，", ",").split(",")]

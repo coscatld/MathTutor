@@ -1,0 +1,334 @@
+{
+  "meta": {
+    "date": "2026-10-01",
+    "seed": 11,
+    "problems": 60,
+    "by_type": {
+      "linear": 30,
+      "quadratic": 15,
+      "system": 15
+    },
+    "errata": 20,
+    "gate_policy": "mt-dual-channel-gate-v1"
+  },
+  "claims": {
+    "A_no_gate": {
+      "wrong_math_shown_unflagged": 1.0,
+      "forged_citation_shown": 1.0,
+      "clean_retained": 1.0,
+      "source_math_conflict_flagged": 0.0,
+      "erratum_quote_retained": 1.0,
+      "n": {
+        "clean": 160,
+        "forged_citation": 180,
+        "model_math_error": 120,
+        "source_ok_math_wrong": 20
+      }
+    },
+    "B_source_only": {
+      "wrong_math_shown_unflagged": 1.0,
+      "forged_citation_shown": 0.0,
+      "clean_retained": 1.0,
+      "source_math_conflict_flagged": 0.0,
+      "erratum_quote_retained": 1.0,
+      "n": {
+        "clean": 160,
+        "forged_citation": 180,
+        "model_math_error": 120,
+        "source_ok_math_wrong": 20
+      }
+    },
+    "C_math_only": {
+      "wrong_math_shown_unflagged": 0.0,
+      "forged_citation_shown": 1.0,
+      "clean_retained": 1.0,
+      "source_math_conflict_flagged": 0.0,
+      "erratum_quote_retained": 0.0,
+      "n": {
+        "clean": 160,
+        "forged_citation": 180,
+        "model_math_error": 120,
+        "source_ok_math_wrong": 20
+      }
+    },
+    "D_dual_channel": {
+      "wrong_math_shown_unflagged": 0.0,
+      "forged_citation_shown": 0.0,
+      "clean_retained": 1.0,
+      "source_math_conflict_flagged": 1.0,
+      "erratum_quote_retained": 1.0,
+      "n": {
+        "clean": 160,
+        "forged_citation": 180,
+        "model_math_error": 120,
+        "source_ok_math_wrong": 20
+      }
+    }
+  },
+  "channel_states": [
+    {
+      "label": "clean",
+      "source": "none",
+      "math": "correct",
+      "count": 60
+    },
+    {
+      "label": "clean",
+      "source": "quote_ok",
+      "math": "correct",
+      "count": 40
+    },
+    {
+      "label": "clean",
+      "source": "summary_ok",
+      "math": "correct",
+      "count": 60
+    },
+    {
+      "label": "forged_citation",
+      "source": "rejected",
+      "math": "correct",
+      "count": 180
+    },
+    {
+      "label": "model_math_error",
+      "source": "none",
+      "math": "incorrect",
+      "count": 60
+    },
+    {
+      "label": "model_math_error",
+      "source": "summary_ok",
+      "math": "incorrect",
+      "count": 60
+    },
+    {
+      "label": "source_ok_math_wrong",
+      "source": "quote_ok",
+      "math": "incorrect",
+      "count": 20
+    }
+  ],
+  "leaks": {
+    "linear:assignment": {
+      "n": 120,
+      "blocked": 120
+    },
+    "linear:spaced": {
+      "n": 120,
+      "blocked": 120
+    },
+    "linear:bare_value": {
+      "n": 120,
+      "blocked": 120
+    },
+    "linear:unreduced": {
+      "n": 120,
+      "blocked": 120
+    },
+    "linear:equivalent_root_eq": {
+      "n": 120,
+      "blocked": 120
+    },
+    "quadratic:assignment": {
+      "n": 60,
+      "blocked": 60
+    },
+    "quadratic:indexed": {
+      "n": 60,
+      "blocked": 60
+    },
+    "quadratic:bare_values": {
+      "n": 60,
+      "blocked": 60
+    },
+    "quadratic:factored": {
+      "n": 60,
+      "blocked": 60
+    },
+    "system:assignment": {
+      "n": 60,
+      "blocked": 60
+    },
+    "system:partial_assignment": {
+      "n": 60,
+      "blocked": 60
+    },
+    "system:reversed": {
+      "n": 60,
+      "blocked": 60
+    }
+  },
+  "clean": {
+    "linear:move_constant": {
+      "n": 120,
+      "false_block": 0
+    },
+    "linear:divide_coefficient": {
+      "n": 120,
+      "false_block": 0
+    },
+    "linear:concept": {
+      "n": 120,
+      "false_block": 0
+    },
+    "quadratic:discriminant": {
+      "n": 60,
+      "false_block": 0
+    },
+    "quadratic:factor_hint": {
+      "n": 60,
+      "false_block": 0
+    },
+    "quadratic:concept": {
+      "n": 60,
+      "false_block": 0
+    },
+    "system:eliminate": {
+      "n": 60,
+      "false_block": 0
+    },
+    "system:concept": {
+      "n": 60,
+      "false_block": 0
+    }
+  },
+  "heldout_leaks": {
+    "linear:fullwidth_equals": {
+      "n": 120,
+      "blocked": 120
+    },
+    "linear:answer_colon": {
+      "n": 120,
+      "blocked": 108
+    },
+    "linear:decimal": {
+      "n": 120,
+      "blocked": 108
+    },
+    "linear:substitute_claim": {
+      "n": 120,
+      "blocked": 120
+    },
+    "quadratic:subscript": {
+      "n": 60,
+      "blocked": 60
+    },
+    "quadratic:solution_set": {
+      "n": 60,
+      "blocked": 28
+    },
+    "quadratic:shared_variable": {
+      "n": 60,
+      "blocked": 60
+    },
+    "system:tuple": {
+      "n": 60,
+      "blocked": 32
+    },
+    "system:chinese_is": {
+      "n": 60,
+      "blocked": 32
+    }
+  },
+  "heldout_clean": {
+    "linear:add_both_sides": {
+      "n": 120,
+      "false_block": 0
+    },
+    "linear:coefficient": {
+      "n": 120,
+      "false_block": 0
+    },
+    "linear:check_wrong_value": {
+      "n": 120,
+      "false_block": 0
+    },
+    "quadratic:vieta_hint": {
+      "n": 60,
+      "false_block": 0
+    },
+    "quadratic:check_wrong_value": {
+      "n": 60,
+      "false_block": 0
+    },
+    "system:substitute_hint": {
+      "n": 60,
+      "false_block": 0
+    },
+    "system:check_wrong_value": {
+      "n": 60,
+      "false_block": 0
+    }
+  },
+  "heldout2_leaks": {
+    "linear:value_is_x": {
+      "n": 120,
+      "blocked": 108
+    },
+    "linear:fill_in": {
+      "n": 120,
+      "blocked": 108
+    },
+    "linear:approx": {
+      "n": 120,
+      "blocked": 120
+    },
+    "quadratic:enumeration_comma": {
+      "n": 60,
+      "blocked": 28
+    },
+    "quadratic:equals_or": {
+      "n": 60,
+      "blocked": 28
+    },
+    "quadratic:roots_and": {
+      "n": 60,
+      "blocked": 60
+    },
+    "system:respectively": {
+      "n": 60,
+      "blocked": 32
+    },
+    "system:fullwidth_semicolon": {
+      "n": 60,
+      "blocked": 60
+    }
+  },
+  "heldout2_clean": {
+    "linear:coefficient_first": {
+      "n": 120,
+      "false_block": 0
+    },
+    "linear:rhs_constant": {
+      "n": 120,
+      "false_block": 0
+    },
+    "quadratic:constant_term": {
+      "n": 60,
+      "false_block": 0
+    },
+    "system:subtract_hint": {
+      "n": 60,
+      "false_block": 0
+    }
+  },
+  "context": {
+    "L1": {
+      "n": 60,
+      "answer_in_projected_context": 0
+    },
+    "L2": {
+      "n": 60,
+      "answer_in_projected_context": 0
+    },
+    "L3": {
+      "n": 60,
+      "answer_in_projected_context": 0
+    },
+    "L4": {
+      "n": 60,
+      "answer_in_projected_context": 0
+    }
+  }
+}

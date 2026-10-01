@@ -12,6 +12,8 @@ from sqlalchemy.dialects.sqlite import insert
 from mathtutor.application.knowledge import KnowledgeError, digest
 from mathtutor.infrastructure.knowledge_schema import drafts
 from mathtutor.domain.evidence import RetrievalExecution, RetrievalHop, text_hash
+from mathtutor.domain.dual_channel_gate import (
+    MathState, SourceState, Treatment, decide, math_state_from_correctness)
 
 
 class Strict(BaseModel):
@@ -81,9 +83,19 @@ class Save(Strict):
     draft_id: str = Field(min_length=1, max_length=80)
 
 
+class MathAssertion(Strict):
+    """A mathematical conclusion the answer relies on, submitted for the math channel."""
+    expression: str = Field(min_length=1, max_length=500, description="题目或方程，如 3x-5=10")
+    answer: str = Field(min_length=1, max_length=500, description="回答中给出的结论，如 x=5")
+    claim_index: int | None = Field(default=None, ge=0, le=11, description=(
+        "该结论所在 claim 的下标；不属于任何 claim 时省略"))
+
+
 class Final(Strict):
     claims: list[Claim] = Field(default_factory=list, max_length=12)
     uncertainties: list[str] = Field(default_factory=list, max_length=8)
+    math_assertions: list[MathAssertion] = Field(default_factory=list, max_length=8, description=(
+        "回答中每个数学结论都要列出，由确定性验证器核验；未列出的数学结论不得写进 claims"))
 
 
 class ToolReceipt(Strict):
@@ -122,6 +134,7 @@ class KnowledgeTools:
         self.saved, self.draft_results = [], []
         self.practice_result = None
         self.support_checker = None
+        self.gate_log = []
         self.retrieval_execution = RetrievalExecution()
 
     def definitions(self):
@@ -379,7 +392,57 @@ class KnowledgeTools:
             if self.support_checker is None or not await self.support_checker(summaries):
                 raise KnowledgeError("总结的证据覆盖不足；请删除推断或改用逐字摘录。")
 
-    def render_claims(self, claims):
+    async def source_state(self, claim) -> SourceState:
+        """Source channel for ONE claim, non-raising (same checks as validate_claims)."""
+        for evidence in claim.evidence:
+            source = self.reads.get(evidence.source_id)
+            if not source or evidence.quote not in source["text"]:
+                return SourceState.REJECTED
+            try:
+                actual = await self.knowledge.read_source(self.owner, self.cid, source["document_id"],
+                                                          source["version"], source["start"], source["end"])
+            except KnowledgeError:
+                return SourceState.REJECTED
+            if actual["body_hash"] != source["body_hash"]:
+                return SourceState.REJECTED
+        if claim.kind == "quote":
+            ok = len(claim.evidence) == 1 and claim.text == claim.evidence[0].quote
+            return SourceState.QUOTE_OK if ok else SourceState.REJECTED
+        summary = [{"claim": claim.text, "evidence": [e.quote for e in claim.evidence]}]
+        if self.support_checker is None or not await self.support_checker(summary):
+            return SourceState.REJECTED
+        return SourceState.SUMMARY_OK
+
+    async def math_state(self, expression: str, answer: str) -> MathState:
+        """Math channel, non-raising: parser + solver + verifier + attempt verifier.
+
+        Anything the deterministic pipeline cannot establish stays
+        UNSUPPORTED / UNDETERMINED — the model is never asked to settle it.
+        """
+        from uuid import uuid4
+        from mathtutor.domain.problem import MathProblem
+        from mathtutor.learning.attempt_parser import parse_student_attempt
+        from mathtutor.security.scopes import student_uuid
+        from mathtutor.solving.parser import parse_problem
+        from mathtutor.solving.solver import solve_problem
+        try:
+            raw = parse_problem(expression).problem
+            if raw is None:
+                return MathState.UNSUPPORTED
+            problem = MathProblem.canonicalize(problem_type=raw.problem_type, normalized_ast=raw.normalized_ast,
+                                               display_latex=raw.display_latex)
+            candidate = solve_problem(problem, raw).candidate
+            verdict = await self.state.verification_backend.verify(problem, candidate)
+            if verdict.verdict != "VERIFIED":
+                return MathState.UNSUPPORTED
+            attempt = parse_student_attempt(attempt_submission_id=uuid4(), student_id=student_uuid(self.owner),
+                                            cycle_id=uuid4(), raw_text=answer, attempt_index=1)
+            assessed = await self.state.verification_backend.verify_attempt(attempt, problem, candidate)
+        except Exception:
+            return MathState.UNSUPPORTED
+        return math_state_from_correctness(assessed.correctness)
+
+    def render_claims(self, claims, notes=None):
         import re
         from urllib.parse import quote
         def literal(value):
@@ -387,7 +450,7 @@ class KnowledgeTools:
             # creating \\[...\\] delimiters for the existing math renderer.
             return re.sub(r"([\\`*_{}\[\]()<>#+.!|~$&-])", lambda m: f"&#{ord(m.group())};", value)
         pieces = []
-        for claim in claims:
+        for index, claim in enumerate(claims):
             refs = []
             for e in claim.evidence:
                 source = self.reads[e.source_id]
@@ -396,19 +459,72 @@ class KnowledgeTools:
                 title = literal(source["title"])
                 refs.append(f"[{title} · v{source['version']} · L{source['line_start']}–{source['line_end']}]({url})")
             label = "原文摘录" if claim.kind == "quote" else "AI 总结（已做证据覆盖检查，仍需核对）"
-            pieces.append(f"**{label}**\n\n{literal(claim.text)}\n\n来源：" + "、".join(refs))
+            note = (notes or {}).get(index)
+            pieces.append(f"**{label}**" + (f" · {note}" if note else "")
+                          + f"\n\n{literal(claim.text)}\n\n来源：" + "、".join(refs))
         return "\n\n".join(pieces)
+
+    async def gate_final(self, final):
+        """Run both channels over a final answer and apply the merge table.
+
+        Returns (claims to show, per-claim notes, standalone lines, notices).
+        Also records every decision in ``self.gate_log`` for audit.
+        """
+        severity = [MathState.INCORRECT, MathState.UNDETERMINED, MathState.UNSUPPORTED,
+                    MathState.PARTIAL, MathState.CORRECT]
+        per_claim: dict[int, MathState] = {}
+        standalone = []
+        for assertion in final.math_assertions:
+            state = await self.math_state(assertion.expression, assertion.answer)
+            index = assertion.claim_index
+            if index is not None and index < len(final.claims):
+                previous = per_claim.get(index)
+                if previous is None or severity.index(state) < severity.index(previous):
+                    per_claim[index] = state
+            else:
+                standalone.append((assertion, state))
+        shown, notes, notices, lines = [], {}, [], []
+        for index, claim in enumerate(final.claims):
+            source = await self.source_state(claim)
+            math = per_claim.get(index, MathState.NONE)
+            decision = decide(source, math)
+            self.gate_log.append({"claim_index": index, "source": source.value, "math": math.value,
+                                  "treatment": decision.treatment.value})
+            if decision.treatment is Treatment.WITHHOLD:
+                raise KnowledgeError("引用未读取、版本不一致、原文摘录不匹配或总结证据覆盖不足。")
+            if decision.treatment is Treatment.DROP_MATH:
+                notices.append("已移除 1 条未通过数学验证的结论。")
+                continue
+            note = decision.math_label
+            if decision.treatment is Treatment.SHOW_SOURCE_MATH_CONFLICT:
+                note = "⚠ 来源支持 ≠ 数学正确：这是资料原文，但其中的数学结论未通过验证，请勿直接采用"
+            if note:
+                notes[len(shown)] = note
+            shown.append(claim)
+        for assertion, state in standalone:
+            decision = decide(SourceState.NONE, state)
+            self.gate_log.append({"claim_index": None, "source": "none", "math": state.value,
+                                  "treatment": decision.treatment.value})
+            if decision.treatment is Treatment.DROP_MATH:
+                notices.append("已移除 1 条未通过数学验证的结论。")
+            else:
+                lines.append(f"- {assertion.expression}：{assertion.answer}（{decision.math_label}）")
+        return shown, notes, lines, notices
 
     async def finalize(self, text):
         try:
             final = Final.model_validate_json(text)
         except ValidationError as exc:
             raise KnowledgeError("最终回答须是 claims / uncertainties JSON，不得把工具调用当答案。") from exc
-        await self.validate_claims(final.claims)
-        rendered = self.render_claims(final.claims)
+        claims, notes, math_lines, notices = await self.gate_final(final)
+        rendered = self.render_claims(claims, notes)
+        if math_lines:
+            rendered += "\n\n数学结论核验：\n" + "\n".join(math_lines)
+        if notices:
+            rendered += "\n\n" + " ".join(notices)
         if final.uncertainties:
             rendered += "\n\n未确定事项：\n" + "\n".join("- " + x for x in final.uncertainties)
-        if not final.claims and not self.practice_result:
+        if not claims and not self.practice_result:
             rendered = "所选资料未提供足够可引用证据，未扩大范围或联网。" + rendered
         if self.practice_result:
             rendered += "\n\n练习提案结果已由现有数学验证与发布流程处理，请查看会话中的练习邀请；未自动开始作答。"
