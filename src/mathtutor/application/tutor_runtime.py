@@ -69,6 +69,34 @@ def continuation_delta(prefix: str, addition: str) -> tuple[str, bool]:
     return CONTINUATION_NOTICE + addition, True
 
 
+def _missing_operand(text: str) -> bool:
+    # Closing a formula's delimiters does not supply its missing operand.
+    # Peel off only closing formatting and terminal punctuation, not content.
+    tail = text.rstrip()
+    while True:
+        shortened = re.sub(r"(?:\\\)|\\\]|\$\$|\$|```|[。.!?！？；;])\s*$", "", tail).rstrip()
+        if shortened == tail:
+            break
+        tail = shortened
+    # A provider may report 'stop' despite cutting off an equation.
+    return bool(re.search(r"[=+\-−*/^×÷]\s*[\u4e00-\u9fff]?$", tail))
+
+
+def _closed_formula_missing_operand(text: str) -> bool:
+    return any(_missing_operand(next(part for part in match.groups() if part is not None))
+               for match in re.finditer(r"\\\((.*?)\\\)|\\\[(.*?)\\\]|\$\$(.*?)\$\$", text, re.S))
+
+
+def _unfinished_surface(text: str) -> bool:
+    """Recognize visibly open formatting, without certifying an equation."""
+    if any(text.count(left) != text.count(right)
+           for left, right in ((r"\(", r"\)"), (r"\[", r"\]"))):
+        return True
+    if text.count("$$") % 2 or text.count("```") % 2:
+        return True
+    return _missing_operand(text) or _closed_formula_missing_operand(text)
+
+
 def record_turn(turn):
     health['turns'] += 1
     health[turn.finish_reason.value] += 1
@@ -112,7 +140,8 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
         turn.stop(FinishReason.STEP_CAP, turn.final_text)
         raise RuntimeError('Tutor step budget exhausted')
     result = None
-    uncertain_join = False
+    uncertain_join = (turn.error_code == 'CONTINUATION_BOUNDARY_UNVERIFIED'
+                      or CONTINUATION_NOTICE in prior_text)
     while turn.steps_used < turn.max_steps:
         remaining = turn.max_total_tokens - turn.input_tokens - turn.output_tokens
         prompt_estimate = sum(content_token_estimate(m.get('content', '')) + 16 for m in messages)
@@ -149,6 +178,12 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
         addition = result.text
         prefix = text or prior_text
         visible_delta, uncertain = continuation_delta(prefix, addition)
+        if (_closed_formula_missing_operand(prefix) and not uncertain and visible_delta
+                and CONTINUATION_NOTICE not in prefix):
+            # Punctuation after an incomplete closed formula cannot silently
+            # turn subsequent prose into a valid continuation of that formula.
+            visible_delta = CONTINUATION_NOTICE + visible_delta.lstrip("\n")
+            uncertain = True
         uncertain_join |= uncertain
         if uncertain_join:
             turn.error_code = 'CONTINUATION_BOUNDARY_UNVERIFIED'
@@ -158,11 +193,15 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
             turn.stop(FinishReason.TOKEN_LIMIT, text)
             break
         if reason in {'stop', 'end_turn', 'stop_sequence'}:
-            # A provider stop cannot repair an earlier uncertain mid-sentence
-            # boundary. The prior truncation is still unresolved.
-            turn.stop(FinishReason.TOKEN_LIMIT if uncertain_join else FinishReason.NATURAL_STOP, text)
-            break
-        if reason not in {'length', 'max_tokens'}:
+            # Later prose cannot repair an earlier uncertain or already closed
+            # incomplete formula. Preserve that gap across the next turn too.
+            if uncertain_join or not _unfinished_surface(prefix + visible_delta):
+                turn.stop(FinishReason.TOKEN_LIMIT if uncertain_join else FinishReason.NATURAL_STOP, text)
+                break
+        if _closed_formula_missing_operand(prefix + visible_delta):
+            uncertain_join = True
+            turn.error_code = 'CONTINUATION_BOUNDARY_UNVERIFIED'
+        if reason not in {'length', 'max_tokens', 'stop', 'end_turn', 'stop_sequence'}:
             turn.stop(FinishReason.INVALID_TOOL_SEQUENCE if reason == 'tool_calls' else FinishReason.STREAM_INTERRUPTED, text)
             break
         turn.stop(FinishReason.TOKEN_LIMIT, text)

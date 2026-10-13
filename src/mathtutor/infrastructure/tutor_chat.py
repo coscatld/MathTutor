@@ -47,7 +47,8 @@ class TutorChatResponder:
             "去分母须保留原分母非零条件并代回检验。资料若漏条件或有错，应指出而非照抄。"
             "这些解释不等于已经过数学验证；超出可核验范围时明确说明。"
         )
-        if text.strip() == "继续" and any(x.get("status") == "PARTIAL" for x in history):
+        previous = next((item for item in reversed(history) if item.get("role") == "tutor"), None)
+        if text.strip() == "继续" and previous and previous.get("status") == "PARTIAL":
             system += "接着上一条未完成回答继续，只输出后续内容，不重复前半段。保留原问题上下文。"
         if unstructured_math:
             system += (
@@ -121,7 +122,7 @@ class TutorChatResponder:
                 ModelRole.TUTOR_WRITER,
                 messages,
                 temperature=0.4,
-                max_tokens=512,
+                max_tokens=2048,
                 max_retries=0,
             )
             return result.text.strip()

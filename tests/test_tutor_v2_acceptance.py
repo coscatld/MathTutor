@@ -149,14 +149,23 @@ def test_p04_understood_is_self_report_not_correctness_or_completion(tmp_path):
         original = summary(client)
         send(ws, "send_message", "understood", {"text": "我懂了"})
         after = summary(client)
-        assert after["cycle_id"] == original["cycle_id"]
+        assert after["cycle_id"] != original["cycle_id"]
         assert after["problem_context"]["lifecycle"] == "active"
+        assert after["problem_context"]["understanding_check"] is True
         assert after["active_offer"] is None
-        assert count(db, "attempts") == 0
+        assert count(db, "attempts") == count(db, "mastery_evidence") == 0
+        assert after["evidence_summary"]["independent"] == 0
+        with closing(sqlite3.connect(db)) as conn:
+            original_context = json.loads(conn.execute("SELECT payload FROM teaching_contexts WHERE cycle_id=?", (original["cycle_id"],)).fetchone()[0])
+        assert original_context["lifecycle"] == "active" and original_context["assessments"] == []
         events = event_rows(db)
         assert not [e for e in events if e["event_type"] == "attempt_assessed"]
         reports = [e for e in events if e["event_type"] == "self_explanation"]
         assert len(reports) == 1 and reports[0]["correctness"] is None
+        assert reports[0]["cycle_id"] == original["cycle_id"]
+        send(ws, "resume_problem", "return")
+        assert summary(client)["cycle_id"] == original["cycle_id"]
+        assert summary(client)["state"] == "awaiting_attempt"
 
 
 def test_p02_presented_hint_then_correct_answer_is_assisted_and_offers_a2(tmp_path):

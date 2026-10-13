@@ -77,6 +77,13 @@ async def session_contract(store, owner_id, session, *, processing=False):
             allowed.append("skip_diagnostic")
         elif context["diagnosis"]["status"] == "not_started":
             allowed.append("start_diagnostic")
+    elif (context and session and session.state != CycleState.CLOSED
+          and context.get("resume_parent_cycle_id") and context.get("diagnostic_item")):
+        # An interrupted child presentation must still have an escape route.
+        # Navigation does not authorize teaching or grade an unverified item.
+        allowed.append("resume_problem")
+        if context.get("diagnosis", {}).get("status") == "running":
+            allowed.append("skip_diagnostic")
     assistance = await store.load_assistance(owner_id, session.cycle.cycle_id) if session else None
     actions = []
     for command in dict.fromkeys([*TEACHING_COMMANDS, *allowed]):
@@ -104,6 +111,7 @@ async def session_contract(store, owner_id, session, *, processing=False):
             "effective_assistance_level": assistance.max_level_issued if assistance else 0,
             "allowed_actions": actions, "allowed_next_inputs": [a["command"] for a in actions if a["enabled"]],
             "teaching_plan": context.get("last_plan") if context else None,
-            "problem_context": public_context(context) if context else None,
+            "problem_context": public_context(context) if context and valid else None,
             "evidence_summary": evidence, "active_offer": active_offer,
-            "diagnosis": context.get("diagnosis") if context else None}
+            "diagnosis": context.get("diagnosis") if context else None,
+            "recovery_problem": context.get("recovery_problem") if context else None}

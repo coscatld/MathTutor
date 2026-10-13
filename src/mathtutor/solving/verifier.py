@@ -59,6 +59,10 @@ POLICIES: dict[str, VerificationPolicy] = {
         ("parse_round_trip", "domain", "step_relation", "final_answer",
          "completeness", "extraneous_roots", "policy_coverage"),
     ),
+    "linear_inequality": VerificationPolicy(
+        "mt-ver-pol-linear-inequality", "linear_inequality", "v1",
+        ("parse_round_trip", "domain", "step_relation", "final_answer", "policy_coverage"),
+    ),
     "quadratic": VerificationPolicy(
         "mt-ver-pol-quadratic", "quadratic", "v1",
         ("parse_round_trip", "domain", "step_relation", "final_answer",
@@ -409,4 +413,7 @@ def verify(problem: MathProblem, candidate: MathSolutionCandidate) -> Verificati
     if problem.problem_type == "linear_system":
         from mathtutor.solving.linear_system_verifier import verify_system
         return verify_system(problem, candidate)
+    if problem.problem_type == "linear_inequality":
+        from mathtutor.solving.inequality_verifier import verify_inequality
+        return verify_inequality(problem, candidate)
     return _Verifier(problem, candidate).run()

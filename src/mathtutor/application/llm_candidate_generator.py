@@ -208,6 +208,32 @@ class TemplateCandidateExerciseGenerator:
         if context.desired_difficulty == 1 and family in {"arithmetic", "polynomial", "linear"}:
             basis = None
         options = _parameterized_templates(family, context.desired_difficulty)
+        if context.practice_purpose != "C" and context.foundation_focus:
+            # A verified error selects actual task structure, not merely a
+            # sentence in an LLM prompt. These still pass the full release gate.
+            if family == "linear" and context.foundation_focus == "equality_preservation":
+                difficulty = context.desired_difficulty
+                options = tuple(
+                    f"x+{n}={3 * n + 1}" if difficulty == 1 else
+                    f"2x+{n}=x+{3 * n + 1}" if difficulty == 2 else
+                    f"2(x+{n})=x+{3 * n + 1}" if difficulty == 3 else
+                    f"(2x+{n})/3=x-({n + 1})" if difficulty == 4 else
+                    f"(2x+{n})/3=(x-({n + 1}))/2"
+                    for n in range(2, 14))
+                basis = None
+            elif family == "linear" and context.foundation_focus == "signed_operations":
+                difficulty = context.desired_difficulty
+                options = tuple(
+                    f"-x={n}" if difficulty == 1 else
+                    f"-2x+{n}={3 * n}" if difficulty == 2 else
+                    f"-2(x+{n})={3 * n}-x" if difficulty == 3 else
+                    f"-2(x+{n})/3={n}-x" if difficulty == 4 else
+                    f"-2(x+{n})/3=({n}-x)/2"
+                    for n in range(2, 14))
+                basis = None
+            elif family == "arithmetic" and context.foundation_focus == "signed_operations":
+                options = tuple(f"-{n}-(-{n + 3})*2" for n in range(2, 14))
+                basis = None
         if context.practice_purpose == "C":
             # A broad family is not enough to justify an unrelated seed item.
             # Foundation items exercise the diagnosed prerequisite operation.
@@ -483,6 +509,12 @@ class PracticeGeneratorChain:
         self, context: PracticeGenerationContext, *, count: int
     ) -> list[CandidateExercise]:
         # bank > template > LLM when no user-document hits.
+        # A general seed-bank item does not necessarily exercise the verified
+        # error. Use the constrained, independently released template first.
+        if context.foundation_focus in {"equality_preservation", "signed_operations"}:
+            focused = await self._template.generate(context, count=count)
+            if focused:
+                return focused[:count]
         bank = bank_candidates_for(context, count=count)
         if len(bank) >= count:
             return bank

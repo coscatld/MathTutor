@@ -149,17 +149,18 @@ def test_partial_message_can_continue(tmp_path):
     with TestClient(app) as client:
         get_product_state().gateway.register_provider(ModelRole.TUTOR_WRITER, provider)
         with client.websocket_connect('/api/v2/math-tutor/ws') as ws:
-            ws.send_json({'command': 'send_message', 'payload': {'text': '你好'}, 'session_id': 'c'})
+            ws.send_json({'command': 'send_message', 'payload': {'text': '讲讲移项的概念'}, 'session_id': 'c'})
             first = collect(ws)
             assert first[0]['event_type'] == 'assistant_start'
             assert first[-2]['event_type'] == 'assistant_partial'
             rows = client.get('/api/v2/math-tutor/sessions/c').json()['messages']
             assert rows[-1]['status'] == 'PARTIAL'
-            assert rows[-1]['content'] == '第一部分。\n\n第二部分。'
+            from mathtutor.application.problem_recovery import mark_unverified
+            assert rows[-1]['content'] == mark_unverified('第一部分。\n\n第二部分。')
             ws.send_json({'command': 'send_message', 'payload': {'text': '继续'}, 'session_id': 'c'})
             second = collect(ws)
             assert second[-2]['event_type'] == 'assistant_complete'
-            assert second[-2]['payload']['final_text'].strip() == '接下来的结论。'
+            assert second[-2]['payload']['final_text'].strip() == mark_unverified('接下来的结论。')
             assert any(m['content'] == '第一部分。\n\n第二部分。' for m in provider.calls[-1][0])
     reset_product_state()
 

@@ -1,12 +1,31 @@
 # Changelog
 
-## 0.4.4 — Bundled shadow DKT
+## 0.4.4 — Formal release
 
-- Bundle a trained DKT model (ASSISTments 2009 source domain, seed 29, calibrated) as a hash-pinned student-model package and load it at startup in shadow mode.
-- Verify package bytes, format, dimensions, finite weights, calibration bounds and a numeric self-check against an independent float64 reference; read JSON only.
-- Keep teaching on the evidence tracker: the shadow model never controls teaching, and MathTutor task probabilities stay null (`unsupported_target`) because no reviewed runtime skill mapping exists.
-- Declare NumPy as a runtime dependency and require it in the packaged runtime; ship the model assets through the package allowlist. Torch stays excluded.
-- Fall back cleanly (`unavailable_fallback`) when the package is missing or damaged.
+This installer supersedes the 2026-09-30 pre-release. Migration head remains 023.
+
+### Student tutoring path
+
+- Put starter exercises, the current goal, hints, writing, examples and practice invitations directly in the conversation.
+- Follow a positive understanding self-report with a fresh, verified check. Preserve the original problem and keep diagnostic evidence separate from independent target work.
+- Use independently verified error history for concrete teaching guidance, hint depth and the structure of follow-up exercises.
+- Offer an explicitly chosen, verified prerequisite exercise for unsupported questions. Preserve the original request and disclose unverified model explanations in live output and history.
+- Keep unfinished formulas partial and allow bounded continuation with the saved raw context.
+
+See [implementation and validation notes](docs/TUTOR_MAIN_PATH_2026-10-13.md).
+
+### Trained DKT on the teaching path
+
+- Ship the same hash-pinned ASSISTments 2009 checkpoint (seed 29). NumPy runs those weights. Torch stays excluded. A missing or damaged package still falls back without blocking grading.
+- The package remains `mode = shadow` and cannot authorise itself (`controls_teaching = false` on the package).
+- For product skills that map through `assist2009-mt-topic-v1`, the product reads a probability from those weights. After at least one eligible personal attempt, that probability can tighten the next hint or shift practice difficulty.
+- The number is not a mastery percentage and is not shown to the student. `learning_effect_verified` stays false. Unmapped skills stay null. With no personal attempts, the prior is stored and does not change assistance or get narrated as this student's history.
+
+### Verified problem scope
+
+- One-step linear inequalities are solved and checked, including a direction flip when the coefficient is negative. An answer that drops the inequality and writes only the boundary equation is incorrect.
+- Fully numbered word problems and a few numeric geometry sentences compile into existing arithmetic or linear problems and are checked there.
+- Graphs, parameters, trigonometry, quadratic inequalities, and word problems that are missing a number stay on the recovery path.
 
 ## 0.4.3 — Calm workspace UI
 

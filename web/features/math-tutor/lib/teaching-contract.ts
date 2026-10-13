@@ -13,7 +13,8 @@ export function projectTeachingPlan(value: unknown): TeachingPlan | null {
   if (!raw) return null;
   return { action: text(raw.action), strategy: text(raw.strategy), question_goal: text(raw.question_goal),
     target_subgoal_id: text(raw.target_subgoal_id), target_skill_ids: strings(raw.target_skill_ids),
-    reason_codes: strings(raw.reason_codes), support_mode: text(raw.support_mode), exit_options: strings(raw.exit_options) };
+    reason_codes: strings(raw.reason_codes), support_mode: text(raw.support_mode), exit_options: strings(raw.exit_options),
+    ...(typeof raw.student_guidance === "string" ? { student_guidance: raw.student_guidance } : {}) };
 }
 
 export function projectProblemContext(value: unknown): ProblemContext | null {
@@ -22,7 +23,7 @@ export function projectProblemContext(value: unknown): ProblemContext | null {
   const subgoal = record(raw.current_subgoal);
   const choices = projectChoices(raw.choices);
   return { problem_id: text(raw.problem_id), display_text: text(raw.display_text), skill_ids: strings(raw.skill_ids),
-    lifecycle: text(raw.lifecycle), ...(choices ? {choices} : {}), current_subgoal: subgoal ? { id: text(subgoal.id), prompt_target: text(subgoal.prompt_target), status: text(subgoal.status) } : null };
+    lifecycle: text(raw.lifecycle), ...(typeof raw.understanding_check === "boolean" ? { understanding_check: raw.understanding_check } : {}), ...(choices ? {choices} : {}), current_subgoal: subgoal ? { id: text(subgoal.id), prompt_target: text(subgoal.prompt_target), status: text(subgoal.status) } : null };
 }
 
 export function projectChoices(value: unknown): ChoiceSet | null {

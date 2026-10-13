@@ -57,7 +57,7 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
         </div>
         <div className="mt-answer-text">
           <MarkdownRenderer content={message.text} enableMath />
-          {message.status === "PARTIAL" && <div className="mt-3 text-sm text-[var(--muted-foreground)]">这次回答没有完整生成。{onContinue && <button className="ml-2 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>继续生成</button>}</div>}
+          {message.status === "PARTIAL" && <div role="status" className="mt-3 border-l-2 border-[var(--border)] pl-3 text-sm leading-6 text-[var(--muted-foreground)]">这段还没讲完，末尾的公式和结论可能不完整。{onContinue ? <button type="button" className="ml-2 min-h-9 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>继续讲完</button> : "请接着查看后续回复。"}</div>}
           {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-[var(--primary-text)] underline underline-offset-2" onClick={onRecover}>重新同步</button>}
         </div>
       </div>

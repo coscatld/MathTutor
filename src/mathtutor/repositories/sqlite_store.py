@@ -71,7 +71,7 @@ class SQLiteSessionStore:
             )
         return _restore(snapshot, student_id)
 
-    async def start_new_cycle(self, student_id: str, client_session_id: str) -> TutoringSession:
+    async def start_new_cycle(self, student_id: str, client_session_id: str, *, teaching_context=None) -> TutoringSession:
         async with self.uow.transaction() as conn:
             await rt.ensure_student(conn, student_id=student_id)
             existing = await rt.load_cycle(
@@ -87,6 +87,13 @@ class SQLiteSessionStore:
                 )
             await rt.set_cycle_focus(conn, student_id=student_id,
                 client_session_id=client_session_id, cycle_id=snapshot.cycle_id)
+            if teaching_context is not None:
+                from copy import deepcopy
+                context = deepcopy(teaching_context)
+                context["task_context"]["cycle_id"] = str(snapshot.cycle_id)
+                # Focus and diagnostic provenance are one durable operation.
+                # No interruption can expose a child as ordinary practice.
+                await self.teaching.save(student_id, snapshot.cycle_id, context, conn=conn)
         return _restore(snapshot, student_id)
 
     async def persist_transition(

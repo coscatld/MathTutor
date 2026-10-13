@@ -47,6 +47,7 @@ export interface RawStudentFrame {
 
 /** Projected, whitelisted student frame — the only shape the UI consumes. */
 export interface StudentFrame {
+  recovery_problem?: RecoveryProblem | null;
   delivery_id?: string;
   cycle_id?: string;
   problem_revision?: string;
@@ -112,6 +113,7 @@ export interface AllowedAction {
 
 /** Student-visible plan, never the material/answer keys used by the writer. */
 export interface TeachingPlan {
+  student_guidance?: string;
   action: string;
   strategy: string;
   question_goal: string;
@@ -123,6 +125,7 @@ export interface TeachingPlan {
 }
 
 export interface ProblemContext {
+  understanding_check?: boolean;
   choices?: ChoiceSet | null;
   problem_id: string;
   display_text: string;
@@ -153,6 +156,13 @@ export interface ActiveOffer {
   status: string;
 }
 
+/** An optional server-verified exercise; accepting it requires a student action. */
+export interface RecoveryProblem {
+  text: string;
+  problem_type: string;
+  relation: string;
+}
+
 export interface DiagnosisSummary {
   status: string;
   can_skip: boolean;
@@ -163,6 +173,7 @@ export interface DiagnosisSummary {
 
 /** Session summary returned by GET /api/v2/math-tutor/sessions/{id} (recovery). */
 export interface SessionSummary {
+  recovery_problem?: RecoveryProblem | null;
   problem_revision?: string;
   allowed_actions?: AllowedAction[];
   teaching_plan?: TeachingPlan | null;
@@ -215,6 +226,7 @@ export interface TutorMessage {
 
 /** Full UI state for the workspace (see lib/reducer.ts). */
 export interface MathTutorUIState {
+  recoveryProblem?: RecoveryProblem | null;
   cycleId: string;
   problemRevision: string;
   allowedActions?: AllowedAction[];

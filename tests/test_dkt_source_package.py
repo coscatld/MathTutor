@@ -116,21 +116,38 @@ def _context(**overrides):
 
 
 @pytest.mark.asyncio
-async def test_service_runs_bundled_model_in_shadow_without_target_probability(engine, tmp_path):
+async def test_service_uses_the_trained_checkpoint_for_mapped_skills(engine, tmp_path):
     service = StudentStateService(engine, tmp_path / "missing" / "model.npz", source_package=BUNDLED_PACKAGE)
     assert service.source_model_status == "shadow" and service.dkt_mode == "shadow"
+    assert service.source_model.controls_teaching is False
     forecast = await service.prepare_prediction("alice", prediction_id="presentation:cycle",
                                                 at_presentation=True, **_context())
     frozen = forecast["frozen_forecast"]
-    assert frozen["probability"] is None and frozen["coverage_status"] == "unsupported_target"
+    assert frozen["probability_source"] == "assist2009_trained_dkt"
+    assert frozen["coverage_status"] == "mapped_source_skills"
+    assert isinstance(frozen["probability"], float) and 0 < frozen["probability"] < 1
+    assert frozen["controls_teaching"] is True and frozen["learning_effect_verified"] is False
+    assert frozen["source_skill_ids"] == ["311", "312"]
     assert frozen["shadow_model"]["model_sha256"] == FROZEN_SHA256
     assert frozen["shadow_model"]["controls_teaching"] is False
     assert forecast["policy_source"] == "evidence_tracker_v2" and forecast["shadow_probability"] is None
+    unmapped = await service.prepare_prediction(
+        "alice", prediction_id="presentation:other", at_presentation=True,
+        **_context(cycle_id="other", skill_ids=["quadratic_discriminant"], item_family_id="quadratic"))
+    assert unmapped["frozen_forecast"]["probability"] is None
+    assert unmapped["frozen_forecast"]["controls_teaching"] is False
     event = await service.record_attempt("alice", **_context(), assessment_id="a1", attempt_id="a1",
-                                         correctness="correct", prediction_id="presentation:cycle")
+                                         correctness="incorrect", prediction_id="presentation:cycle")
     assert event.evidence_kind == "independent"
+    moved = await service.prepare_prediction(
+        "alice", prediction_id="presentation:next", at_presentation=True,
+        **_context(cycle_id="next", problem_id="next-problem"))
+    assert abs(moved["frozen_forecast"]["probability"] - frozen["probability"]) > 1e-6
+    assert moved["frozen_forecast"]["history_updates"] == 1
     summary = await service.summary("alice")
-    assert summary["dkt_mode"] == "shadow" and summary["dkt_controls_teaching"] is False
+    assert summary["dkt_mode"] == "shadow" and summary["dkt_controls_teaching"] is True
+    assert summary["dkt_teaching_scope"] == "mapped_assist2009_skills"
+    assert summary["learning_effect_verified"] is False
     assert summary["dkt_source_model"]["package_id"] == BUNDLED_PACKAGE.name
 
 

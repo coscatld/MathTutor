@@ -32,13 +32,46 @@ from mathtutor.domain.attempt import StudentAttempt
 from mathtutor.solving import nodes as n
 from mathtutor.solving.parser import ParsedProblem, parse_problem
 
-AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "root_values", "undeterminable"]
+AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "root_values", "inequality", "undeterminable"]
 
 # uuid5 namespace for deterministic attempt ids: attempt_id = f(submission_id),
 # so a replayed submission yields the SAME attempt identity end to end —
 # the repository derives the persisted row id from the same function, keeping
 # the assessment/observation/evidence foreign keys consistent.
 ATTEMPT_ID_NAMESPACE = UUID("5e4f2a1b-8c3d-4e6a-9f0b-1d2c3e4f5a6b")
+
+
+_ANSWER_RELATION = (
+    (">=", "ge"), ("<=", "le"), ("≥", "ge"), ("≤", "le"), (">", "gt"), ("<", "lt"),
+)
+_ANSWER_FLIP = {">": "<", "<": ">", ">=": "<=", "<=": ">=", "≥": "≤", "≤": "≥"}
+
+
+def _relation_code(symbol: str) -> str:
+    return dict(_ANSWER_RELATION)[symbol]
+
+
+def _inequality_answer(text: str) -> dict | None:
+    """Read one range. A constant on the left is flipped so the variable stays on the left."""
+    relation = r"(?:>=|<=|≥|≤|>|<)"
+    number = r"[+-]?\d{1,18}(?:/\d{1,18})?"
+    forward = re.fullmatch(rf"([A-Za-z])\s*({relation})\s*({number})", text)
+    backward = re.fullmatch(rf"({number})\s*({relation})\s*([A-Za-z])", text)
+    if forward:
+        variable, symbol, raw = forward.group(1), forward.group(2), forward.group(3)
+    elif backward:
+        raw, symbol, variable = backward.group(1), _ANSWER_FLIP[backward.group(2)], backward.group(3)
+    else:
+        return None
+    try:
+        value = Fraction(raw)
+    except (ValueError, ZeroDivisionError):
+        return None
+    return {
+        "relation": _relation_code(symbol),
+        "variable": variable.lower(),
+        "boundary": {"n": value.numerator, "d": value.denominator},
+    }
 
 
 def attempt_id_for(attempt_submission_id: UUID) -> UUID:
@@ -70,6 +103,9 @@ class ParsedAttempt:
     parsed: ParsedProblem | None = None
     reason: str = ""
     root_values: tuple[Fraction, ...] = ()
+    relation: str = ""
+    boundary: Fraction | None = None
+    answer_variable: str = ""
 
     @classmethod
     def undeterminable(cls, reason: str) -> "ParsedAttempt":
@@ -101,7 +137,10 @@ def parse_student_attempt(
         stripped, flags=re.IGNORECASE)
     if two_roots:
         stripped = f"{two_roots.group(2)},{two_roots.group(3)}"
-    if re.fullmatch(rf"{rational}\s*[,，]\s*{rational}", stripped):
+    inequality_answer = _inequality_answer(stripped)
+    if inequality_answer is not None:
+        parsed_steps = ({"kind": "answer", "parse_kind": "inequality", **inequality_answer},)
+    elif re.fullmatch(rf"{rational}\s*[,，]\s*{rational}", stripped):
         try:
             roots = [Fraction(value.strip()) for value in stripped.replace("，", ",").split(",")]
             parsed_steps = ({"kind": "answer", "parse_kind": "root_values",
@@ -174,6 +213,16 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
             return ParsedAttempt.undeterminable("根集格式无效")
     if parse_kind == "empty_root_set":
         return ParsedAttempt("empty_root_set")
+    if parse_kind == "inequality":
+        try:
+            boundary = Fraction(step["boundary"]["n"], step["boundary"]["d"])
+            relation = str(step["relation"])
+            variable = str(step["variable"])
+            if relation not in {"gt", "ge", "lt", "le"} or not variable:
+                return ParsedAttempt.undeterminable("不等式答案格式无效")
+            return ParsedAttempt("inequality", relation=relation, boundary=boundary, answer_variable=variable)
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            return ParsedAttempt.undeterminable("不等式答案格式无效")
     if parse_kind not in ("value", "equation", "linear_system"):
         return ParsedAttempt.undeterminable(f"未知的解析类型: {parse_kind!r}")
     try:

@@ -315,12 +315,16 @@ class MathTutorController:
     async def _teaching_context(self, owner_id, session, verified):
         from mathtutor.pedagogy.teaching_plan import initial_context
         context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
-        if context is None and verified:
+        if verified and (context is None or context.get("schema_version") == "mt-recovery-v1" or context.get("pending_diagnostic_initialization")):
+            diagnostic_seed = {key: context[key] for key in (
+                "diagnostic_item", "resume_parent_cycle_id", "diagnostic_remaining", "client_session_id", "diagnosis", "understanding_check")
+                if context and key in context}
             assistance = await self.sessions.load_assistance(owner_id, session.cycle.cycle_id)
             legacy_auto = session.state in {CycleState.SOLUTION_SHOWN, CycleState.REFLECTION, CycleState.PRACTICE_OFFERED}
             context = initial_context(verified[0], verified[1], legacy_help=assistance.max_level_issued > 0 or legacy_auto,
                 verified_solution_ref=verified[2], cycle_id=session.cycle.cycle_id)
             context["legacy_auto_transition"] = legacy_auto
+            context.update(diagnostic_seed)
             from mathtutor.pedagogy.teaching_plan import TeachingPlan, current_subgoal
             goal = current_subgoal(context)
             context["last_plan"] = TeachingPlan("ASK_STUDENT", "focused_question", goal["prompt_target"], goal["id"],
@@ -333,6 +337,11 @@ class MathTutorController:
                 cycle_id=session.cycle.cycle_id, verified_solution_ref=verified[2])
             for goal in context.get("subgoals", []):
                 goal["skill_ids"] = list(skills_for_subgoal(verified[0], goal["id"], verified[1]))
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        # 0.4.4 contexts already have task_context, so the older migration
+        # branch alone does not populate this new family selector.
+        if context is not None and verified and context.get("problem_type") != verified[0].problem_type:
+            context["problem_type"] = verified[0].problem_type
             await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
         return context
 
@@ -431,7 +440,10 @@ class MathTutorController:
                 message = await self.knowledge_qa.respond(owner.student_id, request.session_id, text,
                     request.conversation_messages, practice=practice)
                 if message:
-                    await self._dialogue(stream, session, message, "TUTOR_CHAT")
+                    # Retrieved sources and declared math tool receipts do not
+                    # independently verify every generated explanatory sentence.
+                    from mathtutor.application.problem_recovery import mark_unverified
+                    await self._dialogue(stream, session, mark_unverified(message), "TUTOR_CHAT")
                 return
             await self._route_send_message(request, session, payload, envelope, stream)
             return
@@ -504,8 +516,22 @@ class MathTutorController:
         previous = next((m for m in reversed(request.conversation_messages) if m.get("role") == "tutor"), None)
         if text.strip() == "继续" and previous and previous.get("status") == "PARTIAL":
             if previous.get("action") == "TUTOR_CHAT":
-                await self._chat_message(session, text, request.conversation_messages, stream,
-                                         owner_id=request.owner.student_id, follow_up=True)
+                chat_context = json.loads(previous.get("continuation_context") or "{}")
+                history = request.conversation_messages
+                if chat_context.get("raw_text"):
+                    # App labels and a nearby exercise do not close a truncated
+                    # model sentence. Resume from its actual saved boundary.
+                    history = tuple({**item, "content": chat_context["raw_text"]} if item is previous else item
+                                    for item in history)
+                if chat_context.get("boundary_unverified"):
+                    from mathtutor.application.tutor_runtime import current_turn
+                    continuation_turn = current_turn.get()
+                    if continuation_turn is not None:
+                        continuation_turn.error_code = "CONTINUATION_BOUNDARY_UNVERIFIED"
+                await self._chat_message(session, text, history, stream,
+                    owner_id=request.owner.student_id,
+                    follow_up=bool(chat_context.get("follow_up")),
+                    unstructured_math=bool(chat_context.get("unstructured_math")))
                 return
             context = json.loads(previous.get("continuation_context") or "{}")
             if session is not None and context.get("cycle_id") == str(session.cycle.cycle_id) and context.get("action"):
@@ -564,18 +590,23 @@ class MathTutorController:
                     student_id=request.owner.student_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
                     event_type="self_explanation", problem_id=str(verified[0].problem_id), problem_revision=verified[0].content_hash,
                     item_family_id=verified[0].problem_type, skill_ids=skills_for_problem(verified[0]), completion_scope="reflection"))
-            await self._dialogue(stream, session, "已记下你的理解反馈。它不等于已验证的独立作答；你可以写一步检验理解，或主动选一道练习。", "SELF_REPORT")
+            if (perception.resolved and perception.scope in {"current_goal", "current_problem", "same_skill"}
+                    and session.state != CycleState.CLOSED):
+                await self._start_understanding_check(request.owner.student_id, request.session_id, session, verified, stream)
+            else:
+                await self._dialogue(stream, session, "已记下你的理解反馈。先写出你能确定的一步，我来检查。", "SELF_REPORT")
             return
         pending = ""
         if previous and previous.get("action") == "CLARIFY_INTENT":
             prior = list(request.conversation_messages)
             previous_index = next((i for i, m in reversed(list(enumerate(prior))) if m is previous), -1)
             pending = next((m.get("content", "") for m in reversed(prior[:previous_index]) if m.get("role") == "student"), "")
+        from mathtutor.solving.parser import stored_math_ast
         routed = classify_user_message(text, cycle_state=session.state if session else None,
                                        variable=problem_variable(verified),
                                        skill_id=skill_for_problem(verified[0]) if verified else "",
                                        pending_math_text=pending,
-                                       variables=tuple(n.variables(n.from_dict(verified[0].normalized_ast))) if verified else (),
+                                       variables=tuple(n.variables(n.from_dict(stored_math_ast(verified[0].normalized_ast)))) if verified else (),
                                        related_to_active=__import__("mathtutor.learning.skill_graph", fromlist=["related_question"]).related_question(text, verified[0]) if verified else False)
         if (perception and perception.confidence >= 0.7 and perception.scope == "other"
                 and routed.intent in {ConversationIntent.GENERAL_CHAT, ConversationIntent.PROBLEM_CONTINUATION,
@@ -618,6 +649,7 @@ class MathTutorController:
                 request.conversation_messages,
                 stream,
                 owner_id=request.owner.student_id,
+                client_session_id=request.session_id,
             )
             return
         if routed.intent is ConversationIntent.CLARIFY_INTENT:
@@ -734,6 +766,7 @@ class MathTutorController:
                 stream,
                 owner_id=request.owner.student_id,
                 unstructured_math=True,
+                client_session_id=request.session_id,
             )
             return
         owner_id = request.owner.student_id
@@ -889,6 +922,31 @@ class MathTutorController:
                 action.model_copy(update={"action": utterance.action, "effective_assistance_level": utterance.assistance_level}), teaching_context)
         await self._dialogue(stream, session, utterance.text, utterance.action, utterance.assistance_level)
 
+    async def _remember_recovery(self, session, owner_id, text, *, client_session_id="", mathematical=False):
+        """Persist a separately verified scaffold; never accept it for the student."""
+        from mathtutor.application.problem_recovery import recovery_candidate
+        suggestion = recovery_candidate(text, mathematical=mathematical)
+        if suggestion is None or not owner_id:
+            return session, None
+        exercise, relation = suggestion
+        checked = await self.service.submit_problem(exercise)
+        if checked.kind != "verified" or checked.problem is None:
+            return session, None
+        if session is None:
+            if not client_session_id:
+                return session, None
+            session = await self.sessions.create(owner_id, client_session_id)
+        context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
+        if context is None:
+            context = {"schema_version": "mt-recovery-v1", "problem_id": "", "display_text": text,
+                "skill_ids": [], "lifecycle": "unsupported", "subgoals": [],
+                "assessments": [], "diagnosis": {"status": "not_started", "can_skip": False, "question_count": 0}}
+        recovery = {"text": exercise, "problem_type": checked.problem.problem_type, "relation": relation}
+        context["recovery_problem"] = recovery
+        context["recovery_original_text"] = text
+        await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        return session, recovery
+
     async def _chat_message(
         self,
         session: TutoringSession | None,
@@ -900,7 +958,12 @@ class MathTutorController:
         follow_up: bool = False,
         unstructured_math: bool = False,
         images: list | None = None,
+        client_session_id: str = "",
     ) -> None:
+        recovery = None
+        if not images and text.strip() != "继续":
+            session, recovery = await self._remember_recovery(session, owner_id, text,
+                client_session_id=client_session_id, mathematical=unstructured_math)
         responder = self.chat_responder
         document_context = None
         document_source = getattr(self, "chat_documents", None)
@@ -961,6 +1024,20 @@ class MathTutorController:
             session.state.value if session is not None else "",
         )
         visible = project_assistant_message(message) or fallback_tutor_reply(text)
+        if recovery and visible == fallback_tutor_reply(text):
+            visible = "这道题的完整过程还不能逐步核验。你可以写出下一步的想法，或先练下面的相关基础题。"
+        raw_visible = visible
+        from mathtutor.application.problem_recovery import mark_unverified, simple_greeting
+        if not simple_greeting(text, visible):
+            visible = mark_unverified(visible)
+        if recovery:
+            visible += f"\n\n原题还保留在对话里。可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
+        from mathtutor.application.tutor_runtime import current_turn
+        turn = current_turn.get()
+        if turn is not None:
+            turn.continuation_context = json.dumps({"kind": "chat", "unstructured_math": unstructured_math,
+                "follow_up": follow_up, "raw_text": raw_visible,
+                "boundary_unverified": turn.error_code == "CONTINUATION_BOUNDARY_UNVERIFIED"}, ensure_ascii=False)
         await stream.emit(
             MathTutorEvent(
                 type=MathTutorEventType.CONTENT,
@@ -1219,11 +1296,15 @@ class MathTutorController:
             constraint.parse is not None and constraint.parse.kind == "unsupported"
         ):
             transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+            _, recovery = await self._remember_recovery(session, owner_id, constraint.raw_text, mathematical=True)
+            message = "这道题还不能逐步核验。原题已保留；继续讨论原题时，讲解会标为未经核验。"
+            if recovery:
+                message += f"\n\n可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
             await self._emit(
                 stream,
                 session,
                 transition,
-                "这道题目前还没法按步骤带你做，换一道同类的方程或计算题试试。",
+                message,
                 extra={"action": "unsupported"},
             )
             return
@@ -1264,11 +1345,15 @@ class MathTutorController:
         if result.kind == "unsupported":
             logger.info("problem_grounding unsupported reason=%s", result.reason)
             transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+            _, recovery = await self._remember_recovery(session, owner_id, constraint.raw_text, mathematical=True)
+            message = "这道题还不能逐步核验。原题已保留；继续讨论原题时，讲解会标为未经核验。"
+            if recovery:
+                message += f"\n\n可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
             await self._emit(
                 stream,
                 session,
                 transition,
-                "这道题目前还没法按步骤带你做，换一道同类的方程或计算题试试。",
+                message,
                 extra={"action": "unsupported"},
             )
             return
@@ -1302,6 +1387,8 @@ class MathTutorController:
             (result.problem, result.candidate, result.verified_ref),
         )
         teaching = await self._teaching_context(owner_id, session, (result.problem, result.candidate, result.verified_ref))
+        if teaching.get("diagnostic_item"):
+            task_purpose = "diagnostic"  # also applies to interrupted grounding resumed after restart
         teaching["task_context"].update(original_statement=constraint.raw_text or text,
             full_statement=constraint.raw_text or text, statement_provenance="owner_source",
             source={"kind": "diagnostic" if task_purpose == "diagnostic" else "manual", "reference": None})
@@ -1508,9 +1595,14 @@ class MathTutorController:
         observation = diagnose(
             assessment=assessment, problem=problem, attempt=student_attempt
         )
+        # An understanding check has its own diagnostic assessment ledger.
+        # It must not create a legacy mastery or misconception projection for
+        # the original task, nor turn a self report into independent success.
+        if context.get("understanding_check"):
+            observation = None
         evidence_obj = None
         projection_obj = None
-        if assessment.correctness is not Correctness.UNDETERMINED:
+        if assessment.correctness is not Correctness.UNDETERMINED and not context.get("understanding_check"):
             factory = EvidenceFactory()
             evidence_obj = factory.build_evidence(
                 assessment=assessment,
@@ -1676,8 +1768,19 @@ class MathTutorController:
         purpose = purpose or ("B" if exposure >= 5 else "A2" if exposure else "A1")
         from mathtutor.learning.knowledge_tracing.events import valid_events
         history = await tracking.events(owner_id) if tracking else []
+        from mathtutor.application.evidence_projection import teaching_evidence, teaching_practice_focus
+        context = await self._teaching_context(owner_id, session, verified) if verified else None
+        focus, practice_guidance = "", ""
+        if context:
+            context["learner_evidence"] = teaching_evidence(history, context["skill_ids"])
+            focus, practice_guidance = teaching_practice_focus(context)
         basis_events = [e for e in valid_events(history)
             if e.cycle_id == str(session.cycle.cycle_id) and e.event_type == "attempt_assessed"]
+        if focus and context:
+            basis_events.extend(e for e in valid_events(history)
+                if e.independent_target and e.correctness == "incorrect"
+                and set(e.skill_ids) & set(context["skill_ids"])
+                and set(e.misconception_codes) & {"wrong_operation", "sign_flip"})
         offer = None
         try:
             offer = await self.practice_service.prepare_offer(
@@ -1693,6 +1796,7 @@ class MathTutorController:
                 review_due=review_due,
                 history_cutoff_seq=max((e.event_seq for e in history), default=0) if tracking else None,
                 evidence_ids=tuple(e.event_id for e in basis_events),
+                foundation_focus=focus,
             )
         except Exception:
             offer = None
@@ -1723,7 +1827,7 @@ class MathTutorController:
             stream,
             session,
             transition,
-            {"A1": "这道题已经独立完成，可以换一道题检验迁移。",
+            practice_guidance + {"A1": "这道题已经独立完成，可以换一道题检验迁移。",
              "A2": "这道题在帮助后完成了，可以换一道题独立巩固。",
              "B": "已展示解答；这不等于已经掌握。可以换一道题独立检测。",
              "D": "练习题已经通过验证。你可以开始，原题会保留。"}.get(purpose, "练习题已经准备好。"),
@@ -1916,6 +2020,10 @@ class MathTutorController:
             if tracking is not None:
                 from mathtutor.application.evidence_projection import teaching_evidence
                 teaching_context["learner_evidence"] = teaching_evidence(await tracking.events(owner_id), teaching_context["skill_ids"])
+                presentation = await tracking.presentation(owner_id, session.cycle.cycle_id)
+                forecast = presentation.get("frozen_forecast") if presentation else None
+                if forecast:
+                    teaching_context["dkt_forecast"] = forecast
             if continuing and teaching_context.get("last_plan"):
                 from mathtutor.pedagogy.teaching_plan import TeachingPlan
                 plan = TeachingPlan(**teaching_context["last_plan"])
@@ -1979,8 +2087,8 @@ class MathTutorController:
                                                    "action": action.model_dump(mode="json"),
                                                    "student_request": student_request})
         writer = self.writer
+        from mathtutor.pedagogy.tutor_writer import TemplateTutorWriter
         if restore_solution:
-            from mathtutor.pedagogy.tutor_writer import TemplateTutorWriter
             writer = TemplateTutorWriter()
         candidate_text = await writer.write(
             problem_view=problem_view,
@@ -2016,6 +2124,7 @@ class MathTutorController:
                 safe_view = problem_view.model_copy(update={"teaching_plan": {**plan.public(), "support_mode": "guided"}, "approved_example": None})
                 safe_text = await TemplateTutorWriter().write(problem_view=safe_view, disclosure=safe_disclosure,
                     policy=self.policy, action=safe_action)
+                candidate_text = safe_text
                 utterance = self.guard.guard_or_fallback(candidate=safe_text, candidate_solution=candidate,
                     disclosure=safe_disclosure, action=safe_action)
             if not restore_solution:
@@ -2050,6 +2159,12 @@ class MathTutorController:
                     data = json.loads(turn.continuation_context)
                     data["delivery_id"] = delivery_id
                     turn.continuation_context = json.dumps(data, ensure_ascii=False)
+        if candidate_text.writer_version not in {TemplateTutorWriter.writer_version, "mt-grounded-template-v2"} and not utterance.fallback_used:
+            # Disclosure and equation guards do not verify every prose claim.
+            # Persist this notice with approved bytes so history and continuation
+            # retain the same mathematical certainty boundary as live delivery.
+            from mathtutor.application.problem_recovery import mark_unverified
+            utterance = utterance.model_copy(update={"text": mark_unverified(utterance.text)})
         if turn is not None and utterance.action == "SHOW_SOLUTION" and utterance.assistance_level == 5:
             # The turn can also contain an assessment or an invitation. Store
             # the guarded answer separately; reviewing it must not replay those.
@@ -2113,11 +2228,18 @@ class MathTutorController:
                 context["lifecycle"] = "skipped"
                 await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
                 parent_context = await self.sessions.teaching.load(owner_id, parent_id)
-                parent_context["diagnosis"] = context["diagnosis"]
+                if context.get("understanding_check"):
+                    for row in reversed(parent_context.get("understanding_checks", [])):
+                        if row.get("status") == "started":
+                            row.update(status="skipped", check_cycle_id=str(session.cycle.cycle_id))
+                            break
+                else:
+                    parent_context["diagnosis"] = context["diagnosis"]
                 await self.sessions.teaching.save(owner_id, parent_id, parent_context)
             parent = await self.sessions.focus_cycle(owner_id, client_id, parent_id)
             await self._dialogue(stream, parent,
-                "已返回原题。诊断跳过不计为答错。" if command == "skip_diagnostic" else "已返回原题，继续之前的小目标。", "RESUME_PROBLEM")
+                ("已返回原题。检查题跳过不会算作答错。" if context.get("understanding_check") else "已返回原题。诊断跳过不计为答错。")
+                if command == "skip_diagnostic" else "已返回原题，继续之前的小目标。", "RESUME_PROBLEM")
             return
         if context.get("diagnostic_item") or context["diagnosis"]["status"] == "running":
             await stream.error("相关知识诊断已经开始。你可以继续作答，也可以随时跳过。", source=self.manifest.name)
@@ -2182,8 +2304,65 @@ class MathTutorController:
             else "这次修正还没有通过验证；示例中的错误是老师故意设置的，不会算作你原题做错。请继续检查等式两边的运算。",
             "ERROR_ANALYSIS")
 
-    async def _start_diagnostic_item(self, owner_id, client_id, parent_id, items, diagnosis, stream):
-        item = await self.sessions.start_new_cycle(owner_id, client_id)
+    async def _start_understanding_check(self, owner_id, client_id, session, verified, stream):
+        """Move to one fresh, verified check, keeping the original task intact."""
+        from datetime import datetime, timezone
+        context = await self._teaching_context(owner_id, session, verified)
+        if context.get("understanding_check") or context.get("diagnostic_item"):
+            await self._dialogue(stream, session, "继续这道检查题就好。先写出你能确定的一步。", "UNDERSTANDING_CHECK")
+            return
+        from mathtutor.application.understanding_check import check_statement
+        from mathtutor.application.llm_candidate_generator import candidate_is_distinct
+        excluded = [verified[0].display_latex, *(row["statement"] for row in context.get("understanding_checks", []))]
+        ordinal = context.get("understanding_checks_started", 0)
+        tracking = getattr(self.sessions, "student_state", None)
+        history = await tracking.events(owner_id) if tracking else []
+        used_revisions = {event.problem_revision for event in history}
+        # Every parent has its own counter. Advance beyond earlier diagnostic
+        # items in this family too, so a bounded search remains useful after
+        # the student has completed more than five checks across parent tasks.
+        previous_diagnostic_revisions = {event.problem_revision for event in history
+            if event.item_family_id == verified[0].problem_type and event.task_purpose == "diagnostic"}
+        ordinal = max(ordinal, len(previous_diagnostic_revisions))
+        selected = None
+        selected_verified = None
+        for offset in range(5):
+            statement = check_statement(verified[0].problem_type, ordinal + offset)
+            if not candidate_is_distinct(statement, excluded):
+                continue
+            result = await self.service.submit_problem(statement)
+            if result.kind == "verified" and result.problem.content_hash not in used_revisions:
+                selected = statement
+                selected_verified = (result.problem, result.candidate, result.verified_ref)
+                ordinal += offset
+                break
+        if selected is None:
+            await self._dialogue(stream, session, "理解反馈已记下。暂时没有准备好新的可核验检查题，先把原题的一步写出来，我来检查。", "SELF_REPORT")
+            return
+        context["understanding_checks_started"] = ordinal + 1
+        context.setdefault("understanding_checks", []).append({"statement": selected, "status": "started"})
+        await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        diagnosis = {"status": "running", "can_skip": True, "question_count": 1,
+                     "started_at": datetime.now(timezone.utc).isoformat(), "answered": 0, "results": [],
+                     "kind": "understanding_check"}
+        await self._start_diagnostic_item(owner_id, client_id, str(session.cycle.cycle_id),
+            [selected], diagnosis, stream, understanding_check=True, verified_seed=selected_verified)
+
+    async def _start_diagnostic_item(self, owner_id, client_id, parent_id, items, diagnosis, stream, *, understanding_check=False, verified_seed=None):
+        from mathtutor.pedagogy.teaching_plan import initial_context
+        if verified_seed is None:
+            result = await self.service.submit_problem(items[0])
+            if result.kind != "verified":
+                await stream.error("本次诊断题暂时不可用，已保留原题。", source=self.manifest.name)
+                return
+            verified_seed = (result.problem, result.candidate, result.verified_ref)
+        seed = initial_context(verified_seed[0], verified_seed[1], verified_solution_ref=verified_seed[2])
+        seed.update(pending_diagnostic_initialization=True, diagnostic_item=True,
+            resume_parent_cycle_id=parent_id, diagnostic_remaining=items[1:],
+            client_session_id=client_id, diagnosis=diagnosis)
+        if understanding_check:
+            seed["understanding_check"] = True
+        item = await self.sessions.start_new_cycle(owner_id, client_id, teaching_context=seed)
         await self._submit_problem(item, owner_id, {"text": items[0]}, None, "", stream, task_purpose="diagnostic")
         verified = await self.sessions.load_verified(owner_id, item.cycle.cycle_id)
         context = await self._teaching_context(owner_id, item, verified)
@@ -2191,12 +2370,33 @@ class MathTutorController:
             await self.sessions.focus_cycle(owner_id, client_id, parent_id)
             await stream.error("本次诊断题暂时不可用，已保留原题。", source=self.manifest.name)
             return
-        context.update(diagnostic_item=True, resume_parent_cycle_id=parent_id,
-            diagnostic_remaining=items[1:], client_session_id=client_id, diagnosis=diagnosis)
-        await self.sessions.teaching.save(owner_id, item.cycle.cycle_id, context)
-        await self._dialogue(stream, item, "这是可跳过的相关知识诊断，不计为考试。请写出你的答案或一步思路。", "DIAGNOSTIC")
+        await self._dialogue(stream, item,
+            "好，用一道需要两步的检查题试试。原题会保留，做完就回去。先写出你能确定的一步。" if understanding_check
+            else "这是可跳过的相关知识诊断，不计为考试。请写出你的答案或一步思路。",
+            "UNDERSTANDING_CHECK" if understanding_check else "DIAGNOSTIC")
 
     async def _advance_diagnostic(self, session, owner_id, context, assessment, stream):
+        if context.get("understanding_check"):
+            if assessment.correctness is not Correctness.CORRECT:
+                return  # partial progress and a verified error stay on this check
+            diagnosis = context["diagnosis"]
+            diagnosis.update(status="completed", can_skip=False, answered=1)
+            diagnosis["results"] = [{"problem_id": context["problem_id"], "skill_ids": context["skill_ids"],
+                                     "correctness": "correct"}]
+            parent_id = context["resume_parent_cycle_id"]
+            parent_context = await self.sessions.teaching.load(owner_id, parent_id)
+            for row in reversed(parent_context.get("understanding_checks", [])):
+                if row.get("status") == "started":
+                    row.update(status="completed", check_cycle_id=str(session.cycle.cycle_id),
+                               assessment_id=str(assessment.attempt_id))
+                    break
+            await self.sessions.teaching.save(owner_id, parent_id, parent_context)
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+            parent = await self.sessions.focus_cycle(owner_id, context["client_session_id"], parent_id)
+            await self._dialogue(stream, parent,
+                "检查题的作答已通过验证，回到原题。你可以继续追问，或再练一道。" if parent_context.get("lifecycle") == "completed"
+                else "检查题的作答已通过验证，回到原题。原题还要单独作答，先写出下一步。", "UNDERSTANDING_CHECK_COMPLETE")
+            return
         if assessment.correctness in {Correctness.UNDETERMINED, Correctness.PARTIAL}:
             return
         diagnosis = context["diagnosis"]

@@ -25,6 +25,7 @@ _TASKS = {
     "arithmetic": ("calculate", "计算表达式的值", "scalar"),
     "polynomial": ("simplify", "展开或合并并给出等价的多项式", "polynomial"),
     "linear": ("solve_equation", "求方程的解", "root_set"),
+    "linear_inequality": ("solve_inequality", "求未知数的取值范围", "interval"),
     "quadratic": ("solve_equation", "求方程的完整解集", "root_set"),
     "linear_system": ("solve_system", "求同时满足两个原方程的完整解", "assignments"),
 }
@@ -33,6 +34,8 @@ _LIMITS = {
     "polynomial": ("single_variable_rational_coefficients", ["polynomial_equivalence"], ["multivariate_polynomials", "units"]),
     "linear": ("nondegenerate_rational_coefficients", ["equivalent_equation", "rational_root", "original_equation_substitution"],
                ["identity_equations", "inconsistent_constant_equations", "units"]),
+    "linear_inequality": ("nondegenerate_rational_coefficients", ["equivalent_transform", "rational_boundary", "relation_direction"],
+                          ["quadratic_inequalities", "units"]),
     "quadratic": ("real_roots_rational_coefficients", ["rational_or_quadratic_surd_roots", "complete_real_root_set", "original_equation_substitution"],
                   ["complex_roots", "units", "approximate_numeric_tolerance"]),
     "linear_system": ("unique_two_variable_affine_system", ["equivalent_linear_combination", "partial_variable_value", "complete_assignment", "both_original_equations"],
@@ -89,7 +92,8 @@ def build_problem_context(
     domain, capabilities, unsupported = _LIMITS.get(family, ("unknown", [], []))
     constraints = task_constraints or {}
     try:
-        variables = sorted(nodes.variables(nodes.from_dict(problem.normalized_ast)))
+        from mathtutor.solving.parser import stored_math_ast
+        variables = sorted(nodes.variables(nodes.from_dict(stored_math_ast(problem.normalized_ast))))
     except (KeyError, TypeError, ValueError, nodes.MathDomainError, nodes.MathComplexityError):
         variables = []
     bound, reason = _attested_binding(problem, candidate, verified_solution_ref)

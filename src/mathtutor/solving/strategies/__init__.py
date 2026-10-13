@@ -6,12 +6,13 @@ so the verifier can re-derive them independently.
 
 from __future__ import annotations
 
-from mathtutor.solving.strategies import arithmetic, linear, polynomial, quadratic, linear_system
+from mathtutor.solving.strategies import arithmetic, inequality, linear, polynomial, quadratic, linear_system
 
 STRATEGIES = {
     "arithmetic": arithmetic.STRATEGY_NAME,
     "polynomial": polynomial.STRATEGY_NAME,
     "linear": linear.STRATEGY_NAME,
+    "linear_inequality": inequality.STRATEGY_NAME,
     "quadratic": quadratic.STRATEGY_NAME,
     "linear_system": linear_system.STRATEGY_NAME,
 }

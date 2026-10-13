@@ -31,8 +31,8 @@ class StudentStateService:
                 self.model_status = "shadow"
             except (ImportError, OSError, ValueError, KeyError, TypeError):
                 self.model_status = "unavailable_fallback"
-        # Bundled research model: shadow only, no teaching control, and no
-        # probability for MathTutor tasks until a reviewed target mapping exists.
+        # The package stays shadow and cannot authorise itself. Product policy
+        # reads these trained weights for skills in assist2009-mt-topic-v1.
         self.source_model = None
         self.source_model_status = "not_bundled"
         if source_package:
@@ -188,11 +188,12 @@ class StudentStateService:
                     result["mode"] = "out_of_coverage_fallback"
             result["prediction_timing"] = "before_task_display" if at_presentation else "legacy_before_assessment"
             if at_presentation:
-                # Frozen target contract is separate from the existing evidence baseline.
-                # Source DKT weights do not certify MathTutor task equivalence.
+                # The frozen record is separate from the evidence baseline.
+                # A probability here is the trained source-domain output on the
+                # mapped skill ids, not a MathTutor mastery grade.
                 observed = [x for x in history if x.event_type != "attempt_submitted"]
                 last = observed[-1] if observed else None
-                result["frozen_forecast"] = {
+                forecast = {
                     "presentation_id": prediction_id, "task_identity": str(problem_revision),
                     "query_sha256": hashlib.sha256(json.dumps(context, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
                     "visible_event_boundary": cutoff,
@@ -201,9 +202,16 @@ class StudentStateService:
                     "model_identity": result["model_version"],
                     "probability": None, "probability_source": "none",
                     "coverage_status": "unsupported_target", "product_runtime_enabled": False,
+                    "controls_teaching": False,
+                    "learning_effect_verified": False,
                     "reason": "target_task_mapping_and_predictor_not_validated",
                     "shadow_model": self.source_model_summary(),
                 }
+                if self.source_model is not None:
+                    from .mapped_dkt import forecast_for
+                    forecast.update(forecast_for(self.source_model, history, skill_ids))
+                    forecast["shadow_model"] = self.source_model_summary()
+                result["frozen_forecast"] = forecast
             await db.execute(learning_predictions.insert().values(
                 student_id=student_id, prediction_id=prediction_id,
                 history_cutoff_seq=cutoff, payload=result))
@@ -441,8 +449,12 @@ class StudentStateService:
         async with self._transaction(conn) as db:
             history = await self.events(str(student_id), conn=db)
             result = evidence_summary(history)
+            loaded = self.source_model is not None
             result.update({"policy_source": "evidence_tracker_v2", "dkt_mode": self.dkt_mode,
-                           "dkt_controls_teaching": False, "dkt_source_model": self.source_model_summary(),
+                           "dkt_controls_teaching": loaded,
+                           "dkt_teaching_scope": "mapped_assist2009_skills" if loaded else "none",
+                           "learning_effect_verified": False,
+                           "dkt_source_model": self.source_model_summary(),
                            "training_data": {
                 "events": len(history), "independent_targets": sum(x.independent_target for x in valid_events(history)),
                 "uncertain_provenance": sum(x.provenance_uncertain for x in valid_events(history)),

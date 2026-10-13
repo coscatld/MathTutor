@@ -100,6 +100,8 @@ def _is_answer_shape(text: str, variable: str | None, variables=()) -> bool:
         equations = parsed.problem.normalized_ast.get("equations", [])
         return bool(variables) and all(any(side.get("kind") == "var" and side.get("name") in variables and not _variables(other)
             for side, other in ((eq.get("lhs", {}), eq.get("rhs", {})), (eq.get("rhs", {}), eq.get("lhs", {})))) for eq in equations)
+    if parsed.problem.problem_type == "linear_inequality":
+        return bool(variable) and parsed.problem.variable == variable
     if not isinstance(ast, n.Equation):
         return not parsed.problem.variable or parsed.problem.variable == variable
     # x=value / value=x is an answer; other equations need a step/new-topic

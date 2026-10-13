@@ -35,7 +35,7 @@ from typing import Any, Literal
 from mathtutor.solving import nodes as n
 
 MAX_TOKENS = 256
-ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic", "linear_system"]
+ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic", "linear_system", "linear_inequality"]
 ParseKind = Literal["parsed", "ambiguous", "unsupported", "unparseable"]
 
 
@@ -60,6 +60,7 @@ class ParsedProblem:
     normalized_ast: dict[str, Any]
     display_latex: str
     variable: str | None  # canonical variable name for polynomial families
+    relation: str | None = None  # set for a linear inequality; the AST stays the boundary equation
 
 
 @dataclass(frozen=True, slots=True)
@@ -418,8 +419,27 @@ def normalize_math_problem_text(text: str) -> str:
     return compact
 
 
+def stored_math_ast(payload: dict[str, Any]) -> dict[str, Any]:
+    """Node dict a replay can load. An inequality keeps its relation beside the equation."""
+    if isinstance(payload, dict) and payload.get("kind") == "inequality" and isinstance(payload.get("equation"), dict):
+        return payload["equation"]
+    return payload
+
+
 def parse_problem(text: str) -> ParseOutcome:
     """Parse a single problem text into a canonical problem (or fail closed)."""
+    from mathtutor.solving.extended_text import compile_extended, parse_inequality_text
+    compiled = compile_extended(text, _parse_core)
+    if compiled is not None:
+        return compiled
+    inequality = parse_inequality_text(text, _parse_core)
+    if inequality is not None:
+        return inequality
+    return _parse_core(text)
+
+
+def _parse_core(text: str) -> ParseOutcome:
+    """Grammar for the original equation and expression families."""
     system_text = str(text or "").strip().replace(r"\begin{cases}", "").replace(r"\end{cases}", "").replace(r"\\", ";")
     if system_text.count("=") >= 2 and re.search(r"[;；,，\n]", system_text):
         return _parse_linear_system(system_text)

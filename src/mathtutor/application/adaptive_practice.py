@@ -213,6 +213,12 @@ class AdaptivePracticeService:
         initial = await self.initial_assessment.starting_difficulty(student_id, target_skill_ids) if self.initial_assessment else None
         difficulty, _ = select_difficulty(context, purpose=purpose,
             baseline=current_difficulty or initial or self._desired_difficulty, requested=requested_difficulty)
+        source_model = getattr(self.student_state, "source_model", None) if self.student_state else None
+        if requested_difficulty is None and source_model is not None:
+            from mathtutor.learning.knowledge_tracing.mapped_dkt import forecast_for
+            trained = forecast_for(source_model, await self.student_state.events(student_id), target_skill_ids)
+            from mathtutor.application.practice_policy import apply_dkt_difficulty
+            difficulty, _ = apply_dkt_difficulty(difficulty, trained)
         context = context.model_copy(update={
             "desired_difficulty": difficulty, "practice_purpose": purpose,
             "excluded_problem_statements": tuple(excluded_problem_statements),
@@ -315,7 +321,7 @@ class AdaptivePracticeService:
         basis = RecommendationBasis(
             history_cutoff_seq=history_cutoff_seq, evidence_ids=tuple(dict.fromkeys(evidence_ids)),
             target_revision=resolved_revision, target_skill_ids=targets, purpose=purpose,
-            reason_code="parent_attempt" if evidence_ids else "related_task",
+            reason_code="verified_error_history" if foundation_focus and evidence_ids else "parent_attempt" if evidence_ids else "related_task",
             initial_assessment_run_id=placement["run_id"] if placement and placement["status"] == "completed" else None,
             initial_assessment_policy=placement["policy_version"] if placement and placement["status"] == "completed" else None,
         ) if history_cutoff_seq is not None else None

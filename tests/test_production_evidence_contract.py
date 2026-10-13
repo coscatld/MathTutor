@@ -174,7 +174,14 @@ def test_practice_and_diagnostic_display_use_frozen_child_record(tmp_path, route
         assert len(rows) == 2
         forecast = next(row for row in rows if row["item_context"]["cycle_id"] == child["cycle_id"])
         assert forecast["prediction_timing"] == "before_task_display"
-        assert forecast["prediction_label"] is None and forecast["frozen_forecast"]["probability"] is None
+        frozen_child = forecast["frozen_forecast"]
+        assert forecast["prediction_label"] is None
+        if frozen_child["coverage_status"] == "mapped_source_skills":
+            assert isinstance(frozen_child["probability"], float) and 0 < frozen_child["probability"] < 1
+            assert frozen_child["learning_effect_verified"] is False
+            assert frozen_child["probability_source"] == "assist2009_trained_dkt"
+        else:
+            assert frozen_child["probability"] is None
         send(ws, "skip_diagnostic" if route == "diagnostic" else "resume_problem", "back")
         assert summary(client)["cycle_id"] == parent["cycle_id"]
         assert predictions(db) == rows

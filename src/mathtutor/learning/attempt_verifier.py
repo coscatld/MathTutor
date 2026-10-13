@@ -184,6 +184,11 @@ def verify_attempt(
     if parsed_answer.kind == "linear_system" and problem.problem_type != "linear_system":
         return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
                                  reason="当前题目不需要一组未知数的答案", **base)
+    if problem.problem_type == "linear_inequality":
+        return _verify_linear_inequality(problem, parsed_answer, base)
+    if parsed_answer.kind == "inequality":
+        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
+                                 reason="这道题要的不是取值范围。", **base)
 
     try:
         problem_ast = n.from_dict(problem.normalized_ast)
@@ -226,6 +231,32 @@ def verify_attempt(
 # ---------------------------------------------------------------------------
 # Family checks
 # ---------------------------------------------------------------------------
+
+
+def _verify_linear_inequality(problem: MathProblem, answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:
+    """A boundary equation is not a solution. The range is recomputed from the stored equation."""
+    from mathtutor.solving.strategies.inequality import solved_form
+    if answer.kind != "inequality":
+        return AttemptAssessment(
+            correctness=Correctness.INCORRECT,
+            signals=("wrong_family",),
+            reason="不等式的答案要保留不等号，不能只写边界方程。",
+            **base,
+        )
+    try:
+        payload = problem.normalized_ast
+        equation = n.from_dict(payload["equation"])
+        kept, boundary = solved_form(equation, payload["variable"], payload["relation"])
+    except (KeyError, TypeError, ValueError, n.MathDomainError, n.MathComplexityError) as exc:
+        return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason=f"不等式不能回放: {exc}", **base)
+    if answer.answer_variable.lower() != str(payload.get("variable", "")).lower():
+        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",), reason="未知数和原题不一致。", **base)
+    if answer.boundary == boundary and answer.relation == kept:
+        return AttemptAssessment(correctness=Correctness.CORRECT, score=1.0,
+                                 verified_claims=({"claim": "inequality_solution", "relation": kept},), **base)
+    if answer.boundary == boundary:
+        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_value",), reason="不等号方向和原题不一致。", **base)
+    return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_value",), reason="这个范围的边界没有通过原题检验。", **base)
 
 
 def _verify_arithmetic(problem_ast: n.Node, answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:

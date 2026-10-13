@@ -337,6 +337,13 @@ def _build_user_prompt(
             "最近作答与明确验证结论：" + json.dumps(problem_view.recent_assessments, ensure_ascii=False),
             "没有验证证据不能声称学生已经掌握、前几步正确或理解了；问一个能回答的具体问题，不重复空泛鼓励。",
         ])
+        guidance = problem_view.teaching_plan.get("student_guidance")
+        if guidance:
+            parts.append(
+                "学生下一步这句已经由已验证作答和已训练的知识追踪决定："
+                + guidance
+                + "。顺着这句讲，不要改写成掌握百分比，也不要超出已披露材料。"
+            )
         if problem_view.approved_example:
             parts.append("已独立验证的示例（必须标记为教师示例，不是学生步骤）：" + json.dumps(problem_view.approved_example, ensure_ascii=False))
     notes = _document_prompt_block(document_context)

@@ -23,7 +23,7 @@ class RecommendationBasis(BaseModel):
     target_revision: str
     target_skill_ids: tuple[str, ...]
     purpose: PracticePurpose
-    reason_code: Literal["parent_attempt", "related_task"]
+    reason_code: Literal["parent_attempt", "related_task", "verified_error_history"]
     initial_assessment_run_id: str | None = None
     initial_assessment_policy: str | None = None
 

@@ -12,6 +12,7 @@ import type {
   StudentFrame,
   StudentPayload,
   AllowedAction,
+  RecoveryProblem,
 } from "../types";
 import { projectActiveOffer, projectDiagnosis, projectEvidenceSummary, projectProblemContext, projectTeachingPlan } from "./teaching-contract";
 
@@ -97,7 +98,18 @@ export function projectStudentFrame(raw: RawStudentFrame): StudentFrame | null {
   if (hasContextField("evidence_summary")) frame.evidence_summary = projectEvidenceSummary(raw.evidence_summary);
   if (hasContextField("active_offer")) frame.active_offer = projectActiveOffer(raw.active_offer);
   if (hasContextField("diagnosis")) frame.diagnosis = projectDiagnosis(raw.diagnosis);
+  if (hasContextField("recovery_problem")) frame.recovery_problem = projectRecoveryProblem(raw.recovery_problem);
   return frame;
+}
+
+export function projectRecoveryProblem(raw: unknown): RecoveryProblem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const families = ["arithmetic", "polynomial", "linear", "quadratic", "linear_system"];
+  if (typeof value.text !== "string" || !value.text.trim() || value.text.length > 500
+      || typeof value.relation !== "string" || !value.relation.trim() || value.relation.length > 500
+      || typeof value.problem_type !== "string" || !families.includes(value.problem_type)) return null;
+  return {text: value.text.trim(), problem_type: value.problem_type, relation: value.relation.trim()};
 }
 
 // ---------------------------------------------------------------------------

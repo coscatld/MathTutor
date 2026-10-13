@@ -80,7 +80,7 @@ class SessionStoreProtocol(Protocol):
 
     async def create(self, student_id: str, client_session_id: str) -> TutoringSession: ...
 
-    async def start_new_cycle(self, student_id: str, client_session_id: str) -> TutoringSession: ...
+    async def start_new_cycle(self, student_id: str, client_session_id: str, *, teaching_context=None) -> TutoringSession: ...
 
     async def persist_transition(
         self,
@@ -195,8 +195,14 @@ class InMemorySessionStore:
         self._sessions[(student_id, client_session_id)] = target
         return target
 
-    async def start_new_cycle(self, student_id: str, client_session_id: str) -> TutoringSession:
-        return await self.create(student_id, client_session_id)
+    async def start_new_cycle(self, student_id: str, client_session_id: str, *, teaching_context=None) -> TutoringSession:
+        session = await self.create(student_id, client_session_id)
+        if teaching_context is not None:
+            from copy import deepcopy
+            context = deepcopy(teaching_context)
+            context["task_context"]["cycle_id"] = str(session.cycle.cycle_id)
+            await self.teaching.save(student_id, session.cycle.cycle_id, context)
+        return session
 
     async def persist_transition(
         self,

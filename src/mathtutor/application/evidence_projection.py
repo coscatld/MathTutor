@@ -26,7 +26,16 @@ def teaching_evidence(events, skills):
     rows = [e for e in valid_events(events) if set(e.skill_ids) & set(skills)]
     independent = {e.problem_revision for e in rows if e.independent_target and e.correctness == "correct"}
     errors = {e.problem_revision for e in rows if e.independent_target and e.correctness == "incorrect"}
+    # Count distinct first, independently attempted items, not retries, help,
+    # self reports or an unverified explanation. A signal is an observed error
+    # class; it does not establish the student's private reasoning.
+    error_items = {}
+    for event in rows:
+        if event.independent_target and event.correctness == "incorrect":
+            for code in event.misconception_codes:
+                error_items.setdefault(code, set()).add(event.problem_revision)
     return {"independent_correct_items": len(independent), "independent_incorrect_items": len(errors),
+            "verified_error_counts": {code: len(items) for code, items in error_items.items()},
             "evidence_ids": [e.assessment_id for e in rows if e.independent_target][-8:]}
 
 
@@ -45,6 +54,21 @@ def prerequisite_gap(context):
         if item["correctness"] == "incorrect" and set(item["skill_ids"]) & {"distributive_law", "combine_like_terms"}:
             return ("POLYNOMIAL_BASIC",)
     return ()
+
+
+def teaching_practice_focus(context):
+    """Only independently verified error classes can constrain a new item."""
+    counts = context.get("learner_evidence", {}).get("verified_error_counts", {})
+    codes = {code for code, count in counts.items() if count >= 2}
+    records = context.get("assessments", [])
+    if records and records[-1].get("math_validity") == "invalid":
+        codes.update(records[-1].get("misconception_candidates", []))
+    family = context.get("problem_type")
+    if "wrong_operation" in codes and family == "linear":
+        return "equality_preservation", "这次先练等式两边同做运算，检查移项和常数处理。"
+    if "sign_flip" in codes and family in {"arithmetic", "linear"}:
+        return "signed_operations", "这次先练带符号的运算，检查结果的正负号。"
+    return "", ""
 
 
 def review_due(events, skills, *, now=None):

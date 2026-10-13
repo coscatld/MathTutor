@@ -63,6 +63,9 @@
 .mt-answer-text { font-size: 16px; line-height: 1.8; color: var(--foreground); }
 .mt-student-message { max-width: 80%; min-width: 0; padding: 10px 18px; border-radius: 16px; background: var(--user-bubble); color: var(--foreground); font-size: 15px; line-height: 1.7; }
 .mt-composer { flex-shrink: 0; padding: 8px var(--workspace-gutter) 10px; }
+.mt-composer-mode { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; max-width: var(--reading-width); margin: 0 auto 6px; padding-inline: 8px; font-size: 12px; color: var(--primary-text); }
+.mt-composer-mode button { min-height: 36px; padding-inline: 8px; border-radius: 8px; color: var(--muted-foreground); text-decoration: underline; text-underline-offset: 3px; }
+.mt-composer-mode button:hover { background: var(--accent); }
 .mt-composer-box { max-width: var(--reading-width); margin-inline: auto; padding: 8px 8px 6px; border: 1px solid var(--border); border-radius: 24px; background: var(--card); box-shadow: 0 2px 12px rgb(15 20 30 / .05); transition: border-color 150ms ease, box-shadow 150ms ease; }
 .mt-composer-box:focus-within { border-color: var(--primary-border); box-shadow: 0 2px 16px rgb(63 94 251 / .08); }
 .mt-send-button { display: flex; height: 36px; min-width: 36px; align-items: center; justify-content: center; border-radius: 999px; padding-inline: 8px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; transition: background-color 150ms ease, opacity 150ms ease; }
@@ -71,10 +74,26 @@
 /* Empty conversation: greeting and composer sit together at the optical
    centre, as on a fresh chat; the first message returns the composer to
    the bottom through normal flow. */
-.mt-chat-column[data-empty="true"] .mt-reading-region { flex: 0 0 auto; margin-top: auto; }
-.mt-chat-column[data-empty="true"] .mt-chat-log { height: auto; overflow: visible; padding-bottom: 16px; }
-.mt-chat-column[data-empty="true"] .mt-composer { margin-bottom: auto; padding-bottom: max(10px, 14dvh); }
+.mt-chat-column[data-empty="true"] .mt-reading-region { flex: 1; }
+.mt-chat-column[data-empty="true"] .mt-chat-log { display: flex; align-items: safe center; padding-bottom: 16px; }
+.mt-chat-column[data-empty="true"] .mt-composer { padding-bottom: max(10px, 5dvh); }
 .mt-empty-mark { display: flex; height: 48px; width: 48px; align-items: center; justify-content: center; border-radius: 14px; background: var(--primary-soft); color: var(--primary-text); }
+.mt-tutor-welcome { display: flex; flex-direction: column; align-items: center; text-align: center; padding-block: 12px; }
+.mt-starter-problems { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; max-width: 660px; gap: 12px; margin-top: 24px; }
+.mt-starter-problem { min-width: 0; border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: left; background: var(--card); transition: border-color 150ms ease, background-color 150ms ease; }
+.mt-starter-problem:hover { border-color: var(--primary-border); background: var(--primary-soft); }
+.mt-starter-problem:disabled { opacity: .5; }
+.mt-student-step { border-left: 3px solid var(--primary); padding: 4px 0 4px 20px; min-width: 0; }
+.mt-student-step-heading { display: flex; align-items: center; gap: 8px; color: var(--primary-text); font-size: 14px; font-weight: 600; }
+.mt-student-step-goal { margin-top: 10px; font-size: 16px; line-height: 1.7; overflow-wrap: anywhere; }
+.mt-student-step-guidance { margin-top: 6px; font-size: 13px; line-height: 1.7; color: var(--muted-foreground); }
+.mt-student-step-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.mt-step-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--border); border-radius: 10px; padding: 9px 13px; background: var(--card); font-size: 13px; font-weight: 500; color: var(--foreground); transition: background-color 150ms ease, border-color 150ms ease; }
+.mt-step-button:hover { border-color: var(--primary-border); background: var(--primary-soft); }
+.mt-step-button-primary { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+.mt-step-button-primary:hover { border-color: var(--primary-hover); background: var(--primary-hover); }
+.mt-step-button:disabled { opacity: .45; }
+.mt-inline-practice { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
 .mt-composer-input { display: block; width: 100%; min-height: 36px; max-height: min(160px, 22dvh); resize: none; overflow-y: auto; background: transparent; padding: 6px 10px; font-size: 16px; line-height: 24px; outline: none; }
 .mt-workspace .mt-composer-input:focus-visible { outline: none; }
 .mt-composer-input::placeholder { color: var(--muted-foreground); }
@@ -99,6 +118,11 @@
   .mt-context { max-width: min(220px, 100%); }
   .mt-tutor-avatar { display: none; }
   .mt-chat-log { padding-top: 16px; }
+  .mt-student-step { padding-left: 14px; }
+  .mt-starter-problems { grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
+  .mt-starter-problem { padding: 12px 14px; }
+  .mt-starter-problem > span:nth-child(2) { margin-top: 8px; }
+  .mt-starter-problem > span:nth-child(3) { margin-top: 6px; }
 }
 @media (max-width: 800px) {
   .mt-workspace { --workspace-gutter: 14px; }

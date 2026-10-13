@@ -407,7 +407,7 @@ async def _process_request(state, owner, session_id, user_message, event_key,
             cycle_id=contract["cycle_id"], cycle_state=contract["state"], cycle_state_version=contract["state_version"],
             problem_revision=contract["problem_revision"], allowed_actions=contract["allowed_actions"],
             allowed_next_inputs=contract["allowed_next_inputs"],
-            **{key: contract[key] for key in ("teaching_plan", "problem_context", "evidence_summary", "active_offer", "diagnosis")},
+            **{key: contract[key] for key in ("teaching_plan", "problem_context", "evidence_summary", "active_offer", "diagnosis", "recovery_problem")},
             delivery_id=json.loads(getattr(turn, "continuation_context", "") or "{}").get("delivery_id"),
             payload={**turn.wire(), "error": error_text, "effective_assistance_level": contract["effective_assistance_level"]},
         ).wire_dict(), finished=True)

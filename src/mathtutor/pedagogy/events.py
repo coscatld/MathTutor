@@ -79,6 +79,7 @@ class StudentPublicEvent(BaseModel):
     evidence_summary: dict[str, Any] | None = None
     active_offer: dict[str, Any] | None = None
     diagnosis: dict[str, Any] | None = None
+    recovery_problem: dict[str, Any] | None = None
     delivery_id: str | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
     # Strictly allowlisted public projections only (Phase 5). The

@@ -21,6 +21,7 @@ import {
   projectTurnError,
   shouldRenderTutorText,
   projectAllowedActions,
+  projectRecoveryProblem,
 } from "./protocol";
 import { projectActiveOffer, projectDiagnosis, projectEvidenceSummary, projectProblemContext, projectTeachingPlan } from "./teaching-contract";
 import { projectAttachments, type MessageAttachment } from "./attachments";
@@ -87,6 +88,7 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
     evidenceSummary: frame.evidence_summary !== undefined ? frame.evidence_summary : changedCycle ? null : state.evidenceSummary,
     activeOffer: frame.active_offer !== undefined ? frame.active_offer : changedCycle ? null : state.activeOffer,
     diagnosis: frame.diagnosis !== undefined ? frame.diagnosis : changedCycle ? null : state.diagnosis,
+    recoveryProblem: frame.recovery_problem !== undefined ? frame.recovery_problem : changedCycle ? null : state.recoveryProblem,
   };
 
   if (frame.allowed_next_inputs.length > 0) {
@@ -230,6 +232,7 @@ function applyRestore(
     evidenceSummary: "evidence_summary" in summary ? projectEvidenceSummary(summary.evidence_summary) : changedCycle ? null : state.evidenceSummary,
     activeOffer: "active_offer" in summary ? projectActiveOffer(summary.active_offer) : null,
     diagnosis: "diagnosis" in summary ? projectDiagnosis(summary.diagnosis) : changedCycle ? null : state.diagnosis,
+    recoveryProblem: "recovery_problem" in summary ? projectRecoveryProblem(summary.recovery_problem) : null,
     allowedActions: capabilities,
     cycleState: restoredState,
     seenVersion: summary.cycle_id !== undefined && summary.cycle_id !== state.cycleId ? stateVersion : Math.max(state.seenVersion, stateVersion),

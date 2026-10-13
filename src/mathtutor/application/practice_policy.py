@@ -56,6 +56,24 @@ def select_difficulty(
     return baseline, "独立跨题证据不足或本次受助，保持当前离散难度"
 
 
+def apply_dkt_difficulty(difficulty: int, forecast: dict | None) -> tuple[int, str]:
+    """Nudge one discrete level from a mapped trained probability.
+
+    A foreign prior with no personal attempt does not move the level.
+    The returned reason does not contain the probability.
+    """
+    if not forecast or int(forecast.get("history_updates") or 0) < 1 or not forecast.get("controls_teaching"):
+        return difficulty, "已训练的知识追踪还没有这个学生的独立作答，难度保持不变"
+    probability = forecast.get("probability")
+    if not isinstance(probability, (int, float)) or isinstance(probability, bool):
+        return difficulty, "已训练的知识追踪没有可用概率，难度保持不变"
+    if probability < 0.45:
+        return max(1, difficulty - 1), "映射技能上的已训练追踪偏低，练习降一级"
+    if probability > 0.75:
+        return min(5, difficulty + 1), "映射技能上的已训练追踪偏高，练习升一级"
+    return difficulty, "映射技能上的已训练追踪处于中间，练习难度保持不变"
+
+
 def validate_targets(skill_ids: Sequence[str]) -> tuple[str, ...]:
     targets = tuple(dict.fromkeys(skill_ids))
     if not targets or not set(targets).issubset(all_skill_ids()):

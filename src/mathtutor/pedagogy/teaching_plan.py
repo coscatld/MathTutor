@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from copy import deepcopy
 from hashlib import sha256
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 
 from mathtutor.learning.skill_graph import GRAPH_VERSION, SKILLS, skills_for_problem, skills_for_subgoal
 from mathtutor.domain.dual_channel_gate import evidence_kind, math_state_from_correctness
@@ -33,6 +33,7 @@ class TeachingPlan:
     expected_response: str = "写出你能确定的一步，或说明卡在哪里"
     material_refs: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
+    student_guidance: str = ""
 
     def public(self):
         return asdict(self)
@@ -48,6 +49,7 @@ _GOALS = {
     "arithmetic": (("plan", "选择运算顺序或共同分母"), ("answer", "算出结果并检查符号")),
     "polynomial": (("expand", "先检查括号与分配律"), ("combine", "辨认并合并同类项")),
     "linear": (("balance", "保持等式两边相等，整理含未知数的项"), ("isolate", "得到未知数的值并代回原式")),
+    "linear_inequality": (("balance", "整理含未知数的项，并注意不等号方向"), ("isolate", "写出未知数的取值范围")),
     "quadratic": (("method", "选择分解或求根方法"), ("roots", "找齐所有实数根并排除增根")),
     "linear_system": (("eliminate", "选择代入或消元，先求一个未知数"), ("remaining", "再求另一未知数并检验两条原式")),
 }
@@ -60,7 +62,7 @@ def initial_context(problem, candidate, *, legacy_help=False, verified_solution_
     return {
         "schema_version": "mt-teaching-v2", "skill_graph_version": GRAPH_VERSION,
         "problem_id": str(problem.problem_id), "problem_revision": problem.content_hash,
-        "display_text": problem.display_latex, "skill_ids": list(skill_ids),
+        "display_text": problem.display_latex, "problem_type": problem.problem_type, "skill_ids": list(skill_ids),
         "task_context": build_problem_context(problem, candidate, cycle_id=cycle_id, verified_solution_ref=verified_solution_ref),
         "lifecycle": "active", "current_subgoal_index": 0,
         "subgoals": [{"id": key, "prompt_target": label, "status": "pending",
@@ -118,7 +120,36 @@ def apply_assessment(context, assessment, raw_text, assistance):
             if claims & {"variable_value", "root_subset"}:
                 goals[0]["status"] = "verified_partial"
                 context["current_subgoal_index"] = min(1, len(goals) - 1)
+            elif "equivalent_equation" in claims and _isolated_coefficient_step(context, raw_text):
+                # Recognize a verified result such as 3z=15, regardless of the
+                # student's chosen route. An unchanged restatement stays at
+                # the earlier goal; equivalence alone does not prove progress.
+                goals[0]["status"] = "verified"
+                context["current_subgoal_index"] = min(1, len(goals) - 1)
     return context, record
+
+
+def _isolated_coefficient_step(context, raw_text):
+    if context.get("problem_type") != "linear":
+        return False
+    from mathtutor.solving.parser import parse_problem
+    from mathtutor.solving import nodes as n
+    parsed = parse_problem(raw_text)
+    if parsed.kind != "parsed" or parsed.problem.problem_type != "linear":
+        return False
+    original = parse_problem(context.get("display_text", ""))
+    if original.kind == "parsed" and original.problem.normalized_ast == parsed.problem.normalized_ast:
+        return False
+    equation = parsed.problem.ast
+    variables = n.variables(equation)
+    if len(variables) != 1:
+        return False
+    variable = next(iter(variables))
+    left, right = n.poly_coeffs(equation.lhs, variable), n.poly_coeffs(equation.rhs, variable)
+    if left is None or right is None:
+        return False
+    return bool((left.get(1) and not left.get(0) and not right.get(1))
+                or (right.get(1) and not right.get(0) and not left.get(1)))
 
 
 def choose_plan(context, action, student_request=""):
@@ -144,6 +175,7 @@ def choose_plan(context, action, student_request=""):
     stuck = context["stuck_count"]
     no_progress = context["help_without_progress"]
     strategy, mode, reason = "focused_question", "guided", ["CURRENT_SUBGOAL"]
+    guidance = ""
     if signal.get("confusion", "none") != "none":
         reason.append("LANGUAGE_CONFUSION")
         if signal.get("source") == "llm":
@@ -167,6 +199,19 @@ def choose_plan(context, action, student_request=""):
     elif context["assessments"] and context["assessments"][-1]["invalid_claims"]:
         strategy, mode = "locate_verified_error", "scaffold"
         reason.append("VERIFIED_ERROR")
+        codes = context["assessments"][-1].get("misconception_candidates", [])
+        repeated = any(context.get("learner_evidence", {}).get("verified_error_counts", {}).get(code, 0) >= 2 for code in codes)
+        guidance = error_guidance(codes, repeated=repeated)
+        if repeated:
+            reason.append("REPEATED_VERIFIED_ERROR")
+            level = min(4, max(level, 2))
+    elif any(context.get("learner_evidence", {}).get("verified_error_counts", {}).get(code, 0) >= 2
+             for code in ("wrong_operation", "sign_flip")):
+        strategy, mode = "repeated_error_step", "scaffold"
+        reason.append("REPEATED_VERIFIED_ERROR")
+        codes = [code for code, count in context["learner_evidence"]["verified_error_counts"].items() if count >= 2]
+        guidance = error_guidance(codes, repeated=True)
+        level = min(4, max(level, 2))
     elif context.get("learner_evidence", {}).get("independent_correct_items", 0) >= 3:
         strategy, mode = "compare_methods", "light_scaffold"
         reason.append("MULTIPLE_INDEPENDENT_ITEMS")
@@ -179,13 +224,61 @@ def choose_plan(context, action, student_request=""):
                         tuple(goal.get("skill_ids") or context["skill_ids"]), tuple(reason), mode, exits,
                         "demonstration" if mode == "demonstration" else "question",
                         level, action.action == "SHOW_SOLUTION",
-                        evidence_refs=tuple(p["assessment_id"] for p in context["progress"][-3:]))
+                        evidence_refs=tuple(dict.fromkeys([*(p["assessment_id"] for p in context["progress"][-3:]),
+                                                         *context.get("learner_evidence", {}).get("evidence_ids", [])])),
+                        student_guidance=guidance)
     if plan.fingerprint in context["help_fingerprints"] and action.action != "SHOW_SOLUTION":
         plan = TeachingPlan(**{**asdict(plan), "strategy": "offer_alternative", "support_mode": "choice",
                                "reason_codes": (*plan.reason_codes, "REPEATED_TEACHING_OPERATION"),
                                "exit_options": ("request_example", "request_solution", "request_practice", "end_problem")})
+    plan = apply_trained_dkt(plan, context.get("dkt_forecast") or {})
     context["last_plan"] = plan.public()
     return context, plan
+
+
+_DKT_PHRASE = {
+    "linear_isolation": "等式隔离这一步",
+    "signed_operations": "符号运算这一步",
+    "fraction_operations": "分数运算这一步",
+    "distributive_law": "分配律这一步",
+    "quadratic_roots": "求根这一步",
+    "system_completeness": "方程组检验这一步",
+}
+
+
+def apply_trained_dkt(plan: TeachingPlan, forecast: dict) -> TeachingPlan:
+    """Let a mapped trained probability change the next step. Never print the number."""
+    if plan.action == "SHOW_SOLUTION" or not forecast or not forecast.get("controls_teaching"):
+        return plan
+    probability = forecast.get("probability")
+    if not isinstance(probability, (int, float)) or isinstance(probability, bool):
+        return plan
+    skills = forecast.get("mapped_product_skills") or ()
+    phrase = _DKT_PHRASE.get(skills[0], "这一步") if skills else "这一步"
+    updates = int(forecast.get("history_updates") or 0)
+    if updates < 1:
+        sentence = f"先写出{phrase}里你能确定的运算。"
+        return replace(plan, student_guidance=plan.student_guidance or sentence, reason_codes=(*plan.reason_codes, "DKT_PRIOR"))
+    if probability < 0.45:
+        sentence = f"先只写{phrase}，不用一次算完。"
+        return replace(
+            plan,
+            strategy="smaller_step",
+            support_mode="scaffold",
+            max_assistance_level=min(4, max(plan.max_assistance_level, 2)),
+            student_guidance=plan.student_guidance or sentence,
+            reason_codes=(*plan.reason_codes, "DKT_UNSTEADY"),
+        )
+    if probability > 0.75:
+        sentence = f"你来写{phrase}，我再检查。"
+        return replace(
+            plan,
+            max_assistance_level=max(1, plan.max_assistance_level - 1),
+            student_guidance=plan.student_guidance or sentence,
+            reason_codes=(*plan.reason_codes, "DKT_STEADY"),
+        )
+    sentence = f"先写出{phrase}，再交给我检查。"
+    return replace(plan, student_guidance=plan.student_guidance or sentence, reason_codes=(*plan.reason_codes, "DKT_GUIDE"))
 
 
 def assessment_feedback(record):
@@ -195,12 +288,25 @@ def assessment_feedback(record):
     if record["math_validity"] == "valid":
         return f"已验证「{raw}」是有效的部分结果；整题还没有完成，请继续补齐剩余要求。"
     if record["math_validity"] == "invalid":
-        return f"你提交的「{raw}」未通过原题检验。请检查这一步的运算，或选择演示一个例子。"
+        guidance = error_guidance(record.get("misconception_candidates", []))
+        return f"你提交的「{raw}」未通过原题检验。" + (guidance or "先把你刚才的运算写成一步，我来检查。")
     return "这次作答暂时无法可靠判定，不会记作答错。请补充这一步的等式或说明要检验的结论。"
 
 
 def public_context(context):
-    return {key: deepcopy(context[key]) for key in ("problem_id", "display_text", "skill_ids", "lifecycle")} | {"current_subgoal": current_subgoal(context), "choices": deepcopy(context.get("choices"))}
+    result = {key: deepcopy(context[key]) for key in ("problem_id", "display_text", "skill_ids", "lifecycle")} | {"current_subgoal": current_subgoal(context), "choices": deepcopy(context.get("choices"))}
+    if context.get("understanding_check"):
+        result["understanding_check"] = True
+    return result
+
+
+def error_guidance(codes, *, repeated=False):
+    """State only the verifier's coarse error class; never invent a cause."""
+    if "wrong_operation" in codes:
+        return ("前面不同题目的移项或常数处理还不稳定。" if repeated else "这一步的移项或常数处理没有保持等式相等。") + "先写出等式两边同时做的运算。"
+    if "sign_flip" in codes:
+        return ("前面不同题目的结果符号还不稳定。" if repeated else "这个结果的符号没有通过原题检验。") + "先把带符号的运算单独写成一步。"
+    return ""
 
 
 def grounded_template(problem_view, disclosure, action):
@@ -223,16 +329,19 @@ def grounded_template(problem_view, disclosure, action):
         body = "\n".join(s["display_text"] + (f"：\\( {s['display_latex']} \\)" if s["display_latex"] else "") for s in rendered)
         return prefix + "下面演示已验证的一小段：\n" + body + "\n请接着完成剩余要求，或说出这一步仍不清楚的地方。"
     operation = {
-        "arithmetic": "先指出要先做哪一个运算；有分数时，哪些分母需要统一？",
+        "arithmetic": "先写出最先要做的一个运算。",
         "polynomial": "找出能合并的一组同类项；它们的字母和次数分别是什么？",
         "linear": "先指出要消去哪个常数项，再写出等式两边同时做的运算。",
-        "quadratic": "先指出二次项、一次项和常数项；你打算因式分解还是用求根公式？",
-        "linear_system": "先选要消去的未知数；两条等式的哪个系数可以对齐？",
+        "linear_inequality": "先整理含未知数的项，再写明不等号的方向。",
+        "quadratic": "你准备先用哪一种方法：因式分解还是求根公式？",
+        "linear_system": "先选一个要消去的未知数。",
     }.get(problem_view.problem_type, "指出已知条件和要证明或计算的结论。")
     if plan.get("strategy") == "compare_methods":
-        operation = "你已经在不同题目中提供过独立作答证据。这次先比较两种可行方法：你会选哪一种，为什么？"
+        operation = "你已经在不同题目中提供过独立作答证据。这次先比较两种可行方法，你会选哪一种？"
     elif plan.get("strategy") == "prerequisite_check":
         operation = "先检查这一步依赖的基础运算：" + operation
     if plan.get("strategy") == "smaller_step":
         operation = "先不用算完整答案：" + operation
+    if plan.get("student_guidance"):
+        operation = plan["student_guidance"]
     return prefix + (disclosure.concept_hint or disclosure.strategy_hint or "") + "。" + operation

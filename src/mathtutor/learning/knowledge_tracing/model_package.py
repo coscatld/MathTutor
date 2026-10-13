@@ -92,6 +92,8 @@ class SourceModelPackage:
         if not (np.isfinite(self.temperature) and 0.05 <= self.temperature <= 20):
             raise ValueError("calibration temperature is outside the accepted bounds")
         self.skill_vocabulary = frozenset(str(s) for s in vocabulary["skills"])
+        # Checkpoint order. The feature layout addresses skills by this index.
+        self.skills = tuple(str(s) for s in vocabulary["skills"])
         self.package_id = manifest["package_id"]
         self.identity = {"package_id": self.package_id, "format": SOURCE_FORMAT,
                          "model_sha256": entry["sha256"], "mode": self.mode,

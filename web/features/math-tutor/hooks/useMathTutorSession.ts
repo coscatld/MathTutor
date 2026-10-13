@@ -26,6 +26,7 @@ import {
 } from "../lib/reducer";
 import { presentationAcknowledgement, presentationFromFrame, type PendingPresentation } from "../lib/delivery";
 import { ImageUploadRepository, type ChatAttachment, type MessageAttachment } from "../lib/attachments";
+import { deliverBoundAttempt, type AttemptBinding } from "../lib/attempt";
 
 const WS_PATH = "/api/v2/math-tutor/ws";
 const RECONNECT_BASE_DELAY_MS = 1000;
@@ -300,6 +301,9 @@ export function useMathTutorSession(explicitSessionId?: string) {
     });
   }, [send]);
 
+  const sendAttempt = useCallback((answer: string, binding: AttemptBinding) =>
+    deliverBoundAttempt(answer, binding, () => stateRef.current, send), [send]);
+
   /** Start a brand-new tutoring problem (fresh client session id). */
   const newProblem = useCallback(() => {
     sessionIdRef.current = makeSessionId();
@@ -342,6 +346,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
     sessionId: sessionIdRef.current,
     send,
     sendMessage,
+    sendAttempt,
     newProblem,
     reconnect,
     recover,

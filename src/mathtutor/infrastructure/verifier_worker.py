@@ -161,6 +161,11 @@ def _ast_budget(ast: Any) -> tuple[int, int]:
             pending.extend((current.get("num"), current.get("den")))
         elif kind == "equation":
             pending.extend((current.get("lhs"), current.get("rhs")))
+        elif kind == "inequality":
+            equation = current.get("equation")
+            if not isinstance(equation, dict):
+                raise ValueError("inequality requires an equation")
+            pending.append(equation)
         elif kind == "linear_system":
             equations = current.get("equations")
             if not isinstance(equations, list) or len(equations) != 2:
@@ -202,9 +207,18 @@ def _validate_work(request: _RequestEnvelope, budget: VerificationWorkerBudget) 
     )
     # Contract validation only: malformed canonical ASTs are IPC failures;
     # mathematical acceptance remains exclusively in verifier.py.
-    ast = n.from_dict(problem.normalized_ast)
-    if n.to_dict(ast) != problem.normalized_ast:
-        raise ValueError("AST is not canonical")
+    payload = problem.normalized_ast
+    if isinstance(payload, dict) and payload.get("kind") == "inequality":
+        equation = payload.get("equation")
+        if payload.get("relation") not in {"gt", "ge", "lt", "le"} or not isinstance(payload.get("variable"), str) or not isinstance(equation, dict):
+            raise ValueError("AST is not canonical")
+        ast = n.from_dict(equation)
+        if n.to_dict(ast) != equation:
+            raise ValueError("AST is not canonical")
+    else:
+        ast = n.from_dict(payload)
+        if n.to_dict(ast) != payload:
+            raise ValueError("AST is not canonical")
     return problem, candidate
 
 
