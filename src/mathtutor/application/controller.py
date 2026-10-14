@@ -1858,11 +1858,12 @@ class MathTutorController:
             focus, practice_guidance = teaching_practice_focus(context)
         basis_events = [e for e in valid_events(history)
             if e.cycle_id == str(session.cycle.cycle_id) and e.event_type == "attempt_assessed"]
+        from mathtutor.application.evidence_projection import PRACTICE_ERROR_CODES
         if focus and context:
             basis_events.extend(e for e in valid_events(history)
                 if e.independent_target and e.correctness == "incorrect"
                 and set(e.skill_ids) & set(context["skill_ids"])
-                and set(e.misconception_codes) & {"wrong_operation", "sign_flip"})
+                and set(e.misconception_codes) & PRACTICE_ERROR_CODES)
         offer = None
         try:
             offer = await self.practice_service.prepare_offer(

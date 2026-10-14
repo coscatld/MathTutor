@@ -206,7 +206,7 @@ def choose_plan(context, action, student_request=""):
             reason.append("REPEATED_VERIFIED_ERROR")
             level = min(4, max(level, 2))
     elif any(context.get("learner_evidence", {}).get("verified_error_counts", {}).get(code, 0) >= 2
-             for code in ("wrong_operation", "sign_flip")):
+             for code in GUIDED_ERROR_CODES):
         strategy, mode = "repeated_error_step", "scaffold"
         reason.append("REPEATED_VERIFIED_ERROR")
         codes = [code for code, count in context["learner_evidence"]["verified_error_counts"].items() if count >= 2]
@@ -300,12 +300,21 @@ def public_context(context):
     return result
 
 
+_ERROR_GUIDANCE = (
+    ("wrong_operation", "前面不同题目的移项或常数处理还不稳定。", "这一步的移项或常数处理没有保持等式相等。",
+     "先写出等式两边同时做的运算。"),
+    ("sign_flip", "前面不同题目的结果符号还不稳定。", "这个结果的符号没有通过原题检验。", "先把带符号的运算单独写成一步。"),
+    ("missing_root", "前面不同题目都出现了漏解。", "这个答案还缺少满足原题的解。", "先确认一共应有几个解，再逐个求出。"),
+    ("extraneous_root", "前面不同题目都混入了不满足原题的解。", "这个答案里有不满足原题的解。", "先把每个解代回原式检验。"),
+)
+GUIDED_ERROR_CODES = tuple(code for code, *_ in _ERROR_GUIDANCE)
+
+
 def error_guidance(codes, *, repeated=False):
     """State only the verifier's coarse error class; never invent a cause."""
-    if "wrong_operation" in codes:
-        return ("前面不同题目的移项或常数处理还不稳定。" if repeated else "这一步的移项或常数处理没有保持等式相等。") + "先写出等式两边同时做的运算。"
-    if "sign_flip" in codes:
-        return ("前面不同题目的结果符号还不稳定。" if repeated else "这个结果的符号没有通过原题检验。") + "先把带符号的运算单独写成一步。"
+    for code, repeated_text, single_text, step in _ERROR_GUIDANCE:
+        if code in codes:
+            return (repeated_text if repeated else single_text) + step
     return ""
 
 

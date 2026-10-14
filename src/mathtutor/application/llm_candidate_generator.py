@@ -305,14 +305,12 @@ def build_llm_prompt(context: PracticeGenerationContext) -> str:
     ``student_id``/``context_version``/``provenance`` are routing metadata,
     not generation input — they never reach the model. Nothing else is
     included: no mastery internals, no answer keys, no repository rows.
+    The legacy 0-1 mastery estimate is uncalibrated and is never sent; the
+    model sees verified attempt outcomes instead.
     """
     public = {
         "target_skill_ids": list(context.target_skill_ids),
         "target_concept_ids": list(context.target_concept_ids),
-        "current_mastery": [
-            {"skill_id": entry.skill_id, "mastery": entry.mastery}
-            for entry in context.current_mastery
-        ],
         "active_misconceptions": [
             {"rule_id": entry.rule_id, "confidence": entry.confidence}
             for entry in context.active_misconceptions

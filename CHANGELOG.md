@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Student model
+- The uncalibrated legacy 0-1 mastery estimate no longer reaches practice generation: it is removed from the model prompt, and the template statement uses verified error counts from recent attempts instead.
+- Every verified error class the verifier reports now steers the next practice item and the teaching guidance: sign errors, missing roots, extraneous roots, equality-preservation errors and computation errors each map to a skill in the skill graph for the matching problem family. Previously only two classes did.
+
 ### Persistent turn traces and failure replay
 - Migration 024 adds `turn_traces`: one structured row per tutor turn (command, actions, status, finish reason, error code, latency, tokens, model, formula-check counts, template fallback). No student or tutor text is copied; the row is deleted together with its conversation.
 - `GET /desktop/diagnostics/turns` returns persisted health (failure, partial, provider-error and refuted-formula rates, latency p50/p95, tokens) with threshold alerts once at least 20 turns exist, plus the recent turns. These survive restarts, unlike `loop_health()`.

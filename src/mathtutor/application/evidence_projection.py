@@ -56,6 +56,27 @@ def prerequisite_gap(context):
     return ()
 
 
+#: Verified error signal → (problem family → practice skill, guidance).
+#: Ordered like the diagnosis rules: the first matching signal wins.
+ERROR_PRACTICE = (
+    ("sign_flip", {"arithmetic": "signed_operations", "linear": "signed_operations",
+                   "linear_inequality": "signed_operations", "polynomial": "signed_operations"},
+     "这次先练带符号的运算，检查结果的正负号。"),
+    ("missing_root", {"quadratic": "quadratic_roots", "linear_system": "system_completeness"},
+     "这次先练把所有解都求出来，最后逐个代回检查有没有漏掉。"),
+    ("extraneous_root", {"quadratic": "substitution_check"},
+     "这次先练把求出的解代回原式检验，去掉不满足的解。"),
+    ("wrong_operation", {"linear": "equality_preservation", "linear_inequality": "equality_preservation",
+                         "linear_system": "system_elimination", "polynomial": "combine_like_terms"},
+     "这次先练等式两边同做运算，检查移项和常数处理。"),
+    ("wrong_value", {"arithmetic": "signed_operations", "linear": "linear_isolation",
+                     "polynomial": "combine_like_terms", "quadratic": "quadratic_roots",
+                     "linear_system": "system_completeness"},
+     "这次先练一步一步写出计算过程，每一步都能检查。"),
+)
+PRACTICE_ERROR_CODES = frozenset(code for code, _, _ in ERROR_PRACTICE)
+
+
 def teaching_practice_focus(context):
     """Only independently verified error classes can constrain a new item."""
     counts = context.get("learner_evidence", {}).get("verified_error_counts", {})
@@ -64,10 +85,9 @@ def teaching_practice_focus(context):
     if records and records[-1].get("math_validity") == "invalid":
         codes.update(records[-1].get("misconception_candidates", []))
     family = context.get("problem_type")
-    if "wrong_operation" in codes and family == "linear":
-        return "equality_preservation", "这次先练等式两边同做运算，检查移项和常数处理。"
-    if "sign_flip" in codes and family in {"arithmetic", "linear"}:
-        return "signed_operations", "这次先练带符号的运算，检查结果的正负号。"
+    for code, skills, guidance in ERROR_PRACTICE:
+        if code in codes and family in skills:
+            return skills[family], guidance
     return "", ""
 
 

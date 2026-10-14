@@ -115,11 +115,16 @@ def _build_statement(context: PracticeGenerationContext, index: int) -> str:
     targets = "、".join(
         list(context.target_skill_ids) + list(context.target_concept_ids)
     ) or "未指定知识点"
-    weakest = min(context.current_mastery, key=lambda entry: entry.mastery, default=None)
+    # Verified attempt outcomes, not the uncalibrated legacy mastery estimate.
+    misses: dict[str, int] = {}
+    for entry in context.recent_attempt_summary:
+        if entry.correctness in {"incorrect", "partial"}:
+            misses[entry.skill_id] = misses.get(entry.skill_id, 0) + 1
+    hardest = max(misses.items(), key=lambda item: item[1], default=None)
     mastery_line = (
-        f"当前掌握度最低的技能是 {weakest.skill_id}（{weakest.mastery:.2f}）"
-        if weakest is not None
-        else "暂无掌握度数据"
+        f"最近作答中出错最多的技能是 {hardest[0]}（{hardest[1]} 次）"
+        if hardest is not None
+        else "最近没有出错的作答记录"
     )
     misconception_line = (
         f"需重点纠正的易错规则：{'、'.join(entry.rule_id for entry in context.active_misconceptions)}"
