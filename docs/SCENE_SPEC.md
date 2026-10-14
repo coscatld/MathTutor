@@ -36,6 +36,8 @@ v1 的 `mathtutor-graph` 代码块继续有效。
 
 求值规则：任何非有限结果（除零、负数开偶次方、定义域外）记为「无定义」，绘制时断开，不报错。
 
+补充约定：`log` 是常用对数（以 10 为底），`ln` 是自然对数；负数的奇次方根有实数值（`(-8)^(1/3) = -2`）；竖直两点的 `slope` 无定义；`angle` 以度为单位；`area` 取鞋带公式的绝对值。`pi`、`e` 一律编译为 `num` 节点。参数曲线未给出 `s_range` 时，服务端补成 `[0, 2π]`；`θ` 统一改名为 `s`。
+
 ## Scene JSON
 
 ```json
@@ -69,7 +71,7 @@ v1 的 `mathtutor-graph` 代码块继续有效。
 | `implicit` | `expr`（含 `x`、`y`） | 曲线 `expr = 0`（等式左边减右边） |
 | `parametric` | `x`、`y`（含 `s`），`s_range:[a,b]` | 参数曲线；极坐标 `r(θ)` 由服务端转成 `x=r cos s, y=r sin s` |
 | `region` | `expr`（含 `x`、`y`），`relation` ∈ `lt le gt ge` | 阴影：`expr relation 0` |
-| `point` | `x`、`y`（不含 `x`/`y` 作图变量），可选 `trace:true` | 点，可随参数移动；`trace` 留下轨迹 |
+| `point` | `x`、`y`（不含 `x`/`y` 作图变量），可选 `trace:true` | 点，可随参数移动；`trace` 留下轨迹。点只能引用**之前**定义的点，其他对象和读数可以引用场景中任意点 |
 | `segment` `line` `ray` `vector` | `from`、`to`（点 id） | 线段 / 直线 / 射线 / 向量 |
 | `polygon` | `points:[id…]`，`fill:bool` | 多边形 |
 | `circle` | `center`（点 id），`radius`（AST） | 圆 |
