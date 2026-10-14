@@ -8,7 +8,9 @@ import type { TutorMessage } from "../types";
 import { supportExposureLabel } from "../lib/teaching-contract";
 import ImageAttachments from "./ImageAttachments";
 import FunctionGraph from "./FunctionGraph";
+import SceneCanvas from "./SceneCanvas";
 import { GRAPH_ACTION, splitGraphMessage } from "../lib/function-graph";
+import { splitSceneMessage } from "../lib/scene-eval";
 
 /**
  * One tutor message. Shows the student-facing message plus the current
@@ -35,8 +37,10 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
   }
 
   const label = actionLabel(message.action);
-  // Only the server sets SHOW_GRAPH; graph blocks in any other message stay plain text.
-  const graph = message.action === GRAPH_ACTION ? splitGraphMessage(message.text) : null;
+  // Only the server sets SHOW_GRAPH; graph and scene blocks in any other message stay plain text.
+  const sceneSplit = message.action === GRAPH_ACTION ? splitSceneMessage(message.text) : null;
+  const scene = sceneSplit?.scene ? sceneSplit : null;
+  const graph = message.action === GRAPH_ACTION && !scene ? splitGraphMessage(message.text) : null;
   const level = normalizeAssistanceLevel(message.assistanceLevel);
 
   return (
@@ -51,7 +55,11 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
           {level > 0 && <span className="mt-chip mt-chip-warn">已展示：{supportExposureLabel(level)}</span>}
         </div>
         <div className="mt-answer-text">
-          {graph?.spec ? <>
+          {scene?.scene ? <>
+            {scene.before ? <MarkdownRenderer content={scene.before} enableMath /> : null}
+            <SceneCanvas scene={scene.scene} />
+            {scene.after ? <MarkdownRenderer content={scene.after} enableMath /> : null}
+          </> : graph?.spec ? <>
             {graph.before ? <MarkdownRenderer content={graph.before} enableMath /> : null}
             <FunctionGraph spec={graph.spec} />
             {graph.after ? <MarkdownRenderer content={graph.after} enableMath /> : null}
