@@ -27,6 +27,7 @@ class TutorChatResponder:
         images: list | None = None,
         document_context: dict | None = None,
         math_verify=None,
+        draw_figures: bool = False,
     ) -> str:
         provider = self._gateway.provider_for(ModelRole.TUTOR_WRITER)
         if images:
@@ -40,7 +41,7 @@ class TutorChatResponder:
             "普通问候正常回应；概念问题直接解释，算式直接教学。不要主动解释系统实现。"
             "不要输出内部命令名、状态机名称或 JSON。"
         )
-        system += r"使用 Markdown；行内公式用 \( ... \)，独立公式用 \[ ... \]。不要用裸方括号模拟公式，不使用 HTML。表达清晰自然，避免过度 Emoji、拟人和标题。"
+        system += r"使用 Markdown；行内公式用 \( ... \)，独立公式用 \[ ... \]。不要用裸方括号模拟公式，不使用 HTML。不要用字符画、图片链接、HTML/SVG、Mermaid、TikZ 或作图代码画图，这些内容会被应用删除。表达清晰自然，避免过度 Emoji、拟人和标题。"
         system += (
             "讨论参数方程时先说明适用条件：ax²+bx+c=0在a=0时，b≠0才是一次方程；"
             "b=0且c≠0无解，b=c=0为恒等式。a≠0、c=0时根为0和-b/a，b=0时为二重零根，"
@@ -126,6 +127,7 @@ class TutorChatResponder:
                 max_tokens=2048,
                 max_retries=0,
                 **({"math_verify": math_verify} if math_verify is not None else {}),
+                **({"draw_figures": True} if draw_figures and math_verify is not None else {}),
             )
             return result.text.strip()
         except Exception:

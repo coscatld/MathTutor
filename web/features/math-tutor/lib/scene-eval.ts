@@ -243,6 +243,19 @@ export function splitSceneMessage(message: string): { before: string; scene: Sce
   return { before: message.slice(0, match.index).trim(), scene, after: message.slice(match.index + match[0].length).trim() };
 }
 
+/** Every valid scene block in order (at most 4); null when the first is missing or invalid. */
+export function splitSceneBlocks(message: string): { parts: { before: string; scene: Scene }[]; after: string } | null {
+  const parts: { before: string; scene: Scene }[] = [];
+  let rest = message;
+  while (parts.length < 4) {
+    const split = splitSceneMessage(rest);
+    if (!split.scene) break;
+    parts.push({ before: split.before, scene: split.scene });
+    rest = split.after;
+  }
+  return parts.length ? { parts, after: rest } : null;
+}
+
 // ---------------------------------------------------------------------------
 // Evaluation
 

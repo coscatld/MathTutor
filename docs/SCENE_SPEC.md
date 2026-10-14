@@ -6,7 +6,7 @@
 
 - 表达式只有两种来源：学生输入，或模型提出的**定义**（字符串）。服务端用白名单解析器把字符串编译成 AST；任何不在白名单内的记号直接拒绝。没有 `eval`。
 - 坐标、交点、读数都由应用计算：服务端算静态标注，前端只做 AST 求值和绘制。模型不提供任何计算结果。
-- 只有服务端写出的 `SHOW_GRAPH` 消息里的 `mathtutor-scene` 代码块会被渲染；其他消息中的同名代码块按普通文本显示。
+- 只有服务端写出的 `SHOW_GRAPH` 和 `TUTOR_CHAT_FIGURE` 消息里的 `mathtutor-scene` 代码块会被渲染；其他消息中的同名代码块按普通文本显示。
 - 模型提出的场景标注 `source: "model"`，界面显示「示意图：定义来自模型，图形由应用计算，未经数学核验」。
 - 题目未完成时，与当前题目相关的场景不标出答案点（沿用 v1 规则）。
 
@@ -86,6 +86,15 @@ v1 的 `mathtutor-graph` 代码块继续有效。
 - 对象 ≤ 40 个，`id` 唯一且由字母数字组成（≤8 字符）；点只能引用**之前**定义的点；线、多边形、圆、切线引用的 id 必须存在且类型正确。
 - 读数 ≤ 8 个；`marks` ≤ 12 个；每个 AST 深度 ≤ 40、节点 ≤ 400。
 - `x_range`、`y_range` 有限且下界小于上界。
+
+## 画布作图技能（模型的唯一作图途径）
+
+技能文本在 `src/mathtutor/skills/canvas_drawing/SKILL.md`，加载器同目录 `__init__.py`（`SKILL_TEXT`、`DRAW_SCENE_TOOL`）。`SCENE_AUTHOR_SYSTEM` 复用其中的定义格式和作图规则，两处只有一个来源。
+
+- **何时提供**：自由对话中，数学问题或学生明确要图（画、配图、图像、示意图……）时，支持原生工具调用的模型在 `verify_math` 之外再获得 `draw_scene` 工具，同时把技能文本放进系统消息。
+- **工具**：参数为 `title`、`params[]`、`objects[]`、`readouts[]`，格式与上文的字符串定义相同。应用调用 `build_scene(definition, source="model")`，回执是 `{"status":"drawn","title":…}` 或 `{"status":"rejected","reason":"中文校验错误"}`，模型可据此改正。每轮最多接受 2 张图、尝试 4 次，与核对共用步数预算。
+- **交付**：通过的场景记在本轮（`turn.figures`），不来自模型文字。公式核对和标注之后，应用用 `render_scene` 把它们附在正文后，以 `TUTOR_CHAT_FIGURE` 发出（标签「讲解配图」），前端渲染方式与 `SHOW_GRAPH` 相同。流式预览不含图。
+- **强制**：所有模型写的文字（自由对话、知识库问答、教学写作器）交付前都经过 `sanitize_figures`。它删除模型自己写的 `mathtutor-scene`/`mathtutor-graph` 代码块、Markdown 图片、HTML `img`/`svg`/`canvas`、Mermaid/TikZ/SVG/作图代码块、LaTeX picture 类环境和字符画，原处换成「（图示请用画布查看）」；普通数学、Markdown 表格和 LaTeX 不受影响。自由对话里删掉了图而模型没有画图时，应用请模型用 `draw_scene` 重画一次（一次修复、预算有限）；仍未画出就保留删减后的回答。轮次记录中有 `figures`（drawn、rejected、delivered、removed）和 `figure_repair`。
 
 ## 前端行为
 
