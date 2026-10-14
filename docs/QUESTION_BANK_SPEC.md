@@ -50,7 +50,7 @@
 
 ## 接口
 
-全部挂在桌面路由 `/api/v2/math-tutor/desktop` 下，按现有方式鉴权。
+全部挂在桌面路由 `/api/v2/math-tutor/desktop` 下，按现有方式鉴权。题库接口用 `exercise-bank` 路径：`question` 是产品路由的禁用标记（防止挂载通用出题能力），不放宽这条安全规则。
 
 ### `GET /settings/learner`
 `{"stage": "primary"|"middle"|"high"|null, "grade": 1..12|null, "stages": [{"stage": "primary", "label": "小学", "grades": [1,2,3,4,5,6]}, ...]}`
@@ -58,7 +58,7 @@
 ### `PUT /settings/learner`
 请求 `{"stage": "high", "grade": 10}`（`grade` 可为 null，必须属于该学段）；返回同 GET。保存到数据目录的 `learner.json`。
 
-### `GET /question-bank?stage=high`
+### `GET /exercise-bank?stage=high`
 `stage` 不传时用设置里的学段；设置也为空时返回全部学段。
 
 ```json
@@ -74,7 +74,7 @@
 }
 ```
 
-### `GET /question-bank/points/{code}`
+### `GET /exercise-bank/points/{code}`
 
 ```json
 {

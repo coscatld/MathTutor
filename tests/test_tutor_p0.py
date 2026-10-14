@@ -273,3 +273,19 @@ async def test_journal_owner_isolation_and_concurrent_claim():
     await repo.record("one", "c", "r", [{"only": "one"}], finished=True)
     _, other = await repo.claim("two", "c", "r", "hash")
     assert other["frames"] == []
+
+
+def test_variables_that_cancel_to_a_number_do_not_crash_the_parser():
+    from mathtutor.solving.parser import parse_problem
+    for text in ("3x-3x+2", "2a+4-2a-4"):
+        outcome = parse_problem(text)
+        assert outcome.kind == "parsed" and outcome.problem.display_latex
+
+
+def test_sqrt_factor_terminates_and_is_exact():
+    import math
+    from mathtutor.solving.strategies.quadratic import sqrt_factor
+    assert sqrt_factor(18) == (3, 2) and sqrt_factor(72) == (6, 2) and sqrt_factor(1000) == (10, 10)
+    for m in range(1, 3000):
+        k, r = sqrt_factor(m)
+        assert k * k * r == m and all(r % (p * p) for p in range(2, math.isqrt(r) + 1))

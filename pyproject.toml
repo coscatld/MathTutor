@@ -70,6 +70,7 @@ include = ["mathtutor*"]
   "infrastructure/migrations/versions/*.py",
   "learning/knowledge_tracing/assets/*/*.json",
   "skills/*/SKILL.md",
+  "question_bank/*.json",
 ]
 
 [tool.pytest.ini_options]

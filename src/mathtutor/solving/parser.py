@@ -486,7 +486,8 @@ def _parse_core(text: str) -> ParseOutcome:
             # Canonical arithmetic builders deliberately fold constants for
             # verification. A task surface must retain the requested operation,
             # not show that folded answer to a student before they attempt it.
-            display_latex=_arithmetic_surface(tokens) if problem_type == "arithmetic" else n.to_latex(normalized),
+            display_latex=(_arithmetic_surface(tokens) if problem_type == "arithmetic" and all(t.kind != "var" for t in tokens)
+                       else n.to_latex(normalized)),  # 3x-3x+2 has variables yet simplifies to a number
             variable=variable,
         )
     )

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Question bank and learner stage
+- A K-12 catalog in People's Education Press textbook order: 24 terms (一年级上册 … 九年级下册, then 人教A版 2019 必修第一册 … 选择性必修第三册 and a 高三下 review term), 149 units and 359 knowledge points.
+- 68 knowledge points carry deterministic practice generated from 41 templates; each of the 449 problems is kept only when the local solver and verifier accept it as the intended family. 42 knowledge points carry 数形结合 demos that the scene reader draws.
+- Settings → 学段 (小学 / 初中 / 高中, optional grade) sets which terms the bank shows by default. The 题库 page starts a new tutoring conversation with a chosen problem or demo.
+- API: `GET/PUT /desktop/settings/learner`, `GET /desktop/exercise-bank`, `GET /desktop/exercise-bank/points/{code}`. The path avoids the `question` route marker, which stays forbidden.
+- Fix: input whose variables cancel to a number (e.g. `3x-3x+2`) crashed the parser's arithmetic display.
+
 ### Canvas drawing skill (figures only through the canvas)
 - New skill `src/mathtutor/skills/canvas_drawing/` (`SKILL.md` plus a cached loader). In free chat, on maths questions and when the student asks for a picture, a model with native tool calling is offered `draw_scene` next to `verify_math`, and the skill text joins the system message. The scene author prompt reuses the same definition format and rules.
 - The application builds each `draw_scene` definition with the Scene v2 builder and returns `drawn` or `rejected` with the Chinese validation error, so the model can fix it. At most 2 scenes are accepted and 4 draw attempts made per turn, within the existing step budget.

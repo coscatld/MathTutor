@@ -1280,6 +1280,63 @@ async def put_cost_settings(update: CostSettingsUpdate, owner: StudentOwnerScope
     return await get_cost_settings(owner)
 
 
+class LearnerUpdate(BaseModel):
+    stage: str | None = None
+    grade: int | None = None
+
+
+def _learner_service(state):
+    service = getattr(state, "learner_settings", None)
+    if service is None:
+        from mathtutor.infrastructure.learner_settings import LearnerSettingsService
+        service = state.learner_settings = LearnerSettingsService(None)
+    return service
+
+
+@router.get("/settings/learner")
+async def get_learner_settings(owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    """The learner's stage and grade; the question bank defaults to this stage."""
+    return _learner_service(get_product_state()).public()
+
+
+@router.put("/settings/learner")
+async def put_learner_settings(update: LearnerUpdate, owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    try:
+        return _learner_service(get_product_state()).update(update.stage, update.grade)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+_QUESTION_BANK = None
+
+
+def _question_bank():
+    """One shared bank: the catalog and its verified problems are static content."""
+    global _QUESTION_BANK
+    if _QUESTION_BANK is None:
+        from mathtutor.question_bank.service import QuestionBankService
+        _QUESTION_BANK = QuestionBankService()
+    return _QUESTION_BANK
+
+
+@router.get("/exercise-bank")
+async def get_question_bank(stage: str | None = None, owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    """Catalog tree for one stage (default: the learner's stage; none set → all stages)."""
+    from mathtutor.question_bank.service import STAGES
+    if stage is not None and stage not in STAGES:
+        raise HTTPException(status_code=422, detail="学段只能是 primary、middle 或 high")
+    chosen = stage or _learner_service(get_product_state()).current().stage
+    return await asyncio.to_thread(_question_bank().tree, chosen)
+
+
+@router.get("/exercise-bank/points/{code}")
+async def get_question_bank_point(code: str, owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    detail = await _question_bank().point(code)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="没有这个知识点")
+    return detail
+
+
 @router.get("/diagnostics/turns")
 async def turn_diagnostics(
     status: str | None = None,

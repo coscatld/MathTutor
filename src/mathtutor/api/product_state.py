@@ -373,6 +373,8 @@ class ProductState:
         self.tutor_preferences = TutorPreferenceService(Path(data_dir) / "tutor.json")
         from mathtutor.infrastructure.cost_policy import CostPolicyService
         self.cost_policy = CostPolicyService(Path(data_dir) / "cost.json")
+        from mathtutor.infrastructure.learner_settings import LearnerSettingsService
+        self.learner_settings = LearnerSettingsService(Path(data_dir) / "learner.json")
 
         # Phase 6 (round 2): backup/restore surface. SQLite-only (the file
         # is the unit of backup). Policy: manual mode — the desktop UI

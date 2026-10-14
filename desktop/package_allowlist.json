@@ -26,6 +26,8 @@
       "security/**/*.py",
       "skills/**/*.py",
       "skills/*/SKILL.md",
+      "question_bank/**/*.py",
+      "question_bank/*.json",
       "solving/**/*.py",
       "infrastructure/migrations/script.py.mako"
     ],
@@ -51,7 +53,8 @@
       "application/practice_release.py",
       "infrastructure/verifier_worker.py",
       "release_probe.py",
-      "skills/canvas_drawing/SKILL.md"
+      "skills/canvas_drawing/SKILL.md",
+      "question_bank/catalog_k12_v1.json"
     ],
     "retained_platform_core": []
   },

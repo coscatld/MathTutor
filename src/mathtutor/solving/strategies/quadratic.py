@@ -43,6 +43,7 @@ def sqrt_factor(m: int) -> tuple[int, int]:
         return (0, 0)
     r = m
     k = 1
+    squarefree = 1  # odd-exponent primes already divided out of r
     divisor = 2
     while divisor * divisor <= r and divisor <= _TRIAL_DIVISION_BOUND:
         if r % divisor:
@@ -54,8 +55,8 @@ def sqrt_factor(m: int) -> tuple[int, int]:
             exponent += 1
         k *= divisor ** (exponent // 2)
         if exponent % 2:
-            r *= divisor
-    return (k, r)
+            squarefree *= divisor
+    return (k, squarefree * r)
 
 
 def _is_perfect_square(value: int) -> bool:

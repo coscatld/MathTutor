@@ -193,8 +193,8 @@ export async function fetchTutorSettings(): Promise<TutorSettings> { return desk
 export async function saveTutorSettings(input: { personality: string; custom_instruction: string }): Promise<TutorSettings> { return desktopFetch<TutorSettings>("/settings/tutor", { method: "PUT", body: JSON.stringify(input) }); }
 export async function fetchLearnerSettings(): Promise<LearnerSettings> { return desktopFetch<LearnerSettings>("/settings/learner"); }
 export async function saveLearnerSettings(stage: LearnerStage | null, grade: number | null): Promise<LearnerSettings> { return desktopFetch<LearnerSettings>("/settings/learner", { method: "PUT", body: JSON.stringify({ stage, grade }) }); }
-export async function fetchQuestionBank(stage?: LearnerStage | null): Promise<QuestionBank> { return desktopFetch<QuestionBank>(stage ? `/question-bank?stage=${encodeURIComponent(stage)}` : "/question-bank"); }
-export async function fetchBankPoint(code: string): Promise<BankPointDetail> { return desktopFetch<BankPointDetail>(`/question-bank/points/${encodeURIComponent(code)}`); }
+export async function fetchQuestionBank(stage?: LearnerStage | null): Promise<QuestionBank> { return desktopFetch<QuestionBank>(stage ? `/exercise-bank?stage=${encodeURIComponent(stage)}` : "/exercise-bank"); }
+export async function fetchBankPoint(code: string): Promise<BankPointDetail> { return desktopFetch<BankPointDetail>(`/exercise-bank/points/${encodeURIComponent(code)}`); }
 export async function fetchCostSettings(): Promise<CostSettings> { return desktopFetch<CostSettings>("/settings/cost"); }
 export async function saveCostSettings(input: CostSettingsInput): Promise<CostSettings> { return desktopFetch<CostSettings>("/settings/cost", { method: "PUT", body: JSON.stringify(input) }); }
 
