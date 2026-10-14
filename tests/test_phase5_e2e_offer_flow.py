@@ -270,7 +270,7 @@ async def test_offer_flow_survives_restart_between_solve_and_accept(tmp_path: Pa
 
 
 async def test_l5_solution_shown_offers_practice(tmp_path: Path) -> None:
-    """An explicit zero-hint solution creates a B offer, not reflection,
+    """An explicit solution after one hint creates a B offer, not reflection,
     a completed parent or evidence of the student's understanding."""
     db_file = tmp_path / "math_tutor.db"
     reset_product_state()
@@ -278,6 +278,8 @@ async def test_l5_solution_shown_offers_practice(tmp_path: Path) -> None:
     with _client(db_file) as client:
         with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
             _send(ws, "submit_problem", {"text": "2x + 3 = 7"})
+            _collect(ws)
+            _send(ws, "request_hint", {})
             _collect(ws)
             _send(ws, "request_solution", {})
             events = _collect(ws)

@@ -69,15 +69,17 @@ def test_unknown_then_clarified_answer_is_actually_verified(tmp_path):
         assert count(db, "mastery_evidence") == 1
 
 
-@pytest.mark.parametrize("text, followup", [("我算得 x=3，直接给我答案", "SHOW_SOLUTION"),
+@pytest.mark.parametrize("text, followup", [("我算得 x=3，直接给我答案", "HINT_REQUIRED"),
                                           ("x=2，给我讲一下", "EXPLAIN_CONCEPT")])
 def test_composite_request_commits_answer_before_assistance(tmp_path, text, followup):
     db = tmp_path / "binding.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "send_message", "problem", {"text": "2x+3=7"})
         result = send(ws, "send_message", "composite", {"text": text})
-        assert not [f for f in result if f["event_type"] == "turn_error"]
-        assert followup in str(result)
+        errors = [f["payload"]["error_code"] for f in result if f["event_type"] == "turn_error"]
+        # An answer request without a hint is refused only after the attempt commits.
+        assert errors == ([followup] if followup == "HINT_REQUIRED" else [])
+        assert followup in str(result) and "SHOW_SOLUTION" not in str(result)
         assert count(db, "attempt_assessments") == 1
         with closing(sqlite3.connect(db)) as conn, conn:
             assert conn.execute("SELECT effective_assistance_level FROM mastery_evidence").fetchone()[0] == 0
@@ -130,6 +132,7 @@ def test_review_uses_bound_problem_and_does_not_create_extra_solution_action(tmp
     db = tmp_path / "binding.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "send_message", "problem", {"text": "2x+3=7"})
+        send(ws, "request_hint", "hint")
         send(ws, "request_solution", "solution")
         before = summary(client)
         assert next(a for a in before["allowed_actions"] if a["command"] == "request_solution")["label"] == "重新查看答案"
@@ -148,6 +151,7 @@ def test_legacy_solution_review_uses_verified_body_without_duplicate_exposure(tm
     db = tmp_path / "binding.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "send_message", "problem", {"text": "2x+3=7"})
+        send(ws, "request_hint", "hint")
         send(ws, "request_solution", "solution")
         n = count(db, "tutor_actions")
     with closing(sqlite3.connect(db)) as conn, conn:

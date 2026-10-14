@@ -91,13 +91,23 @@ def test_plain_json_scalars_remain_chat_text(text):
 
 
 @pytest.mark.parametrize("wrong_first", [False, True])
-def test_zero_hint_verified_solution_and_retry_actions(tmp_path, wrong_first):
+def test_solution_after_one_hint_and_retry_actions(tmp_path, wrong_first):
     db = tmp_path / "p0.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "submit_problem", "problem", {"text": "2x+3=7"})
         if wrong_first:
             send(ws, "submit_attempt", "wrong", {"answer": "3"})
             assert summary(client)["state"] == "awaiting_retry"
+        before = summary(client)
+        gate = next(a for a in before["allowed_actions"] if a["command"] == "request_solution")
+        assert not gate["enabled"] and gate["reason_code"] == "HINT_REQUIRED"
+        assert "request_solution" not in before["allowed_next_inputs"]
+        refused = send(ws, "request_solution", "early")
+        assert [f["payload"]["error_code"] for f in refused if f["event_type"] == "turn_error"] == ["HINT_REQUIRED"]
+        assert "SHOW_SOLUTION" not in json.dumps(refused)
+        after = summary(client)
+        assert (after["state"], after["state_version"]) == (before["state"], before["state_version"])
+        send(ws, "request_hint", "hint")
         assert "request_solution" in summary(client)["allowed_next_inputs"]
         result = send(ws, "request_solution", "solution")
         assert not [f for f in result if f["event_type"] == "turn_error"]

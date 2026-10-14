@@ -420,6 +420,10 @@ class MathTutorController:
                 await stream.error(str(exc), source=self.manifest.name)
             return
         if command == SEND_MESSAGE_COMMAND:
+            from mathtutor.application.function_graph import is_graph_request
+            if is_graph_request(str(payload.get("text", ""))):
+                await self._function_graph(owner.student_id, session, bound_verified, str(payload.get("text", "")), stream)
+                return
             knowledge = getattr(self, "knowledge", None)
             if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
                 from mathtutor.application.student_contract import REVIEW_STATES, session_contract
@@ -693,6 +697,60 @@ class MathTutorController:
             "cycle_state_version": session.version if session else 0,
             "allowed_next_inputs": student_allowed_inputs(session.state) if session else [],
         })
+
+    async def _function_graph(self, owner_id, session, verified, text, stream):
+        """Draw a server-computed graph; the model never supplies points.
+
+        While the bound problem is open, zeros and intersections stay
+        unmarked, and a graph of that problem is recorded as help.
+        """
+        from mathtutor.application.function_graph import (
+            GRAPH_ACTION, GRAPHABLE_TYPES, GraphInputError, extract_function_text, graph_for_function, graph_for_problem)
+        from mathtutor.application.student_contract import REVIEW_STATES, verified_binding
+        bound = bool(session and verified_binding(verified) and session.state != CycleState.CLOSED)
+        open_problem = bound and session.state not in REVIEW_STATES
+        source = extract_function_text(text)
+        example = "可以这样写：画出 y = x^2 - 2x - 3 的图像。"
+        try:
+            if source:
+                content = graph_for_function(source, reveal=not open_problem)
+            elif bound and verified[0].problem_type in GRAPHABLE_TYPES:
+                content = graph_for_problem(verified[0].problem_type, verified[0].normalized_ast, reveal=not open_problem)
+            else:
+                await self._dialogue(stream, session, f"请告诉我要画哪个函数。{example}", "TUTOR_CHAT")
+                return
+        except GraphInputError as exc:
+            await self._dialogue(stream, session, f"{exc}。{example}", "TUTOR_CHAT")
+            return
+        if open_problem and not source:
+            await self._record_graph_help(owner_id, session, verified)
+        await self._dialogue(stream, session, content, GRAPH_ACTION)
+
+    async def _record_graph_help(self, owner_id, session, verified):
+        # Same delivery ledger as hints: a later attempt counts as assisted
+        # once the client acknowledges that the graph was shown.
+        from mathtutor.application.tutor_runtime import current_turn
+        from mathtutor.pedagogy.teaching_plan import current_subgoal
+        teaching_context = await self._teaching_context(owner_id, session, verified)
+        problem = verified[0]
+        turn = current_turn.get()
+        delivery_id = f"graph:{session.cycle.cycle_id}:{turn.turn_id if turn else uuid4()}"
+        delivery = {"session_id": str(session.session_id), "problem_id": str(problem.problem_id),
+            "problem_revision": problem.content_hash, "item_family_id": problem.problem_type,
+            "skill_ids": teaching_context["skill_ids"], "subgoal_id": current_subgoal(teaching_context)["id"],
+            "help_kind": "explanation", "target_answer_exposed": False, "delivery_id": delivery_id,
+            "request_id": turn.turn_id if turn is not None else delivery_id, "target_answer_authorized": False}
+        await self.sessions.teaching.delivery(owner_id, session.cycle.cycle_id, delivery_id, delivery)
+        tracking = getattr(self.sessions, "student_state", None)
+        if tracking is not None:
+            for phase in ("help_requested", "help_committed"):
+                await tracking.record_help(owner_id, event_id=f"{delivery_id}:{phase}",
+                    cycle_id=str(session.cycle.cycle_id), event_type=phase, **delivery)
+        await self.mark_delivery(owner_id, delivery_id, "possibly_exposed")
+        if turn is not None:
+            data = json.loads(getattr(turn, "continuation_context", "") or "{}")
+            data["delivery_id"] = delivery_id
+            turn.continuation_context = json.dumps(data, ensure_ascii=False)
 
     async def _continue_active_problem(
         self,
@@ -1877,10 +1935,20 @@ class MathTutorController:
                 verified_ref=ref,
             )
         except DisclosurePolicyViolation as exc:
+            # A refusal leaves the cycle version unchanged, so an open
+            # checkpoint would make a replay rerun only this refused half.
+            from mathtutor.application.tutor_runtime import current_turn
+            turn = current_turn.get()
+            context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
+            pending = (context or {}).get("pending_expression") or {}
+            if pending.get("request_id") in {turn.turn_id if turn else None, idempotency_key}:
+                context.pop("pending_expression")
+                await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+            code = getattr(exc, "error_code", "")
             await stream.error(
-                f"当前策略不允许这个操作：{exc}",
+                str(exc) if code else f"当前策略不允许这个操作：{exc}",
                 source=self.manifest.name,
-                metadata={"cycle_state": session.state.value},
+                metadata={"cycle_state": session.state.value, **({"error_code": code} if code else {})},
             )
             return
         from mathtutor.domain.tutoring import TutorAction

@@ -287,6 +287,7 @@ export interface StudentSummary {
   skills: SkillSummary[];
   total_attempts: number;
   active_misconceptions: number;
+  misconceptions?: {rule_id: string; label: string; skill_ids: string[]; last_seen_at: string | null}[];
   schema_version?: string;
   has_conversations?: boolean;
   has_independent_evidence?: boolean;
@@ -357,8 +358,11 @@ export interface ExportSkill {
 
 export interface ExportMisconception {
   rule_id: string;
+  label?: string;
+  skill_ids?: string[];
+  last_seen_at?: string | null;
   status: string;
-  confidence: number;
+  confidence: number | null;
 }
 
 export interface StudentExport {

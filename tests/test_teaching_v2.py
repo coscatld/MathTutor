@@ -61,6 +61,7 @@ def test_solution_delivery_is_not_reflection_or_mastery(tmp_path):
     db = tmp_path / "v2.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "submit_problem", "p", {"text": "2x+3=7"})
+        send(ws, "request_hint", "hint")
         shown = terminal(send(ws, "request_solution", "solution"))
         assert shown["delivery_id"]
         ws.send_json({"type": "delivery_presented", "delivery_id": shown["delivery_id"]})
@@ -155,13 +156,14 @@ def test_final_disclosure_downgrade_is_consistent_across_action_delivery_and_evi
     db = tmp_path / "downgrade.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "submit_problem", "p", {"text": "2x+3=7"})
+        send(ws, "request_hint", "hint")
         answer = terminal(send(ws, "request_solution", "solution"))
         current = summary(client)
         assert current["state"] == "awaiting_attempt" and current["active_offer"] is None
         assert current["teaching_plan"]["max_assistance_level"] == 1
         assert "x=2" not in answer["payload"]["final_text"]
         with closing(sqlite3.connect(db)) as conn, conn:
-            assert conn.execute("SELECT action,effective_assistance_level,solution_visibility FROM tutor_actions").fetchall() == [("GIVE_HINT", 1, "hint")]
+            assert conn.execute("SELECT action,effective_assistance_level,solution_visibility FROM tutor_actions").fetchall() == [("GIVE_HINT", 1, "hint")] * 2
         assert all(not e["target_answer_exposed"] for e in event_rows(db) if e["event_type"].startswith("help_"))
 
 
@@ -267,6 +269,7 @@ def test_seen_solution_then_repeat_same_problem_in_new_conversation_is_not_indep
     db = tmp_path / "v2.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         send(ws, "submit_problem", "p", {"text": "2x+3=7"})
+        send(ws, "request_hint", "hint")
         send(ws, "request_solution", "solution")
         send(ws, "submit_problem", "new-p", {"text": "2x+3=7"}, session="other")
         send(ws, "send_message", "repeat", {"text": "x=2"}, session="other")

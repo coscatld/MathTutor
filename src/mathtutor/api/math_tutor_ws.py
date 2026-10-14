@@ -299,9 +299,12 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                 role="student", content=display_text, event_key=f"student:{event_key}", attachments=attachments)
         # Evidence keys are globally unique; a client key is only conversation-local.
         envelope["idempotency_key"] = content_hash({"owner": key[0], "conversation": key[1], "request": key[2]})
+        from mathtutor.application.function_graph import summarize_graph_blocks
         request = MathTutorRequest(session_id=session_id,
             user_message=json.dumps(envelope, ensure_ascii=False), owner=owner,
-            conversation_messages=tuple(await state.conversations.messages(owner.student_id, session_id)))
+            # Graph point data is for drawing only; models see a one-line placeholder.
+            conversation_messages=tuple({**m, "content": summarize_graph_blocks(m.get("content", ""))}
+                for m in await state.conversations.messages(owner.student_id, session_id)))
         stream = MathTutorEventStream()
         turn = TutorTurnResult(turn_id=event_key, conversation_id=session_id)
         started = time.monotonic()

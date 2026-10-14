@@ -7,6 +7,8 @@ import { actionLabel, normalizeAssistanceLevel } from "../lib/protocol";
 import type { TutorMessage } from "../types";
 import { supportExposureLabel } from "../lib/teaching-contract";
 import ImageAttachments from "./ImageAttachments";
+import FunctionGraph from "./FunctionGraph";
+import { GRAPH_ACTION, splitGraphMessage } from "../lib/function-graph";
 
 /**
  * One tutor message. Shows the student-facing message plus the current
@@ -33,6 +35,8 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
   }
 
   const label = actionLabel(message.action);
+  // Only the server sets SHOW_GRAPH; graph blocks in any other message stay plain text.
+  const graph = message.action === GRAPH_ACTION ? splitGraphMessage(message.text) : null;
   const level = normalizeAssistanceLevel(message.assistanceLevel);
 
   return (
@@ -47,7 +51,11 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
           {level > 0 && <span className="mt-chip mt-chip-warn">已展示：{supportExposureLabel(level)}</span>}
         </div>
         <div className="mt-answer-text">
-          <MarkdownRenderer content={message.text} enableMath />
+          {graph?.spec ? <>
+            {graph.before ? <MarkdownRenderer content={graph.before} enableMath /> : null}
+            <FunctionGraph spec={graph.spec} />
+            {graph.after ? <MarkdownRenderer content={graph.after} enableMath /> : null}
+          </> : <MarkdownRenderer content={message.text} enableMath />}
           {message.status === "PARTIAL" && <div role="status" className="mt-3 border-l-2 border-[var(--border)] pl-3 text-sm leading-6 text-[var(--muted-foreground)]">这段还没讲完，末尾的公式和结论可能不完整。{onContinue ? <button type="button" className="ml-2 min-h-9 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>继续讲完</button> : "请接着查看后续回复。"}</div>}
           {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-[var(--primary-text)] underline underline-offset-2" onClick={onRecover}>重新同步</button>}
         </div>

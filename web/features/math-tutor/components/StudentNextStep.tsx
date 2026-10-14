@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, CornerUpLeft, Lightbulb, PencilLine, Shapes } from "lucide-react";
+import { ArrowRight, ChartSpline, Check, CornerUpLeft, Lightbulb, PencilLine, Shapes } from "lucide-react";
 import { isAcceptableOffer, offerPurposeLabel, teachingReasonLabels } from "../lib/teaching-contract";
 import type { ActiveOffer, AllowedAction, EvidenceSummary, MathTutorCommand, ProblemContext, TeachingPlan } from "../types";
 
@@ -75,6 +75,7 @@ export default function StudentNextStep({ context, plan, evidence, offer, action
           else onCommand(command);
         }}><Icon className="h-4 w-4" aria-hidden="true" />{command === "submit_attempt" && context?.choices ? "我来选" : label}</button>;
       })}
+      {active && context?.graphable && !checking ? <button type="button" disabled={busy || disabled} className="mt-step-button" title="画出这道题对应的函数图像" onClick={() => { if (!busy && !disabled) onCommand("send_message", { text: "画出这道题的函数图像" }); }}><ChartSpline className="h-4 w-4" aria-hidden="true" />看图像</button> : null}
       {canSelfReport && !checking ? <button type="button" disabled={busy || disabled} className="mt-step-button" onClick={() => { if (!busy && !disabled) onCommand("send_message", { text: "我懂了" }); }}><Check className="h-4 w-4" aria-hidden="true" />我懂了，检查一下</button> : null}
       {hasAction("resume_problem") ? <button type="button" className="mt-step-button" disabled={!enabled("resume_problem")} onClick={() => { if (enabled("resume_problem")) onCommand("resume_problem"); }}><CornerUpLeft className="h-4 w-4" aria-hidden="true" />回到原题</button> : null}
       {checking && hasAction("skip_diagnostic") ? <button type="button" className="mt-step-button" disabled={!enabled("skip_diagnostic")} onClick={() => { if (enabled("skip_diagnostic")) onCommand("skip_diagnostic"); }}>跳过检查，回到原题</button> : null}

@@ -48,8 +48,9 @@ class StagePolicy(BaseModel):
     # Assistance ladder rules
     hint_escalation: tuple[int, ...]
     max_assistance_without_explicit_request: int
-    # Legacy metadata only; ordinary learning has no hint-count answer gate.
-    min_hints_for_solution: int = 0
+    # Hints the student must have received on an open problem before the full
+    # solution is shown. Reviewing a solved or already-shown problem is exempt.
+    min_hints_for_solution: int = 1
 
 
 PRIMARY_POLICY = StagePolicy(
@@ -67,7 +68,7 @@ PRIMARY_POLICY = StagePolicy(
     prefer_concrete_representation=True,
     # One hint at a time, escalate at most one level per request.
     hint_escalation=(1, 2, 3),
-    min_hints_for_solution=0,
+    min_hints_for_solution=1,
     max_assistance_without_explicit_request=1,
 )
 
@@ -86,7 +87,7 @@ MIDDLE_POLICY = StagePolicy(
     prefer_concrete_representation=False,
     hint_escalation=(2, 3, 4),
     max_assistance_without_explicit_request=2,
-    min_hints_for_solution=0,
+    min_hints_for_solution=1,
 )
 
 HIGH_POLICY = StagePolicy(
@@ -104,7 +105,7 @@ HIGH_POLICY = StagePolicy(
     prefer_concrete_representation=False,
     hint_escalation=(2, 3, 4, 5),
     max_assistance_without_explicit_request=3,
-    min_hints_for_solution=0,
+    min_hints_for_solution=1,
 )
 
 STAGE_POLICIES: dict[Stage, StagePolicy] = {
@@ -115,7 +116,7 @@ STAGE_POLICIES: dict[Stage, StagePolicy] = {
 
 # No grade is inferred from a problem family or an unobserved student. This
 # neutral expression budget is refined by the persisted TeachingPlan; it is
-# not a global learner level and never unlocks disclosure by hint count.
+# not a global learner level; hint count only gates the full solution.
 ADAPTIVE_POLICY = MIDDLE_POLICY.model_copy(update={
     "policy_id": "mt-evidence-adaptive", "version": "3", "stage": "unspecified",
     "grade_min": 0, "grade_max": 0, "allow_multi_method": True,

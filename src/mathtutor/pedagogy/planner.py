@@ -19,8 +19,13 @@ from uuid import UUID, uuid4
 from mathtutor.application.state_machine import CycleCommand, CycleState
 from mathtutor.domain.solution import VerifiedSolutionRef
 from mathtutor.domain.tutoring import TutorAction
-from mathtutor.pedagogy.exceptions import DisclosurePolicyViolation
+from mathtutor.pedagogy.exceptions import DisclosurePolicyViolation, HintRequiredForSolution
 from mathtutor.pedagogy.stage_policy import StagePolicy
+
+SOLUTION_REVIEW_STATES = frozenset({
+    CycleState.SOLVED, CycleState.SOLUTION_SHOWN, CycleState.REFLECTION,
+    CycleState.PRACTICE_OFFERED, CycleState.CLOSED,
+})
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +41,13 @@ class CycleAssistance:
         (primary), bounded by the ladder length."""
         index = min(self.hints_issued, len(policy.hint_escalation) - 1)
         return policy.hint_escalation[index]
+
+
+def solution_needs_hint(state: CycleState, policy: StagePolicy, assistance: CycleAssistance | None) -> bool:
+    """Whether a full-solution request must first be preceded by a hint."""
+    assistance = assistance or CycleAssistance()
+    return (state not in SOLUTION_REVIEW_STATES and assistance.max_level_issued < 5
+            and assistance.hints_issued < policy.min_hints_for_solution)
 
 
 class PedagogyPlanner:
@@ -86,8 +98,12 @@ class PedagogyPlanner:
                     "这道题的完整解答尚未通过验证，暂时不能展示。"
                     "你可以继续尝试，或先请求一个提示。"
                 )
-            # Ordinary learning: an explicit request plus a verified solution
-            # is sufficient. Hint count is not an answer-access credential.
+            # An open problem needs the policy's hint minimum first; a solved
+            # or already-shown problem may always be reviewed.
+            if solution_needs_hint(state, policy, assistance):
+                raise HintRequiredForSolution(
+                    "先看一次提示，自己再试一步；看过提示后仍然可以查看完整答案。"
+                )
             return self._action("SHOW_SOLUTION", 5, "full", policy)
         if command == CycleCommand.DIAGNOSIS_AMBIGUOUS or command == CycleCommand.DIAGNOSIS_CORRECT:
             return self._action("ASK_STUDENT", 0, "none", policy)

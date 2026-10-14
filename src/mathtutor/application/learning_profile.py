@@ -1,8 +1,33 @@
 """Evidence-first public projections. Model probabilities stay internal."""
 from urllib.parse import urlencode
 
+from mathtutor.learning.diagnosis import RULES
 from mathtutor.learning.knowledge_tracing.events import evidence_summary, valid_events
 from mathtutor.learning.skill_graph import SKILLS
+
+_RULE_BY_SIGNAL = {signal: rule for rule in RULES for signal in rule.signals}
+
+
+def active_misconceptions(accepted):
+    """Diagnosis rules seen in a wrong or partial attempt on a skill and not
+    yet followed by an independent correct attempt on that skill."""
+    active = {}
+    attempts = [e for e in accepted if e.event_type == "attempt_assessed" and not e.duplicate_response]
+    for event in sorted(attempts, key=lambda e: (e.event_seq, e.occurred_at, e.event_id)):
+        if event.independent_target and event.correctness == "correct":
+            for key in [k for k in active if k[1] in event.skill_ids]:
+                del active[key]
+        elif event.correctness in ("incorrect", "partial"):
+            for signal in event.misconception_codes:
+                rule = _RULE_BY_SIGNAL.get(signal)
+                for skill in event.skill_ids if rule else ():
+                    active[(rule.rule_id, skill)] = (rule, event.occurred_at)
+    by_rule = {}
+    for (rule_id, skill), (rule, seen) in active.items():
+        row = by_rule.setdefault(rule_id, {"rule_id": rule_id, "label": rule.title, "skill_ids": [], "last_seen_at": seen})
+        row["skill_ids"].append(skill)
+        row["last_seen_at"] = max(row["last_seen_at"] or "", seen or "") or None
+    return sorted(by_rule.values(), key=lambda row: row["rule_id"])
 
 
 def profile_projection(history, *, has_conversations=False, model_status="not_trained"):
@@ -37,11 +62,13 @@ def profile_projection(history, *, has_conversations=False, model_status="not_tr
             "last_checked_at": max((e.occurred_at for e in events), default=None),
             "evidence_count": len(events), "next_action": "查看推荐练习",
             "next_href": "/math-tutor/offers?" + urlencode({"skill": code})})
+    misconceptions = active_misconceptions(accepted)
     return {"schema_version": "learning_profile_v1", "skills": rows,
         "last_event_seq": summary["last_event_seq"], "model_status": model_status,
         "coverage": {"supported_skills": len(SKILLS), "observed_skills": sum(r["evidence_count"] > 0 for r in rows)},
         "total_attempts": sum(e.event_type == "attempt_assessed" and not e.duplicate_response for e in accepted),
-        "active_misconceptions": 0, "has_conversations": has_conversations,
+        "active_misconceptions": len(misconceptions), "misconceptions": misconceptions,
+        "has_conversations": has_conversations,
         "has_independent_evidence": any(e.independent_target for e in accepted)}
 
 

@@ -23,7 +23,7 @@ export function projectProblemContext(value: unknown): ProblemContext | null {
   const subgoal = record(raw.current_subgoal);
   const choices = projectChoices(raw.choices);
   return { problem_id: text(raw.problem_id), display_text: text(raw.display_text), skill_ids: strings(raw.skill_ids),
-    lifecycle: text(raw.lifecycle), ...(typeof raw.understanding_check === "boolean" ? { understanding_check: raw.understanding_check } : {}), ...(choices ? {choices} : {}), current_subgoal: subgoal ? { id: text(subgoal.id), prompt_target: text(subgoal.prompt_target), status: text(subgoal.status) } : null };
+    lifecycle: text(raw.lifecycle), ...(typeof raw.understanding_check === "boolean" ? { understanding_check: raw.understanding_check } : {}), ...(typeof raw.graphable === "boolean" ? { graphable: raw.graphable } : {}), ...(choices ? {choices} : {}), current_subgoal: subgoal ? { id: text(subgoal.id), prompt_target: text(subgoal.prompt_target), status: text(subgoal.status) } : null };
 }
 
 export function projectChoices(value: unknown): ChoiceSet | null {

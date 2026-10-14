@@ -38,8 +38,8 @@
 
 | ID | 要求 | 当前状态 | 已有行为证据与验收缺口 |
 |---|---|---|---|
-| C01 | 真实按钮展示当前完整答案 | 已实现 | 前端按钮仅发送 `request_solution`；真实 UI 演示 3 在 `4x-1=19` 零提示点击索解，展示完整验证解答 `x=5` 与 B 邀请，随后原题复述正确进入 post_solution。 |
-| C02 | 零提示允许明确索解 | 已实现 | `test_zero_hint_verified_solution_and_retry_actions` 覆盖 `wrong_first=False`；普通学习策略已取消三次提示前置条件。 |
+| C01 | 真实按钮展示当前完整答案 | 已实现 | 前端按钮仅发送 `request_solution`；0.4.5 之后需先看过一次提示，下面的零提示演示是更早的行为记录；真实 UI 演示 3 在 `4x-1=19` 零提示点击索解，展示完整验证解答 `x=5` 与 B 邀请，随后原题复述正确进入 post_solution。 |
+| C02 | 未解决的题目先看一次提示再索解 | 已实现（取代原「零提示允许明确索解」） | `StagePolicy.min_hints_for_solution = 1`，规划器拒绝时返回 `HINT_REQUIRED`、不推进状态，能力快照同步置灰；已答对、已看过答案的题目可回看。`test_solution_after_one_hint_and_retry_actions`、`tests/test_solution_hint_gate.py` 覆盖。 |
 | C03 | 答错后仍可索解 | 已实现 | 同一参数化回归覆盖 `AWAITING_RETRY`；状态与公开能力允许解释、示例和答案。 |
 | C04 | 旧内部名仅作为受限兼容请求 | 已实现 | `test_legacy_alias_is_only_a_version_one_request`：协议 v1 归一化后再校验；协议 v2 拒绝内部事件名。 |
 | C05 | 所有 enabled 动作都能由公开解析器识别 | 已实现 | 静态状态全表和 `test_c05_all_observed_enabled_capabilities_are_public_parseable_commands` 双重覆盖。后者走真实练习/接受/返回、诊断错误/跳过/C、独立完成/到期 E，逐个校验 enabled 命令通过公开解析器和 allowlist；前端不显示内部事件。 |
@@ -161,6 +161,6 @@
 |---|---|---|
 | 1. 自然语言独立答对→迁移练习 | 已通过 | `2x+3=7` 首次答 `x=2` → A1 → 接受子题 `3x-5=4`；重启后仍保留 child 焦点与历史。 |
 | 2. 持续卡住→局部示范/补基础→返回原题 | 已通过 | 父题 `3x+2=11` 两次困惑后展示验证移项 `3x-9=0`；错误 `3x=13` 后真实 C。子题 `x+2=7` 不先展示答案，答 `x=5` 独立计数 1；返回父题仍 awaiting_retry、受助 1/独立 0、原目标保留。 |
-| 3. 点击完整答案→同构检测→证据分流 | 已通过 | `4x-1=19` 零提示真实点击完整答案，显示 `x=5` 与 B；复述 `x=5` 后 post_solution 1/独立 0；接受 `3x-2=16`，首次答 `x=6` 独立 1并产生 A1。 |
+| 3. 点击完整答案→同构检测→证据分流 | 已通过（零提示版本，需按新门槛重验） | `4x-1=19` 零提示真实点击完整答案，显示 `x=5` 与 B；复述 `x=5` 后 post_solution 1/独立 0；接受 `3x-2=16`，首次答 `x=6` 独立 1并产生 A1。 |
 
 以上由真实浏览器操作验证，使用隔离数据库 `/tmp/mathtutor-v2-ui.BtAUfM/math_tutor.db`。数据库复查确认三条 UI 帮助的 help_presented ACK；路径 3 的目标答案暴露、原题 post_solution 和新题 independent 均真实落库。另用“这个我听不懂，是什么意思”进入同题讲解；“我不太懂”在 `5x+1=26` 进入 `5x-25=0` 的已验证局部示范，两条也有实际呈现 ACK。该 UI 会话未配置模型，语义来源为离线规则。LLM 语义调用链由可控 Provider 自动回归验证，不将其写成真实模型质量评测。

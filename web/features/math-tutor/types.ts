@@ -126,6 +126,7 @@ export interface TeachingPlan {
 
 export interface ProblemContext {
   understanding_check?: boolean;
+  graphable?: boolean;
   choices?: ChoiceSet | null;
   problem_id: string;
   display_text: string;

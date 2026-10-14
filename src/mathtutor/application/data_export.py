@@ -96,7 +96,7 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
     "student_summary.skills.evidence_summary": frozenset({"independent", "assisted", "post_solution", "diagnostic", "ungradable", "step_correct", "joint_task_evidence", "duplicate_responses", "repeat_attempts"}),
     "student_summary.skills.binary_counts": frozenset({"correct", "incorrect"}),
     "student_summary.active_misconceptions": frozenset(
-        {"rule_id", "status", "confidence"}
+        {"rule_id", "label", "status", "confidence", "skill_ids", "last_seen_at"}
     ),
 }
 
@@ -228,9 +228,10 @@ async def export_evidence_summary(student_id, *, uow=None, student_state=None):
     from mathtutor.learning.knowledge_tracing.service import StudentStateService
     if uow is None:
         snapshot = await student_state.summary(student_id) if student_state else {"skills": [], "last_event_seq": 0}
+        events = await student_state.events(student_id) if student_state else []
         return {"total_attempts": sum(snapshot.get("totals", {}).values()), "estimator_version": "evidence_tracker_v2",
                 "projection_version": snapshot["last_event_seq"], "skills": _export_skills(snapshot["skills"]),
-                "active_misconceptions": [], "model_status": snapshot.get("dkt_mode", "not_trained")}
+                "active_misconceptions": _export_misconceptions(events), "model_status": snapshot.get("dkt_mode", "not_trained")}
     tracker = student_state or StudentStateService(uow.engine)
     async with uow.transaction() as conn:
         snapshot = await tracker.summary(student_id, conn=conn)
@@ -239,7 +240,6 @@ async def export_evidence_summary(student_id, *, uow=None, student_state=None):
         total_attempts = int((await conn.execute(select(func.count()).select_from(attempts).where(
             attempts.c.student_id == student_id))).scalar() or 0)
         legacy = await sqlite_education.load_evidence_for_student(conn, student_id)
-        projection = await sqlite_education.load_student_projection(conn, student_id)
     rows = {row["skill_id"]: row for row in _export_skills(snapshot["skills"])}
     # Exporting cannot silently migrate. If a legacy import has not happened,
     # expose only the known observation count with uncertain provenance.
@@ -254,9 +254,17 @@ async def export_evidence_summary(student_id, *, uow=None, student_state=None):
         row["evidence_summary"]["ungradable"] += 1
     return {"total_attempts": total_attempts, "estimator_version": "evidence_tracker_v2",
             "projection_version": snapshot["last_event_seq"], "skills": [rows[k] for k in sorted(rows)],
-            "active_misconceptions": [{"rule_id": item["rule_id"], "status": item.get("status"), "confidence": None}
-                for item in (projection or {}).get("active_misconceptions", ()) if isinstance(item, dict) and "rule_id" in item],
+            "active_misconceptions": _export_misconceptions(events),
             "model_status": snapshot.get("dkt_mode", "not_trained")}
+
+
+def _export_misconceptions(events):
+    """Same projection as the learning profile; no model confidence is claimed."""
+    from mathtutor.application.learning_profile import active_misconceptions
+    from mathtutor.learning.knowledge_tracing.events import valid_events
+    return [{"rule_id": row["rule_id"], "label": row["label"], "status": "active", "confidence": None,
+             "skill_ids": list(row["skill_ids"]), "last_seen_at": row["last_seen_at"]}
+            for row in active_misconceptions(valid_events(events))]
 
 
 def _export_skills(rows):

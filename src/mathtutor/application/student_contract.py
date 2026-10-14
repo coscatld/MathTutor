@@ -85,17 +85,23 @@ async def session_contract(store, owner_id, session, *, processing=False):
         if context.get("diagnosis", {}).get("status") == "running":
             allowed.append("skip_diagnostic")
     assistance = await store.load_assistance(owner_id, session.cycle.cycle_id) if session else None
+    from mathtutor.pedagogy.planner import solution_needs_hint
+    from mathtutor.pedagogy.stage_policy import ADAPTIVE_POLICY
+    needs_hint = bool(session) and solution_needs_hint(session.state, ADAPTIVE_POLICY, assistance)
     actions = []
     for command in dict.fromkeys([*TEACHING_COMMANDS, *allowed]):
-        enabled = not processing and command in allowed and (valid or command not in TEACHING_COMMANDS)
-        reason = "AVAILABLE" if enabled else "REQUEST_IN_PROGRESS" if processing else "NO_CURRENT_PROBLEM" if not session else "NO_VERIFIED_SOLUTION" if not valid else "ACTION_NOT_APPLICABLE"
+        gated = command == "request_solution" and needs_hint
+        enabled = not processing and command in allowed and (valid or command not in TEACHING_COMMANDS) and not gated
+        reason = "AVAILABLE" if enabled else "REQUEST_IN_PROGRESS" if processing else "NO_CURRENT_PROBLEM" if not session else "NO_VERIFIED_SOLUTION" if not valid else "HINT_REQUIRED" if gated and command in allowed else "ACTION_NOT_APPLICABLE"
         actions.append({"command": command, "enabled": enabled, "reason_code": reason,
                         "description": {"AVAILABLE": "", "NO_CURRENT_PROBLEM": "请先发来要辅导的题目。",
                                         "NO_VERIFIED_SOLUTION": "当前题目还没有可用的验证解答，请补充题目。",
                                         "ACTION_NOT_APPLICABLE": "当前阶段暂不能使用这个操作。",
+                                        "HINT_REQUIRED": "先看一次提示再试试，之后可以查看完整答案。",
                                         "REQUEST_IN_PROGRESS": "正在处理上一条请求，请稍候。"}[reason],
                         "label": "重新查看答案" if command == "request_solution" and assistance and assistance.max_level_issued == 5 else ""})
     from mathtutor.pedagogy.teaching_plan import public_context
+    from mathtutor.application.function_graph import GRAPHABLE_TYPES
     evidence = {"independent": 0, "assisted": 0, "post_solution": 0, "diagnostic": 0, "ungradable": 0, "status": "尚无独立检测证据"}
     tracking = getattr(store, "student_state", None)
     if tracking:
@@ -111,7 +117,7 @@ async def session_contract(store, owner_id, session, *, processing=False):
             "effective_assistance_level": assistance.max_level_issued if assistance else 0,
             "allowed_actions": actions, "allowed_next_inputs": [a["command"] for a in actions if a["enabled"]],
             "teaching_plan": context.get("last_plan") if context else None,
-            "problem_context": public_context(context) if context and valid else None,
+            "problem_context": {**public_context(context), "graphable": verified[0].problem_type in GRAPHABLE_TYPES} if context and valid else None,
             "evidence_summary": evidence, "active_offer": active_offer,
             "diagnosis": context.get("diagnosis") if context else None,
             "recovery_problem": context.get("recovery_problem") if context else None}
