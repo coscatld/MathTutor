@@ -29,9 +29,10 @@ flowchart LR
 
 | 场景 | 功能 |
 |---|---|
-| 数学辅导 | 对受支持的算术、方程、多项式等题型解析、求解和验证，结合学生作答提供分级提示与反馈 |
+| 数学辅导 | 对受支持的算术、方程、多项式等题型解析、求解和验证，结合学生作答提供分级提示与反馈；未解决的题目先看过一次提示才能查看完整答案 |
+| 函数图像 | 说「画出 y = x^2 - 2x - 3 的图像」或在题目下点「看图像」；坐标由本地服务计算，标出交点、顶点，题目未完成时不标答案点 |
 | 初次使用 | 配置模型服务；通过可跳过的 10 道选择题初评获得暂定练习起点 |
-| 练习与学习记录 | 保存会话、作答与可信学习事件，提供练习邀请、学习画像和阶段复盘 |
+| 练习与学习记录 | 保存会话、作答与可信学习事件，提供练习邀请、学习画像（含诊断出的错误概念）和阶段复盘 |
 | 自有资料问答 | 导入文本、Markdown 和可提取文字的 PDF，检索相关片段并查看引用原文 |
 | 知识库管理 | 管理资料空间、版本、标签、双向链接、检索范围、草稿与笔记，区分当前证据和历史引用凭证 |
 | 受控模型工具 | 在知识模式下允许检索、读取、验证、草拟、保存笔记和提出练习；所有工具均由应用授权并执行 |
@@ -49,6 +50,7 @@ flowchart LR
 | 教学与表达分层 | 确定性求解/验证、教学策略、模型表达和输出守卫分开；低提示等级不携带完整答案 | 模型措辞可以变化，答案披露边界仍由产品控制 |
 | 先授权、后检索 | owner、会话绑定、启用状态和资料范围在候选检索前进入 SQL/仓储约束 | 不依赖模型“自觉”避开无权读取的资料 |
 | 可追溯到原文区间 | 引用绑定资料版本、字符区间、正文哈希和读取凭证；猜测 ID、扩大区间、跨会话读取会被拒绝 | 可以回到模型实际依据的原文，而不是只看到一个文件名 |
+| 图像由应用计算 | 函数图像的坐标和标注点由白名单解析器在服务端计算，前端只绘制服务端标记的图像消息；模型不提供坐标 | 图上的交点、顶点不会是模型编造的 |
 | 应用授权的模型工具 | 只开放固定 schema 的知识与数学工具；没有 shell、任意 Python、SQL、联网或任意 MCP 权限 | 既能完成“查资料—读原文—核验—保存笔记”，又限制模型执行面 |
 | 来源支持与数学正确分开 | quote 要逐字存在，summary 要做支持检查；数学条件另由受限验证器或独立复核判断 | 不把“资料里这样写了”误当成“数学上一定正确” |
 | 完成性是一等状态 | 保存 `finish_reason`、步骤/token 预算、续写上下文和最终可见正文；截断、不确定拼接、失败模板保持 PARTIAL/FAILED | 用户能分辨完整回答和可继续恢复的部分回答 |
@@ -103,19 +105,33 @@ Context Redundancy 的记录值为 0.913，但 hard fixture 在检索前已经�
 
 ## 版本与发布状态
 
-当前源码版本为 **0.5.0**。源码版本、安装包工程验证和真实回答质量分别记录。
+当前源码版本为 **0.5.0**，数据库 migration head 为 **023**。源码版本、安装包工程验证和真实回答质量分别记录。
 
-0.5.0 改动教学策略并新增函数图像，数据库结构不变（migration head 仍为 023）：未解决的题目要先看过一次提示才能查看完整答案，已答对或已看过答案的题目仍可随时回看；学习画像的「活跃错误概念」改为按诊断规则统计，同一技能之后独立答对即视为解除。数据导出中的错误概念与画像使用同一统计。新增函数图像：说「画出 y = x^2 - 2x - 3 的图像」或在题目下点「看图像」，由服务端计算坐标、前端用 canvas 绘制，模型不提供任何坐标；题目未完成时不标出零点和交点，看过题目图像后的作答记为受助。
+### 0.5.0（当前正式版）
 
-0.4.4 正式版安装包附带已训练的 DKT（ASSISTments 2009，seed 29）。映射得上的技能用这份权重量出一个概率，并据此调整下一步提示和练习难度；概率不是掌握度，映射不上的技能仍为空。2026-09-30 的预发布安装包仍是影子模式，以本页发布记录中的 SHA-256 为准。发布说明见 [0.4.4 发布说明](docs/RELEASE_0.4.4.md)。
+- 未解决的题目要先看过一次提示，才能查看完整答案；已答对或已看过答案的题目仍可随时回看。
+- 学习画像的「活跃错误概念」按作答诊断出的错误规则统计，同一技能之后独立答对即视为解除；数据导出列出同样的错误概念。
+- 新增函数图像：服务端计算坐标，前端用 canvas 绘制。题目未完成时不标出零点和交点，看过这道题的图像后再作答记为「受助」。
+- 数据库结构不变，从 0.4.5 升级无需数据迁移。完整说明见 [CHANGELOG](CHANGELOG.md)。
 
-0.4.3 是界面版本：面向小初高学生重做了工作台视觉（单一冷蓝、白色画布、细边框、语义颜色变量），不改变教学策略、检索、验证、数据与数据库结构（migration head 仍为 023）。详见 [0.4.3 发布说明](docs/RELEASE_0.4.3.md)。
+### 发布记录
 
-- [`v0.4.3`](https://github.com/coscatld/MathTutor/releases/tag/v0.4.3) 以 pre-release 发布，附 **未签名** 的 Windows x64 工程安装包及 SHA-256；未完成实际安装/卸载验收，发布时未等待 CI。
-- 0.4.2 的 RAG 集成状态不变：[PR #2](https://github.com/coscatld/MathTutor/pull/2) 已合并，三平台源码 CI 曾通过；`v0.4.2` Release 页面没有安装包 assets。
-- 真实语义质量仍有历史失败项和待人工复核项。离线回放通过不等于真实模型质量通过。
+| 版本 | 内容 | 安装包（均 **未签名**） | SHA-256 |
+|---|---|---|---|
+| [`v0.5.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.5.0) | 先看提示再看答案、错误概念统计、函数图像 | `MathTutor-0.5.0-mac-arm64.dmg` | `3b7cd4da265e7a74a41b7a3a3a4fdbaf2bc0a71c55462e612a9e48dfd9c45861` |
+| | | `MathTutor-0.5.0-win-x64.exe` | `ab22ece2ee97b15a861ad81bb15a891c9f0eafadd4cbf9359519249bee27ac3a` |
+| [`v0.4.5`](https://github.com/coscatld/MathTutor/releases/tag/v0.4.5) | 页面风格与视觉焕新，不改教学策略 | `MathTutor-0.4.5-mac-arm64.dmg` | `f0f8e7f7c1d37ac57a9143fe59494c29c9433a5ca14cddb3634e119d573003ff` |
+| | | `MathTutor-0.4.5-win-x64.exe` | `b20771b1aa7a591d70a77cb122e0bb592d822074dd27844058fcad4abd37c14e` |
 
-下载与发布状态请查看 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)。只有带明确平台、签名状态、SHA-256 和包外验证记录的资产才应被视为安装包；旧版本产物不能代表当前源码功能。
+两个版本的 macOS 安装包都通过了打包后冒烟测试（启动、作答、重启、备份恢复、退出清理）；Windows 安装包由 GitHub Actions 构建，未在 Windows 实机完成安装/卸载验收。macOS 首次打开需在「系统设置 → 隐私与安全性」中允许，Windows 可能出现 SmartScreen 提示。
+
+### 更早的版本
+
+- 0.4.4 安装包附带已训练的 DKT（ASSISTments 2009，seed 29）。映射得上的技能用这份权重量出一个概率，并据此调整下一步提示和练习难度；概率不是掌握度，映射不上的技能仍为空。见 [0.4.4 发布说明](docs/RELEASE_0.4.4.md)。
+- 0.4.3 是界面版本，[`v0.4.3`](https://github.com/coscatld/MathTutor/releases/tag/v0.4.3) 以 pre-release 发布，附未签名的 Windows x64 工程安装包。见 [0.4.3 发布说明](docs/RELEASE_0.4.3.md)。
+- 0.4.2 的 RAG 集成由 [PR #2](https://github.com/coscatld/MathTutor/pull/2) 合并；`v0.4.2` Release 页面没有安装包 assets。
+
+真实语义质量仍有历史失败项和待人工复核项，离线回放通过不等于真实模型质量通过。下载请查看 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)，并用上表的 SHA-256 核对；旧版本产物不能代表当前源码功能。
 
 ## 快速开始
 
@@ -214,7 +230,7 @@ python -m pip install -e ".[pdf-rich]"
 - 源码后端默认使用当前目录下的 `data/`；可通过 `MATHTUTOR_DATA_ROOT` 指定数据目录，或通过 `MATHTUTOR_DB_PATH` 指定数据库路径。
 - 桌面版使用独立的用户数据目录，退出应用会停止本地子进程，并保留学习资料和历史。
 - API Key 通过 `SecretStore` 管理；macOS 使用 Keychain，Windows 使用 Credential Manager。不要把凭据、私人配置、用户数据库或原始模型请求日志提交到仓库。
-- 0.5.0 的数据库 migration head 为 **023**（与 0.4.2 相同）。升级前使用应用内备份功能创建并验证备份，再正常退出应用。
+- 0.5.0 的数据库 migration head 为 **023**（自 0.4.2 起未变）。升级前使用应用内备份功能创建并验证备份，再正常退出应用。
 - 恢复旧备份可能缺少之后产生的新资料和聊天，请先保存当前数据。代码回滚不会自动恢复数据库；不要手动删除活跃数据库的 WAL/SHM 文件。
 
 ## 开发与测试
@@ -242,9 +258,11 @@ docs/           架构、实现、评测与版本文档
 
 ## 构建安装包
 
+本地构建默认未签名。公开发行需满足现有工作流的签名要求，并对最终产物重新进行包外验证；构建成功不等于正式发布。三平台源码 CI 通过不能替代各平台安装包的启动、迁移、签名或安装/卸载验证，平台约束见 [桌面发行设计](docs/ADR_DESKTOP_DISTRIBUTION.md)。
+
 ### Windows x64
 
-在 Windows PowerShell 中，从项目根目录执行：
+Windows 安装包不能在 macOS 上构建。可以在 GitHub Actions 手动运行 `windows-installer.yml`，从产物 `MathTutor-windows` 下载；也可以在 Windows PowerShell 中从项目根目录执行：
 
 ```powershell
 Set-Location web
@@ -254,26 +272,38 @@ npm ci
 npm run package:win
 ```
 
-现有脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器。0.4.4 产物路径为：
+脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器：
 
 ```text
-desktop/dist/MathTutor-0.4.4-win-x64.exe
+desktop/dist/MathTutor-0.5.0-win-x64.exe
 ```
 
-本地构建默认未签名。公开发行需满足现有工作流的 Authenticode 签名要求，并对最终产物重新进行包外验证；构建成功不等于正式发布。下载后可用 PowerShell 检查摘要，与对应发行记录比较：
+使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。下载后可检查摘要：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\MathTutor-0.4.4-win-x64.exe
+Get-FileHash -Algorithm SHA256 .\MathTutor-0.5.0-win-x64.exe
 ```
 
-使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。
+### macOS（Apple 芯片）
 
-macOS 与 Linux 使用仓库已有平台打包流程，参考 [桌面发行设计](docs/ADR_DESKTOP_DISTRIBUTION.md)。三平台源码 CI 通过不能替代各平台安装包的启动、迁移、签名或安装/卸载验证。
+macOS 安装包需要一个可重定位、带 numpy 的独立 Python 运行时（python-build-standalone CPython 3.11）。用 `desktop/scripts/prepare-macos-python-runtime.py` 准备后，指向它构建并冒烟：
+
+```bash
+export MATHTUTOR_PYTHON_RUNTIME=$PWD/.runtime/<python-runtime-dir>
+(cd web && npm ci && npm run build)
+npm ci --prefix desktop
+npm run package:mac:unsigned --prefix desktop
+npm run smoke:packaged:mac --prefix desktop
+shasum -a 256 desktop/dist/MathTutor-0.5.0-mac-arm64.dmg
+```
+
+普通虚拟环境不可重定位，不能作为打包运行时。下载 Electron 较慢时，可设置 `ELECTRON_MIRROR` 与 `ELECTRON_BUILDER_BINARIES_MIRROR` 使用镜像。
 
 ## 文档导航
 
 | 文档 | 内容 |
 |---|---|
+| [CHANGELOG](CHANGELOG.md) | 各版本改动与升级说明 |
 | [初评与选择题](docs/INITIAL_ASSESSMENT.md) | 首次评估、跳过与恢复、练习起点的含义 |
 | [RAG 架构](docs/RAG_ARCHITECTURE.md) | 共享检索、上下文与证据工具路径 |
 | [知识工作台](docs/KNOWLEDGE_WORKBENCH_DELIVERY.md) | 资料管理、问答与引用功能 |
