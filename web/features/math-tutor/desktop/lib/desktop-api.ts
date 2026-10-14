@@ -34,8 +34,7 @@ import type {
   StudentExport,
   StudentSummary,
   TestConnectionResult,
-  TutorSettings,
-} from "../types";
+  TutorSettings, CostSettings, CostSettingsInput } from "../types";
 
 export const DESKTOP_PREFIX = "/api/v2/math-tutor/desktop";
 
@@ -191,6 +190,8 @@ export async function testEmbeddingConnection(): Promise<EmbeddingTestResult> {
 
 export async function fetchTutorSettings(): Promise<TutorSettings> { return desktopFetch<TutorSettings>("/settings/tutor"); }
 export async function saveTutorSettings(input: { personality: string; custom_instruction: string }): Promise<TutorSettings> { return desktopFetch<TutorSettings>("/settings/tutor", { method: "PUT", body: JSON.stringify(input) }); }
+export async function fetchCostSettings(): Promise<CostSettings> { return desktopFetch<CostSettings>("/settings/cost"); }
+export async function saveCostSettings(input: CostSettingsInput): Promise<CostSettings> { return desktopFetch<CostSettings>("/settings/cost", { method: "PUT", body: JSON.stringify(input) }); }
 
 // ---------------------------------------------------------------------------
 // Readiness

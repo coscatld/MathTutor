@@ -66,6 +66,8 @@ def health(rows: list[dict]) -> dict:
         "latency_p50_ms": latencies[n // 2],
         "latency_p95_ms": latencies[min(n - 1, int(n * 0.95))],
         "tokens": sum(r["input_tokens"] + r["output_tokens"] for r in rows),
+        "cost": round(sum((r.get("details") or {}).get("cost") or 0 for r in rows), 6),
+        "budget_blocked_turns": sum(bool((r.get("details") or {}).get("budget_blocked")) for r in rows),
     }
     alerts = [f"{key} {metrics[key]} > {limit}" for key, limit in ALERT_RATES.items()
               if n >= ALERT_MIN_TURNS and metrics[key] > limit]

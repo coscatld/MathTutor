@@ -123,6 +123,8 @@ class TestPositiveAllowlist:
                 "['GET'] /api/v2/math-tutor/desktop/conversations/{conversation_id}/resources",
                 "['GET'] /api/v2/math-tutor/desktop/conversations/{conversation_id}/export",
                 "['GET'] /api/v2/math-tutor/desktop/diagnostics/turns",
+                "['GET'] /api/v2/math-tutor/desktop/settings/cost",
+                "['PUT'] /api/v2/math-tutor/desktop/settings/cost",
                 "['DELETE'] /api/v2/math-tutor/desktop/documents/{document_id}",
                 "['DELETE'] /api/v2/math-tutor/desktop/memory/{memory_id}",
                 "['GET'] /api/v2/math-tutor/desktop/documents",

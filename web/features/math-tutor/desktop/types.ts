@@ -377,3 +377,16 @@ export interface StudentExport {
     active_misconceptions: ExportMisconception[];
   };
 }
+
+export interface CostSettingsInput {
+  input_price_per_mtok: number | null;
+  output_price_per_mtok: number | null;
+  currency: string;
+  daily_budget: number | null;
+  daily_token_budget: number | null;
+}
+
+export interface CostSettings extends CostSettingsInput {
+  today: { date: string; tokens: number; cost: number; currency: string };
+  over_budget: boolean;
+}

@@ -1197,6 +1197,38 @@ async def _student_projection(
         )
 
 
+class CostSettingsUpdate(BaseModel):
+    input_price_per_mtok: float | None = None
+    output_price_per_mtok: float | None = None
+    currency: str = "CNY"
+    daily_budget: float | None = None
+    daily_token_budget: int | None = None
+
+
+@router.get("/settings/cost")
+async def get_cost_settings(owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    """Prices, budget and today's usage. Costs exist only where prices are set."""
+    state = get_product_state()
+    policy = getattr(state, "cost_policy", None)
+    if policy is None:
+        raise HTTPException(status_code=503, detail="成本设置不可用")
+    rows = await state.turn_traces.recent(str(owner.student_id), limit=1000) if getattr(state, "turn_traces", None) else []
+    usage = policy.usage_today(rows)
+    return {**policy.current().model_dump(), "today": usage, "over_budget": policy.over_budget(usage)}
+
+
+@router.put("/settings/cost")
+async def put_cost_settings(update: CostSettingsUpdate, owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    policy = getattr(get_product_state(), "cost_policy", None)
+    if policy is None:
+        raise HTTPException(status_code=503, detail="成本设置不可用")
+    try:
+        policy.update(update.model_dump())
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return await get_cost_settings(owner)
+
+
 @router.get("/diagnostics/turns")
 async def turn_diagnostics(
     status: str | None = None,

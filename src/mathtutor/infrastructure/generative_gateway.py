@@ -38,6 +38,12 @@ from mathtutor.infrastructure.secret_store import (
 )
 
 
+
+#: Set for one turn when the daily model budget is exhausted: every role then
+#: looks unconfigured, so each consumer takes its existing template fallback.
+from contextvars import ContextVar
+model_calls_blocked: ContextVar[bool] = ContextVar("model_calls_blocked", default=False)
+
 class ModelRole(str, Enum):
     """Business roles a generative model can serve (never a vendor name)."""
 
@@ -591,6 +597,8 @@ class GenerativeModelGateway:
     # ------------------------------------------------------------- queries
 
     def provider_for(self, role: ModelRole) -> GenerativeModelProvider | None:
+        if model_calls_blocked.get():
+            return None
         return self._by_role.get(role)
 
     def client_for(self, role: ModelRole) -> GatewayRoleClient | None:
@@ -615,7 +623,7 @@ class GenerativeModelGateway:
         tool_executor=None,
         structured_tools: bool = False,
     ) -> CompletionResult:
-        provider = self._by_role.get(role)
+        provider = None if model_calls_blocked.get() else self._by_role.get(role)
         if provider is None:
             raise GenerativeConfigError(f"no generative provider for role {role.value!r}")
         if connection_probe:

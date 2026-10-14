@@ -313,10 +313,20 @@ async def _process_request(state, owner, session_id, user_message, event_key,
         display_action = ""
         display_level = 0
 
+        budget_blocked = await _budget_exhausted(state, owner.student_id)
+
         async def run():
             token = None
             turn_token = current_turn.set(turn)
+            from mathtutor.infrastructure.generative_gateway import model_calls_blocked
+            blocked_token = model_calls_blocked.set(budget_blocked)
             try:
+                if budget_blocked:
+                    from mathtutor.application.tutor_runtime import note_turn
+                    from mathtutor.infrastructure.cost_policy import BUDGET_NOTICE
+                    note_turn(budget_blocked=True)
+                    await stream.content(BUDGET_NOTICE, source="math_tutor", metadata={
+                        "event_type": "tutor_message", "action": "TUTOR_CHAT", "effective_assistance_level": 0})
                 if getattr(state, "knowledge", None):
                     document_ids = await state.knowledge.scope(owner.student_id, session_id)
                 else:
@@ -333,6 +343,7 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                 logger.exception("Tutor request failed conversation_id=%s", session_id)
                 turn.stop(FinishReason.INTERNAL_ERROR, "\n\n".join(texts))
             finally:
+                model_calls_blocked.reset(blocked_token)
                 current_turn.reset(turn_token)
                 if token is not None:
                     reset_document_scope(token)
@@ -402,6 +413,11 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                 role="error", content=error_text, status=turn.status,
                 finish_reason=turn.finish_reason.value)
         turn.latency_ms = int((time.monotonic() - started) * 1000)
+        cost_policy = getattr(state, "cost_policy", None)
+        if cost_policy is not None:
+            turn.estimated_cost = cost_policy.cost(turn.input_tokens, turn.output_tokens)
+            if turn.estimated_cost is not None:
+                turn.details = {**(getattr(turn, "details", None) or {}), "cost": turn.estimated_cost}
         record_turn(turn)
         traces = getattr(state, "turn_traces", None)
         if traces is not None:
@@ -475,6 +491,14 @@ async def _normalize_message(
 
     session_id = str(envelope.get("session_id") or "")
     return json.dumps(envelope, ensure_ascii=False), session_id
+
+
+async def _budget_exhausted(state, student_id) -> bool:
+    """Today's usage from the persisted traces against the user's budget."""
+    policy, traces = getattr(state, "cost_policy", None), getattr(state, "turn_traces", None)
+    if policy is None or traces is None or not state.gateway.configured_roles():
+        return False
+    return policy.over_budget(policy.usage_today(await traces.recent(str(student_id), limit=1000)))
 
 
 def _message_projection(user_message: str) -> tuple[str, str]:

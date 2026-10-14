@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Cost and budget
+- Settings → Tutor gains "模型费用与预算": input and output prices per million tokens, a daily money budget and a daily token budget. No vendor prices are built in; without prices `estimated_cost` stays empty and only tokens are counted.
+- Each turn's cost is computed from the provider's token usage and recorded on the turn trace; diagnostics health reports total cost and how many turns were blocked by the budget.
+- Once today's usage reaches the budget, model calls are blocked for the rest of the day: every model role looks unconfigured, so tutoring, chat and knowledge mode take their existing template or retrieval-only fallbacks, and the student sees one notice. Verification and learning records are unaffected.
+
 ### Student model
 - The uncalibrated legacy 0-1 mastery estimate no longer reaches practice generation: it is removed from the model prompt, and the template statement uses verified error counts from recent attempts instead.
 - The trained (ASSISTments) DKT may now change teaching only when the skill maps to a product skill and the student has at least one own attempt; a foreign prior alone no longer adds guidance text. Support moves by at most one level, practice difficulty by one level, and `MATHTUTOR_DKT_TEACHING=off` turns both off. Every adjustment is recorded on the turn trace and shows up as `dkt_adjust_rate` in the diagnostics health.
