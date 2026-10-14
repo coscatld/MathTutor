@@ -446,8 +446,9 @@ class MathTutorController:
                 if message:
                     # Retrieved sources and declared math tool receipts do not
                     # independently verify every generated explanatory sentence.
-                    from mathtutor.application.problem_recovery import mark_unverified
-                    await self._dialogue(stream, session, mark_unverified(message), "TUTOR_CHAT")
+                    from mathtutor.application.math_claims import certify_and_annotate
+                    checked, _ = await certify_and_annotate(message, self.service.verification_backend)
+                    await self._dialogue(stream, session, checked, "TUTOR_CHAT")
                 return
             await self._route_send_message(request, session, payload, envelope, stream)
             return
@@ -1085,9 +1086,13 @@ class MathTutorController:
         if recovery and visible == fallback_tutor_reply(text):
             visible = "这道题的完整过程还不能逐步核验。你可以写出下一步的想法，或先练下面的相关基础题。"
         raw_visible = visible
-        from mathtutor.application.problem_recovery import mark_unverified, simple_greeting
+        from mathtutor.application.problem_recovery import simple_greeting
         if not simple_greeting(text, visible):
-            visible = mark_unverified(visible)
+            # Each formula goes through verify_math; prose stays unverified.
+            from mathtutor.application.math_claims import anchor_for, certify_and_annotate
+            bound = await self.sessions.load_verified(owner_id, session.cycle.cycle_id) if session and owner_id else None
+            visible, _ = await certify_and_annotate(visible, self.service.verification_backend,
+                                                    anchor=anchor_for(bound[0]) if bound else None)
         if recovery:
             visible += f"\n\n原题还保留在对话里。可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
         from mathtutor.application.tutor_runtime import current_turn
@@ -2177,6 +2182,19 @@ class MathTutorController:
             disclosure=disclosure,
             action=action,
         )
+        math_check = None
+        if candidate_text.writer_version not in {TemplateTutorWriter.writer_version, "mt-grounded-template-v2"} and not utterance.fallback_used:
+            # Model formulas must pass verify_math against the bound problem.
+            # A refuted step never reaches the student: use the verified template.
+            from mathtutor.application.math_claims import anchor_for, certify
+            math_check = await certify(utterance.text, self.service.verification_backend, anchor=anchor_for(problem))
+            checked_text = utterance.text
+            if math_check.refuted:
+                candidate_text = await TemplateTutorWriter().write(problem_view=problem_view, disclosure=disclosure,
+                    policy=self.policy, action=action, document_context=document_context)
+                utterance = self.guard.guard_or_fallback(candidate=candidate_text, candidate_solution=candidate,
+                    disclosure=disclosure, action=action)
+                math_check = None
         if plan:
             from mathtutor.pedagogy.quality_guard import enforce_teaching_quality
             utterance = await enforce_teaching_quality(utterance, candidate_text, problem_view, disclosure, action, self.policy)
@@ -2231,8 +2249,11 @@ class MathTutorController:
             # Disclosure and equation guards do not verify every prose claim.
             # Persist this notice with approved bytes so history and continuation
             # retain the same mathematical certainty boundary as live delivery.
-            from mathtutor.application.problem_recovery import mark_unverified
-            utterance = utterance.model_copy(update={"text": mark_unverified(utterance.text)})
+            from mathtutor.application.math_claims import anchor_for, annotate, certify
+            if math_check is None or checked_text != utterance.text:
+                # Later guards rewrote the text: count what is actually shown.
+                math_check = await certify(utterance.text, self.service.verification_backend, anchor=anchor_for(problem))
+            utterance = utterance.model_copy(update={"text": annotate(utterance.text, math_check)})
         if turn is not None and utterance.action == "SHOW_SOLUTION" and utterance.assistance_level == 5:
             # The turn can also contain an assessment or an invitation. Store
             # the guarded answer separately; reviewing it must not replay those.

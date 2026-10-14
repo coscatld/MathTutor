@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Explanations: formulas go through verify_math
+- Model-written explanations (free chat, knowledge mode and the model writer on the teaching path) are scanned for formulas. Each arithmetic equality, claimed identity and derivation step is checked by the same `verify_math` core as the knowledge tool. Derivation steps are compared with the bound problem when there is one, otherwise with the first equation of the explanation.
+- On the teaching path, a refuted formula never reaches the student: the verified template text is delivered instead.
+- In free chat and knowledge mode, each refuted formula is marked in place with the reason, and the notice above the text says how many formulas failed.
+- When every formula passes, the notice says how many were checked and that the prose is still unverified. When some formulas cannot be checked automatically, the original "未经逐句数学核验" notice stays, with the counts added.
+- The knowledge tool `verify_math` now uses the shared core and reports an unparseable expression as a tool error.
+
 ## 0.5.0 — Hint before the answer, diagnosed misconceptions, function graphs
 
 Teaching policy changes; the database is unchanged (migration head remains 023). Upgrading from 0.4.5 needs no data migration.

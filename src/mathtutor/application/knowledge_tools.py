@@ -307,22 +307,12 @@ class KnowledgeTools:
             return {"evidence": summary, "stage_review": review, "mastery_probability": None,
                     "model_status": "unsupported_target", "read_only": True}
         if name == "verify_math":
-            from mathtutor.solving.parser import parse_problem
-            from mathtutor.solving.solver import solve_problem
-            from mathtutor.domain.problem import MathProblem
-            from mathtutor.learning.attempt_parser import parse_student_attempt
-            from mathtutor.security.scopes import student_uuid
-            from uuid import uuid4
-            parsed = parse_problem(args.expression)
-            raw = parsed.problem
-            problem = MathProblem.canonicalize(problem_type=raw.problem_type, normalized_ast=raw.normalized_ast, display_latex=raw.display_latex)
-            candidate = solve_problem(problem, raw).candidate
-            verdict = await self.state.verification_backend.verify(problem, candidate)
-            if verdict.verdict != "VERIFIED":
-                raise KnowledgeError("该表达式未通过数学验证。")
-            attempt = parse_student_attempt(attempt_submission_id=uuid4(), student_id=student_uuid(self.owner),
-                cycle_id=uuid4(), raw_text=args.answer, attempt_index=1)
-            assessed = await self.state.verification_backend.verify_attempt(attempt, problem, candidate)
+            from mathtutor.application.math_verification import ExpressionNotVerifiable, assess_answer, verified_problem
+            try:
+                problem, candidate = await verified_problem(self.state.verification_backend, args.expression)
+            except ExpressionNotVerifiable:
+                raise KnowledgeError("该表达式未通过数学验证。") from None
+            assessed = await assess_answer(self.state.verification_backend, problem, candidate, args.answer)
             return {"correctness": assessed.correctness.value, "learning_fact_written": False}
         if name == "draft_note":
             if not self.plan or [s.heading for s in args.sections] != self.plan or not set(self.plan).issubset(self.searched_sections):
