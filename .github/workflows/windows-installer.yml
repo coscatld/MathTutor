@@ -1,0 +1,46 @@
+name: Windows installer (unsigned)
+
+# Builds the same unsigned local-engineering NSIS installer that
+# desktop/scripts/build-windows.ps1 produces on a Windows release machine.
+# Public signed packaging stays in release-packaging.yml.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Build Python only; the shipped runtime is the pinned python.org
+      # embeddable package assembled by prepare-windows-python-runtime.ps1.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci --prefix web
+      - run: npm ci --prefix desktop
+      - name: Prepare relocatable Windows runtime
+        shell: pwsh
+        run: >-
+          ./desktop/scripts/prepare-windows-python-runtime.ps1
+          -OutputPath .runtime/python-win-x64 -BuildPython python -BuildPythonArgs @()
+      - name: Build installer
+        shell: pwsh
+        run: ./desktop/scripts/build-windows.ps1 -RuntimePath .runtime/python-win-x64
+      - name: Checksums
+        shell: pwsh
+        working-directory: desktop/dist
+        run: Get-FileHash *.exe, *.blockmap -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)" } | Tee-Object SHA256SUMS-windows.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MathTutor-windows
+          if-no-files-found: error
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.exe.blockmap
+            desktop/dist/SHA256SUMS-windows.txt

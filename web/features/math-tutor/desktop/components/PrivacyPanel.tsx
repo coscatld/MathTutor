@@ -95,13 +95,13 @@ export function ConfirmableDelete({
   if (confirming) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-medium text-red-700 dark:text-red-400">确认删除「{title}」？此操作无法撤销。</span>
+        <span className="text-sm font-medium text-[var(--destructive)]">确认删除「{title}」？此操作无法撤销。</span>
         <span className="flex items-center gap-2">
           <button
             type="button"
             onClick={onCancelDelete}
             disabled={busy}
-            className="inline-flex min-h-[40px] cursor-pointer items-center rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn"
           >
             取消
           </button>
@@ -109,7 +109,7 @@ export function ConfirmableDelete({
             type="button"
             onClick={onConfirmDelete}
             disabled={busy}
-            className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn mt-btn-danger-solid"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
             确认删除
@@ -129,7 +129,7 @@ export function ConfirmableDelete({
         onClick={onAskDelete}
         disabled={busy}
         aria-label={`删除 ${title}`}
-        className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-red-400"
+        className="mt-btn mt-btn-danger"
       >
         <Trash2 className="h-4 w-4" aria-hidden="true" />
         删除
@@ -320,31 +320,34 @@ export default function PrivacyPanel({
       aria-labelledby="privacy-title"
     >
       <div className={embedded ? "flex w-full flex-col" : "flex max-h-[calc(100vh-4rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xl"}>
-        <header className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-5 py-3.5">
-          <h1 id="privacy-title" className="flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">
+        <header className={embedded ? "flex items-start justify-between gap-2" : "flex items-center justify-between gap-2 border-b border-[var(--border)] px-5 py-3.5"}>
+          {embedded ? <div>
+            <h1 id="privacy-title" className="text-xl font-bold tracking-tight text-[var(--foreground)]">数据与隐私</h1>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">查看、导出或删除保存在这台电脑上的记忆、资料与学习记录。</p>
+          </div> : <h1 id="privacy-title" className="flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">
             <ShieldCheck className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
             数据与隐私
-          </h1>
+          </h1>}
           {onClose && (
             <button
               type="button"
               onClick={onClose}
               aria-label="关闭"
-              className="inline-flex min-h-[40px] min-w-[40px] cursor-pointer items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+              className="mt-btn mt-btn-ghost justify-center"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
+        <div className={embedded ? "mt-5 flex flex-col gap-6" : "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4"}>
           {message && (
             <p
               role="status"
               className={`rounded-xl px-3 py-2 text-sm ${
                 message.kind === "ok"
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                  : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                  ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
+                  : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
               }`}
             >
               {message.text}
@@ -458,7 +461,7 @@ export default function PrivacyPanel({
                     type="button"
                     onClick={handleRebuildIndexes}
                     disabled={busyId !== null}
-                    className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-btn"
                   >
                     {busyId === "rebuild-indexes" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <DatabaseZap className="h-4 w-4" aria-hidden="true" />}
                     重建检索索引
@@ -467,7 +470,7 @@ export default function PrivacyPanel({
                     type="button"
                     onClick={handleExport}
                     disabled={busyId !== null}
-                    className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-btn"
                   >
                     {busyId === "export" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
                     导出我的数据
@@ -482,7 +485,7 @@ export default function PrivacyPanel({
 
               {/* Danger zone — every action confirms twice before sending */}
               <section className="flex flex-col gap-2" aria-label="危险操作">
-                <h2 className="flex items-center gap-2 text-base font-semibold text-red-700 dark:text-red-400">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--destructive)]">
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                   危险操作
                 </h2>

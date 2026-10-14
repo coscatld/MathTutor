@@ -74,7 +74,7 @@ export default function ActionBar({ allowed, actions, offer, busy, disabled, onC
 
   return (
     <section
-      className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4"
+      className="mt-card p-4"
       aria-label="可用操作"
     >
       <h2 className="mb-2.5 text-sm font-semibold text-[var(--foreground)]">可用操作</h2>

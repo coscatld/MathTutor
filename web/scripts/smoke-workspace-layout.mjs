@@ -140,7 +140,7 @@ try {
   await page.setViewportSize({width:1280,height:800});
   await page.emulateMedia({reducedMotion:"reduce"});
   await page.evaluate(() => document.documentElement.classList.add("dark"));
-  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--background").trim()), "#292a2d");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--background").trim()), "#131417");
   await page.screenshot({path:path.join(output,"dark.png")});
   await page.getByRole("button", {name:"删除对话：另一段学习对话",exact:true}).click();
   let dialog = page.getByRole("dialog", {name:"将此对话移入垃圾桶？"});

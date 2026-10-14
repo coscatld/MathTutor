@@ -3,9 +3,31 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import BrandMark from "@/components/common/BrandMark";
 import { login, fetchAuthStatus, checkIsFirstUser } from "@/lib/auth";
 
-const t = (message: string): string => message;
+const ZH: Record<string, string> = {
+  "Login failed": "登录失败，请检查后重试",
+  "Sign in to your account": "登录后继续你的学习",
+  "Account created! Sign in to continue.": "账户已创建，请登录继续。",
+  "Email or username": "邮箱或用户名",
+  "Password": "密码",
+  "Signing in…": "正在登录…",
+  "Sign in": "登录",
+  "Don't have an account?": "还没有账户？",
+  "Create one": "创建账户",
+  "Passwords do not match": "两次输入的密码不一致",
+  "Registration failed": "注册失败，请重试",
+  "Create your account": "创建你的学习账户",
+  "First user:": "首位用户：",
+  "You will be granted admin privileges and can manage other users from the admin dashboard.": "你将获得管理员权限，可以在管理后台管理其他用户。",
+  "At least 8 characters": "至少 8 个字符",
+  "Confirm password": "确认密码",
+  "Creating account…": "正在创建…",
+  "Create account": "创建账户",
+  "Already have an account?": "已有账户？",
+};
+const t = (message: string): string => ZH[message] ?? message;
 
 function LoginPageContent() {
   const router = useRouter();
@@ -49,11 +71,12 @@ function LoginPageContent() {
   }
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="mt-rise relative w-full max-w-sm">
       {/* Logo / Title */}
-      <div className="text-center mb-8">
-        <h1 className="font-serif text-2xl font-semibold text-[var(--foreground)] tracking-tight">
-          MathTutor
+      <div className="mb-8 flex flex-col items-center text-center">
+        <span className="mt-empty-mark mb-5"><BrandMark className="h-6 w-6" /></span>
+        <h1 className="mt-wordmark mt-wordmark-lg">
+          Math<span>Tutor</span>
         </h1>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           {t("Sign in to your account")}
@@ -68,7 +91,7 @@ function LoginPageContent() {
       )}
 
       {/* Card */}
-      <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm px-8 py-8">
+      <div className="rounded-[22px] border border-[var(--border)] bg-[var(--card)] px-7 py-7 shadow-[var(--shadow-xl)]">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email or username */}
           <div>
@@ -85,11 +108,7 @@ function LoginPageContent() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-[var(--border)]
-                         bg-[var(--background)] text-[var(--foreground)]
-                         placeholder:text-[var(--muted-foreground)]
-                         focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent
-                         transition-shadow text-sm"
+              className="mt-input"
               placeholder="you@example.com"
             />
           </div>
@@ -109,18 +128,14 @@ function LoginPageContent() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-[var(--border)]
-                         bg-[var(--background)] text-[var(--foreground)]
-                         placeholder:text-[var(--muted-foreground)]
-                         focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent
-                         transition-shadow text-sm"
+              className="mt-input"
               placeholder="••••••••"
             />
           </div>
 
           {/* Error message */}
           {error && (
-            <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">
+            <p role="alert" className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
               {error}
             </p>
           )}
@@ -129,11 +144,7 @@ function LoginPageContent() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 rounded-lg font-medium text-sm
-                       bg-[var(--primary)] text-[var(--primary-foreground)]
-                       hover:opacity-90 active:opacity-80
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-opacity"
+            className="mt-btn mt-btn-primary min-h-[44px] w-full"
           >
             {loading ? t("Signing in…") : t("Sign in")}
           </button>
@@ -144,7 +155,7 @@ function LoginPageContent() {
         {t("Don't have an account?")}{" "}
         <Link
           href="/register"
-          className="text-[var(--primary)] hover:underline font-medium"
+          className="font-semibold text-[var(--primary-text)] underline decoration-transparent underline-offset-4 transition-colors hover:decoration-[var(--primary-text)]"
         >
           {t("Create one")}
         </Link>
@@ -162,7 +173,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="w-full max-w-sm text-center text-sm text-[var(--muted-foreground)]">
-          Loading sign in...
+          正在加载…
         </div>
       }
     >

@@ -147,7 +147,7 @@ export default function EmbeddingSettingsPanel({
   };
 
   if (!settings) {
-    return <div className="flex min-h-32 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--muted-foreground)]"><Loader2 className="mr-2 h-4 w-4 animate-spin" />正在加载资料检索设置…</div>;
+    return <div className="mt-card flex min-h-32 items-center justify-center text-sm text-[var(--muted-foreground)]"><Loader2 className="mr-2 h-4 w-4 animate-spin" />正在加载资料检索设置…</div>;
   }
 
   const downloadLabels = { not_downloaded: "未下载", downloading: "下载中", ready: "已就绪", failed: "下载失败" } as const;
@@ -157,7 +157,7 @@ export default function EmbeddingSettingsPanel({
     <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--secondary)] shadow-sm" aria-label="资料检索 / Embedding">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
         <div>
-          <p className="flex items-center gap-2 text-sm font-semibold tracking-wide text-[var(--muted-foreground)] dark:text-amber-300"><Search className="h-4 w-4" />资料检索 / Embedding</p>
+          <p className="flex items-center gap-2 text-sm font-semibold tracking-wide text-[var(--muted-foreground)]"><Search className="h-4 w-4" />资料检索 / Embedding</p>
           <p className="mt-1 max-w-lg text-sm leading-relaxed text-[var(--muted-foreground)]">给资料增加语义匹配。关闭或配置不完整时，关键词检索始终可用。</p>
         </div>
         <EmbeddingStatusBadge settings={settings} />
@@ -195,25 +195,25 @@ export default function EmbeddingSettingsPanel({
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-[var(--muted)] px-2.5 py-1 font-medium text-[var(--muted-foreground)]">{downloadLabels[settings.local_download_status]}</span>{selectedModel ? <span className="text-[var(--muted-foreground)]">保存到应用用户数据目录，不进入项目仓库</span> : null}</div>
                 {settings.local_download_status === "downloading" ? <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--muted)]"><div className="h-full w-2/5 animate-pulse rounded-full bg-[var(--primary)]" /></div> : null}
-                {settings.local_download_error ? <p className="mt-2 text-xs text-red-600">{settings.local_download_error}</p> : null}
+                {settings.local_download_error ? <p className="mt-2 text-xs text-[var(--destructive)]">{settings.local_download_error}</p> : null}
                 <div className="mt-4 flex gap-2">
-                  {settings.local_download_status !== "ready" ? <button type="button" onClick={download} disabled={busy !== null || settings.local_download_status === "downloading"} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[var(--primary)] px-3 text-sm font-medium text-white disabled:opacity-50">{settings.local_download_status === "downloading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}下载到本地</button> : <button type="button" onClick={removeLocal} disabled={busy !== null} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-red-200 px-3 text-sm font-medium text-red-600"><Trash2 className="h-4 w-4" />删除本地权重</button>}
+                  {settings.local_download_status !== "ready" ? <button type="button" onClick={download} disabled={busy !== null || settings.local_download_status === "downloading"} className="mt-btn mt-btn-primary">{settings.local_download_status === "downloading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}下载到本地</button> : <button type="button" onClick={removeLocal} disabled={busy !== null} className="mt-btn mt-btn-danger"><Trash2 className="h-4 w-4" />删除本地权重</button>}
                 </div>
               </div>
             ) : (
               <div className="grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <label className="text-sm font-medium text-[var(--foreground)]">API Base URL<input type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://api.example.com/v1" className="mt-1.5 h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 font-normal" /></label>
-                <label className="text-sm font-medium text-[var(--foreground)]">API Key<div className="relative mt-1.5"><KeyRound className="absolute left-3 top-3.5 h-4 w-4 text-[var(--muted-foreground)]" /><input type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={settings.cloud_key_masked ? `已保存：${settings.cloud_key_masked}（留空保持）` : "仅保存到系统安全凭据库"} className="h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] pl-10 pr-3 font-normal" /></div></label>
-                <label className="text-sm font-medium text-[var(--foreground)]">Model Name<input type="text" value={cloudModel} onChange={(event) => setCloudModel(event.target.value)} placeholder="例如 text-embedding-3-small" className="mt-1.5 h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 font-normal" /></label>
-                <div className="flex flex-wrap gap-2"><button type="button" onClick={test} disabled={busy !== null || !settings.cloud_has_api_key} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm font-medium disabled:opacity-50">{busy === "test" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}测试连接</button>{settings.cloud_has_api_key ? <button type="button" onClick={removeKey} disabled={busy !== null} className="min-h-10 px-2 text-sm font-medium text-red-600">移除云端 Key</button> : null}</div>
+                <label className="text-sm font-medium text-[var(--foreground)]">API Base URL<input type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://api.example.com/v1" className="mt-input h-11 mt-1.5 font-normal" /></label>
+                <label className="text-sm font-medium text-[var(--foreground)]">API Key<div className="relative mt-1.5"><KeyRound className="absolute left-3 top-3.5 h-4 w-4 text-[var(--muted-foreground)]" /><input type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={settings.cloud_key_masked ? `已保存：${settings.cloud_key_masked}（留空保持）` : "仅保存到系统安全凭据库"} className="mt-input h-11 pl-10 pr-3 font-normal" /></div></label>
+                <label className="text-sm font-medium text-[var(--foreground)]">Model Name<input type="text" value={cloudModel} onChange={(event) => setCloudModel(event.target.value)} placeholder="例如 text-embedding-3-small" className="mt-input h-11 mt-1.5 font-normal" /></label>
+                <div className="flex flex-wrap gap-2"><button type="button" onClick={test} disabled={busy !== null || !settings.cloud_has_api_key} className="mt-btn">{busy === "test" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}测试连接</button>{settings.cloud_has_api_key ? <button type="button" onClick={removeKey} disabled={busy !== null} className="mt-btn mt-btn-ghost mt-btn-danger min-h-10 px-3">移除云端 Key</button> : null}</div>
               </div>
             )}
           </div>
         ) : null}
 
-        {enabled && settings.reindex_required ? <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">模型或来源已变化，旧向量不会参与检索。请到“我的数据”执行“重建派生索引”；重建前自动回退关键词结果。</p> : null}
-        {message ? <p role="status" className={`rounded-lg px-3 py-2 text-sm ${message.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{message.text}</p> : null}
-        <button type="button" onClick={save} disabled={busy !== null} className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-[var(--foreground)] px-4 text-sm font-semibold text-[var(--background)] transition hover:bg-black disabled:opacity-50 dark:bg-amber-200">{busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}保存检索设置</button>
+        {enabled && settings.reindex_required ? <p className="mt-note mt-note-warning px-3 py-2 text-xs leading-relaxed">模型或来源已变化，旧向量不会参与检索。请到“我的数据”执行“重建派生索引”；重建前自动回退关键词结果。</p> : null}
+        {message ? <p role="status" className={`rounded-lg px-3 py-2 text-sm ${message.kind === "ok" ? "bg-emerald-50 text-[var(--success)]" : "bg-red-50 text-[var(--destructive)]"}`}>{message.text}</p> : null}
+        <button type="button" onClick={save} disabled={busy !== null} className="mt-btn mt-btn-primary w-fit">{busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}保存检索设置</button>
       </div>
     </section>
   );

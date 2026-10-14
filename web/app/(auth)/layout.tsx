@@ -4,7 +4,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+    <div className="mt-standalone">
+      <div className="mt-standalone-field mt-paper" aria-hidden="true" />
       {children}
     </div>
   );

@@ -23,12 +23,12 @@ export default function StageReviewPanel() {
     try {await knowledgeApi(preferences?"/stage-review/preferences":"/stage-review",preferences?{goal,style}:{},preferences?"PUT":"POST");await load();}
     catch(e){setError(e instanceof Error?e.message:"操作未完成");}finally{setBusy(false);}
   }
-  const button="min-h-11 rounded-lg border border-[var(--border)] px-4 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--ring)]";
-  return <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 sm:p-6" aria-labelledby="stage-review-title">
-    <h2 id="stage-review-title" className="font-serif text-xl font-semibold">阶段学习复盘</h2>
+  const button="mt-btn min-h-11";
+  return <section className="mt-card p-5 sm:p-6" aria-labelledby="stage-review-title">
+    <h2 id="stage-review-title" className="text-lg font-semibold tracking-tight">阶段学习复盘</h2>
     <p className="mt-2 text-sm leading-7 text-[var(--muted-foreground)]">依据已验证学习事件整理，与 DKT 独立。当前为规则复盘，不是模型掌握度评估。</p>
-    <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm">当前学习目标<input value={goal} maxLength={240} onChange={e=>setGoal(e.target.value)} className="mt-2 min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3"/></label>
-    <label className="text-sm">你明确选择的讲解偏好<select value={style} onChange={e=>setStyle(e.target.value)} className="mt-2 min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3"><option value="default">保持当前方式</option><option value="stepwise">分步讲解</option><option value="concise">简短提示，按需展开</option></select></label></div>
+    <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm">当前学习目标<input value={goal} maxLength={240} onChange={e=>setGoal(e.target.value)} className="mt-input mt-2"/></label>
+    <label className="text-sm">你明确选择的讲解偏好<select value={style} onChange={e=>setStyle(e.target.value)} className="mt-input mt-2"><option value="default">保持当前方式</option><option value="stepwise">分步讲解</option><option value="concise">简短提示，按需展开</option></select></label></div>
     <div className="mt-4 flex flex-wrap gap-3"><button className={button} disabled={busy} onClick={()=>void act(true)}>保存目标与偏好</button><button className={button} disabled={busy||data?.status==="pending"} onClick={()=>void act(false)}>复盘新观察</button><button className={button} disabled={busy} onClick={()=>void load()}>刷新复盘</button></div>
     {error&&<p role="alert" className="mt-3 text-sm">{error}</p>}
     {data?.status==="pending"&&<p role="status" className="mt-3 text-sm">复盘已进入本地任务队列…</p>}

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.5 — Page styles and visual refresh
+
+No change to teaching policy, verification, retrieval, persistence or the database (migration head remains 023). Upgrading from 0.4.4 needs no data migration.
+
+### Page styles
+- Choose a style in Settings → Appearance or from the sidebar footer: Follow system, 纸墨 (paper), 夜读 (night), 暖纸 (warm sepia) and 星夜 (starry). Each option has a live miniature preview; switching cross-fades and takes effect immediately.
+- The choice is a display preference kept in local browser storage by `web/lib/theme.ts` and applied before first paint. It lives outside `features/math-tutor/desktop`, so the "no browser storage for credentials" invariant still holds.
+
+### Visual refresh
+- New mark: a staircase of steps reaching a goal point. The startup screen draws it instead of a spinner.
+- A faint graph-paper motif marks where mathematics happens: displayed equations (including a formula written alone on one line), the student's turn, starter problems and the onboarding worked example. Starter problems are typeset with the bundled KaTeX fonts; no network fonts.
+- Shared card, button, input, note and choice styles across the workspace, profile, practice, documents, memory, knowledge base, every Settings section, the initial assessment, onboarding, startup, login and registration. Login and registration are now in Chinese.
+- Semantic status colours (success, warning, destructive) replace fixed palette classes so every style keeps correct contrast.
+- Short, eased motion for message entry, presses, hovers, popovers and dialogs; all of it respects reduced-motion settings.
+
 ## 0.4.4 — Formal release
 
 This installer supersedes the 2026-09-30 pre-release. Migration head remains 023.

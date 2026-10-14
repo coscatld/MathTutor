@@ -9,6 +9,8 @@ import { makeSessionId } from "../../lib/protocol";
 import ConversationDeleteDialog from "./ConversationDeleteDialog";
 import { conversationAction } from "../lib/conversation-trash";
 import Tooltip from "./Tooltip";
+import BrandMark from "@/components/common/BrandMark";
+import ThemeQuickSwitch from "@/components/common/ThemeQuickSwitch";
 
 type Conversation = { conversation_id: string; title?: string; updated_at?: string };
 const NAV_ITEMS = [
@@ -59,23 +61,23 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
   return <div className="mt-workspace">
     <aside aria-label="侧栏" data-collapsed={collapsed} className="mt-sidebar">
       <div className={`mt-sidebar-brand relative flex items-center ${collapsed ? "justify-center px-3" : "gap-2.5 px-4"}`}>
-        {collapsed ? <Tooltip label="展开侧栏" side="right"><button type="button" aria-label="展开侧栏" onClick={() => setCollapsed(false)} className="mt-brand-mark"><GraduationCap className="h-[18px] w-[18px]" /></button></Tooltip> : <>
-          <div className="mt-brand-mark"><GraduationCap className="h-[18px] w-[18px]" /></div>
-          <p className="min-w-0 truncate text-[17px] font-semibold tracking-tight">MathTutor</p>
+        {collapsed ? <Tooltip label="展开侧栏" side="right"><button type="button" aria-label="展开侧栏" onClick={() => setCollapsed(false)} className="mt-brand-mark"><BrandMark /></button></Tooltip> : <>
+          <div className="mt-brand-mark"><BrandMark /></div>
+          <p className="mt-wordmark min-w-0 truncate">Math<span>Tutor</span></p>
           <button type="button" aria-label="收起侧栏" onClick={() => setCollapsed(true)} className="mt-icon-button ml-auto p-2"><ChevronLeft className="h-4 w-4" /></button>
         </>}
       </div>
       <div className="px-3 pb-2 pt-1"><Tooltip label="新建辅导对话" side={collapsed ? "right" : "bottom"} wrapperClassName="flex w-full justify-center"><button type="button" aria-label="新建对话" onClick={createConversation} className={`mt-new-chat ${collapsed ? "w-11" : "w-full px-3"}`}><MessageSquarePlus className="h-4 w-4 shrink-0" />{!collapsed ? "新建对话" : null}</button></Tooltip></div>
       {!collapsed ? <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        <p className="px-3 pb-1.5 pt-3 text-xs font-medium text-[var(--muted-foreground)]">最近对话</p>
+        <p className="mt-sidebar-label">最近对话</p>
         <div className="space-y-0.5">{conversations.length ? conversations.map((item) => <div key={item.conversation_id} className="mt-history-row flex min-w-0 items-center"><Link href={`/math-tutor?session=${encodeURIComponent(item.conversation_id)}`} aria-current={selected === item.conversation_id ? "true" : undefined} className="mt-history-item">{item.title || "新对话"}</Link><button type="button" aria-label={`删除对话：${item.title || "新对话"}`} onClick={() => setDeleteTarget(item)} className="mt-history-delete flex h-10 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--destructive)]"><Trash2 className="h-4 w-4" aria-hidden="true" /></button></div>) : <p className="px-3 py-2 text-xs leading-5 text-[var(--muted-foreground)]">发出第一条消息后，对话会保存在这里。</p>}</div>
       </div> : <div className="flex-1" />}
-      <nav aria-label="主要功能" className="flex shrink-0 flex-col gap-0.5 border-t p-3">{NAV_ITEMS.map((item) => {
+      <nav aria-label="主要功能" className="flex shrink-0 flex-col gap-0.5 p-3">{NAV_ITEMS.map((item) => {
         const active = item.href === "/math-tutor" ? inTutor : pathname.startsWith(item.href);
         const link = <Link key={item.href} href={item.href} aria-label={item.label} aria-current={active ? "page" : undefined} className="mt-nav-item"><item.icon className="h-4 w-4 shrink-0" />{!collapsed ? item.label : null}</Link>;
         return collapsed ? <Tooltip key={item.href} label={item.label} side="right" wrapperClassName="flex w-full">{link}</Tooltip> : link;
       })}</nav>
-      <div className="shrink-0 border-t p-3">{collapsed ? <Tooltip label="设置" side="right" wrapperClassName="flex w-full"><Link href="/math-tutor/settings" aria-label="设置" aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className="mt-nav-item"><Settings className="h-4 w-4" /></Link></Tooltip> : <Link href="/math-tutor/settings" aria-label="设置" aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className="mt-nav-item"><Settings className="h-4 w-4" />设置</Link>}</div>
+      <div className={`flex shrink-0 gap-1 border-t p-3 ${collapsed ? "flex-col items-center" : "items-center"}`}>{collapsed ? <Tooltip label="设置" side="right" wrapperClassName="flex w-full"><Link href="/math-tutor/settings" aria-label="设置" aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className="mt-nav-item"><Settings className="h-4 w-4" /></Link></Tooltip> : <Link href="/math-tutor/settings" aria-label="设置" aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className="mt-nav-item"><Settings className="h-4 w-4" />设置</Link>}<ThemeQuickSwitch compact={collapsed} /></div>
     </aside>
     <main id="workspace-content" className={`min-h-0 min-w-0 flex-1 ${inTutor || pathname.startsWith("/math-tutor/settings") ? "overflow-hidden" : "overflow-y-auto"}`}>{children}</main>
     {deleteTarget ? <ConversationDeleteDialog title={deleteTarget.title || "对话"} onCancel={() => setDeleteTarget(null)} onConfirm={async () => {

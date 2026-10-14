@@ -151,13 +151,11 @@ export default function DocumentsPanel({
 
   return (
     <div className="mt-page">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--foreground)]">
-            <FolderOpen className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
-            我的资料
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+          <p className="mt-eyebrow flex items-center gap-1.5"><FolderOpen className="h-3.5 w-3.5" aria-hidden="true" />资料有归属，检索有边界</p>
+          <h1 className="mt-2">我的资料</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">
             按对话管理资料。总资料可供你的所有对话按需检索，其他对话的专属文件不会混入。
           </p>
           {embeddingSettings ? <span className="mt-2 block"><EmbeddingStatusBadge settings={embeddingSettings} /></span> : null}
@@ -172,7 +170,7 @@ export default function DocumentsPanel({
           type="button"
           onClick={handleNativePick}
           disabled={picking}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-btn mt-btn-primary"
         >
           {picking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FilePlus2 className="h-4 w-4" aria-hidden="true" />}
           {picking ? "正在导入…" : "添加资料"}
@@ -187,15 +185,15 @@ export default function DocumentsPanel({
           tabIndex={-1}
           onChange={(e) => handleFileChosen(e.target.files?.[0] ?? null)}
         />
-      </div>
+      </header>
 
       {message && (
         <p
           role="status"
           className={`rounded-xl px-3 py-2 text-sm ${
             message.kind === "ok"
-              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+              ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
+              : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
           }`}
         >
           {message.text}
@@ -208,7 +206,7 @@ export default function DocumentsPanel({
           正在加载资料…
         </p>
       ) : documents.length === 0 && destinations.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] px-6 py-12 text-center">
+        <div className="mt-card flex flex-col items-center gap-2 border-dashed px-6 py-12 text-center">
           <FolderOpen className="h-8 w-8 text-[var(--muted-foreground)]" aria-hidden="true" />
           <p className="text-sm font-medium text-[var(--foreground)]">还没有学习资料</p>
           <p className="max-w-sm text-sm leading-relaxed text-[var(--muted-foreground)]">

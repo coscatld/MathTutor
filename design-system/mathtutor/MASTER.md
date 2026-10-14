@@ -31,6 +31,16 @@
 - 共用类：`mt-nav-item`、`mt-history-item`、`mt-new-chat`、`mt-icon-button`（`aria-pressed` 显示激活）、`mt-send-button`、`mt-brand-mark`。
 - 空对话时 `mt-chat-column[data-empty]` 让欢迎语与输入框居中；首条消息后输入框回到底部。知识库范围入口在顶栏图标，说明文字在空状态中。
 
+## 0.4.5 视觉升级：“草稿纸与墨水”
+
+- 标志：`components/common/BrandMark.tsx`，三级台阶通向终点圆点，寓意“逐步走到答案”；启动页使用描线动画代替转圈。
+- 母题：淡网格“草稿纸”（`.mt-paper`、`--paper`、`--grid-line`）只出现在数学发生的地方：展示公式、学生作答卡片、示例题、引导页解题纸条。单独成行的 `$$…$$` 公式（`p.math-line`）与 `.katex-display` 同样处理。
+- 字体：界面仍为系统无衬线；题目与示例公式用 KaTeX 自带字体排版（随 `katex` 离线打包，不引入网络字体）。
+- 页面风格：`lib/theme.ts` 提供 跟随系统 / 纸墨 / 夜读 / 暖纸 / 星夜，入口在侧栏底部与“设置 → 外观”。偏好存于 localStorage，并由 `app/layout.tsx` 中的启动脚本在首帧前应用；该模块位于 `features/math-tutor/desktop` 之外，不影响“桌面功能不使用浏览器存储”的密钥约束。
+- 新增令牌：`--paper`、`--grid-line`、`--highlight`、`--focus-halo`、`--success(-soft)`、`--warning(-soft)`、`--sidebar-border`、`--shadow-xs…xl`、`--ease-out`、`--ease-spring`。
+- 共用类：`mt-card`、`mt-btn`（`-primary` / `-ghost` / `-icon`）、`mt-eyebrow`、`mt-section-title`、`mt-input`、`mt-chip`、`mt-choice`、`mt-progress`。`.mt-page > header:first-child` 统一页面标题层级。
+- 动效：入场 `mt-rise`（420ms ease-out）、按压缩放 0.92–0.98、悬停上浮 2px、思考点波动、风格切换 380ms 交叉淡入；全部受 `prefers-reduced-motion` 约束。
+
 ## 验证
 
 - `cd web && npm test`：包括题目默认折叠、阅读结构、共享页面容器与主题保留测试。

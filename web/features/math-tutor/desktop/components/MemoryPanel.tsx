@@ -159,13 +159,11 @@ export default function MemoryPanel({
 
   return (
     <div className="mt-page">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--foreground)]">
-            <BrainCircuit className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
-            我的记忆
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+          <p className="mt-eyebrow flex items-center gap-1.5"><BrainCircuit className="h-3.5 w-3.5" aria-hidden="true" />让辅导更懂你的节奏</p>
+          <h1 className="mt-2">我的记忆</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">
             记录你的学习偏好、目标与兴趣，辅导会据此调整节奏。
             {inferredCount > 0 && ` 当前有 ${inferredCount} 条 AI 推测记忆待你确认。`}
           </p>
@@ -173,12 +171,12 @@ export default function MemoryPanel({
         <button
           type="button"
           onClick={() => setAdding((v) => !v)}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+          className="mt-btn mt-btn-primary"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           添加记忆
         </button>
-      </div>
+      </header>
 
       {/* Category tabs */}
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="记忆类别">
@@ -208,7 +206,7 @@ export default function MemoryPanel({
       {adding && (
         <form
           onSubmit={handleAdd}
-          className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm"
+          className="mt-card flex flex-col gap-3 p-4"
           aria-label="添加记忆"
         >
           <div className="flex flex-wrap gap-3">
@@ -217,7 +215,7 @@ export default function MemoryPanel({
               <select
                 value={addType}
                 onChange={(e) => setAddType(e.target.value)}
-                className="h-11 w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+                className="mt-input h-11"
               >
                 {Object.entries(MEMORY_TYPE_LABELS)
                   .filter(([key]) => key !== "ai_inference")
@@ -234,7 +232,7 @@ export default function MemoryPanel({
                 value={addPredicate}
                 onChange={(e) => setAddPredicate(e.target.value)}
                 placeholder="例如：喜欢举一反三的讲解方式"
-                className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+                className="mt-input h-11"
               />
             </label>
           </div>
@@ -242,14 +240,14 @@ export default function MemoryPanel({
             <button
               type="button"
               onClick={() => setAdding(false)}
-              className="inline-flex min-h-[44px] cursor-pointer items-center rounded-xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+              className="mt-btn"
             >
               取消
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-btn mt-btn-primary"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
               保存记忆
@@ -263,8 +261,8 @@ export default function MemoryPanel({
           role="status"
           className={`rounded-xl px-3 py-2 text-sm ${
             message.kind === "ok"
-              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+              ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
+              : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
           }`}
         >
           {message.text}
@@ -277,7 +275,7 @@ export default function MemoryPanel({
           正在加载记忆…
         </p>
       ) : visible.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] px-6 py-12 text-center">
+        <div className="mt-card flex flex-col items-center gap-2 border-dashed px-6 py-12 text-center">
           <BrainCircuit className="h-8 w-8 text-[var(--muted-foreground)]" aria-hidden="true" />
           <p className="text-sm font-medium text-[var(--foreground)]">这里还没有记忆</p>
           <p className="max-w-sm text-sm leading-relaxed text-[var(--muted-foreground)]">

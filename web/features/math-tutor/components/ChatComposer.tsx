@@ -56,6 +56,6 @@ export default function ChatComposer({ busy, disabled, onSend, onSendAttempt, at
         <button type="button" onClick={() => void submit()} disabled={(!text.trim() && !images.attachments.length) || locked} className="mt-send-button" aria-label={failed ? "重试发送" : attemptMode ? "提交本题步骤" : "发送"}>{sending || busy ? <Loader2 className="h-4 w-4 animate-spin" /> : failed ? "重试" : <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.25} />}</button>
       </div>
     </div>
-    <p id="composer-help" className="mt-composer-help">{attemptMode ? "Enter 提交步骤 · Shift + Enter 换行 · 添加图片会改为图片提问" : "Enter 发送 · Shift + Enter 换行 · 粘贴 / 拖入图片，每张最多 10 MB"}</p>
+    <p id="composer-help" className="mt-composer-help">{attemptMode ? <><kbd>Enter</kbd> 提交步骤 · <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行 · 添加图片会改为图片提问</> : <><kbd>Enter</kbd> 发送 · <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行 · 粘贴 / 拖入图片，每张最多 10 MB</>}</p>
   </div>;
 }

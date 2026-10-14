@@ -47,7 +47,7 @@ export default function AttemptComposer({
 
   return (
     <section
-      className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm"
+      className="mt-card p-4"
       aria-label="作答区"
     >
       <label
@@ -72,7 +72,7 @@ export default function AttemptComposer({
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="inline-flex min-h-[44px] shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2 text-[15px] font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-btn mt-btn-primary shrink-0"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

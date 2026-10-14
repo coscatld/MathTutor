@@ -27,6 +27,12 @@ import DocumentsPanel from "./DocumentsPanel";
 import MemoryPanel from "./MemoryPanel";
 import TutorPersonalityPanel from "./TutorPersonalityPanel";
 import { useToast } from "./ToastProvider";
+import { useSearchParams } from "next/navigation";
+import AppearancePicker from "@/components/common/AppearancePicker";
+
+const SETTINGS_SECTIONS = ["general", "model", "tutor", "data", "appearance", "advanced", "trash"] as const;
+type SettingsSection = typeof SETTINGS_SECTIONS[number];
+const isSettingsSection = (value: string | null | undefined): value is SettingsSection => SETTINGS_SECTIONS.includes(value as SettingsSection);
 
 export interface FormMessage {
   kind: "ok" | "error";
@@ -83,10 +89,10 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
   return (
     <form
       onSubmit={handlers.onSave}
-      className="flex flex-col gap-5 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm"
+      className="mt-card flex flex-col gap-5 p-5"
       aria-label="AI 模型设置"
     >
-      <div className="flex items-center justify-between gap-3"><div><h3 className="font-serif text-lg font-bold">生成模型</h3><p className="mt-1 text-xs text-[var(--muted-foreground)]">用于 Tutor 表达与练习候选生成；数学验证仍由确定性后端完成。</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${connectionLabel === "连接成功" ? "bg-emerald-100 text-emerald-700" : connectionLabel === "连接失败" ? "bg-rose-100 text-rose-700" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}>{connectionLabel}</span></div>
+      <div className="flex items-center justify-between gap-3"><div><h3 className="text-lg font-bold tracking-tight">生成模型</h3><p className="mt-1 text-xs text-[var(--muted-foreground)]">用于 Tutor 表达与练习候选生成；数学验证仍由确定性后端完成。</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${connectionLabel === "连接成功" ? "bg-emerald-100 text-[var(--success)]" : connectionLabel === "连接失败" ? "bg-rose-100 text-rose-700" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}>{connectionLabel}</span></div>
       {/* Provider */}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium text-[var(--foreground)]">模型服务商</span>
@@ -129,7 +135,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
               placeholder={data.keyMasked ? `已保存：${data.keyMasked}（留空则保持不变）` : "粘贴 API 密钥"}
               value={data.apiKey}
               onChange={(e) => handlers.onApiKeyChange(e.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] pl-10 pr-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+              className="mt-input h-11 pl-10 pr-3"
             />
           </div>
           <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
@@ -139,12 +145,12 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
           </p>
           {providerSaved && data.keyMasked ? (
             data.confirmingRemoval ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              <div className="mt-note mt-note-danger flex flex-wrap items-center gap-2 p-3 text-sm">
                 <span className="mr-auto">移除后将立即回到模板教学，学习数据不会被删除。</span>
                 <button type="button" onClick={handlers.onCancelRemove} disabled={data.removing} className="min-h-[40px] rounded-lg px-3 font-medium hover:bg-[var(--accent)]">
                   取消
                 </button>
-                <button type="button" onClick={handlers.onRemove} disabled={data.removing} className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-red-600 px-3 font-medium text-white disabled:opacity-50">
+                <button type="button" onClick={handlers.onRemove} disabled={data.removing} className="mt-btn mt-btn-danger-solid">
                   {data.removing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                   确认移除
                 </button>
@@ -153,14 +159,14 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
               <button
                 type="button"
                 onClick={handlers.onAskRemove}
-                className="min-h-[40px] w-fit text-sm font-medium text-red-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] dark:text-red-400"
+                className="min-h-[40px] w-fit text-sm font-medium text-[var(--destructive)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
               >
                 移除已保存的 API Key
               </button>
             )
           ) : null}
         </div>
-      </div> : <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">Ollama 在本机运行，不需要 API Key。</div>}
+      </div> : <div className="mt-note mt-note-success px-3 py-2 text-sm">Ollama 在本机运行，不需要 API Key。</div>}
 
       {/* Custom / advanced foldout */}
       <div className="flex flex-col gap-2">
@@ -187,7 +193,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 value={data.baseUrl}
                 onChange={(e) => handlers.onBaseUrlChange(e.target.value)}
                 readOnly={!currentPreset?.editable_base_url}
-                className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] read-only:cursor-default read-only:bg-[var(--muted)] read-only:text-[var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+                className="mt-input h-11"
               />
               <p className="text-xs text-[var(--muted-foreground)]">默认使用服务商地址，可修改。API Key 将发送到此地址，请仅填写可信服务。</p>
               {currentPreset?.base_url && <button type="button" onClick={() => handlers.onBaseUrlChange(currentPreset.base_url!)} className="w-fit text-xs text-[var(--primary-text)]">恢复默认地址</button>}
@@ -203,7 +209,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 placeholder={currentPreset?.custom ? "例如 deepseek-chat（必填）" : "使用服务商默认模型"}
                 value={data.model}
                 onChange={(e) => handlers.onModelChange(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+                className="mt-input h-11"
               />
             </div>
             {(currentPreset?.custom || currentPreset?.local) && (
@@ -211,7 +217,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
                 type="button"
                 onClick={handlers.onDiscoverModels}
                 disabled={data.discovering || !providerSaved}
-                className="inline-flex min-h-[44px] w-fit cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-btn mt-btn-primary w-fit"
               >
                 {data.discovering ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
                 {currentPreset?.local ? "读取本机模型" : "发现可用模型"}
@@ -245,8 +251,8 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
             role="status"
             className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
               data.message.kind === "ok"
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
+                : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
             }`}
           >
             {data.message.kind === "ok" ? <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
@@ -258,7 +264,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
           <button
             type="submit"
             disabled={data.saving}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn mt-btn-primary"
           >
             {data.saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             {data.saving ? "保存中…" : "保存设置"}
@@ -267,7 +273,7 @@ export function SettingsForm({ data, handlers }: { data: SettingsFormData; handl
             type="button"
             onClick={handlers.onTest}
             disabled={data.testing || !canTest}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-5 py-2 text-sm font-medium text-[var(--foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn"
           >
             {data.testing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PlugZap className="h-4 w-4" aria-hidden="true" />}
             测试连接
@@ -302,7 +308,7 @@ export function ModelTestCard({ result }: { result: ModelTestResult }) {
     return (
       <p
         role="status"
-        className="flex flex-col gap-0.5 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+        className="mt-note mt-note-success flex flex-col gap-0.5 px-3 py-2 text-sm"
       >
         <span className="flex items-center gap-1.5 font-medium">
           <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -318,7 +324,7 @@ export function ModelTestCard({ result }: { result: ModelTestResult }) {
   return (
     <div
       role="status"
-      className="flex flex-col gap-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400"
+      className="mt-note mt-note-danger flex flex-col gap-1 px-3 py-2 text-sm"
     >
       <span className="flex items-center gap-1.5 font-medium">
         <ErrorIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -372,7 +378,9 @@ export default function SettingsPanel({
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const [modelTest, setModelTest] = useState<ModelTestResult | null>(null);
   const [message, setMessage] = useState<FormMessage | null>(null);
-  const [section, setSection] = useState<"general" | "model" | "tutor" | "data" | "appearance" | "advanced" | "trash">("model");
+  const requested = useSearchParams()?.get("section");
+  const [section, setSection] = useState<SettingsSection>(isSettingsSection(requested) ? requested : "model");
+  useEffect(() => { if (isSettingsSection(requested)) setSection(requested); }, [requested]);
   const toast = useToast();
 
   const load = useCallback(async () => {
@@ -582,19 +590,19 @@ export default function SettingsPanel({
   ] as const;
   return (
     <div className="mt-settings-layout">
-      <aside className="mt-settings-nav"><h1 className="mb-5 flex items-center gap-2 px-2 font-serif text-lg font-bold"><Settings2 className="h-5 w-5 text-[var(--primary-text)]" />设置</h1><nav aria-label="设置分类" className="space-y-1">{sections.map(([id, label]) => <button key={id} type="button" aria-current={section === id ? "page" : undefined} onClick={() => setSection(id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${section === id ? "bg-[var(--card)] font-semibold text-[var(--primary)] shadow-sm" : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]"}`}>{label}</button>)}</nav></aside>
+      <aside className="mt-settings-nav"><h1 className="mb-5 flex items-center gap-2 px-2 text-lg font-bold tracking-tight"><Settings2 className="h-5 w-5 text-[var(--primary-text)]" />设置</h1><nav aria-label="设置分类" className="space-y-0.5">{sections.map(([id, label]) => <button key={id} type="button" aria-current={section === id ? "page" : undefined} onClick={() => setSection(id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${section === id ? "bg-[var(--primary-soft)] font-semibold text-[var(--primary-text)]" : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"}`}>{label}</button>)}</nav></aside>
       <div className="mt-settings-content"><div className="mx-auto max-w-4xl">
       {section === "trash" ? <ConversationTrashPanel /> : null}
-      {section === "general" ? <section><h2 className="font-serif text-xl font-bold">通用</h2><div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm font-semibold">开箱即用</p><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">Embedding 与 OCR 等增强能力默认关闭；未配置模型时，核心练习、模板辅导和关键词检索仍可使用。</p></div></section> : null}
-      {section === "model" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">模型与 API</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">配置生成模型和可选的资料 Embedding。密钥只进入系统安全凭据存储。</p></div>{modelPanel}{modelTest ? <ModelTestCard result={modelTest} /> : null}{settings && !settings.is_configured && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400">
+      {section === "general" ? <section><h2 className="text-xl font-bold tracking-tight">通用</h2><div className="mt-card mt-4 p-5"><p className="text-sm font-semibold">开箱即用</p><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">Embedding 与 OCR 等增强能力默认关闭；未配置模型时，核心练习、模板辅导和关键词检索仍可使用。</p></div></section> : null}
+      {section === "model" ? <div className="space-y-4"><div><h2 className="text-xl font-bold tracking-tight">模型与 API</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">配置生成模型和可选的资料 Embedding。密钥只进入系统安全凭据存储。</p></div>{modelPanel}{modelTest ? <ModelTestCard result={modelTest} /> : null}{settings && !settings.is_configured && (
+        <p className="mt-note mt-note-warning px-3 py-2 text-sm">
           尚未配置 AI 模型 —— 核心练习功能不受影响，配置后可解锁个性化辅导与推荐练习。
         </p>
       )}<EmbeddingSettingsPanel /></div> : null}
       {section === "tutor" ? <TutorPersonalityPanel /> : null}
       {section === "data" ? <DataPrivacySettings /> : null}
-      {section === "appearance" ? <section><h2 className="font-serif text-xl font-bold">外观</h2><div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 text-sm leading-6 text-[var(--muted-foreground)]">界面跟随应用主题，并使用适合长时间学习的暖白画布与高对比文字。</div></section> : null}
-      {section === "advanced" ? <div className="space-y-4"><div><h2 className="font-serif text-xl font-bold">高级</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">备份、恢复与维护操作。</p></div><BackupPanel /></div> : null}
+      {section === "appearance" ? <section><h2 className="text-xl font-bold tracking-tight">外观</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">选择页面风格，立即生效。偏好只保存在本机。</p><div className="mt-5"><AppearancePicker /></div></section> : null}
+      {section === "advanced" ? <div className="space-y-4"><div><h2 className="text-xl font-bold tracking-tight">高级</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">备份、恢复与维护操作。</p></div><BackupPanel /></div> : null}
       </div></div>
     </div>
   );

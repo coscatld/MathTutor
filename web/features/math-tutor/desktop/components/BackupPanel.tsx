@@ -47,9 +47,9 @@ export function RestoreConfirmDialog({
       aria-labelledby="restore-confirm-title"
       aria-describedby="restore-confirm-desc"
     >
-      <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xl">
+      <div className="mt-card flex w-full max-w-md flex-col gap-3 p-5 shadow-xl">
         <h2 id="restore-confirm-title" className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
-          <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400" aria-hidden="true" />
+          <ShieldAlert className="h-5 w-5 text-[var(--destructive)]" aria-hidden="true" />
           确认恢复备份？
         </h2>
         <p id="restore-confirm-desc" className="text-sm leading-relaxed text-[var(--foreground)]">
@@ -61,7 +61,7 @@ export function RestoreConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="inline-flex min-h-[44px] cursor-pointer items-center rounded-xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn"
           >
             取消
           </button>
@@ -69,7 +69,7 @@ export function RestoreConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn mt-btn-danger-solid"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}
             {busy ? "恢复中…" : "确认恢复"}
@@ -191,7 +191,7 @@ export default function BackupPanel({
   };
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm" aria-label="数据备份">
+    <section className="mt-card flex flex-col gap-4 p-5" aria-label="数据备份">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
@@ -206,7 +206,7 @@ export default function BackupPanel({
           type="button"
           onClick={handleBackup}
           disabled={busy !== null}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-btn mt-btn-primary"
         >
           {busy === "backup" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />}
           {busy === "backup" ? "备份中…" : "立即备份"}
@@ -244,8 +244,8 @@ export default function BackupPanel({
           role="status"
           className={`rounded-xl px-3 py-2 text-sm ${
             message.kind === "ok"
-              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+              ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
+              : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
           }`}
         >
           {message.text}
@@ -274,7 +274,7 @@ export default function BackupPanel({
                   <span
                     className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
                       backup.integrity === "ok"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400"
+                        ? "border-emerald-200 bg-emerald-50 text-[var(--success)] dark:border-emerald-900 dark:bg-emerald-950/40"
                         : "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)]"
                     }`}
                   >
@@ -291,7 +291,7 @@ export default function BackupPanel({
                   type="button"
                   onClick={() => handleVerify(backup)}
                   disabled={busy !== null}
-                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-btn"
                 >
                   {busy === "verify" && busyPath === backup.path ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <BadgeCheck className="h-4 w-4" aria-hidden="true" />}
                   验证
@@ -300,7 +300,7 @@ export default function BackupPanel({
                   type="button"
                   onClick={() => setConfirmRestore(backup)}
                   disabled={busy !== null}
-                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-red-200 px-3 text-sm font-medium text-red-700 transition-colors duration-200 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
+                  className="mt-btn mt-btn-danger"
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />
                   恢复

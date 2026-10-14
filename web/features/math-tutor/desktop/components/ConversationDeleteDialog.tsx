@@ -21,7 +21,7 @@ export default function ConversationDeleteDialog({ title, permanent = false, onC
   }
   return <dialog ref={dialog} aria-labelledby="delete-conversation-title" aria-describedby="delete-conversation-copy"
     onCancel={e => { e.preventDefault(); if (!busy) onCancel(); }}
-    className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-[var(--foreground)] shadow-xl backdrop:bg-black/35">
+    className="mt-card m-auto w-[calc(100%-2rem)] max-w-md p-6 text-[var(--foreground)] shadow-xl backdrop:bg-black/35">
     <Trash2 aria-hidden="true" className="mb-4 h-6 w-6 text-[var(--muted-foreground)]" />
     <h2 id="delete-conversation-title" className="text-lg font-semibold">{permanent ? "彻底删除此对话？" : "将此对话移入垃圾桶？"}</h2>
     <p className="mt-2 break-words text-sm font-medium">{title}</p>
@@ -34,10 +34,10 @@ export default function ConversationDeleteDialog({ title, permanent = false, onC
         <p className="text-xs">如果要彻底删除：设置&gt;垃圾桶</p>
       </>}
     </div>
-    {error ? <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+    {error ? <p role="alert" className="mt-3 text-sm text-[var(--destructive)]">{error}</p> : null}
     <div className="mt-6 flex justify-end gap-3">
-      <button autoFocus type="button" disabled={busy} onClick={onCancel} className="min-h-11 rounded-lg border border-[var(--border)] px-4 text-sm hover:bg-[var(--muted)] disabled:opacity-50">取消</button>
-      <button type="button" disabled={busy} onClick={() => void confirm()} className="min-h-11 rounded-lg bg-red-700 px-4 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50">{busy ? "处理中…" : permanent ? "彻底删除" : "移入垃圾桶"}</button>
+      <button autoFocus type="button" disabled={busy} onClick={onCancel} className="mt-btn min-h-11 px-4">取消</button>
+      <button type="button" disabled={busy} onClick={() => void confirm()} className="mt-btn mt-btn-danger-solid min-h-11 px-4">{busy ? "处理中…" : permanent ? "彻底删除" : "移入垃圾桶"}</button>
     </div>
   </dialog>;
 }

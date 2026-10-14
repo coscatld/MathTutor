@@ -19,8 +19,8 @@ export function memoryObjectText(memory: DesktopMemory): string {
 
 const SOURCE_STYLES: Record<string, string> = {
   USER_EXPLICIT: "border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]",
-  MODEL_INFERRED: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400",
-  USER_CONFIRMED: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+  MODEL_INFERRED: "border-amber-300 bg-amber-50 text-[var(--warning)] dark:border-amber-800 dark:bg-amber-950/40",
+  USER_CONFIRMED: "border-emerald-300 bg-emerald-50 text-[var(--success)] dark:border-emerald-800 dark:bg-emerald-950/40",
 };
 
 export default function MemoryRow({
@@ -61,7 +61,7 @@ export default function MemoryRow({
   };
 
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
+    <li className="mt-card flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -83,20 +83,20 @@ export default function MemoryRow({
                 aria-label="记忆内容（谓词）"
                 value={predicate}
                 onChange={(e) => setPredicate(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+                className="mt-input h-11"
               />
               <input
                 aria-label="记忆内容（值）"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+                className="mt-input h-11"
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-btn mt-btn-primary"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}
                   保存
@@ -104,7 +104,7 @@ export default function MemoryRow({
                 <button
                   type="button"
                   onClick={() => setEditing(false)}
-                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 text-sm text-[var(--muted-foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+                  className="mt-btn"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                   取消
@@ -135,7 +135,7 @@ export default function MemoryRow({
                 }
               }}
               disabled={busy || confirming}
-              className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl bg-[var(--primary)] px-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-btn mt-btn-primary"
             >
               {confirming ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <BadgeCheck className="h-4 w-4" aria-hidden="true" />}
               确认
@@ -145,7 +145,7 @@ export default function MemoryRow({
             type="button"
             onClick={() => setEditing(true)}
             disabled={busy}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-medium text-[var(--foreground)] transition-colors duration-200 hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn"
             aria-label="编辑这条记忆"
           >
             <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -155,7 +155,7 @@ export default function MemoryRow({
             type="button"
             onClick={onDelete}
             disabled={busy}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-medium text-red-600 transition-colors duration-200 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-btn mt-btn-danger"
             aria-label="删除这条记忆"
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />

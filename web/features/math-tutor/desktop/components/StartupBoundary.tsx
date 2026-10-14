@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, RefreshCw, TriangleAlert } from "lucide-react";
+import { RefreshCw, TriangleAlert } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fetchAuthStatus } from "@/lib/auth";
@@ -73,17 +74,17 @@ export default function StartupBoundary({ children, entry = false }: Props) {
 
   const blocked = decision === "blocked";
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--background)] p-6">
-      <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_80%_75%,rgba(176,80,30,0.10),transparent_32%)]" />
-      <section className="relative w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 text-center shadow-[0_24px_80px_rgba(28,24,22,0.10)]">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary-soft)] text-[var(--primary-text)]">
+    <main className="mt-standalone">
+      <div className="mt-standalone-field mt-paper" aria-hidden="true" />
+      <section className="mt-rise relative w-full max-w-sm text-center" aria-live="polite">
+        <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${blocked ? "bg-[var(--warning-soft)] text-[var(--warning)]" : "mt-empty-mark"}`}>
           {blocked ? (
             <TriangleAlert className="h-6 w-6" aria-hidden="true" />
           ) : (
-            <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+            <BrandMark className="h-7 w-7" animated loop />
           )}
         </div>
-        <h1 className="mt-5 font-serif text-2xl font-semibold tracking-tight text-[var(--foreground)]">
+        <h1 className="mt-6 text-2xl font-bold tracking-tight text-[var(--foreground)]">
           {blocked ? "MathTutor 需要你的协助" : "正在启动 MathTutor"}
         </h1>
         <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
@@ -95,7 +96,7 @@ export default function StartupBoundary({ children, entry = false }: Props) {
           <button
             type="button"
             onClick={() => void check()}
-            className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+            className="mt-btn mt-btn-primary mt-6 min-h-[44px] px-5"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             重新检查

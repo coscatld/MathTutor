@@ -8,29 +8,29 @@ import type { Readiness, ReadinessStatus } from "../types";
 const STATUS_STYLES: Record<ReadinessStatus, { dot: string; text: string; badge: string }> = {
   READY: {
     dot: "bg-emerald-500",
-    text: "text-emerald-700 dark:text-emerald-400",
+    text: "text-[var(--success)]",
     badge: "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40",
   },
   DEGRADED: {
     dot: "bg-amber-500",
-    text: "text-amber-700 dark:text-amber-400",
+    text: "text-[var(--warning)]",
     badge: "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40",
   },
   BLOCKED: {
     dot: "bg-red-500",
-    text: "text-red-700 dark:text-red-400",
+    text: "text-[var(--destructive)]",
     badge: "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40",
   },
 };
 
 function StatusIcon({ status }: { status: ReadinessStatus }) {
   if (status === "READY") {
-    return <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />;
+    return <CheckCircle2 className="h-4 w-4 text-[var(--success)]" aria-hidden="true" />;
   }
   if (status === "DEGRADED") {
-    return <TriangleAlert className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />;
+    return <TriangleAlert className="h-4 w-4 text-[var(--warning)]" aria-hidden="true" />;
   }
-  return <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" aria-hidden="true" />;
+  return <ShieldAlert className="h-4 w-4 text-[var(--destructive)]" aria-hidden="true" />;
 }
 
 /**
@@ -66,12 +66,12 @@ export default function ReadinessBadge({ readiness }: { readiness: Readiness }) 
         <div
           role="region"
           aria-label="状态详情"
-          className="absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 text-sm shadow-lg"
+          className="mt-card absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg"
         >
           <ul className="flex flex-col gap-2">
             {reasons.map(([key, reason]) => (
               <li key={key} className="flex items-start gap-2 text-[var(--foreground)]">
-                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warning)]" aria-hidden="true" />
                 <span className="min-w-0">{reason}</span>
               </li>
             ))}

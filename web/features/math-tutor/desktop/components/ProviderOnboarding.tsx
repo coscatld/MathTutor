@@ -8,7 +8,6 @@ import {
   KeyRound,
   Loader2,
   LockKeyhole,
-  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -20,6 +19,15 @@ import {
   skipProviderOnboarding,
 } from "../lib/desktop-api";
 import type { DesktopSettings, ProviderPreset } from "../types";
+import katex from "katex";
+import BrandMark from "@/components/common/BrandMark";
+
+const WORKED_STEPS = [
+  { tex: "2x + 3 = 11", note: "题目" },
+  { tex: "2x = 11 - 3 = 8", note: "两边减 3" },
+  { tex: "x = 4", note: "两边除以 2" },
+  { tex: "2 \\times 4 + 3 = 11", note: "代回核验" },
+].map(step => ({ ...step, html: katex.renderToString(step.tex, { throwOnError: false, output: "html" }) }));
 
 /** Dedicated first-run product onboarding. Secret input never leaves memory. */
 export default function ProviderOnboarding() {
@@ -125,44 +133,37 @@ export default function ProviderOnboarding() {
   };
 
   return (
-    <main className="relative h-screen overflow-y-auto bg-[var(--secondary)] text-[var(--foreground)]">
-      <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgba(37,99,235,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.045)_1px,transparent_1px)] [background-size:36px_36px]" />
-      <div className="pointer-events-none absolute -left-32 top-12 h-80 w-80 rounded-full bg-[var(--primary-soft)] blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-[#d97706]/10 blur-3xl" />
+    <main className="mt-onboarding relative h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+      <div className="mt-onboarding-field mt-paper pointer-events-none absolute inset-0" aria-hidden="true" />
 
-      <div className="relative mx-auto grid min-h-full w-full max-w-6xl items-center gap-10 px-6 py-10 lg:grid-cols-[0.82fr_1.18fr] lg:px-10">
+      <div className="relative mx-auto grid min-h-full w-full max-w-6xl items-center gap-12 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:px-10">
         <section className="hidden lg:block" aria-label="MathTutor 介绍">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--primary-border)] bg-[var(--card)] px-3 py-1.5 text-xs font-semibold tracking-[0.14em] text-[var(--primary-text)] shadow-sm backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            MATH TUTOR · LOCAL FIRST
-          </div>
-          <h2 className="mt-8 max-w-md font-serif text-5xl font-semibold leading-[1.08] tracking-[-0.035em]">
-            把好奇心
-            <span className="mt-2 block text-[var(--primary-text)]">变成一步步的解题思路</span>
+          <div className="flex items-center gap-2.5"><span className="mt-brand-mark"><BrandMark /></span><span className="mt-wordmark">Math<span>Tutor</span></span></div>
+          <h2 className="mt-10 max-w-md text-[44px] font-bold leading-[1.12] tracking-[-0.035em]">
+            把好奇心，
+            <span className="block">变成<em className="mt-hero-em">一步步</em>的解题思路</span>
           </h2>
-          <div className="mt-10 max-w-sm rotate-[-2deg] rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[0_24px_60px_rgba(23,32,51,0.12)]">
-            <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
-              <span>今日练习</span>
-              <span className="rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[var(--primary-text)]">引导式辅导</span>
-            </div>
-            <p className="mt-8 font-serif text-3xl font-semibold tracking-tight">
-              2x + 3 = 11
-            </p>
-            <div className="mt-7 h-px bg-[var(--muted)]" />
-            <p className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
-              先想想：如果两边同时减去 3，等式会变成什么？
-            </p>
-          </div>
+          <p className="mt-5 max-w-sm text-[15px] leading-7 text-[var(--muted-foreground)]">先自己尝试，卡住时再逐级获得提示。每一步都由本地求解器核验，而不只是看起来对。</p>
+          <ol className="mt-worked mt-paper" aria-label="示例：逐步核验">
+            {WORKED_STEPS.map((step, index) => <li key={step.note} style={{ animationDelay: `${300 + index * 420}ms` }}>
+              <span className="mt-worked-index">{index + 1}</span>
+              <span className="mt-worked-tex" dangerouslySetInnerHTML={{ __html: step.html }} />
+              <span className="mt-worked-note"><Check className="h-3.5 w-3.5" aria-hidden="true" />{step.note}</span>
+            </li>)}
+          </ol>
+          <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--muted-foreground)]">
+            {["学习记录保存在本机", "提示分级，不直接给答案", "随时可以换模型"].map(item => <li key={item} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" aria-hidden="true" />{item}</li>)}
+          </ul>
         </section>
 
-        <section className="mx-auto w-full max-w-2xl rounded-[30px] border border-white/80 bg-[var(--card)] p-6 shadow-[0_30px_90px_rgba(23,32,51,0.14)] backdrop-blur md:p-9">
+        <section className="mt-rise mx-auto w-full max-w-2xl rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--shadow-xl)] md:p-9">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary)] text-white shadow-lg">
+            <div className="mt-empty-mark shrink-0">
               <BookOpenCheck className="h-6 w-6" aria-hidden="true" />
             </div>
             <div>
               <p className="text-sm font-semibold text-[var(--primary-text)]">欢迎使用 MathTutor</p>
-              <h1 className="mt-1 font-serif text-3xl font-semibold tracking-[-0.025em] text-[var(--foreground)]">
+              <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-[-0.025em] text-[var(--foreground)]">
                 配置你的 AI 数学辅导模型
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted-foreground)]">
@@ -180,7 +181,7 @@ export default function ProviderOnboarding() {
             <form onSubmit={handleSave} className="mt-8 space-y-6" aria-label="AI 模型首次配置">
               <fieldset>
                 <legend className="text-sm font-semibold text-[var(--foreground)]">选择模型服务商</legend>
-                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                   {presets.map((preset) => {
                     const selected = preset.preset_id === presetId;
                     return (
@@ -197,9 +198,9 @@ export default function ProviderOnboarding() {
                           setError("");
                           if (preset.custom || preset.local) setAdvancedOpen(true);
                         }}
-                        className={`relative min-h-[54px] rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
+                        className={`relative min-h-[52px] whitespace-nowrap rounded-xl border py-2.5 pl-3 pr-7 text-left text-sm font-semibold transition duration-200 active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
                           selected
-                            ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)] shadow-sm"
+                            ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)] shadow-[0_0_0_3px_var(--focus-halo)]"
                             : "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)]"
                         }`}
                       >
@@ -227,14 +228,14 @@ export default function ProviderOnboarding() {
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
                     placeholder={keepingExistingKey ? `已保存：${settings?.key_masked}` : "粘贴你的 API Key"}
-                    className="h-12 w-full rounded-2xl border border-[var(--border)] bg-[var(--secondary)] pl-11 pr-4 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[var(--primary-border)]"
+                    className="h-12 w-full rounded-xl border border-[var(--input)] bg-[var(--card)] pl-11 pr-4 text-sm text-[var(--foreground)] shadow-[var(--shadow-xs)] outline-none transition placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--focus-halo)]"
                   />
                 </div>
                 <p className="mt-2 flex items-center gap-1.5 text-xs leading-5 text-[var(--muted-foreground)]">
                   <LockKeyhole className="h-3.5 w-3.5 text-[var(--primary-text)]" aria-hidden="true" />
                   API Key 使用系统安全凭据存储，不会写入学习数据库或浏览器存储。
                 </p>
-              </div> : <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Ollama 在本机运行，不需要 API Key。</p>}
+              </div> : <p className="rounded-xl bg-[var(--success-soft)] px-4 py-3 text-sm text-[var(--success)]">Ollama 在本机运行，不需要 API Key。</p>}
 
               <div>
                 <button
@@ -274,7 +275,7 @@ export default function ProviderOnboarding() {
               </div>
 
               {error ? (
-                <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-[var(--destructive)] dark:border-red-900 dark:bg-red-950/40">
                   {error}
                 </p>
               ) : null}
@@ -283,7 +284,7 @@ export default function ProviderOnboarding() {
                 <button
                   type="submit"
                   disabled={saving || skipping}
-                  className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[var(--primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:translate-y-0 disabled:opacity-55"
+                  className="mt-btn mt-btn-primary min-h-[48px] flex-1"
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                   {saving ? "正在安全保存…" : "保存并继续"}
@@ -293,7 +294,7 @@ export default function ProviderOnboarding() {
                   type="button"
                   onClick={() => void handleSkip()}
                   disabled={saving || skipping}
-                  className="inline-flex min-h-[48px] items-center justify-center rounded-2xl px-5 text-sm font-semibold text-[var(--muted-foreground)] transition hover:bg-[var(--secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:opacity-55"
+                  className="mt-btn mt-btn-ghost min-h-[48px]"
                 >
                   {skipping ? "正在进入…" : "暂时跳过，使用模板教学"}
                 </button>

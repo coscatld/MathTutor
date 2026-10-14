@@ -12,35 +12,35 @@ const STEADY_POLL_MS = 30000; // after boot: refresh slowly so the badge recover
 const STATUS_STYLES: Record<ReadinessStatus, { dot: string; text: string; badge: string }> = {
   READY: {
     dot: "bg-emerald-500",
-    text: "text-emerald-700 dark:text-emerald-400",
+    text: "text-[var(--success)]",
     badge: "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40",
   },
   DEGRADED: {
     dot: "bg-amber-500",
-    text: "text-amber-700 dark:text-amber-400",
+    text: "text-[var(--warning)]",
     badge: "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40",
   },
   BLOCKED: {
     dot: "bg-red-500",
-    text: "text-red-700 dark:text-red-400",
+    text: "text-[var(--destructive)]",
     badge: "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40",
   },
 };
 
 const STEP_ICONS: Record<BootstrapStepStatus, { icon: typeof CheckCircle2; className: string }> = {
-  ok: { icon: CheckCircle2, className: "text-emerald-600 dark:text-emerald-400" },
-  degraded: { icon: TriangleAlert, className: "text-amber-600 dark:text-amber-400" },
-  blocked: { icon: XCircle, className: "text-red-600 dark:text-red-400" },
+  ok: { icon: CheckCircle2, className: "text-[var(--success)]" },
+  degraded: { icon: TriangleAlert, className: "text-[var(--warning)]" },
+  blocked: { icon: XCircle, className: "text-[var(--destructive)]" },
 };
 
 function StatusIcon({ status }: { status: ReadinessStatus }) {
   if (status === "READY") {
-    return <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />;
+    return <CheckCircle2 className="h-4 w-4 text-[var(--success)]" aria-hidden="true" />;
   }
   if (status === "DEGRADED") {
-    return <TriangleAlert className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />;
+    return <TriangleAlert className="h-4 w-4 text-[var(--warning)]" aria-hidden="true" />;
   }
-  return <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" aria-hidden="true" />;
+  return <ShieldAlert className="h-4 w-4 text-[var(--destructive)]" aria-hidden="true" />;
 }
 
 /** True once the boot sequence reached a final state. */
@@ -120,7 +120,7 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
         <div
           role="region"
           aria-label="启动步骤"
-          className="absolute right-0 z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 text-sm shadow-lg"
+          className="mt-card absolute right-0 z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg"
         >
           {steps.length === 0 ? (
             <p className="flex items-center gap-2 px-1 py-2 text-[var(--muted-foreground)]">
@@ -169,7 +169,7 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
               type="button"
               onClick={onRefresh}
               disabled={refreshing}
-              className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-[var(--primary-text)] transition-colors duration-200 hover:bg-[var(--primary-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-btn mt-btn-ghost"
             >
               {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
               重新检测

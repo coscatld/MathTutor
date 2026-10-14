@@ -16,7 +16,7 @@ interface ProblemCardProps {
 export default function ProblemCard({ latex }: ProblemCardProps) {
   return (
     <section
-      className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:p-5"
+      className="mt-card p-4 sm:p-5"
       aria-label="当前题目"
     >
       <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground)]">
