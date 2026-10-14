@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, BrainCircuit, ChevronLeft, FileText, GraduationCap, Library, MessageSquarePlus, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import { BookCheck, BookOpen, BrainCircuit, ChevronLeft, FileText, GraduationCap, Library, MessageSquarePlus, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/math-tutor", label: "辅导", icon: GraduationCap },
   { href: "/math-tutor/profile", label: "学习画像", icon: ShieldCheck },
   { href: "/math-tutor/offers", label: "推荐练习", icon: BookOpen },
+  { href: "/math-tutor/question-bank", label: "题库", icon: BookCheck },
   { href: "/math-tutor/documents", label: "资料", icon: FileText },
   { href: "/math-tutor/knowledge", label: "知识库", icon: Library },
   { href: "/math-tutor/memory", label: "记忆", icon: BrainCircuit },

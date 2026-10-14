@@ -27,12 +27,13 @@ import DocumentsPanel from "./DocumentsPanel";
 import MemoryPanel from "./MemoryPanel";
 import TutorPersonalityPanel from "./TutorPersonalityPanel";
 import CostSettingsPanel from "./CostSettingsPanel";
+import LearnerStagePanel from "./LearnerStagePanel";
 import EncryptionPanel from "./EncryptionPanel";
 import { useToast } from "./ToastProvider";
 import { useSearchParams } from "next/navigation";
 import AppearancePicker from "@/components/common/AppearancePicker";
 
-const SETTINGS_SECTIONS = ["general", "model", "tutor", "data", "appearance", "advanced", "trash"] as const;
+const SETTINGS_SECTIONS = ["general", "model", "tutor", "stage", "data", "appearance", "advanced", "trash"] as const;
 type SettingsSection = typeof SETTINGS_SECTIONS[number];
 const isSettingsSection = (value: string | null | undefined): value is SettingsSection => SETTINGS_SECTIONS.includes(value as SettingsSection);
 
@@ -588,7 +589,7 @@ export default function SettingsPanel({
         />
       );
   const sections = [
-    ["general", "通用"], ["model", "模型与 API"], ["tutor", "Tutor"], ["data", "数据与隐私"], ["appearance", "外观"], ["advanced", "高级"], ["trash", "垃圾桶"],
+    ["general", "通用"], ["model", "模型与 API"], ["tutor", "Tutor"], ["stage", "学段"], ["data", "数据与隐私"], ["appearance", "外观"], ["advanced", "高级"], ["trash", "垃圾桶"],
   ] as const;
   return (
     <div className="mt-settings-layout">
@@ -602,6 +603,7 @@ export default function SettingsPanel({
         </p>
       )}<EmbeddingSettingsPanel /></div> : null}
       {section === "tutor" ? <div className="space-y-8"><TutorPersonalityPanel /><CostSettingsPanel /></div> : null}
+      {section === "stage" ? <LearnerStagePanel /> : null}
       {section === "data" ? <DataPrivacySettings /> : null}
       {section === "appearance" ? <section><h2 className="text-xl font-bold tracking-tight">外观</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">选择页面风格，立即生效。偏好只保存在本机。</p><div className="mt-5"><AppearancePicker /></div></section> : null}
       {section === "advanced" ? <div className="space-y-4"><div><h2 className="text-xl font-bold tracking-tight">高级</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">备份、恢复、加密与维护操作。</p></div><EncryptionPanel /><BackupPanel /></div> : null}

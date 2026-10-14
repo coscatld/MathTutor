@@ -2,7 +2,7 @@
 
 import { ArrowDown, BrainCircuit, FolderOpen, Library, Lightbulb, PanelRightClose } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversationScroll } from "../hooks/useConversationScroll";
 import { useMathTutorSession } from "../hooks/useMathTutorSession";
 import { makeSessionId } from "../lib/protocol";
@@ -18,6 +18,7 @@ import StudentNextStep from "./StudentNextStep";
 import TutorWelcome from "./TutorWelcome";
 import NearbyPractice from "./NearbyPractice";
 import Link from "next/link";
+import { parseTutorLaunch, type TutorLaunch } from "../desktop/lib/question-bank";
 
 export default function MathTutorPage() {
   const search = useSearchParams();
@@ -25,10 +26,13 @@ export default function MathTutorPage() {
   const generated = useMemo(() => makeSessionId(), []);
   const sessionId = search.get("session")?.trim() || generated;
   useEffect(() => { if (!search.get("session")) router.replace(`/math-tutor?session=${encodeURIComponent(sessionId)}`); }, [router, search, sessionId]);
-  return <TutorConversation key={sessionId} sessionId={sessionId} />;
+  // One-shot launch from the question bank (?start= / ?ask=): text only, ≤300 chars.
+  const launch = parseTutorLaunch(search);
+  const clearLaunch = useCallback(() => router.replace(`/math-tutor?session=${encodeURIComponent(sessionId)}`), [router, sessionId]);
+  return <TutorConversation key={sessionId} sessionId={sessionId} launch={launch} onLaunched={clearLaunch} />;
 }
 
-function TutorConversation({ sessionId }: { sessionId: string }) {
+function TutorConversation({ sessionId, launch = null, onLaunched }: { sessionId: string; launch?: TutorLaunch | null; onLaunched?: () => void }) {
   const { state, send, sendMessage, sendAttempt, reconnect, recover } = useMathTutorSession(sessionId);
   const [tool, setTool] = useState<ToolView | null>(null);
   const [composeFocus, setComposeFocus] = useState(0);
@@ -39,6 +43,17 @@ function TutorConversation({ sessionId }: { sessionId: string }) {
   const connected = state.connectionStatus === "connected";
   const attemptMode = attemptBindingIsCurrent(attemptBinding, state);
   useEffect(() => { if (attemptBinding && !attemptMode) setAttemptBinding(null); }, [attemptBinding, attemptMode]);
+  // Send a question-bank launch exactly once into an empty conversation, then strip the query so a refresh does not resend.
+  const launched = useRef(false);
+  const launchCommand = launch?.command;
+  const launchText = launch?.payload.text;
+  const empty = state.messages.length === 0;
+  useEffect(() => {
+    if (!launchCommand || !launchText || launched.current || !connected || busy) return;
+    launched.current = true;
+    if (empty) send(launchCommand, { text: launchText });
+    onLaunched?.();
+  }, [launchCommand, launchText, connected, busy, empty, send, onLaunched]);
   const toggleTool = (next: ToolView) => setTool((current) => current === next ? null : next);
   return <div className="mt-conversation">
     <section className="mt-chat-column" data-empty={state.messages.length === 0 ? "true" : undefined}>
