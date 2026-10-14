@@ -227,13 +227,45 @@ def annotate(text: str, result: Certification) -> str:
     return f"{notice_for(result)}\n\n{body}"
 
 
-async def certify_and_annotate(text: str, backend, *, anchor: tuple[str, str] | None = None) -> tuple[str, Certification]:
+def repair_request(result: Certification) -> str:
+    items = "；".join(f"「{statement.shown}」{reason}" for statement, reason in result.refuted)
+    return (f"你上一条回答里有算式没有通过本地验证器核对：{items}。请改正这些算式后重新完整回答原问题。"
+            "只输出改正后的回答，不要提到核对过程。")
+
+
+async def certify_and_annotate(text: str, backend, *, anchor: tuple[str, str] | None = None,
+                               regenerate=None) -> tuple[str, Certification]:
+    """Check, and on a refuted formula ask the model once to correct itself.
+
+    ``regenerate(feedback) -> str`` makes one extra model call. The corrected
+    text is kept only if it has fewer refuted formulas; anything still wrong
+    is marked in place. The turn gets exactly one extra step for the repair,
+    and a failed repair call leaves the turn as it was.
+    """
+    from mathtutor.application.tutor_runtime import current_turn, note_turn
+
     body = strip_notice(text)
     result = await certify(body, backend, anchor=anchor)
-    from mathtutor.application.tutor_runtime import note_turn
+    if result.refuted and regenerate is not None:
+        turn = current_turn.get()
+        saved = (turn.finish_reason, turn.status, turn.final_text, turn.error_code) if turn else None
+        if turn is not None:
+            turn.max_steps = max(turn.max_steps, turn.steps_used) + 1
+        try:
+            corrected = strip_notice(await regenerate(repair_request(result)) or "")
+        except Exception:
+            logger.warning("math_claims repair call failed")
+            corrected = ""
+        retried = await certify(corrected, backend, anchor=anchor) if corrected.strip() else None
+        improved = retried is not None and len(retried.refuted) < len(result.refuted)
+        note_turn(repair={"attempted": 1, "succeeded": int(improved and not retried.refuted)})
+        if improved:
+            body, result = corrected, retried
+        elif turn is not None and saved:
+            turn.finish_reason, turn.status, turn.final_text, turn.error_code = saved
     note_turn(formulas=result.counts())
     return annotate(body, result), result
 
 
-__all__ = ["Certification", "Statement", "anchor_for", "annotate", "certify", "certify_and_annotate", "extract_statements",
+__all__ = ["Certification", "Statement", "anchor_for", "annotate", "repair_request", "certify", "certify_and_annotate", "extract_statements",
            "notice_for", "strip_notice"]

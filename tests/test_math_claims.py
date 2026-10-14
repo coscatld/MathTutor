@@ -111,3 +111,93 @@ def test_free_chat_marks_a_wrong_formula(tmp_path):
         assert final.startswith("> ⚠️ 本段讲解中有 1 处算式没有通过本地验证器核对")
         assert "（⚠️ 核验未通过：" in final
         assert send(ws, "send_message", "chat", {"text": "分数怎么相加？"}) == frames
+
+
+class FixOnSecondCall:
+    def __init__(self):
+        self.prompts = []
+
+    async def respond(self, text, **kwargs):
+        self.prompts.append((text, kwargs.get("history", ())))
+        return "通分以后 $\\frac{1}{2}+\\frac{1}{3}=\\frac{5}{6}$。" if len(self.prompts) > 1 else \
+            "通分以后 $\\frac{1}{2}+\\frac{1}{3}=\\frac{2}{5}$。"
+
+
+def test_free_chat_repairs_a_wrong_formula_once_and_shows_the_checked_answer(tmp_path):
+    chat = FixOnSecondCall()
+    with client_at(tmp_path / "repair.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+        get_product_state().controller.chat_responder = chat
+        frames = send(ws, "send_message", "chat", {"text": "分数怎么相加？"})
+        final = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]
+    assert final["status"] == "COMPLETED"
+    assert final["final_text"].startswith("> 本段讲解中的 1 处算式已由本地验证器逐一核对")
+    assert "2}{5}" not in final["final_text"] and "⚠️" not in final["final_text"]
+    feedback, history = chat.prompts[1]
+    assert "没有通过本地验证器核对" in feedback and "计算结果不对" in feedback
+    assert history[-1]["content"].endswith("\\frac{2}{5}$。")
+
+
+def test_a_failed_repair_call_keeps_the_marked_first_answer(tmp_path):
+    class BreaksOnRepair:
+        calls = 0
+
+        async def respond(self, text, **kwargs):
+            BreaksOnRepair.calls += 1
+            if BreaksOnRepair.calls > 1:
+                raise RuntimeError("provider down")
+            return "先算 $3+4=8$。"
+
+    with client_at(tmp_path / "repair.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+        get_product_state().controller.chat_responder = BreaksOnRepair()
+        frames = send(ws, "send_message", "chat", {"text": "加法交换律是什么意思？"})
+        final = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]
+    assert BreaksOnRepair.calls == 2 and final["status"] == "COMPLETED"
+    assert "（⚠️ 核验未通过：「3+4=8」计算结果不对）" in final["final_text"]
+
+
+def test_knowledge_mode_repairs_with_the_question_and_feedback(tmp_path):
+    class Knowledge:
+        def __init__(self):
+            self.questions = []
+
+        async def respond(self, owner, sid, text, messages, practice=None):
+            self.questions.append(text)
+            return "资料里的例子：$2\\times 3=6$。" if len(self.questions) > 1 else "资料里的例子：$2\\times 3=5$。"
+
+    knowledge = Knowledge()
+    with client_at(tmp_path / "repair.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+        state = get_product_state()
+        asyncio.run(state.knowledge.configure("local-admin", "p0", space_ids=[]))
+        state.controller.knowledge_qa = knowledge
+        frames = send(ws, "send_message", "kq", {"text": "解释这份资料"})
+        final = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]["final_text"]
+    assert knowledge.questions[1].startswith("解释这份资料") and "计算结果不对" in knowledge.questions[1]
+    assert "2\\times 3=6" in final and "⚠️" not in final
+
+
+def test_repair_through_the_real_runtime_gets_one_extra_step_and_completes(tmp_path):
+    import httpx
+    from mathtutor.infrastructure.generative_gateway import ModelRole, OpenAICompatibleProvider
+    from mathtutor.infrastructure.tutor_chat import TutorChatResponder
+
+    answers = iter(["先算 $3+4=8$。", "先算 $3+4=7$。"])
+    calls = []
+
+    def transport(request):
+        calls.append(request)
+        return httpx.Response(200, json={"choices": [{"message": {"content": next(answers)}, "finish_reason": "stop"}],
+                                         "usage": {"prompt_tokens": 10, "completion_tokens": 5}})
+
+    async def key():
+        return "test-key-not-real"
+
+    with client_at(tmp_path / "runtime.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+        state = get_product_state()
+        state.gateway.register_provider(ModelRole.TUTOR_WRITER, OpenAICompatibleProvider(
+            base_url="https://example.invalid/v1", model="m", api_key_resolver=key, transport=httpx.MockTransport(transport)))
+        state.controller.chat_responder = TutorChatResponder(state.gateway)
+        frames = send(ws, "send_message", "chat", {"text": "加法交换律是什么意思？"})
+        final = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]
+    assert len(calls) == 2
+    assert final["status"] == "COMPLETED" and final["finish_reason"] in {"NATURAL_STOP", "FINAL_ANSWER"}
+    assert "3+4=7" in final["final_text"] and "⚠️" not in final["final_text"]

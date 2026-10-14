@@ -447,7 +447,14 @@ class MathTutorController:
                     # Retrieved sources and declared math tool receipts do not
                     # independently verify every generated explanatory sentence.
                     from mathtutor.application.math_claims import certify_and_annotate
-                    checked, _ = await certify_and_annotate(message, self.service.verification_backend)
+
+                    async def regenerate(feedback):
+                        retry_history = (*request.conversation_messages, {"role": "student", "content": text},
+                                         {"role": "tutor", "content": message})
+                        return await self.knowledge_qa.respond(owner.student_id, request.session_id,
+                                                               f"{text}\n\n{feedback}", retry_history, practice=None)
+                    checked, _ = await certify_and_annotate(message, self.service.verification_backend,
+                                                            regenerate=regenerate)
                     await self._dialogue(stream, session, checked, "TUTOR_CHAT")
                 return
             await self._route_send_message(request, session, payload, envelope, stream)
@@ -1087,12 +1094,24 @@ class MathTutorController:
             visible = "这道题的完整过程还不能逐步核验。你可以写出下一步的想法，或先练下面的相关基础题。"
         raw_visible = visible
         from mathtutor.application.problem_recovery import simple_greeting
+        from mathtutor.application.math_claims import strip_notice
         if not simple_greeting(text, visible):
             # Each formula goes through verify_math; prose stays unverified.
             from mathtutor.application.math_claims import anchor_for, certify_and_annotate
             bound = await self.sessions.load_verified(owner_id, session.cycle.cycle_id) if session and owner_id else None
-            visible, _ = await certify_and_annotate(visible, self.service.verification_backend,
-                                                    anchor=anchor_for(bound[0]) if bound else None)
+            regenerate = None
+            if responder is not None and provider_result == "success" and not recovery:
+                first_answer = raw_visible
+
+                async def regenerate(feedback):
+                    retry_history = (*history, {"role": "student", "content": text}, {"role": "tutor", "content": first_answer})
+                    return project_assistant_message(await responder.respond(
+                        feedback, history=retry_history, problem_context=problem_context,
+                        unstructured_math=unstructured_math, **({"images": images} if images else {})))
+            visible, checked = await certify_and_annotate(visible, self.service.verification_backend,
+                                                          anchor=anchor_for(bound[0]) if bound else None,
+                                                          regenerate=regenerate)
+            raw_visible = strip_notice(visible) if not checked.refuted else raw_visible
         if recovery:
             visible += f"\n\n原题还保留在对话里。可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
         from mathtutor.application.tutor_runtime import current_turn
