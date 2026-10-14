@@ -271,25 +271,38 @@ export default function SceneCanvas({ scene }: { scene: Scene }) {
     // Regions first, as translucent cell fills.
     for (const object of visible) {
       if (object.type !== "region") continue;
-      const nx = Math.max(8, Math.ceil(plotW / 4));
-      const ny = Math.max(8, Math.ceil(plotH / 4));
-      const cells = sampleRegion(fn2(object.expr), object.relation, view.x, view.y, nx, ny);
+      const nx = Math.max(8, Math.ceil(plotW / 2));
+      const ny = Math.max(8, Math.ceil(plotH / 2));
+      const f = fn2(object.expr);
+      const cells = sampleRegion(f, object.relation, view.x, view.y, nx, ny);
       stroke(object.id);
       ctx.globalAlpha = 0.16;
       const cw = plotW / nx;
       const ch = plotH / ny;
+      // One path, one fill: overlapping cell edges must not stack their alpha.
+      ctx.beginPath();
       for (let j = 0; j < ny; j += 1) {
         let run = -1;
         for (let i = 0; i <= nx; i += 1) {
           const inside = i < nx && cells[j * nx + i] === 1;
           if (inside && run < 0) run = i;
           if (!inside && run >= 0) {
-            ctx.fillRect(PAD.left + run * cw, PAD.top + plotH - (j + 1) * ch, (i - run) * cw + 0.5, ch + 0.5);
+            ctx.rect(PAD.left + run * cw, PAD.top + plotH - (j + 1) * ch, (i - run) * cw + 0.5, ch + 0.5);
             run = -1;
           }
         }
       }
+      ctx.fill();
       ctx.globalAlpha = 1;
+      // Boundary: dashed for a strict inequality, solid when it is included.
+      ctx.setLineDash(object.relation === "lt" || object.relation === "gt" ? [6, 4] : []);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (const [[ax, ay], [bx, by]] of marchingSquares(f, view.x, view.y, Math.ceil(plotW / 3), Math.ceil(plotH / 3))) {
+        ctx.moveTo(sx(ax), sy(ay)); ctx.lineTo(sx(bx), sy(by));
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
     // Polygon fills under the curves.
     for (const object of visible) {

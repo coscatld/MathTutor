@@ -162,3 +162,47 @@ def test_open_problem_scene_has_no_marks(tmp_path):
         assert scene["marks"] == [] and "暂不标出" in scene["note"]
         problem = send(ws, "send_message", "g", {"text": "画出这道题的函数图像"})
         assert "mathtutor-graph" in message(problem)
+
+
+# --- geometry sentences: points, segments and measures without a model ------------------------
+
+from mathtutor.application.function_graph import is_graph_request as _is_graph_request
+from mathtutor.application.scene import scene_from_text as _scene_from_text
+
+
+def _kinds(scene):
+    return [(o["id"], o["type"]) for o in scene["objects"]]
+
+
+def test_moving_point_on_an_ellipse_with_a_focal_distance_readout():
+    scene = _scene_from_text("演示椭圆 x^2/4+y^2/3=1 上的动点 P(2cos t, √3 sin t) 到焦点 F(1,0) 的距离")
+    assert _kinds(scene) == [("C1", "implicit"), ("P", "point"), ("F", "point"), ("PF", "segment")]
+    assert [bool(o.get("trace")) for o in scene["objects"] if o["type"] == "point"] == [True, False]
+    (param,) = scene["params"]
+    assert (param["name"], param["min"], param["animate"]) == ("t", 0, True) and param["max"] > 6.28
+    assert [r["label"] for r in scene["readouts"]] == ["|PF|"]
+
+
+def test_triangle_with_a_parameter_vertex_and_an_area_readout():
+    scene = _scene_from_text("画出三角形 ABC，A(0,0)，B(4,0)，C(m,3)，三角形ABC的面积")
+    assert ("polyABC", "polygon") in _kinds(scene)
+    assert [p["name"] for p in scene["params"]] == ["m"]
+    assert [r["label"] for r in scene["readouts"]] == ["S△ABC"]
+
+
+def test_angle_readout_and_undefined_references_are_dropped():
+    scene = _scene_from_text("演示圆 x^2+y^2=4 上的动点 P(2cos t,2sin t)，A(-2,0)，B(2,0)，∠APB，|PQ|")
+    assert [r["label"] for r in scene["readouts"]] == ["∠APB"]  # Q is never defined
+
+
+def test_an_unbounded_half_plane_does_not_stretch_the_view():
+    scene = _scene_from_text("画出 x^2+y^2<=4 与 y>=x 和 r=2(1+cos θ)")
+    assert scene["x_range"][1] - scene["x_range"][0] < 10
+    assert _scene_from_text("画出 x^2-y^2=1")["x_range"][1] >= 10  # unbounded alone keeps a wide window
+
+
+def test_geometry_draw_requests_are_recognised():
+    assert _is_graph_request("画出三角形 ABC，A(0,0)，B(4,0)，C(m,3)")
+    assert _is_graph_request("画出点 P(1,2) 和 Q(3,4) 的线段 PQ")
+    assert not _is_graph_request("这个三角形的面积怎么算")
+    assert not _is_graph_request("解方程 x^2-5x+6=0")

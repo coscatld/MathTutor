@@ -357,7 +357,7 @@ const ACTION_LABELS: Readonly<Record<string, string>> = {
   EXPLAIN_CONCEPT: "讲解",
   SHOW_EXAMPLE: "示例",
   SHOW_SOLUTION: "完整答案",
-  SHOW_GRAPH: "函数图像",
+  SHOW_GRAPH: "图像",
   REQUEST_RETRY: "再试一次",
   GENERATE_PRACTICE: "练习",
   CORRECT_STEP: "步骤纠错",

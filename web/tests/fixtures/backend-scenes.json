@@ -421,12 +421,12 @@
    "title": "x²+y² ≤ 4、y ≥ x",
    "source": "deterministic",
    "x_range": [
-    -12.0,
-    12.0
+    -2.4,
+    2.4
    ],
    "y_range": [
-    -12.0,
-    12.0
+    -2.4,
+    2.4
    ],
    "equal_aspect": false,
    "params": [],
@@ -1001,6 +1001,462 @@
      "label": "与 y 轴交点 (0, 0)"
     }
    ],
+   "note": ""
+  }
+ },
+ {
+  "request": "演示椭圆 x^2/4+y^2/3=1 上的动点 P(2cos t, √3 sin t) 到焦点 F(1,0) 的距离",
+  "scene": {
+   "v": 2,
+   "title": "x²/4+y²/3 = 1、P(2cos t, √3 sin t)、F(1, 0)",
+   "source": "deterministic",
+   "x_range": [
+    -2.4,
+    2.4
+   ],
+   "y_range": [
+    -2.077,
+    2.077
+   ],
+   "equal_aspect": true,
+   "params": [
+    {
+     "name": "t",
+     "min": 0.0,
+     "max": 6.2832,
+     "step": 0.01,
+     "value": 0.8,
+     "animate": true,
+     "label": "t"
+    }
+   ],
+   "objects": [
+    {
+     "id": "C1",
+     "type": "implicit",
+     "expr": {
+      "k": "op",
+      "o": "-",
+      "a": [
+       {
+        "k": "op",
+        "o": "+",
+        "a": [
+         {
+          "k": "op",
+          "o": "/",
+          "a": [
+           {
+            "k": "op",
+            "o": "^",
+            "a": [
+             {
+              "k": "var",
+              "n": "x"
+             },
+             {
+              "k": "num",
+              "v": 2.0
+             }
+            ]
+           },
+           {
+            "k": "num",
+            "v": 4.0
+           }
+          ]
+         },
+         {
+          "k": "op",
+          "o": "/",
+          "a": [
+           {
+            "k": "op",
+            "o": "^",
+            "a": [
+             {
+              "k": "var",
+              "n": "y"
+             },
+             {
+              "k": "num",
+              "v": 2.0
+             }
+            ]
+           },
+           {
+            "k": "num",
+            "v": 3.0
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "k": "num",
+        "v": 1.0
+       }
+      ]
+     },
+     "label": "x²/4+y²/3 = 1"
+    },
+    {
+     "id": "P",
+     "type": "point",
+     "x": {
+      "k": "op",
+      "o": "*",
+      "a": [
+       {
+        "k": "num",
+        "v": 2.0
+       },
+       {
+        "k": "fn",
+        "f": "cos",
+        "a": [
+         {
+          "k": "var",
+          "n": "t"
+         }
+        ]
+       }
+      ]
+     },
+     "y": {
+      "k": "op",
+      "o": "*",
+      "a": [
+       {
+        "k": "fn",
+        "f": "sqrt",
+        "a": [
+         {
+          "k": "num",
+          "v": 3.0
+         }
+        ]
+       },
+       {
+        "k": "fn",
+        "f": "sin",
+        "a": [
+         {
+          "k": "var",
+          "n": "t"
+         }
+        ]
+       }
+      ]
+     },
+     "trace": true,
+     "label": "P"
+    },
+    {
+     "id": "F",
+     "type": "point",
+     "x": {
+      "k": "num",
+      "v": 1.0
+     },
+     "y": {
+      "k": "num",
+      "v": 0.0
+     },
+     "label": "F"
+    },
+    {
+     "id": "PF",
+     "type": "segment",
+     "from": "P",
+     "to": "F"
+    }
+   ],
+   "readouts": [
+    {
+     "label": "|PF|",
+     "expr": {
+      "k": "geo",
+      "f": "dist",
+      "p": [
+       "P",
+       "F"
+      ]
+     },
+     "digits": 3
+    }
+   ],
+   "marks": [],
+   "note": ""
+  }
+ },
+ {
+  "request": "画出三角形 ABC，A(0,0)，B(4,0)，C(m,3)，三角形ABC的面积",
+  "scene": {
+   "v": 2,
+   "title": "A(0, 0)、B(4, 0)、C(m, 3)",
+   "source": "deterministic",
+   "x_range": [
+    -0.4,
+    4.4
+   ],
+   "y_range": [
+    -0.301,
+    3.3
+   ],
+   "equal_aspect": false,
+   "params": [
+    {
+     "name": "m",
+     "min": -5.0,
+     "max": 5.0,
+     "step": 0.1,
+     "value": 1.0,
+     "animate": true,
+     "label": "m"
+    }
+   ],
+   "objects": [
+    {
+     "id": "A",
+     "type": "point",
+     "x": {
+      "k": "num",
+      "v": 0.0
+     },
+     "y": {
+      "k": "num",
+      "v": 0.0
+     },
+     "label": "A"
+    },
+    {
+     "id": "B",
+     "type": "point",
+     "x": {
+      "k": "num",
+      "v": 4.0
+     },
+     "y": {
+      "k": "num",
+      "v": 0.0
+     },
+     "label": "B"
+    },
+    {
+     "id": "C",
+     "type": "point",
+     "x": {
+      "k": "var",
+      "n": "m"
+     },
+     "y": {
+      "k": "num",
+      "v": 3.0
+     },
+     "trace": true,
+     "label": "C"
+    },
+    {
+     "id": "polyABC",
+     "type": "polygon",
+     "points": [
+      "A",
+      "B",
+      "C"
+     ],
+     "fill": true
+    }
+   ],
+   "readouts": [
+    {
+     "label": "S△ABC",
+     "expr": {
+      "k": "geo",
+      "f": "area",
+      "p": [
+       "A",
+       "B",
+       "C"
+      ]
+     },
+     "digits": 3
+    }
+   ],
+   "marks": [],
+   "note": ""
+  }
+ },
+ {
+  "request": "演示圆 x^2+y^2=4 上的动点 P(2cos t,2sin t)，A(-2,0)，B(2,0)，∠APB",
+  "scene": {
+   "v": 2,
+   "title": "x²+y² = 4、P(2cos t, 2sin t)、A(-2, 0)、B(2, 0)",
+   "source": "deterministic",
+   "x_range": [
+    -2.4,
+    2.4
+   ],
+   "y_range": [
+    -2.4,
+    2.4
+   ],
+   "equal_aspect": true,
+   "params": [
+    {
+     "name": "t",
+     "min": 0.0,
+     "max": 6.2832,
+     "step": 0.01,
+     "value": 0.8,
+     "animate": true,
+     "label": "t"
+    }
+   ],
+   "objects": [
+    {
+     "id": "C1",
+     "type": "implicit",
+     "expr": {
+      "k": "op",
+      "o": "-",
+      "a": [
+       {
+        "k": "op",
+        "o": "+",
+        "a": [
+         {
+          "k": "op",
+          "o": "^",
+          "a": [
+           {
+            "k": "var",
+            "n": "x"
+           },
+           {
+            "k": "num",
+            "v": 2.0
+           }
+          ]
+         },
+         {
+          "k": "op",
+          "o": "^",
+          "a": [
+           {
+            "k": "var",
+            "n": "y"
+           },
+           {
+            "k": "num",
+            "v": 2.0
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "k": "num",
+        "v": 4.0
+       }
+      ]
+     },
+     "label": "x²+y² = 4"
+    },
+    {
+     "id": "P",
+     "type": "point",
+     "x": {
+      "k": "op",
+      "o": "*",
+      "a": [
+       {
+        "k": "num",
+        "v": 2.0
+       },
+       {
+        "k": "fn",
+        "f": "cos",
+        "a": [
+         {
+          "k": "var",
+          "n": "t"
+         }
+        ]
+       }
+      ]
+     },
+     "y": {
+      "k": "op",
+      "o": "*",
+      "a": [
+       {
+        "k": "num",
+        "v": 2.0
+       },
+       {
+        "k": "fn",
+        "f": "sin",
+        "a": [
+         {
+          "k": "var",
+          "n": "t"
+         }
+        ]
+       }
+      ]
+     },
+     "trace": true,
+     "label": "P"
+    },
+    {
+     "id": "A",
+     "type": "point",
+     "x": {
+      "k": "neg",
+      "a": [
+       {
+        "k": "num",
+        "v": 2.0
+       }
+      ]
+     },
+     "y": {
+      "k": "num",
+      "v": 0.0
+     },
+     "label": "A"
+    },
+    {
+     "id": "B",
+     "type": "point",
+     "x": {
+      "k": "num",
+      "v": 2.0
+     },
+     "y": {
+      "k": "num",
+      "v": 0.0
+     },
+     "label": "B"
+    }
+   ],
+   "readouts": [
+    {
+     "label": "∠APB",
+     "expr": {
+      "k": "geo",
+      "f": "angle",
+      "p": [
+       "A",
+       "P",
+       "B"
+      ]
+     },
+     "digits": 3
+    }
+   ],
+   "marks": [],
    "note": ""
   }
  },

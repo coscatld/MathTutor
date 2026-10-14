@@ -44,10 +44,15 @@ class GraphInputError(ValueError):
     """The text names no function this module can draw."""
 
 
+_DRAW_GEOMETRY = re.compile(r"(?:画出|画一下|画|绘制|作出|演示)[^。？?]{0,40}?(?:(?<![A-Za-z])[A-Z]\s*[(（][^()（）]*[,，]|三角形\s*[A-Z]{3}|四边形\s*[A-Z]{4}|线段\s*[A-Z]{2}|向量\s*[A-Z]{2})")
+
+
 def is_graph_request(text: str) -> bool:
     text = str(text or "")
     if _GRAPH_REQUEST.search(text) or _DRAW_RELATION.search(text):
         return True
+    if _DRAW_GEOMETRY.search(text):
+        return True  # 画出三角形 ABC，A(0,0)…; 画出点 P(…)
     if _SOLVE_ONLY.search(text):
         return False
     if _VISUAL.search(text) and _MATH_CONTENT.search(_VISUAL.sub("", text)):

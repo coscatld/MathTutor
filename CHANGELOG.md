@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Scenes (数形结合, end to end)
+- Requests such as 「演示椭圆 x^2/4+y^2/3=1 上的动点 P(2cos t, √3 sin t) 到焦点 F(1,0) 的距离」 or 「画出三角形 ABC，A(0,0)，B(4,0)，C(m,3)，三角形ABC的面积」 are now read without a model: point definitions, segments, lines, rays, vectors, polygons and distance / angle / area readouts are extracted from the sentence, a point that uses a parameter becomes a moving point with a trace and a play button, and references to undefined points are dropped.
+- The view ignores unbounded boundaries (half-planes, hyperbola branches) when the scene has anything bounded; regions are filled in one pass with a crisp boundary, dashed for strict inequalities.
+- The message chip for graphs reads 「图像」. A contract test feeds real backend scenes through the client validator and renderer.
+
 ### Scenes (数形结合, backend)
 - New `mathtutor-scene` block (Scene v2, `docs/SCENE_SPEC.md`) on `SHOW_GRAPH` messages: implicit curves, inequality regions, parametric and polar curves, points, segments, polygons, circles, tangents, text, parameter sliders and live readouts.
 - Expressions are compiled by a whitelist tokenizer and parser into the contract's JSON AST (no `eval`); every limit and reference rule is checked on the server. View ranges are sampled on the server; parameter-free scenes get intersections and axis intercepts as marks, never while a problem is open.

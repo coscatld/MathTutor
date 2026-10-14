@@ -310,7 +310,7 @@ def positions(objects: list[dict[str, Any]], env: dict[str, float]) -> dict[str,
     return found
 
 
-def _zero_set(ast: dict[str, Any], env: dict[str, float], points) -> list[tuple[float, float]]:
+def _zero_set(ast: dict[str, Any], env: dict[str, float], points) -> tuple[list[tuple[float, float]], float]:
     """Sample points of ``ast(x, y) = 0`` on a grid; first window that has any."""
     for half in (10.0, 1.0, 100.0):
         n = 80
@@ -333,17 +333,23 @@ def _zero_set(ast: dict[str, Any], env: dict[str, float], points) -> list[tuple[
                         t = a / (a - b)
                         found.append((x + 2 * half / n * di * t, y + 2 * half / n * dj * t))
         if found:
-            return found
-    return []
+            return found, half
+    return [], 0.0
 
 
 def _extents(objects: list[dict[str, Any]], env: dict[str, float]) -> list[tuple[float, float]]:
+    """Points that should be in view. A curve or region boundary that runs to
+    the edge of its sampling window (a half-plane, a hyperbola) only counts
+    when nothing bounded is in the scene, so it cannot squash everything else."""
     points = positions(objects, env)
     found = list(points.values())
+    unbounded: list[tuple[float, float]] = []
     for obj in objects:
         kind = obj["type"]
         if kind in {"implicit", "region"}:
-            found += _zero_set(obj["expr"], env, points)
+            zeros, half = _zero_set(obj["expr"], env, points)
+            reaches_edge = any(max(abs(x), abs(y)) >= half * 0.98 for x, y in zeros)
+            (unbounded if reaches_edge else found).extend(zeros)
         elif kind == "parametric":
             low, high = obj["s_range"]
             for i in range(401):
@@ -360,6 +366,7 @@ def _extents(objects: list[dict[str, Any]], env: dict[str, float]) -> list[tuple
             x, y = evaluate(obj["x"], env, points), evaluate(obj["y"], env, points)
             if x is not None and y is not None:
                 found.append((x, y))
+    found = found or unbounded
     return [(x, y) for x, y in found if abs(x) < 1e6 and abs(y) < 1e6]
 
 
@@ -581,12 +588,128 @@ def _classify(span: str) -> tuple[dict[str, Any], set[str]] | None:
         return None
 
 
+_POINT_START = re.compile(r"(?<![A-Za-z.])([A-Z])\s*[(（]")
+_GEOMETRY_WORDS = re.compile(r"[A-Z]\s*[(（]|线段|直线\s*[A-Z]{2}|射线|向量|三角形|△|四边形|多边形|距离|面积|∠|\|\s*[A-Z]\s*[A-Z]\s*\|")
+_MATH_RUN = re.compile(r"[A-Za-z0-9\s()（）|√πθ²³\\{}^*/+\-−×÷·.]+(?:<=|>=|≤|≥|=|<|>)[A-Za-z0-9\s()（）|√πθ²³\\{}^*/+\-−×÷·.]+")
+
+
+def _close(text: str, start: int) -> int:
+    """Index just after the bracket that closes the one at ``start``."""
+    depth = 0
+    for index in range(start, len(text)):
+        depth += text[index] in "(（" and 1 or text[index] in ")）" and -1 or 0
+        if depth == 0:
+            return index + 1
+    return -1
+
+
+def _split_args(inner: str) -> list[str]:
+    parts, current, depth = [], "", 0
+    for char in inner:
+        depth += char in "(（" and 1 or char in ")）" and -1 or 0
+        if char in ",，" and depth == 0:
+            parts.append(current)
+            current = ""
+        else:
+            current += char
+    return [*parts, current]
+
+
+def _uses_trig(expr: str, name: str) -> bool:
+    return bool(re.search(rf"(?:sin|cos|tan)\s*[(（]?[^)）]*(?<![A-Za-z]){name}(?![A-Za-z])", expr))
+
+
+def _geometry_scene(body: str, *, reveal: bool) -> dict[str, Any] | None:
+    """Sentences with points, segments and measures, e.g. 动点 P(2cos t, √3 sin t) 到 F(1,0) 的距离."""
+    points, rest, index = {}, list(body), 0
+    while (match := _POINT_START.search(body, index)) is not None:
+        end = _close(body, match.end() - 1)
+        if end < 0:
+            break
+        args = _split_args(body[match.end():end - 1])
+        if len(args) == 2 and all(a.strip() for a in args) and match.group(1) not in points:
+            try:
+                for arg in args:
+                    compile_expr(arg)
+                points[match.group(1)] = [a.strip() for a in args]
+                rest[match.end() - 1:end] = " " * (end - match.end() + 1)  # keep the letter for 到/距离 phrases
+            except SceneExprError:
+                pass
+        index = end
+    rest_text = "".join(rest)
+    objects, readouts, params, segments = [], [], set(), []
+
+    def measure(label, expr, ids):
+        if all(i in points for i in ids) and len(readouts) < MAX_READOUTS:
+            readouts.append({"label": label, "expr": expr, "digits": 3})
+    for a, b in re.findall(r"\|\s*([A-Z])\s*([A-Z])\s*\|", rest_text):
+        measure(f"|{a}{b}|", f"dist({a},{b})", (a, b)); segments.append((a, b, "segment"))
+    for a, b in re.findall(r"([A-Z])\s*到\s*(?:焦点|定点|点|原点)?\s*([A-Z])[^，。,；;]{0,12}?距离", rest_text):
+        measure(f"|{a}{b}|", f"dist({a},{b})", (a, b)); segments.append((a, b, "segment"))
+    for a, b, c in re.findall(r"[∠角]\s*([A-Z])\s*([A-Z])\s*([A-Z])", rest_text):
+        measure(f"∠{a}{b}{c}", f"angle({a},{b},{c})", (a, b, c))
+    for word, a, b in re.findall(r"(线段|直线|射线|向量|连接|连结)\s*([A-Z])\s*([A-Z])", rest_text):
+        segments.append((a, b, {"直线": "line", "射线": "ray", "向量": "vector"}.get(word, "segment")))
+    polygons = list(dict.fromkeys(re.findall(r"(?:三角形|△|四边形|多边形)\s*([A-Z]{3,6})", rest_text)))
+    for name in polygons:
+        if re.search(rf"{name}\s*的?\s*面积", rest_text):
+            measure(f"S△{name}" if len(name) == 3 else f"S{name}", f"area({','.join(name)})", tuple(name))
+    curves = []
+    for run in _MATH_RUN.findall(rest_text):
+        found = _classify(run.strip())
+        if found is not None:
+            curves.append((run.strip(), *found))
+    for run, obj, names in curves:
+        params |= names
+        objects.append({**obj, "id": f"C{len(objects) + 1}", "label": _pretty(run)})
+    point_params: set[str] = set()
+    for name, (x, y) in points.items():
+        names = variables(compile_expr(x)) | variables(compile_expr(y))
+        if names & {"x", "y", "s"}:
+            return None
+        point_params |= names
+        objects.append({"id": name, "type": "point", "x": x, "y": y, "label": name, "trace": bool(names)})
+    seen = set()
+    for a, b, kind in segments:
+        if a in points and b in points and (a, b) not in seen and a != b:
+            seen.add((a, b))
+            objects.append({"id": f"{a}{b}"[:8], "type": kind, "from": a, "to": b})
+    for name in polygons:
+        if all(c in points for c in name):
+            objects.append({"id": f"poly{name}"[:8], "type": "polygon", "points": list(name), "fill": True})
+    params |= point_params
+    if not points or len(params) > MAX_PARAMS:
+        return None
+    definitions = []
+    for name in sorted(params):
+        exprs = [v for xy in points.values() for v in xy]
+        if name in point_params and any(_uses_trig(e, name) for e in exprs):
+            definitions.append({"name": name, "min": 0, "max": round(2 * math.pi, 4), "step": 0.01, "value": 0.8, "animate": True})
+        else:
+            definitions.append({"name": name, "min": -5, "max": 5, "step": 0.1, "value": 1, "animate": name in point_params})
+    title = "、".join([*(o["label"] for o in objects if o["type"] not in {"point"} and o.get("label")),
+                      *(f"{n}({x}, {y})" for n, (x, y) in points.items())])
+    try:
+        return build_scene({"title": _pretty_title(title), "objects": objects, "params": definitions, "readouts": readouts},
+                           source="deterministic", reveal=reveal)
+    except SceneError:
+        return None
+
+
+def _pretty_title(text: str) -> str:
+    return re.sub(r"\s+", " ", text.replace("^2", "²").replace("^3", "³")).strip()[:MAX_LABEL]
+
+
 def scene_from_text(text: str, *, reveal: bool = True) -> dict[str, Any] | None:
     """Build a scene from 「画出 …」 requests; None when not deterministic."""
     raw = str(text or "")
     match = _DRAW.search(raw)
     if not match or len(raw) > 300:
         return None
+    if _GEOMETRY_WORDS.search(raw[match.end():]):
+        geometry = _geometry_scene(raw[match.end():], reveal=reveal)
+        if geometry is not None:
+            return geometry
     objects, labels, params = [], [], set()
     for piece in _pieces(raw[match.end():]):
         span = _span(piece)
