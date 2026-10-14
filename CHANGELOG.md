@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Scenes (数形结合, backend)
+- New `mathtutor-scene` block (Scene v2, `docs/SCENE_SPEC.md`) on `SHOW_GRAPH` messages: implicit curves, inequality regions, parametric and polar curves, points, segments, polygons, circles, tangents, text, parameter sliders and live readouts.
+- Expressions are compiled by a whitelist tokenizer and parser into the contract's JSON AST (no `eval`); every limit and reference rule is checked on the server. View ranges are sampled on the server; parameter-free scenes get intersections and axis intercepts as marks, never while a problem is open.
+- Requests such as 「画出 x^2/4+y^2/3=1 和 y=kx+1」, regions, circles and `r = f(θ)` are read deterministically; other letters become sliders. A single plain `y = f(x)` still uses the function graph.
+- When that fails and a model is configured, the model is asked once, on the auxiliary role, for a definition JSON. Its strings go through the same compiler, any marks it offers are dropped, and the scene is labelled 「示意图：定义来自模型，图形由应用计算，未经数学核验」. Any failure falls back to the guidance message without failing the turn.
+- Model context receives `[已展示数形结合图：…]` instead of scene data.
+
 ### Encryption at rest (opt-in)
 - Database encryption with SQLCipher, off by default. Turning it on or off in Settings → Advanced → Data encryption records the wish; the conversion runs at the next start, before anything opens the database: integrity check, export into a temporary file in the new mode, integrity check and identical row counts, atomic swap. Any failure leaves the original file and the marker unchanged.
 - Keys live only in the OS credential store; an in-memory store is never used for real data, and without a persistent key store encryption reports itself unavailable.

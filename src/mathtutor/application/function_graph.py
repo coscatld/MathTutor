@@ -31,6 +31,13 @@ MAX_MARKS = 8
 
 _GRAPH_REQUEST = re.compile(r"(?:画|作|绘制|绘|看看|看一下|显示|给我).{0,12}(?:图像|图象|函数图|图形|曲线|图)|(?:图像|图象)(?:是什么|长什么样|怎么画)|画(?:出|一下)?\s*(?:y\s*=|f\s*\(\s*x\s*\)|函数)|plot|graph", re.I)
 _BLOCK = re.compile(r"```" + GRAPH_FENCE + r"\n(.*?)\n```", re.S)
+_SCENE_BLOCK = re.compile(r"```mathtutor-scene\n(.*?)\n```", re.S)
+# 「画出 x^2/4+y^2/3=1」: a draw verb followed by an equation or inequality in x, y or r.
+_DRAW_RELATION = re.compile(r"(?:画|绘制|绘出|作出)(?!了)[^。？?\n]{0,80}?(?:[xyθ][^。？?\n]{0,80}?[=<>≤≥＝]|[=<>≤≥＝][^。？?\n]{0,80}?[xyθ]|(?<![A-Za-z])r\s*[=＝])")
+_VISUAL = re.compile(r"数形结合|可视化|动画|演示|动点|轨迹")
+_SHAPES = r"椭圆|抛物线|双曲线|圆|三角形|四边形|正方形|矩形|直线|线段|切线|焦点|动点|轨迹|向量|正弦|余弦|正切|函数|曲线|坐标|区域|不等式"
+_MATH_CONTENT = re.compile(r"[A-Za-z0-9]|" + _SHAPES)
+_SOLVE_ONLY = re.compile(r"怎么解|求解|解方程|解不等式|计算|化简")
 
 
 class GraphInputError(ValueError):
@@ -38,7 +45,14 @@ class GraphInputError(ValueError):
 
 
 def is_graph_request(text: str) -> bool:
-    return bool(_GRAPH_REQUEST.search(str(text or "")))
+    text = str(text or "")
+    if _GRAPH_REQUEST.search(text) or _DRAW_RELATION.search(text):
+        return True
+    if _SOLVE_ONLY.search(text):
+        return False
+    if _VISUAL.search(text) and _MATH_CONTENT.search(_VISUAL.sub("", text)):
+        return True
+    return "运动" in text and bool(re.search(_SHAPES.replace("|函数", "").replace("|坐标", ""), text))
 
 
 # ---------------------------------------------------------------------------
@@ -606,14 +620,21 @@ def _system_graph(ast: dict[str, Any], *, reveal: bool) -> str:
 
 
 def summarize_graph_blocks(text: str) -> str:
-    """Replace graph data with a short placeholder before model context."""
+    """Replace graph and scene data with a short placeholder before model context."""
     def replace(match: re.Match) -> str:
         try:
             title = json.loads(match.group(1)).get("title", "")
         except (ValueError, AttributeError):
             title = ""
         return f"[已展示函数图像：{title}]"
-    return _BLOCK.sub(replace, str(text or ""))
+
+    def replace_scene(match: re.Match) -> str:
+        try:
+            title = json.loads(match.group(1)).get("title", "")
+        except (ValueError, AttributeError):
+            title = ""
+        return f"[已展示数形结合图：{title}]"
+    return _SCENE_BLOCK.sub(replace_scene, _BLOCK.sub(replace, str(text or "")))
 
 
 __all__ = [

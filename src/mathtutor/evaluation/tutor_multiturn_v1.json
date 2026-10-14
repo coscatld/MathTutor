@@ -621,6 +621,26 @@
           }
         }
       ]
+    },
+    {
+      "id": "scene-ellipse-and-line",
+      "title": "数形结合：椭圆与带参数的直线",
+      "steps": [
+        {
+          "send": "send_message",
+          "payload": {
+            "text": "画出 x^2/4+y^2/3=1 和 y=kx+1"
+          },
+          "expect": {
+            "actions": [
+              "SHOW_GRAPH"
+            ],
+            "contains": [
+              "mathtutor-scene"
+            ]
+          }
+        }
+      ]
     }
   ]
 }

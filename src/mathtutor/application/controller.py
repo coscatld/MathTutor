@@ -315,6 +315,8 @@ class MathTutorController:
         self.guard = guard or TutorOutputGuard()
         self.chat_responder = chat_responder
         self.semantic_interpreter = semantic_interpreter
+        # Gateway for model-proposed scene definitions (None: deterministic only).
+        self.scene_gateway: Any = None
 
     async def _teaching_context(self, owner_id, session, verified):
         from mathtutor.pedagogy.teaching_plan import initial_context
@@ -711,32 +713,51 @@ class MathTutorController:
         })
 
     async def _function_graph(self, owner_id, session, verified, text, stream):
-        """Draw a server-computed graph; the model never supplies points.
+        """Draw a server-computed graph or scene; the model never supplies points.
 
-        While the bound problem is open, zeros and intersections stay
-        unmarked, and a graph of that problem is recorded as help.
+        Order: a typed single function (v1), the bound problem when nothing
+        else was typed, a deterministic scene, then (with a model configured)
+        a model-proposed scene definition, otherwise guidance. While the bound
+        problem is open, answer points stay unmarked, and a graph of that
+        problem is recorded as help.
         """
         from mathtutor.application.function_graph import (
             GRAPH_ACTION, GRAPHABLE_TYPES, GraphInputError, extract_function_text, graph_for_function, graph_for_problem)
+        import re
+        from mathtutor.application.scene import author_scene, has_math_content, render_scene, scene_from_text
         from mathtutor.application.student_contract import REVIEW_STATES, verified_binding
         bound = bool(session and verified_binding(verified) and session.state != CycleState.CLOSED)
         open_problem = bound and session.state not in REVIEW_STATES
         source = extract_function_text(text)
-        example = "可以这样写：画出 y = x^2 - 2x - 3 的图像。"
-        try:
-            if source:
-                content = graph_for_function(source, reveal=not open_problem)
-            elif bound and verified[0].problem_type in GRAPHABLE_TYPES:
-                content = graph_for_problem(verified[0].problem_type, verified[0].normalized_ast, reveal=not open_problem)
-            else:
-                await self._dialogue(stream, session, f"请告诉我要画哪个函数。{example}", "TUTOR_CHAT")
+        example = "可以这样写：画出 y = x^2 - 2x - 3 的图像，或 画出 x^2/4+y^2/3=1 和 y=kx+1。"
+        # Only multi-object or parametrized requests become scenes; a single
+        # plain y = f(x) stays on the v1 path.
+        scene = scene_from_text(text, reveal=not open_problem)
+        error = ""
+        if scene is None and source:
+            try:
+                await self._dialogue(stream, session, graph_for_function(source, reveal=not open_problem), GRAPH_ACTION)
                 return
-        except GraphInputError as exc:
-            await self._dialogue(stream, session, f"{exc}。{example}", "TUTOR_CHAT")
+            except GraphInputError as exc:
+                error = str(exc)
+        if scene is None and not source and bound and verified[0].problem_type in GRAPHABLE_TYPES and (
+                not has_math_content(text) or re.search(r"这道题|这题|本题|题目|原题", text)):
+            try:
+                content = graph_for_problem(verified[0].problem_type, verified[0].normalized_ast, reveal=not open_problem)
+            except GraphInputError as exc:
+                await self._dialogue(stream, session, f"{exc}。{example}", "TUTOR_CHAT")
+                return
+            if open_problem:
+                await self._record_graph_help(owner_id, session, verified)
+            await self._dialogue(stream, session, content, GRAPH_ACTION)
             return
-        if open_problem and not source:
-            await self._record_graph_help(owner_id, session, verified)
-        await self._dialogue(stream, session, content, GRAPH_ACTION)
+        gateway = getattr(self, "scene_gateway", None)
+        if scene is None and gateway is not None and has_math_content(text):
+            scene = await author_scene(gateway, text)
+        if scene is not None:
+            await self._dialogue(stream, session, render_scene(scene), GRAPH_ACTION)
+            return
+        await self._dialogue(stream, session, f"{error}。{example}" if error else f"请告诉我要画哪个函数或图形。{example}", "TUTOR_CHAT")
 
     async def _record_graph_help(self, owner_id, session, verified):
         # Same delivery ledger as hints: a later attempt counts as assisted

@@ -447,6 +447,7 @@ class ProductState:
         )
         from mathtutor.infrastructure.tutor_intent import SemanticTeachingInterpreter
         self.controller.semantic_interpreter = SemanticTeachingInterpreter(self.gateway)
+        self.controller.scene_gateway = self.gateway
         self.controller.image_repository = self.images
         from mathtutor.application.chat_documents import ChatDocumentContext
         self.controller.chat_documents = ChatDocumentContext(
