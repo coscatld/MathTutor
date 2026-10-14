@@ -18,7 +18,7 @@ export default function HintLadder({ level, plan }: { level: number; plan?: Teac
     <div className="mt-3 border-t border-[var(--border)] pt-3">
       <p className="text-xs text-[var(--muted-foreground)]">已展示内容</p>
       <p className="mt-1 text-sm text-[var(--foreground)]">{supportExposureLabel(current)}</p>
-      <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">这是本题的帮助记录，不是能力进度。你可以直接选择所需支持或查看完整答案。</p>
+      <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">这是本题的帮助记录，不是能力进度。你可以直接选择所需支持；看过一次提示后可以查看完整答案。</p>
     </div>
   </section>;
 }
