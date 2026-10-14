@@ -23,7 +23,7 @@ module.exports = {
   distDir: ".next-mathtutor",
   output: "standalone",
   env: {
-    NEXT_PUBLIC_APP_VERSION: "0.4.5",
+    NEXT_PUBLIC_APP_VERSION: "0.5.0",
     NEXT_PUBLIC_API_BASE,
     NEXT_PUBLIC_AUTH_ENABLED,
   },

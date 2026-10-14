@@ -38,7 +38,7 @@
 
 | ID | 要求 | 当前状态 | 已有行为证据与验收缺口 |
 |---|---|---|---|
-| C01 | 真实按钮展示当前完整答案 | 已实现 | 前端按钮仅发送 `request_solution`；0.4.5 之后需先看过一次提示，下面的零提示演示是更早的行为记录；真实 UI 演示 3 在 `4x-1=19` 零提示点击索解，展示完整验证解答 `x=5` 与 B 邀请，随后原题复述正确进入 post_solution。 |
+| C01 | 真实按钮展示当前完整答案 | 已实现 | 前端按钮仅发送 `request_solution`；0.5.0 起需先看过一次提示，下面的零提示演示是更早的行为记录；真实 UI 演示 3 在 `4x-1=19` 零提示点击索解，展示完整验证解答 `x=5` 与 B 邀请，随后原题复述正确进入 post_solution。 |
 | C02 | 未解决的题目先看一次提示再索解 | 已实现（取代原「零提示允许明确索解」） | `StagePolicy.min_hints_for_solution = 1`，规划器拒绝时返回 `HINT_REQUIRED`、不推进状态，能力快照同步置灰；已答对、已看过答案的题目可回看。`test_solution_after_one_hint_and_retry_actions`、`tests/test_solution_hint_gate.py` 覆盖。 |
 | C03 | 答错后仍可索解 | 已实现 | 同一参数化回归覆盖 `AWAITING_RETRY`；状态与公开能力允许解释、示例和答案。 |
 | C04 | 旧内部名仅作为受限兼容请求 | 已实现 | `test_legacy_alias_is_only_a_version_one_request`：协议 v1 归一化后再校验；协议 v2 拒绝内部事件名。 |

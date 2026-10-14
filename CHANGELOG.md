@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0 — Hint before the answer, diagnosed misconceptions, function graphs
+
+Teaching policy changes; the database is unchanged (migration head remains 023). Upgrading from 0.4.5 needs no data migration.
+
+### Teaching
+- An open problem now needs one hint before its full solution. The request is refused with `HINT_REQUIRED` without changing problem state, and the "看答案" button is disabled with the reason. Solved problems and already-shown solutions stay reviewable. This supersedes tutor-v2 item C02 ("zero-hint solution allowed").
+- A message that both submits an answer and asks for the solution keeps its assessed attempt when replayed after the refusal.
+
+### Learning profile and export
+- "活跃错误概念" counts diagnosed rules from assessed wrong or partial attempts instead of a fixed 0. An independent correct attempt on the same skill resolves them; assisted success does not.
+- The data export lists the same misconceptions (rule, label, skills, last seen). No model confidence is claimed.
+
+### Function graphs
+- Ask "画出 y = x^2 - 2x - 3 的图像" or press "看图像" under a linear, quadratic, simplification, system or inequality problem.
+- The server parses a whitelist grammar (no `eval`), samples points and marks zeros, vertex, intercepts and intersections; the client draws them on a canvas, with hover read-out, legend and dark-mode colors. The model never supplies coordinates, and only server-owned `SHOW_GRAPH` messages render as graphs.
+- While a problem is open, answer points stay unmarked and a graph of that problem counts as help, so a later answer is recorded as assisted.
+- Model context receives a one-line placeholder instead of graph point data.
+
 ## 0.4.5 — Page styles and visual refresh
 
 No change to teaching policy, verification, retrieval, persistence or the database (migration head remains 023). Upgrading from 0.4.4 needs no data migration.
