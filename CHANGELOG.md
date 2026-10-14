@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Persistent turn traces and failure replay
+- Migration 024 adds `turn_traces`: one structured row per tutor turn (command, actions, status, finish reason, error code, latency, tokens, model, formula-check counts, template fallback). No student or tutor text is copied; the row is deleted together with its conversation.
+- `GET /desktop/diagnostics/turns` returns persisted health (failure, partial, provider-error and refuted-formula rates, latency p50/p95, tokens) with threshold alerts once at least 20 turns exist, plus the recent turns. These survive restarts, unlike `loop_health()`.
+- `scripts/replay_turn.py` replays a recorded conversation up to a chosen turn in a throwaway database, reading the original read-only, and reports whether state, actions and errors reproduce.
+
 ### Fixed multi-turn evaluation
 - 14 fixed multi-turn scenarios are played through the real app and scored automatically on the six tutor-v2 dimensions (math, relevance, evidence, actionability, adaptation, coherence). Scoring uses rules and the local verifier only; there is no human rater.
 - `scripts/tutor_multiturn_eval.py` writes JSON and Markdown reports and exits non-zero when the release gate fails. `--mode live` evaluates a real model before it goes to production.

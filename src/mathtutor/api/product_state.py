@@ -266,6 +266,8 @@ class ProductState:
         self.bootstrap_tracker = BootstrapTracker()
         from mathtutor.repositories.turn_repository import TurnRequestRepository
         self.turn_requests = TurnRequestRepository(engine)
+        from mathtutor.repositories.turn_trace_repository import TurnTraceRepository
+        self.turn_traces = TurnTraceRepository(engine)
         from mathtutor.repositories.image_repository import ImageRepository
         self.images = ImageRepository(engine)
 

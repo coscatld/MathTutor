@@ -57,6 +57,9 @@ class Certification:
     def checked_any(self) -> bool:
         return bool(self.verified or self.refuted)
 
+    def counts(self) -> dict[str, int]:
+        return {"verified": self.verified, "unchecked": self.unchecked, "refuted": len(self.refuted)}
+
 
 def _normalize(span: str) -> str:
     text = span
@@ -227,6 +230,8 @@ def annotate(text: str, result: Certification) -> str:
 async def certify_and_annotate(text: str, backend, *, anchor: tuple[str, str] | None = None) -> tuple[str, Certification]:
     body = strip_notice(text)
     result = await certify(body, backend, anchor=anchor)
+    from mathtutor.application.tutor_runtime import note_turn
+    note_turn(formulas=result.counts())
     return annotate(body, result), result
 
 

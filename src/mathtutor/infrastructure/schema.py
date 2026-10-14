@@ -142,6 +142,30 @@ turn_requests = Table(
     Column("created_at", Text, nullable=False),
 )
 
+# Structured record of each tutor turn for diagnostics. No raw text: the
+# student's words and the tutor's reply stay in conversation_messages.
+turn_traces = Table(
+    "turn_traces",
+    metadata,
+    Column("student_id", String(64), ForeignKey("student_profiles.student_id"), primary_key=True),
+    Column("conversation_id", String(128), primary_key=True),
+    Column("turn_id", String(160), primary_key=True),
+    Column("created_at", Text, nullable=False),
+    Column("command", String(48), nullable=False, server_default=""),
+    Column("actions", JSON, nullable=False, server_default="[]"),
+    Column("status", String(16), nullable=False),
+    Column("finish_reason", String(32), nullable=False),
+    Column("error_code", String(64), nullable=False, server_default=""),
+    Column("latency_ms", Integer, nullable=False, server_default="0"),
+    Column("steps_used", Integer, nullable=False, server_default="0"),
+    Column("input_tokens", Integer, nullable=False, server_default="0"),
+    Column("output_tokens", Integer, nullable=False, server_default="0"),
+    Column("usage_estimated", Integer, nullable=False, server_default="0"),
+    Column("provider", String(64), nullable=False, server_default=""),
+    Column("model", String(128), nullable=False, server_default=""),
+    Column("details", JSON, nullable=False, server_default="{}"),
+)
+
 conversation_documents = Table(
     "conversation_documents",
     metadata,

@@ -13,7 +13,7 @@ const appRoot = path.join(desktop, "dist", "mac-arm64", "MathTutor.app");
 const appExecutable = path.join(appRoot, "Contents", "MacOS", "MathTutor");
 const evidencePath = path.join(desktop, "dist", "package-smoke-evidence.json");
 const keychainProbe = path.join(desktop, "scripts", "macos-keychain-sentinel.py");
-const migrationRelative = path.join("Contents", "Resources", "python-app", "mathtutor", "infrastructure", "migrations", "versions", "023_citation_receipts.py");
+const migrationRelative = path.join("Contents", "Resources", "python-app", "mathtutor", "infrastructure", "migrations", "versions", "024_turn_traces.py");
 for (const required of [dmg, appExecutable, path.join(appRoot, migrationRelative)]) {
   if (!fs.existsSync(required)) throw new Error(`Packaged artifact missing: ${required}`);
 }
@@ -197,7 +197,7 @@ function auditReleaseLogs(namedOutputs) {
     dmg_artifact: path.relative(desktop, dmg),
     dmg_size_bytes: dmgBytes.length,
     dmg_sha256: dmgSha256,
-    packaged_migration_head: "023",
+    packaged_migration_head: "024",
     packaged_migration_file: migrationRelative.split(path.sep).join("/"),
     runner_isolation: { cwd_outside_checkout: true, inherited_pythonpath: false, inherited_conda_or_virtualenv: false },
     consecutive_runs: consecutiveRunResults.length,

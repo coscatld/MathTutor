@@ -24,3 +24,5 @@ async def purge_conversation(state, owner, cid):
     if getattr(state, "knowledge", None):
         await state.knowledge.purge_conversation(owner, cid)
     await state.turn_requests.forget(owner, cid)
+    if getattr(state, "turn_traces", None):
+        await state.turn_traces.forget(owner, cid)

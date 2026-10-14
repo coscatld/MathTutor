@@ -2189,6 +2189,8 @@ class MathTutorController:
             from mathtutor.application.math_claims import anchor_for, certify
             math_check = await certify(utterance.text, self.service.verification_backend, anchor=anchor_for(problem))
             checked_text = utterance.text
+            from mathtutor.application.tutor_runtime import note_turn
+            note_turn(formulas=math_check.counts(), template_fallback=bool(math_check.refuted))
             if math_check.refuted:
                 candidate_text = await TemplateTutorWriter().write(problem_view=problem_view, disclosure=disclosure,
                     policy=self.policy, action=action, document_context=document_context)

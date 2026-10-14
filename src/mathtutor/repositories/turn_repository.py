@@ -97,3 +97,6 @@ class TurnRequestRepository:
             async with self.uow.transaction() as conn:
                 await conn.execute(turn_requests.delete().where(
                     turn_requests.c.student_id == owner, turn_requests.c.conversation_id == cid))
+                from mathtutor.infrastructure.schema import turn_traces
+                await conn.execute(turn_traces.delete().where(
+                    turn_traces.c.student_id == owner, turn_traces.c.conversation_id == cid))

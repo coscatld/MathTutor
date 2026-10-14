@@ -403,6 +403,14 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                 finish_reason=turn.finish_reason.value)
         turn.latency_ms = int((time.monotonic() - started) * 1000)
         record_turn(turn)
+        traces = getattr(state, "turn_traces", None)
+        if traces is not None:
+            from mathtutor.application.tutor_runtime import trace_row
+            try:
+                await traces.record(trace_row(turn, student_id=owner.student_id,
+                                              command=str(envelope.get("command", "")), frames=frames))
+            except Exception:  # Diagnostics must never fail the student's turn.
+                logger.exception("turn trace write failed conversation_id=%s", session_id)
         terminal = "assistant_complete" if turn.status == "COMPLETED" else "assistant_partial" if turn.partial else "assistant_error"
         from mathtutor.application.student_contract import session_contract
         contract = await session_contract(state.store, owner.student_id, await state.store.load(owner.student_id, session_id))

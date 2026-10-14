@@ -224,8 +224,9 @@ class SQLiteConversationRepository:
         async with self.uow.transaction() as conn:
             for table in (conversation_messages, conversation_documents):
                 await conn.execute(table.delete().where(table.c.student_id == owner, table.c.conversation_id == cid))
-            from mathtutor.infrastructure.schema import turn_requests
-            await conn.execute(turn_requests.delete().where(turn_requests.c.student_id == owner, turn_requests.c.conversation_id == cid))
+            from mathtutor.infrastructure.schema import turn_requests, turn_traces
+            for table in (turn_requests, turn_traces):
+                await conn.execute(table.delete().where(table.c.student_id == owner, table.c.conversation_id == cid))
             await conn.execute(conversations.update().where(
                 conversations.c.student_id == owner, conversations.c.conversation_id == cid,
             ).values(title="", purged_at=_now()))

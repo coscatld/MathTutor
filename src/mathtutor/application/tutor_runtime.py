@@ -97,6 +97,34 @@ def _unfinished_surface(text: str) -> bool:
     return _missing_operand(text) or _closed_formula_missing_operand(text)
 
 
+def note_turn(**values):
+    """Attach structured diagnostics to the running turn (never raw text)."""
+    turn = current_turn.get()
+    if turn is None:
+        return
+    details = getattr(turn, "details", None) or {}
+    for key, value in values.items():
+        if isinstance(value, dict) and isinstance(details.get(key), dict):
+            details[key] = {**details[key], **{k: details[key].get(k, 0) + v if isinstance(v, int) else v
+                                               for k, v in value.items()}}
+        else:
+            details[key] = value
+    turn.details = details
+
+
+def trace_row(turn, *, student_id, command, frames):
+    """One turn_traces row: structure only, no student or tutor text."""
+    return {"student_id": student_id, "conversation_id": turn.conversation_id, "turn_id": turn.turn_id,
+            "command": command[:48], "status": turn.status, "finish_reason": turn.finish_reason.value,
+            "actions": list(dict.fromkeys(f["payload"]["action"] for f in frames if f.get("payload", {}).get("action")))[:12],
+            "error_code": next((f["payload"].get("error_code") or "" for f in frames if f["event_type"] == "turn_error"), "")
+                          or (turn.error_code or ""),
+            "latency_ms": turn.latency_ms, "steps_used": turn.steps_used,
+            "input_tokens": turn.input_tokens, "output_tokens": turn.output_tokens,
+            "usage_estimated": int(turn.usage_estimated), "provider": turn.provider[:64], "model": turn.model[:128],
+            "details": getattr(turn, "details", None) or {}}
+
+
 def record_turn(turn):
     health['turns'] += 1
     health[turn.finish_reason.value] += 1

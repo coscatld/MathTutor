@@ -15,7 +15,7 @@ from alembic.config import Config
 
 # Frozen database contract for the 0.2.0 RC.  Keep this aligned with the
 # Alembic head; release manifests and packaged smoke assert the exact value.
-MIGRATION_HEAD = "023"
+MIGRATION_HEAD = "024"
 
 
 def alembic_config(db_path: str | None = None) -> Config:
