@@ -435,7 +435,8 @@ async def test_backup_during_wal_workload_no_tear(tmp_path):
 
     ok, detail = BackupService.verify_backup(backup, manifest)
     assert ok, detail
-    conn = sqlite3.connect(backup)
+    from mathtutor.infrastructure import db_crypto
+    conn = db_crypto.connect(backup, key=db_crypto.key_for_file(backup))  # backups are encrypted
     try:
         rows = conn.execute("select count(*) from users").fetchone()[0]
     finally:

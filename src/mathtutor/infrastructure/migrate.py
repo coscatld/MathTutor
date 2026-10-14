@@ -32,10 +32,13 @@ def upgrade_db(db_path: str | None = None) -> None:
     """Apply all pending migrations (idempotent, safe to call every startup)."""
     import sqlite3
     from datetime import datetime, timezone
+    from mathtutor.infrastructure import db_crypto
     from mathtutor.infrastructure.db import resolve_db_path
     path = Path(db_path).resolve() if db_path else resolve_db_path().resolve()
+    pending_backup = None
     if path.exists() and path.stat().st_size:
-        with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as source:
+        key = db_crypto.db_key(path)
+        with closing(db_crypto.connect(path, key=key, readonly=True)) as source:
             exists = source.execute("SELECT 1 FROM sqlite_master WHERE name='alembic_version'").fetchone()
             version = source.execute("SELECT version_num FROM alembic_version").fetchone() if exists else None
             if version is None or version[0] != MIGRATION_HEAD:
@@ -43,9 +46,18 @@ def upgrade_db(db_path: str | None = None) -> None:
                 backup_dir.mkdir(parents=True, exist_ok=True)
                 stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
                 backup_path = backup_dir / f"{path.stem}-pre-{MIGRATION_HEAD}-{stamp}.sqlite3"
-                with closing(sqlite3.connect(backup_path)) as target:
-                    source.backup(target)
-                backup_path.chmod(0o600)
+                backup_key = db_crypto.backup_key()
+                if key is None and backup_key is None:
+                    with closing(sqlite3.connect(backup_path)) as target:
+                        source.backup(target)
+                    backup_path.chmod(0o600)
+                else:
+                    pending_backup = (backup_path, key, backup_key)
+    if pending_backup is not None:
+        # After the read-only source is closed: never two SQLite builds at once.
+        target, key, backup_key = pending_backup
+        db_crypto.snapshot(path, key, target, backup_key)
+        target.chmod(0o600)
     command.upgrade(alembic_config(db_path), "head")
 
 

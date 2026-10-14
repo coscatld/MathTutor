@@ -71,8 +71,10 @@ async def test_create_backup_wal_consistent_usable_and_manifest(db, tmp_path):
     assert manifest.backup_path == str(backup_path.resolve())
     assert service.manifests[-1] == manifest
 
-    # 备份文件是独立可用数据库，包含已提交数据。
-    conn = sqlite3.connect(backup_path)
+    # 备份文件是独立可用数据库（有密钥存储时加密），包含已提交数据。
+    from mathtutor.infrastructure import db_crypto
+    assert not db_crypto.is_plaintext_file(backup_path)
+    conn = db_crypto.connect(backup_path, key=db_crypto.key_for_file(backup_path))
     try:
         assert conn.execute("select count(*) from users").fetchone()[0] == 1
         assert conn.execute("select code from curriculum_versions").fetchone()[0] == "bk-v1"

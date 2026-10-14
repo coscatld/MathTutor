@@ -346,6 +346,8 @@ def create_math_tutor_app_from_runtime() -> FastAPI:
     from mathtutor.infrastructure.db import resolve_db_path
     from mathtutor.infrastructure.migrate import upgrade_db
 
+    from mathtutor.infrastructure import db_crypto
+    db_crypto.apply_pending(resolve_db_path().resolve())  # encryption change chosen by the student
     upgrade_db()  # fail fast before serving (design doc §15 readiness)
     return create_math_tutor_app(
         settings=load_math_tutor_security_settings(),

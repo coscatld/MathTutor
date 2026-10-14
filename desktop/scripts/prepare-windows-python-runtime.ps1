@@ -82,7 +82,7 @@ try {
   $Probe = @"
 import sys
 sys.path.insert(0, r'$($RepoDir.Replace("'", "''"))\src')
-import aiosqlite, alembic, bcrypt, fastapi, httpx, jose, pydantic, pypdf, sqlalchemy, uvicorn
+import aiosqlite, alembic, bcrypt, fastapi, httpx, jose, pydantic, pypdf, sqlalchemy, sqlcipher3, uvicorn
 import mathtutor.standalone
 assert sys.version_info[:2] == (3, 12), sys.version
 print(sys.version)

@@ -560,7 +560,8 @@ async def _migrations_check(state) -> tuple[str, str]:
         db_path = engine.url.database
         script = ScriptDirectory.from_config(alembic_config(db_path))
         head = script.get_current_head()
-        sync_engine = create_engine(f"sqlite:///{db_path}")
+        from mathtutor.infrastructure import db_crypto
+        sync_engine = create_engine(f"sqlite:///{db_path}", creator=lambda: db_crypto.connect_db(db_path))
         try:
             with sync_engine.connect() as conn:
                 current = MigrationContext.configure(conn).get_current_revision()
@@ -858,6 +859,8 @@ class BackupPathRequest(BaseModel):
     """Client-supplied backup name (a bare file NAME — never a path)."""
 
     path: str
+    #: Only needed when the key store no longer holds the backup key.
+    recovery_key: str | None = Field(default=None, max_length=128)
 
 
 #: The service's own backup naming pattern (mirrors backup._BACKUP_FILE_GLOB).
@@ -978,6 +981,54 @@ async def create_backup_endpoint(
     return {"ok": True, "backup": _project_manifest(manifest)}
 
 
+class EncryptionUpdate(BaseModel):
+    enabled: bool
+
+
+def _encryption_status(state) -> dict:
+    from mathtutor.infrastructure import db_crypto
+    if state.db_path is None:
+        return {"available": False, "mode": "plaintext", "pending": None, "reason": "当前为内存模式"}
+    current = db_crypto.state(Path(state.db_path))
+    available = db_crypto.available()
+    return {**current, "available": available, "backups_encrypted": available,
+            "reason": "" if available else "当前环境缺少 SQLCipher 或系统密钥存储"}
+
+
+@router.get("/privacy/encryption")
+async def get_encryption(owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    """Database encryption mode, any pending change, and whether backups are encrypted."""
+    return _encryption_status(get_product_state())
+
+
+@router.put("/privacy/encryption")
+async def put_encryption(update: EncryptionUpdate, owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    """Record the wanted mode; the conversion runs at the next start."""
+    from mathtutor.infrastructure import db_crypto
+    state = get_product_state()
+    if state.db_path is None:
+        raise HTTPException(status_code=409, detail="当前为内存模式，不支持加密。")
+    try:
+        await asyncio.to_thread(db_crypto.request_change, Path(state.db_path), update.enabled)
+    except db_crypto.EncryptionUnavailable as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    status = _encryption_status(state)
+    return {**status, "restart_required": bool(status["pending"])}
+
+
+@router.post("/privacy/encryption/recovery-key")
+async def reveal_recovery_key(owner: StudentOwnerScope = Depends(require_student_owner)) -> dict:
+    """The backup key, shown only on an explicit request so it can be kept safe."""
+    from mathtutor.infrastructure import db_crypto
+    try:
+        key = await asyncio.to_thread(db_crypto.backup_key)
+    except db_crypto.EncryptionUnavailable as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if not key:
+        raise HTTPException(status_code=409, detail="当前环境不加密备份，没有恢复密钥。")
+    return {"recovery_key": key}
+
+
 @router.post("/backup/verify")
 async def verify_backup_endpoint(
     request: BackupPathRequest,
@@ -998,7 +1049,7 @@ async def verify_backup_endpoint(
     if manifest is None:
         return {"ok": False, "message": "备份缺少校验记录，无法验证。"}
     ok, detail = await asyncio.to_thread(
-        BackupService.verify_backup, backup_path, manifest
+        BackupService.verify_backup, backup_path, manifest, request.recovery_key
     )
     if ok:
         return {"ok": True}
@@ -1033,12 +1084,12 @@ async def restore_backup_endpoint(
             "message": "当前仍有学习请求正在处理，未开始恢复，请稍后重试。",
         }
     try:
-        return await _restore_backup_while_quiesced(state, backup_path)
+        return await _restore_backup_while_quiesced(state, backup_path, request.recovery_key)
     finally:
         await state.end_maintenance()
 
 
-async def _restore_backup_while_quiesced(state, backup_path: Path) -> dict:
+async def _restore_backup_while_quiesced(state, backup_path: Path, recovery_key: str | None = None) -> dict:
     """Perform restore while the ProductState request gate is exclusively held."""
     from mathtutor.api.product_state import (
         get_product_state,
@@ -1074,7 +1125,7 @@ async def _restore_backup_while_quiesced(state, backup_path: Path) -> dict:
     # 2) verified restore (sha256 + integrity + alembic compatibility +
     #    active-wal/shm refusal + atomic copy + post-copy re-check).
     try:
-        await state.backup_service.restore_verified(backup_path, state.db_path)
+        await state.backup_service.restore_verified(backup_path, state.db_path, recovery_key=recovery_key)
     except BackupError as error:
         rollback_error = await _rollback_failed_restore(
             rollback_path, state.db_path

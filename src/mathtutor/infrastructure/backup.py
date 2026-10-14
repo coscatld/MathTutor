@@ -269,7 +269,14 @@ class BackupService:
         """
         import sqlite3
 
-        conn = sqlite3.connect(str(self._db_path()), timeout=5.0)
+        from mathtutor.infrastructure import db_crypto
+        source = self._db_path()
+        key, backup_key = db_crypto.db_key(source), db_crypto.backup_key()
+        if key is not None or backup_key is not None:
+            # Encrypted backup (SQLCipher, backup key); readable only with that key.
+            db_crypto.snapshot(source, key, path, backup_key)
+            return
+        conn = sqlite3.connect(str(source), timeout=5.0)
         try:
             conn.execute("VACUUM INTO ?", (str(path),))
         finally:
@@ -402,7 +409,7 @@ class BackupService:
 
     @staticmethod
     def verify_backup(
-        backup_path: Path | str, manifest: BackupManifest | None
+        backup_path: Path | str, manifest: BackupManifest | None, recovery_key: str | None = None
     ) -> tuple[bool, str]:
         """Re-verify a backup: size + sha256 against the manifest (when
         given) and PRAGMA integrity_check. Returns ``(ok, detail)``.
@@ -418,7 +425,7 @@ class BackupService:
                 return False, "文件大小与 manifest 不符"
             if manifest.sha256 != _sha256(path):
                 return False, "sha256 与 manifest 不符"
-        integrity = BackupService._verify_backup_file(path)
+        integrity = BackupService._verify_backup_file(path, recovery_key)
         if integrity != "ok":
             return False, f"integrity_check 未通过（{integrity!r}）"
         return True, "ok"
@@ -488,7 +495,7 @@ class BackupService:
 
         target = Path(target_path).resolve()
         target.parent.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread(shutil.copy2, backup_path, target)
+        await asyncio.to_thread(BackupService._restore_into, backup_path, target)
         return target
 
     async def restore_verified(
@@ -496,6 +503,7 @@ class BackupService:
         backup_path: Path,
         target_path: Path,
         manifest: BackupManifest | None = None,
+        recovery_key: str | None = None,
     ) -> Path:
         """Fail-closed verified restore (spec 5.8). Orchestration:
 
@@ -536,13 +544,13 @@ class BackupService:
                     ) from exc
         if manifest is not None:
             ok, detail = await asyncio.to_thread(
-                BackupService.verify_backup, backup_path, manifest
+                BackupService.verify_backup, backup_path, manifest, recovery_key
             )
             if not ok:
                 raise BackupError(f"备份验证失败，拒绝恢复: {detail}")
         else:
             integrity = await asyncio.to_thread(
-                self._verify_backup_file, backup_path
+                self._verify_backup_file, backup_path, recovery_key
             )
             if integrity != "ok":
                 raise BackupError(
@@ -550,13 +558,13 @@ class BackupService:
                 )
 
         await asyncio.to_thread(
-            BackupService._check_backup_revision_compatible, backup_path
+            BackupService._check_backup_revision_compatible, backup_path, recovery_key
         )
 
         target = Path(target_path).resolve()
         BackupService._reject_active_wal_shm(target)
         target.parent.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread(BackupService._copy_atomic, backup_path, target)
+        await asyncio.to_thread(BackupService._restore_into, backup_path, target, recovery_key)
         after = await asyncio.to_thread(self._verify_backup_file, target)
         if after != "ok":
             target.unlink(missing_ok=True)
@@ -567,20 +575,25 @@ class BackupService:
         return target
 
     @staticmethod
-    def _check_backup_revision_compatible(backup_path: Path) -> None:
+    def _check_backup_revision_compatible(backup_path: Path, recovery_key: str | None = None) -> None:
         """Refuse backups whose alembic version is unknown to this codebase
         (newer-version backups, non-alembic databases) — fail closed, never
         a downgrade restore. A backup from an OLDER revision is fine:
         ``upgrade_db`` brings it forward after restore."""
         import sqlite3
 
-        conn = sqlite3.connect(f"file:{backup_path}?mode=ro", uri=True)
+        from mathtutor.infrastructure import db_crypto
+        try:
+            key = db_crypto.key_for_file(backup_path, recovery_key=recovery_key)
+        except db_crypto.EncryptionUnavailable as exc:
+            raise BackupError(f"{exc}，拒绝恢复") from exc
+        conn = db_crypto.connect(backup_path, key=key, readonly=True)
         try:
             try:
                 rows = conn.execute(
                     "SELECT version_num FROM alembic_version"
                 ).fetchall()
-            except sqlite3.DatabaseError as exc:
+            except (sqlite3.DatabaseError, Exception) as exc:
                 raise BackupError(
                     f"备份无法读取 alembic_version（{exc}），拒绝恢复"
                 ) from exc
@@ -623,6 +636,26 @@ class BackupService:
                 )
 
     @staticmethod
+    def _restore_into(backup: Path, target: Path, recovery_key: str | None = None) -> None:
+        """Write the backup into ``target`` in the target's own mode.
+
+        Same key on both sides is a byte copy; otherwise the backup is
+        exported (decrypted or re-keyed) into a temporary file first.
+        """
+        from mathtutor.infrastructure import db_crypto
+        source_key = db_crypto.key_for_file(backup, recovery_key=recovery_key)
+        target_key = db_crypto.db_key(target)
+        if source_key == target_key:
+            BackupService._copy_atomic(backup, target)
+            return
+        tmp = target.with_name(f"{target.name}.tmp-{uuid4().hex}")
+        try:
+            db_crypto.export(backup, source_key, tmp, target_key)
+            os.replace(tmp, target)
+        finally:
+            tmp.unlink(missing_ok=True)
+
+    @staticmethod
     def _copy_atomic(source: Path, target: Path) -> None:
         """tmp + os.replace copy: the target is never half-written."""
         tmp = target.with_name(f"{target.name}.tmp-{uuid4().hex}")
@@ -655,10 +688,17 @@ class BackupService:
             BackupService._reject_active_wal_shm(Path(database))
 
     @staticmethod
-    def _verify_backup_file(path: Path) -> str:
-        """PRAGMA integrity_check on a standalone backup file."""
+    def _verify_backup_file(path: Path, recovery_key: str | None = None) -> str:
+        """PRAGMA integrity_check on a standalone (possibly encrypted) file."""
         import sqlite3
 
+        from mathtutor.infrastructure import db_crypto
+        try:
+            key = db_crypto.key_for_file(Path(path), recovery_key=recovery_key)
+        except db_crypto.EncryptionUnavailable as exc:
+            return f"encrypted: {exc}"
+        if key is not None:
+            return db_crypto.integrity(Path(path), key)
         try:
             conn = sqlite3.connect(str(path))
             try:

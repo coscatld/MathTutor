@@ -247,11 +247,28 @@ export async function verifyBackup(path: string): Promise<BackupVerifyResult> {
   });
 }
 
-export async function restoreBackup(path: string): Promise<BackupRestoreResult> {
+export async function restoreBackup(path: string, recoveryKey?: string): Promise<BackupRestoreResult> {
   return desktopFetch<BackupRestoreResult>("/backup/restore", {
     method: "POST",
-    body: JSON.stringify({ path }),
+    body: JSON.stringify(recoveryKey ? { path, recovery_key: recoveryKey } : { path }),
   });
+}
+
+export interface EncryptionStatus {
+  mode: "plaintext" | "encrypted";
+  pending: "encrypt" | "decrypt" | null;
+  available: boolean;
+  backups_encrypted: boolean;
+  reason: string;
+  restart_required?: boolean;
+}
+
+export async function fetchEncryption(): Promise<EncryptionStatus> { return desktopFetch<EncryptionStatus>("/privacy/encryption"); }
+export async function saveEncryption(enabled: boolean): Promise<EncryptionStatus> {
+  return desktopFetch<EncryptionStatus>("/privacy/encryption", { method: "PUT", body: JSON.stringify({ enabled }) });
+}
+export async function revealRecoveryKey(): Promise<{ recovery_key: string }> {
+  return desktopFetch<{ recovery_key: string }>("/privacy/encryption/recovery-key", { method: "POST" });
 }
 
 // ---------------------------------------------------------------------------

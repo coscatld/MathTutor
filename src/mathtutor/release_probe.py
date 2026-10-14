@@ -22,7 +22,8 @@ from mathtutor.security.scopes import DEV_STUDENT_ID
 
 
 def migration_probe(db_path: Path) -> dict[str, Any]:
-    connection = sqlite3.connect(db_path)
+    from mathtutor.infrastructure import db_crypto
+    connection = db_crypto.connect_db(db_path)
     try:
         row = connection.execute("SELECT version_num FROM alembic_version").fetchone()
     finally:

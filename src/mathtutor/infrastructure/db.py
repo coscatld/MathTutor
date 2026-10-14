@@ -47,7 +47,20 @@ def create_db_engine(db_path: Path | None = None) -> AsyncEngine:
     path = path.resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    engine = create_async_engine(f"sqlite+aiosqlite:///{path}", future=True)
+    from mathtutor.infrastructure import db_crypto
+    key = db_crypto.db_key(path)
+    if key is None:
+        engine = create_async_engine(f"sqlite+aiosqlite:///{path}", future=True)
+    else:
+        import aiosqlite
+
+        async def open_encrypted():
+            # aiosqlite drives a SQLCipher connection on its worker thread.
+            return await aiosqlite.Connection(
+                lambda: db_crypto.connect(path, key=key, check_same_thread=False, isolation_level=None),
+                iter_chunk_size=64)
+
+        engine = create_async_engine(f"sqlite+aiosqlite:///{path}", future=True, async_creator=open_encrypted)
     from mathtutor.infrastructure.lifecycle_trace import trace
     for event_name in ("connect", "checkout", "checkin", "close"):
         def record(connection, record, *args, stage=event_name):

@@ -36,9 +36,10 @@ export function RestoreConfirmDialog({
 }: {
   backup: BackupRecord;
   busy: boolean;
-  onConfirm: () => void;
+  onConfirm: (recoveryKey?: string) => void;
   onCancel: () => void;
 }) {
+  const [recoveryKey, setRecoveryKey] = useState("");
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -56,6 +57,11 @@ export function RestoreConfirmDialog({
           将用备份「{backup.path}」恢复数据。恢复会<strong>覆盖当前数据</strong>，且恢复完成后
           <strong>应用将重新启动</strong>。此操作无法撤销。
         </p>
+        <label className="block text-xs text-[var(--muted-foreground)]">
+          恢复密钥（只有提示「需要恢复密钥」时才填写）
+          <input value={recoveryKey} onChange={event => setRecoveryKey(event.target.value.trim())} disabled={busy}
+            className="mt-input mt-1 font-mono text-xs" placeholder="不填" autoComplete="off" spellCheck={false} />
+        </label>
         <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
@@ -67,7 +73,7 @@ export function RestoreConfirmDialog({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={() => onConfirm(recoveryKey || undefined)}
             disabled={busy}
             className="mt-btn mt-btn-danger-solid"
           >
@@ -163,13 +169,13 @@ export default function BackupPanel({
     }
   };
 
-  const handleRestoreConfirmed = async () => {
+  const handleRestoreConfirmed = async (recoveryKey?: string) => {
     if (!confirmRestore) return;
     const backup = confirmRestore;
     setBusy("restore");
     setMessage(null);
     try {
-      const result = await restoreBackupFn(backup.path);
+      const result = await restoreBackupFn(backup.path, recoveryKey);
       if (result.ok) {
         setConfirmRestore(null);
         setMessage({

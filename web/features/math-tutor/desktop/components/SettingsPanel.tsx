@@ -27,6 +27,7 @@ import DocumentsPanel from "./DocumentsPanel";
 import MemoryPanel from "./MemoryPanel";
 import TutorPersonalityPanel from "./TutorPersonalityPanel";
 import CostSettingsPanel from "./CostSettingsPanel";
+import EncryptionPanel from "./EncryptionPanel";
 import { useToast } from "./ToastProvider";
 import { useSearchParams } from "next/navigation";
 import AppearancePicker from "@/components/common/AppearancePicker";
@@ -603,7 +604,7 @@ export default function SettingsPanel({
       {section === "tutor" ? <div className="space-y-8"><TutorPersonalityPanel /><CostSettingsPanel /></div> : null}
       {section === "data" ? <DataPrivacySettings /> : null}
       {section === "appearance" ? <section><h2 className="text-xl font-bold tracking-tight">外观</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">选择页面风格，立即生效。偏好只保存在本机。</p><div className="mt-5"><AppearancePicker /></div></section> : null}
-      {section === "advanced" ? <div className="space-y-4"><div><h2 className="text-xl font-bold tracking-tight">高级</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">备份、恢复与维护操作。</p></div><BackupPanel /></div> : null}
+      {section === "advanced" ? <div className="space-y-4"><div><h2 className="text-xl font-bold tracking-tight">高级</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">备份、恢复、加密与维护操作。</p></div><EncryptionPanel /><BackupPanel /></div> : null}
       </div></div>
     </div>
   );

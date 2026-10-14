@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Encryption at rest (opt-in)
+- Database encryption with SQLCipher, off by default. Turning it on or off in Settings → Advanced → Data encryption records the wish; the conversion runs at the next start, before anything opens the database: integrity check, export into a temporary file in the new mode, integrity check and identical row counts, atomic swap. Any failure leaves the original file and the marker unchanged.
+- Keys live only in the OS credential store; an in-memory store is never used for real data, and without a persistent key store encryption reports itself unavailable.
+- Backups are SQLCipher files keyed by a separate backup key whenever a key store exists. "Show recovery key" reveals it on request, and restore accepts it when the key store entry is gone. Restore converts into the live database's mode; older plaintext backups stay restorable.
+- Two different SQLite builds never open the same live database in one process (their shared-memory locks do not see each other; this crashed under a concurrent writer during development). A plaintext database is first snapshotted with the standard library and only that standalone file is encrypted; an encrypted database is only ever opened by SQLCipher.
+- Every database opener (async engine, Alembic, pre-migration backup, release probe, migration check, offline readers) goes through one module. Adds the `sqlcipher3` dependency to both packaged runtimes. Uploaded source files are still plain files. Not yet verified on a real Windows machine.
+
 ### Tutoring tool loop
 - On maths questions in free chat, a model with native tool calling may call `verify_math` before answering, at most four times per turn. The application checks the arguments against a schema, runs the shared verifier and returns a receipt (verified, refuted, unchecked or rejected); the model corrects itself and the final answer is ordinary prose that still passes the formula check. No other tool is offered; everyday chat keeps streaming without tools. Turn traces record tool calls.
 

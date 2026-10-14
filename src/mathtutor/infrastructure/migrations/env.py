@@ -53,7 +53,17 @@ def do_run_migrations(connection) -> None:
 def run_migrations_online() -> None:
     from sqlalchemy import create_engine
 
-    engine = create_engine(_database_url(), future=True)
+    from pathlib import Path
+
+    from mathtutor.infrastructure import db_crypto
+
+    url = _database_url()
+    path = Path(url.split("sqlite:///", 1)[1]) if url.startswith("sqlite:///") else None
+    key = db_crypto.db_key(path) if path is not None else None
+    if key is None:
+        engine = create_engine(url, future=True)
+    else:
+        engine = create_engine(url, future=True, creator=lambda: db_crypto.connect(path, key=key))
     try:
         with engine.connect() as connection:
             do_run_migrations(connection)

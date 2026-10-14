@@ -28,6 +28,8 @@ dependencies = [
   "pypdf>=4.0",
   "python-jose[cryptography]>=3.3",
   "python-multipart>=0.0.6",
+  # Opt-in database encryption and encrypted backups (SQLCipher, bundled wheels).
+  "sqlcipher3>=0.6.4",
   "sqlalchemy[asyncio]>=2.0",
   "uvicorn[standard]>=0.24",
 ]

@@ -21,7 +21,8 @@ def read_database_events(path):
     if not path.is_file():
         raise ValueError("学习事件数据库不存在")
     try:
-        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as connection:
+        from mathtutor.infrastructure import db_crypto
+        with db_crypto.connect(path, key=db_crypto.db_key(path), readonly=True) as connection:
             rows = connection.execute("SELECT student_id,event_seq,payload FROM learning_events ORDER BY student_id,event_seq").fetchall()
         result = []
         for student_id, seq, payload in rows:

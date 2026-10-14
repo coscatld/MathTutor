@@ -17,7 +17,7 @@ async function verifyRuntime({ runtime, platform = process.platform, arch = proc
     const code = `
 import json, pathlib, platform, sys
 import ssl, sqlite3, ctypes, multiprocessing
-import aiosqlite, alembic, bcrypt, fastapi, httpx, jose, pydantic, pypdf, sqlalchemy, uvicorn
+import aiosqlite, alembic, bcrypt, fastapi, httpx, jose, pydantic, pypdf, sqlalchemy, sqlcipher3, uvicorn
 root = pathlib.Path(${JSON.stringify(relocated)}).resolve()
 assert pathlib.Path(sys.prefix).resolve() == root, (sys.prefix, str(root))
 assert sys.platform == ${JSON.stringify(platform)}, sys.platform

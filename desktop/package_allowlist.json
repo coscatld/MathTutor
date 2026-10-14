@@ -67,6 +67,7 @@
       "pydantic",
       "pypdf",
       "sqlalchemy",
+      "sqlcipher3",
       "starlette",
       "uvicorn"
     ],
