@@ -62,14 +62,15 @@ def apply_dkt_difficulty(difficulty: int, forecast: dict | None) -> tuple[int, s
     A foreign prior with no personal attempt does not move the level.
     The returned reason does not contain the probability.
     """
-    if not forecast or int(forecast.get("history_updates") or 0) < 1 or not forecast.get("controls_teaching"):
-        return difficulty, "已训练的知识追踪还没有这个学生的独立作答，难度保持不变"
-    probability = forecast.get("probability")
-    if not isinstance(probability, (int, float)) or isinstance(probability, bool):
-        return difficulty, "已训练的知识追踪没有可用概率，难度保持不变"
+    from mathtutor.pedagogy.dkt_policy import dkt_may_adjust, note_dkt
+    if not dkt_may_adjust(forecast):
+        return difficulty, "已训练的知识追踪不满足调节条件（需映射技能和本人作答），难度保持不变"
+    probability = forecast["probability"]
     if probability < 0.45:
+        note_dkt("difficulty", "down")
         return max(1, difficulty - 1), "映射技能上的已训练追踪偏低，练习降一级"
     if probability > 0.75:
+        note_dkt("difficulty", "up")
         return min(5, difficulty + 1), "映射技能上的已训练追踪偏高，练习升一级"
     return difficulty, "映射技能上的已训练追踪处于中间，练习难度保持不变"
 

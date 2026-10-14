@@ -4,6 +4,7 @@
 
 ### Student model
 - The uncalibrated legacy 0-1 mastery estimate no longer reaches practice generation: it is removed from the model prompt, and the template statement uses verified error counts from recent attempts instead.
+- The trained (ASSISTments) DKT may now change teaching only when the skill maps to a product skill and the student has at least one own attempt; a foreign prior alone no longer adds guidance text. Support moves by at most one level, practice difficulty by one level, and `MATHTUTOR_DKT_TEACHING=off` turns both off. Every adjustment is recorded on the turn trace and shows up as `dkt_adjust_rate` in the diagnostics health.
 - Every verified error class the verifier reports now steers the next practice item and the teaching guidance: sign errors, missing roots, extraneous roots, equality-preservation errors and computation errors each map to a skill in the skill graph for the matching problem family. Previously only two classes did.
 
 ### Persistent turn traces and failure replay

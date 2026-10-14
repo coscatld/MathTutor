@@ -62,6 +62,7 @@ def health(rows: list[dict]) -> dict:
         "provider_error_rate": round(sum(r["finish_reason"] == "PROVIDER_ERROR" for r in rows) / n, 4),
         "formula_refuted_rate": round(refuted / n, 4),
         "template_fallback_rate": round(sum(bool((r.get("details") or {}).get("template_fallback")) for r in rows) / n, 4),
+        "dkt_adjust_rate": round(sum(bool((r.get("details") or {}).get("dkt")) for r in rows) / n, 4),
         "latency_p50_ms": latencies[n // 2],
         "latency_p95_ms": latencies[min(n - 1, int(n * 0.95))],
         "tokens": sum(r["input_tokens"] + r["output_tokens"] for r in rows),

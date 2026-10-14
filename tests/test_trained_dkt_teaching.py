@@ -22,9 +22,8 @@ def _forecast(**changes):
 
 
 def test_cold_start_does_not_narrate_someone_elses_history_or_move_difficulty():
-    guided = apply_trained_dkt(_plan(), _forecast(history_updates=0, probability=0.2))
-    assert "还不稳" not in guided.student_guidance and "%" not in guided.student_guidance
-    assert guided.max_assistance_level == 1 and "DKT_PRIOR" in guided.reason_codes
+    plan = _plan()
+    assert apply_trained_dkt(plan, _forecast(history_updates=0, probability=0.2)) == plan
     level, _reason = apply_dkt_difficulty(3, _forecast(history_updates=0, probability=0.2))
     assert level == 3
 
@@ -49,3 +48,30 @@ def test_writer_is_told_to_follow_the_sentence_and_not_invent_mastery():
                                 TutorAction(action="ASK_STUDENT", effective_assistance_level=1))
     assert "先只写等式隔离这一步" in prompt
     assert "不要改写成掌握百分比" in prompt
+
+
+def test_dkt_moves_at_most_one_notch_and_needs_a_mapping_and_the_switch(monkeypatch):
+    plan = _plan(max_assistance_level=0)
+    assert apply_trained_dkt(plan, _forecast()).max_assistance_level == 1
+    assert apply_trained_dkt(plan, _forecast(mapped_product_skills=[])) == plan
+    assert apply_dkt_difficulty(3, _forecast(mapped_product_skills=[]))[0] == 3
+    monkeypatch.setenv("MATHTUTOR_DKT_TEACHING", "off")
+    assert apply_trained_dkt(plan, _forecast()) == plan
+    assert apply_dkt_difficulty(3, _forecast())[0] == 3
+
+
+def test_adjustments_are_recorded_on_the_turn_trace():
+    from mathtutor.application.tutor_runtime import current_turn
+    from mathtutor.domain.turn_result import TutorTurnResult
+    from mathtutor.repositories.turn_trace_repository import health
+    turn = TutorTurnResult()
+    token = current_turn.set(turn)
+    try:
+        apply_trained_dkt(_plan(), _forecast())
+        apply_dkt_difficulty(3, _forecast(probability=0.9))
+    finally:
+        current_turn.reset(token)
+    assert turn.details["dkt"] == {"teaching_more_support": 1, "difficulty_up": 1}
+    row = {"status": "COMPLETED", "finish_reason": "NATURAL_STOP", "latency_ms": 1, "input_tokens": 0,
+           "output_tokens": 0, "details": turn.details}
+    assert health([row, {**row, "details": {}}])["dkt_adjust_rate"] == 0.5

@@ -247,29 +247,30 @@ _DKT_PHRASE = {
 
 
 def apply_trained_dkt(plan: TeachingPlan, forecast: dict) -> TeachingPlan:
-    """Let a mapped trained probability change the next step. Never print the number."""
-    if plan.action == "SHOW_SOLUTION" or not forecast or not forecast.get("controls_teaching"):
+    """Let a mapped trained probability move the next step by one notch.
+
+    Only with a product skill mapping and the student's own attempts (see
+    ``dkt_policy``); a foreign prior alone changes nothing. Never print the number.
+    """
+    from mathtutor.pedagogy.dkt_policy import dkt_may_adjust, note_dkt
+    if plan.action == "SHOW_SOLUTION" or not dkt_may_adjust(forecast):
         return plan
-    probability = forecast.get("probability")
-    if not isinstance(probability, (int, float)) or isinstance(probability, bool):
-        return plan
-    skills = forecast.get("mapped_product_skills") or ()
-    phrase = _DKT_PHRASE.get(skills[0], "这一步") if skills else "这一步"
-    updates = int(forecast.get("history_updates") or 0)
-    if updates < 1:
-        sentence = f"先写出{phrase}里你能确定的运算。"
-        return replace(plan, student_guidance=plan.student_guidance or sentence, reason_codes=(*plan.reason_codes, "DKT_PRIOR"))
+    probability = forecast["probability"]
+    skills = forecast["mapped_product_skills"]
+    phrase = _DKT_PHRASE.get(skills[0], "这一步")
     if probability < 0.45:
+        note_dkt("teaching", "more_support")
         sentence = f"先只写{phrase}，不用一次算完。"
         return replace(
             plan,
             strategy="smaller_step",
             support_mode="scaffold",
-            max_assistance_level=min(4, max(plan.max_assistance_level, 2)),
+            max_assistance_level=min(4, plan.max_assistance_level + 1) if plan.max_assistance_level < 2 else plan.max_assistance_level,
             student_guidance=plan.student_guidance or sentence,
             reason_codes=(*plan.reason_codes, "DKT_UNSTEADY"),
         )
     if probability > 0.75:
+        note_dkt("teaching", "less_support")
         sentence = f"你来写{phrase}，我再检查。"
         return replace(
             plan,
