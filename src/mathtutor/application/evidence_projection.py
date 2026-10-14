@@ -59,10 +59,11 @@ def prerequisite_gap(context):
 #: Verified error signal → (problem family → practice skill, guidance).
 #: Ordered like the diagnosis rules: the first matching signal wins.
 ERROR_PRACTICE = (
-    ("sign_flip", {"arithmetic": "signed_operations", "linear": "signed_operations",
+    ("sign_flip", {"quadratic_inequality": "substitution_check", "arithmetic": "signed_operations", "linear": "signed_operations",
                    "linear_inequality": "signed_operations", "polynomial": "signed_operations"},
      "这次先练带符号的运算，检查结果的正负号。"),
-    ("missing_root", {"quadratic": "quadratic_roots", "linear_system": "system_completeness"},
+    ("missing_root", {"quadratic": "quadratic_roots", "quadratic_inequality": "quadratic_roots",
+                      "linear_system": "system_completeness"},
      "这次先练把所有解都求出来，最后逐个代回检查有没有漏掉。"),
     ("extraneous_root", {"quadratic": "substitution_check"},
      "这次先练把求出的解代回原式检验，去掉不满足的解。"),

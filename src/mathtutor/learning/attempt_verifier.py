@@ -186,6 +186,11 @@ def verify_attempt(
                                  reason="当前题目不需要一组未知数的答案", **base)
     if problem.problem_type == "linear_inequality":
         return _verify_linear_inequality(problem, parsed_answer, base)
+    if problem.problem_type == "quadratic_inequality":
+        return _verify_quadratic_inequality(problem, parsed_answer, base)
+    if parsed_answer.kind == "inequality_set":
+        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
+                                 reason="这道题要的不是取值范围。", **base)
     if parsed_answer.kind == "inequality":
         return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
                                  reason="这道题要的不是取值范围。", **base)
@@ -257,6 +262,37 @@ def _verify_linear_inequality(problem: MathProblem, answer: ParsedAttempt, base:
     if answer.boundary == boundary:
         return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_value",), reason="不等号方向和原题不一致。", **base)
     return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_value",), reason="这个范围的边界没有通过原题检验。", **base)
+
+
+def _verify_quadratic_inequality(problem: MathProblem, answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:
+    """Compare the student's solution set with the exact one."""
+    from mathtutor.solving import quadratic_inequality as qi
+    variable = str(problem.normalized_ast.get("variable", "x"))
+    symbols = {"gt": ">", "ge": ">=", "lt": "<", "le": "<="}
+    if answer.kind == "inequality_set":
+        text = answer.set_text
+    elif answer.kind == "inequality" and answer.boundary is not None:
+        text = f"{answer.answer_variable}{symbols[answer.relation]}{answer.boundary}"
+    elif answer.kind == "empty_root_set":
+        text = "无解"
+    elif answer.kind == "root_values" and len(answer.root_values) == 1:
+        text = f"{variable}={answer.root_values[0]}"
+    elif answer.kind == "equation" and answer.parsed is not None and isinstance(answer.parsed.ast, n.Equation):
+        text = answer.parsed.display_latex.replace(" ", "")
+    else:
+        text = ""
+    try:
+        verdict = qi.assess(problem, text) if text else None
+    except (KeyError, TypeError, ValueError, ZeroDivisionError, n.MathDomainError) as exc:
+        return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason=f"不等式不能回放: {exc}", **base)
+    if verdict is None:
+        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
+                                 reason="请写出解集，例如 x<2 或 x>3、2<x<3。", **base)
+    correctness, signals, reason = verdict
+    if correctness == "correct":
+        return AttemptAssessment(correctness=Correctness.CORRECT, score=1.0,
+                                 verified_claims=({"claim": "inequality_solution_set"},), **base)
+    return AttemptAssessment(correctness=Correctness.INCORRECT, signals=signals, reason=reason, **base)
 
 
 def _verify_arithmetic(problem_ast: n.Node, answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:

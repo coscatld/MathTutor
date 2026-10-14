@@ -23,6 +23,7 @@ _SKILL_BY_PROBLEM_TYPE: dict[str, str] = {
     "polynomial": SKILL_POLYNOMIAL_BASIC,
     "linear": SKILL_LINEAR_EQUATION,
     "linear_inequality": SKILL_LINEAR_EQUATION,
+    "quadratic_inequality": SKILL_QUADRATIC_EQUATION,
     "quadratic": SKILL_QUADRATIC_EQUATION,
     "linear_system": SKILL_LINEAR_SYSTEM,
 }

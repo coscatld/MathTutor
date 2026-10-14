@@ -21,7 +21,8 @@ from typing import Any, Callable
 
 GRAPH_ACTION = "SHOW_GRAPH"
 GRAPH_FENCE = "mathtutor-graph"
-GRAPHABLE_TYPES = frozenset({"linear", "quadratic", "polynomial", "linear_system", "linear_inequality"})
+GRAPHABLE_TYPES = frozenset({"linear", "quadratic", "polynomial", "linear_system", "linear_inequality",
+                             "quadratic_inequality"})
 
 MAX_EXPRESSION_CHARS = 120
 MAX_DEPTH = 40
@@ -522,7 +523,8 @@ def graph_for_problem(problem_type: str, ast: dict[str, Any], *, reveal: bool) -
         raise GraphInputError("这道题是数值计算，没有可以画的函数图像")
     if problem_type == "linear_system":
         return _system_graph(ast, reveal=reveal)
-    equation = ast["equation"] if problem_type == "linear_inequality" else ast
+    inequality = problem_type in {"linear_inequality", "quadratic_inequality"}
+    equation = ast["equation"] if inequality else ast
     if problem_type == "polynomial":
         variable = (_variables(ast) or ["x"])[0]
         g = lambda value: _ast_value(ast, {variable: value})
@@ -535,7 +537,7 @@ def graph_for_problem(problem_type: str, ast: dict[str, Any], *, reveal: bool) -
     diff = _difference(equation)
     g = lambda value: diff({variable: value})
     note = ""
-    if problem_type == "linear_inequality":
+    if inequality:
         relation = {"gt": ">", "ge": "≥", "lt": "<", "le": "≤"}.get(ast.get("relation", ""), "")
         note = f"不等式成立的 {variable}，就是图像落在横轴{'上方' if relation in {'>', '≥'} else '下方'}的那一段。"
     else:

@@ -57,12 +57,19 @@ def parse_inequality_text(text: str, parse_core) -> ParseOutcome | None:
     if op is None or not left.strip() or not right.strip():
         return ParseOutcome.unsupported("不等式两边都要有式子")
     outcome = parse_core(f"{left.strip()}={right.strip()}")
-    if outcome.kind != "parsed" or outcome.problem is None or outcome.problem.problem_type != "linear":
-        return ParseOutcome.unsupported("目前只逐步核验一次线性不等式")
+    if outcome.kind != "parsed" or outcome.problem is None or outcome.problem.problem_type not in {"linear", "quadratic"}:
+        return ParseOutcome.unsupported("目前只逐步核验一元一次和一元二次不等式")
     parsed = outcome.problem
+    family = "linear_inequality" if parsed.problem_type == "linear" else "quadratic_inequality"
+    if family == "quadratic_inequality":
+        from mathtutor.solving import quadratic_inequality as qi
+        try:
+            qi.rational_roots(*qi.coefficients(parsed.ast, parsed.variable))
+        except n.MathDomainError as exc:
+            return ParseOutcome.unsupported(str(exc))
     wrapper = {"kind": "inequality", "relation": code, "variable": parsed.variable, "equation": parsed.normalized_ast}
     display = n.to_latex(parsed.ast).replace("=", latex or op, 1)
-    return ParseOutcome.ok(ParsedProblem("linear_inequality", parsed.ast, wrapper, display, parsed.variable, code))
+    return ParseOutcome.ok(ParsedProblem(family, parsed.ast, wrapper, display, parsed.variable, code))
 
 
 def _compile_template(text: str):

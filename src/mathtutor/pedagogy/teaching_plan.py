@@ -50,6 +50,7 @@ _GOALS = {
     "polynomial": (("expand", "先检查括号与分配律"), ("combine", "辨认并合并同类项")),
     "linear": (("balance", "保持等式两边相等，整理含未知数的项"), ("isolate", "得到未知数的值并代回原式")),
     "linear_inequality": (("balance", "整理含未知数的项，并注意不等号方向"), ("isolate", "写出未知数的取值范围")),
+    "quadratic_inequality": (("roots", "先求出对应方程的根"), ("sign", "根据开口方向和不等号写出解集")),
     "quadratic": (("method", "选择分解或求根方法"), ("roots", "找齐所有实数根并排除增根")),
     "linear_system": (("eliminate", "选择代入或消元，先求一个未知数"), ("remaining", "再求另一未知数并检验两条原式")),
 }
@@ -100,6 +101,10 @@ def apply_assessment(context, assessment, raw_text, assistance):
     context = deepcopy(context)
     record = assessment_record(assessment, raw_text, assistance,
                                diagnostic=context.get("diagnostic_item", False))
+    if context.get("problem_type") in {"linear_inequality", "quadratic_inequality"} and assessment.reason:
+        # Inequality errors are about direction and boundaries; the verifier's
+        # own reason is more precise than the generic signal guidance.
+        record["verifier_reason"] = assessment.reason
     context["assessments"].append(record)
     if record["math_validity"] == "valid":
         context["progress"].append({"assessment_id": record["assessment_id"], "text": raw_text,
@@ -289,7 +294,7 @@ def assessment_feedback(record):
     if record["math_validity"] == "valid":
         return f"已验证「{raw}」是有效的部分结果；整题还没有完成，请继续补齐剩余要求。"
     if record["math_validity"] == "invalid":
-        guidance = error_guidance(record.get("misconception_candidates", []))
+        guidance = record.get("verifier_reason") or error_guidance(record.get("misconception_candidates", []))
         return f"你提交的「{raw}」未通过原题检验。" + (guidance or "先把你刚才的运算写成一步，我来检查。")
     return "这次作答暂时无法可靠判定，不会记作答错。请补充这一步的等式或说明要检验的结论。"
 
@@ -343,6 +348,7 @@ def grounded_template(problem_view, disclosure, action):
         "polynomial": "找出能合并的一组同类项；它们的字母和次数分别是什么？",
         "linear": "先指出要消去哪个常数项，再写出等式两边同时做的运算。",
         "linear_inequality": "先整理含未知数的项，再写明不等号的方向。",
+        "quadratic_inequality": "先把不等号换成等号，求出对应方程的根，再看抛物线开口方向。",
         "quadratic": "你准备先用哪一种方法：因式分解还是求根公式？",
         "linear_system": "先选一个要消去的未知数。",
     }.get(problem_view.problem_type, "指出已知条件和要证明或计算的结论。")

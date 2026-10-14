@@ -90,6 +90,9 @@ def _is_answer_shape(text: str, variable: str | None, variables=()) -> bool:
     from mathtutor.learning.attempt_parser import EMPTY_ROOT_SET_TOKENS
     if text.lower() in EMPTY_ROOT_SET_TOKENS:
         return True
+    from mathtutor.solving.quadratic_inequality import parse_answer
+    if variable and re.search(r"[<>≤≥≠]|全体实数|任意实数|一切实数", text) and parse_answer(text, variable) is not None:
+        return True  # a solution set such as x>2, x<2或x>3, 2<x<3
     if not re.fullmatch(r"[\s\dA-Za-z.,，;；+\-*/^=(){}\[\]\\$√]+", text):
         return False
     parsed = parse_problem(text)

@@ -18,11 +18,17 @@ from mathtutor.solving.strategies import arithmetic, inequality, linear, polynom
 
 _Strategy = Callable[[ParsedProblem], tuple[tuple[dict[str, Any], ...], dict[str, Any]]]
 
+
+def _quadratic_inequality_solve(parsed):
+    from mathtutor.solving import quadratic_inequality
+    return quadratic_inequality.solve(parsed)
+
 _STRATEGIES: dict[str, _Strategy] = {
     "arithmetic": arithmetic.solve,
     "polynomial": polynomial.solve,
     "linear": linear.solve,
     "linear_inequality": inequality.solve,
+    "quadratic_inequality": _quadratic_inequality_solve,
     "quadratic": quadratic.solve,
     "linear_system": linear_system.solve,
 }

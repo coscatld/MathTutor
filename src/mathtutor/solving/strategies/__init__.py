@@ -13,6 +13,7 @@ STRATEGIES = {
     "polynomial": polynomial.STRATEGY_NAME,
     "linear": linear.STRATEGY_NAME,
     "linear_inequality": inequality.STRATEGY_NAME,
+    "quadratic_inequality": "mt-quadratic-inequality-v1",
     "quadratic": quadratic.STRATEGY_NAME,
     "linear_system": linear_system.STRATEGY_NAME,
 }

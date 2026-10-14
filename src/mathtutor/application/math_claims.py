@@ -25,7 +25,7 @@ from mathtutor.application.problem_recovery import UNVERIFIED_NOTICE
 logger = logging.getLogger(__name__)
 
 MAX_CLAIMS = 40
-_DERIVATION_TYPES = {"linear", "quadratic", "linear_system", "linear_inequality"}
+_DERIVATION_TYPES = {"linear", "quadratic", "linear_system", "linear_inequality", "quadratic_inequality"}
 
 _LATEX_SPAN = re.compile(r"\$\$(.+?)\$\$|\\\[(.+?)\\\]|\\\((.+?)\\\)|\$([^$\n]+?)\$", re.S)
 _PLAIN_SPAN = re.compile(r"[0-9A-Za-z(（][0-9A-Za-z\s+\-−*/^(){}（）.=<>≤≥×÷·²³]*(?:=|<|>|≤|≥)[0-9A-Za-z\s+\-−*/^(){}（）.=<>≤≥×÷·²³]*[0-9A-Za-z)}）²³]")

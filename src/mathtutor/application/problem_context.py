@@ -26,6 +26,7 @@ _TASKS = {
     "polynomial": ("simplify", "展开或合并并给出等价的多项式", "polynomial"),
     "linear": ("solve_equation", "求方程的解", "root_set"),
     "linear_inequality": ("solve_inequality", "求未知数的取值范围", "interval"),
+    "quadratic_inequality": ("solve_inequality", "求未知数的取值范围（解集）", "interval_union"),
     "quadratic": ("solve_equation", "求方程的完整解集", "root_set"),
     "linear_system": ("solve_system", "求同时满足两个原方程的完整解", "assignments"),
 }
@@ -36,6 +37,8 @@ _LIMITS = {
                ["identity_equations", "inconsistent_constant_equations", "units"]),
     "linear_inequality": ("nondegenerate_rational_coefficients", ["equivalent_transform", "rational_boundary", "relation_direction"],
                           ["quadratic_inequalities", "units"]),
+    "quadratic_inequality": ("rational_roots_only", ["boundary_roots", "parabola_sign", "interval_union", "boundary_inclusion"],
+                             ["irrational_boundaries", "parameters", "units"]),
     "quadratic": ("real_roots_rational_coefficients", ["rational_or_quadratic_surd_roots", "complete_real_root_set", "original_equation_substitution"],
                   ["complex_roots", "units", "approximate_numeric_tolerance"]),
     "linear_system": ("unique_two_variable_affine_system", ["equivalent_linear_combination", "partial_variable_value", "complete_assignment", "both_original_equations"],

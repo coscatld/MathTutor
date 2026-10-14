@@ -32,7 +32,7 @@ from mathtutor.domain.attempt import StudentAttempt
 from mathtutor.solving import nodes as n
 from mathtutor.solving.parser import ParsedProblem, parse_problem
 
-AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "root_values", "inequality", "undeterminable"]
+AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "root_values", "inequality", "undeterminable", "inequality_set"]
 
 # uuid5 namespace for deterministic attempt ids: attempt_id = f(submission_id),
 # so a replayed submission yields the SAME attempt identity end to end —
@@ -74,6 +74,11 @@ def _inequality_answer(text: str) -> dict | None:
     }
 
 
+_SET_ANSWER = re.compile(
+    r"[<>≤≥].*(?:或|or|∪|[,，;；]).*[<>≤≥]|[-\d/]\s*(?:<=|<|≤)\s*[A-Za-z]\s*(?:<=|<|≤)\s*[-\d]"
+    r"|≠|!=|\\ne|全体实数|任意实数|一切实数|所有实数|^\s*[Rℝ]\s*$|空集|∅", re.IGNORECASE)
+
+
 def attempt_id_for(attempt_submission_id: UUID) -> UUID:
     """Deterministic attempt id derived from the submission id (uuid5)."""
     return uuid5(ATTEMPT_ID_NAMESPACE, f"attempt:{attempt_submission_id}")
@@ -106,6 +111,7 @@ class ParsedAttempt:
     relation: str = ""
     boundary: Fraction | None = None
     answer_variable: str = ""
+    set_text: str = ""
 
     @classmethod
     def undeterminable(cls, reason: str) -> "ParsedAttempt":
@@ -138,7 +144,11 @@ def parse_student_attempt(
     if two_roots:
         stripped = f"{two_roots.group(2)},{two_roots.group(3)}"
     inequality_answer = _inequality_answer(stripped)
-    if inequality_answer is not None:
+    if inequality_answer is None and not two_roots and _SET_ANSWER.search(stripped):
+        # A solution set (two-sided, between, "≠", all reals). The quadratic
+        # inequality verifier reads it against the problem's own variable.
+        parsed_steps = ({"kind": "answer", "parse_kind": "inequality_set", "text": stripped[:200]},)
+    elif inequality_answer is not None:
         parsed_steps = ({"kind": "answer", "parse_kind": "inequality", **inequality_answer},)
     elif re.fullmatch(rf"{rational}\s*[,，]\s*{rational}", stripped):
         try:
@@ -213,6 +223,11 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
             return ParsedAttempt.undeterminable("根集格式无效")
     if parse_kind == "empty_root_set":
         return ParsedAttempt("empty_root_set")
+    if parse_kind == "inequality_set":
+        text = step.get("text")
+        if not isinstance(text, str) or not text.strip():
+            return ParsedAttempt.undeterminable("解集答案格式无效")
+        return ParsedAttempt("inequality_set", set_text=text)
     if parse_kind == "inequality":
         try:
             boundary = Fraction(step["boundary"]["n"], step["boundary"]["d"])

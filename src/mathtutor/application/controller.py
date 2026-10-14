@@ -169,6 +169,8 @@ def _concept_hint_for(problem: MathProblem | None) -> str:
         "polynomial": "多项式与同类项的概念",
         "linear": "一元一次方程的概念",
         "quadratic": "一元二次方程的概念",
+        "linear_inequality": "不等式的基本性质",
+        "quadratic_inequality": "一元二次不等式与二次函数图像的关系",
     }.get(problem.problem_type, "")
 
 
@@ -181,6 +183,8 @@ def _strategy_hint_for(problem: MathProblem | None) -> str:
         "polynomial": "先展开或合并同类项，再比较系数",
         "linear": "先把含未知数的项移到一边，常数项移到另一边",
         "quadratic": "先尝试因式分解，或用求根公式",
+        "linear_inequality": "先移项整理，两边同乘除负数时改变不等号方向",
+        "quadratic_inequality": "先求对应方程的根，再结合抛物线开口方向确定解集",
     }.get(problem.problem_type, "")
 
 
@@ -2318,7 +2322,8 @@ class MathTutorController:
         from mathtutor.domain.tutoring import TutorAction
         text = {"arithmetic": "17/5 + 3/10", "polynomial": "3a+2(a+4)",
                 "linear": "5z+4=39", "quadratic": "z^2-12z+35=0",
-                "linear_system": "2u+v=19;u-v=2"}.get(problem.problem_type)
+                "linear_system": "2u+v=19;u-v=2", "linear_inequality": "3y-2>7",
+                "quadratic_inequality": "y^2-7y+12<0"}.get(problem.problem_type)
         if not text:
             return None
         result = await self.service.submit_problem(text)

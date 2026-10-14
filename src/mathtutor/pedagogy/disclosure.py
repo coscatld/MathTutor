@@ -153,7 +153,7 @@ class SolutionDisclosureProjector:
 
         if level == 5:
             final_answer = dict(candidate.final_answer)
-            variable = str(final_answer.get("var") or "")
+            variable = str(final_answer.get("var") or final_answer.get("variable") or "")
             if not variable:
                 # Equation answer LaTeX is server-authored (e.g. ``y = 2``).
                 # Recover only its identifier for display; ``x`` is the safe

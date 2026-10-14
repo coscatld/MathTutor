@@ -35,7 +35,8 @@ from typing import Any, Literal
 from mathtutor.solving import nodes as n
 
 MAX_TOKENS = 256
-ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic", "linear_system", "linear_inequality"]
+ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic", "linear_system", "linear_inequality",
+                      "quadratic_inequality"]
 ParseKind = Literal["parsed", "ambiguous", "unsupported", "unparseable"]
 
 

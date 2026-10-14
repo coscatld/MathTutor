@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Quadratic inequalities
+- New problem family `quadratic_inequality` for one-variable quadratic inequalities with rational roots; irrational boundaries are rejected rather than approximated. The solution set is a union of exact intervals and is rendered as two-sided ranges, a between range, a single point, "x ≠ a", all reals or no solution.
+- The strategy reuses the quadratic-equation root steps and adds the parabola-sign step. The verifier checks the boundary roots and then compares the polynomial's sign at test points around every root with the claimed set, independently of the strategy's reasoning.
+- Student answers such as `x<2或x>3`, `2<x<3`, `x≠2`, `全体实数` are read as sets and compared exactly; feedback names the specific problem (wrong interval direction, boundary inclusion, a missing part of the set). Typed solution sets now route as answers, which also helps linear inequalities.
+- Teaching goals, hints, worked examples, graphs, formula anchors and practice focus cover the new family. Worked solutions of inequalities now show the problem's own variable instead of always `x`.
+
 ### Streaming in free chat
 - OpenAI-compatible providers can stream (SSE). Free chat shows the answer sentence by sentence, but a sentence is released only when its math delimiters are closed and every formula so far passes `verify_math`. The first failing formula stops the preview; the full answer then goes through the check and correction round, and the final message replaces what was shown.
 - The teaching path stays non-streaming: its disclosure guard needs the whole text before anything can be shown.

@@ -55,6 +55,7 @@ FAMILY_SKILLS = {
     "polynomial": ("distributive_law", "combine_like_terms"),
     "linear": ("equality_preservation", "linear_isolation", "substitution_check"),
     "linear_inequality": ("equality_preservation", "linear_isolation"),
+    "quadratic_inequality": ("factorisation", "quadratic_roots", "substitution_check"),
     "quadratic": ("factorisation", "quadratic_discriminant", "quadratic_roots", "substitution_check"),
     "linear_system": ("system_elimination", "system_substitution", "system_completeness"),
 }
@@ -162,7 +163,9 @@ def skills_for_solution_step(problem, step):
     if family in {"linear", "linear_inequality"}:
         return {"subtract_term": ("equality_preservation",),
                 "divide_all": ("equality_preservation", "linear_isolation")}.get(step.get("transform", {}).get("kind"), ())
-    if family == "quadratic":
+    if family in {"quadratic", "quadratic_inequality"}:
+        if "boundary_roots" in step:
+            return ("substitution_check",)
         if "discriminant" in step and all(k in step for k in ("a", "b", "c")):
             return ("quadratic_discriminant",)
         if "roots" in step:
@@ -185,6 +188,7 @@ def skills_for_subgoal(problem, subgoal_id, candidate=None):
         "polynomial": {"expand": ("distributive_law",), "combine": ("combine_like_terms",)},
         "linear": {"balance": ("equality_preservation",), "isolate": ("linear_isolation", "substitution_check")},
         "linear_inequality": {"balance": ("equality_preservation",), "isolate": ("linear_isolation",)},
+        "quadratic_inequality": {"roots": ("quadratic_roots",), "sign": ("substitution_check",)},
         "quadratic": {"method": ("quadratic_discriminant",), "roots": ("quadratic_roots", "substitution_check")},
         "linear_system": {"eliminate": ("system_elimination", "linear_isolation"),
                           "remaining": ("system_substitution", "system_completeness", "substitution_check"),
