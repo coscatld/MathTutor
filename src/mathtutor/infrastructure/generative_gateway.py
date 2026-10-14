@@ -166,6 +166,11 @@ class GenerativeModelProvider(Protocol):
     def set_model(self, model: str) -> None: ...
 
 
+
+async def _no_lines():
+    return
+    yield  # pragma: no cover - makes this an async generator
+
 class OpenAICompatibleProvider:
     """httpx implementation of the chat-completions + models contract.
 
@@ -271,6 +276,86 @@ class OpenAICompatibleProvider:
             f"provider {self.provider_id!r} failed after {max_retries + 1} attempt(s): {last_error}",
             diagnostics=getattr(last_error, "diagnostics", None),
         ) from last_error
+
+    async def complete_streaming(
+        self,
+        messages: Sequence[dict],
+        *,
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+        on_delta=None,
+    ) -> CompletionResult:
+        """Server-sent-events variant of ``complete`` with the same result.
+
+        ``on_delta(text_so_far)`` is awaited as content arrives; the caller
+        decides what (if anything) may be shown. Tools are not streamed.
+        """
+        if not self._model:
+            raise GenerativeConfigError(f"provider {self.provider_id!r} has no model resolved")
+        payload: dict = {"model": self._model, "messages": list(messages), "temperature": temperature,
+                         "stream": True, "stream_options": {"include_usage": True}}
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        if self.provider_id in {"deepseek"} or (self.provider_id == "moonshot" and self._model in {"kimi-k2.5", "kimi-k2.6"}):
+            payload["thinking"] = {"type": "disabled"}
+            if self.provider_id == "moonshot":
+                payload.pop("temperature", None)
+        headers = {"Authorization": f"Bearer {await self._key()}", "Content-Type": "application/json"}
+        text, finish_reason, usage = "", "", {}
+        import json as _json
+        try:
+            async with self._client() as client:
+                async with client.stream("POST", f"{self._base_url}/chat/completions", json=payload, headers=headers) as response:
+                    if response.status_code == 400:
+                        # Some compatible servers reject stream options: answer without streaming.
+                        await response.aread()
+                        result = await self.complete(messages, temperature=temperature, max_tokens=max_tokens)
+                        if on_delta is not None:
+                            await on_delta(result.text)
+                        return result
+                    if response.status_code != 200:
+                        detail = (await response.aread())[:300]
+                        raise GenerativeProviderError(f"provider {self.provider_id!r} HTTP {response.status_code}: {detail!r}")
+                    if "text/event-stream" not in response.headers.get("content-type", ""):
+                        # The server ignored stream=true and sent one JSON body.
+                        body = _json.loads(await response.aread())
+                        message = body["choices"][0]["message"]
+                        text = message.get("content") or ""
+                        finish_reason = body["choices"][0].get("finish_reason") or ""
+                        usage = body.get("usage") or {}
+                        if on_delta is not None and text:
+                            await on_delta(text)
+                        response_kind = "json"
+                    else:
+                        response_kind = "sse"
+                    async for line in (response.aiter_lines() if response_kind == "sse" else _no_lines()):
+                        if not line.startswith("data:"):
+                            continue
+                        data = line[5:].strip()
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = _json.loads(data)
+                        except ValueError:
+                            raise GenerativeProviderError(f"provider {self.provider_id!r} malformed stream chunk") from None
+                        usage = chunk.get("usage") or usage
+                        for choice in chunk.get("choices") or ():
+                            delta = (choice.get("delta") or {}).get("content") or ""
+                            finish_reason = choice.get("finish_reason") or finish_reason
+                            if delta:
+                                text += delta
+                                if on_delta is not None:
+                                    await on_delta(text)
+        except httpx.HTTPError as error:
+            raise GenerativeProviderError(f"provider {self.provider_id!r} transport error: {error}") from error
+        except (KeyError, IndexError, ValueError, TypeError) as error:
+            raise GenerativeProviderError(f"provider {self.provider_id!r} malformed response") from error
+        if not text.strip():
+            raise GenerativeProviderError(f"provider {self.provider_id!r} returned empty content")
+        return CompletionResult(text=text, provider_id=self.provider_id, model=self._model, finish_reason=finish_reason,
+                                input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"),
+                                diagnostics={"streamed": True, "finish_reason": finish_reason,
+                                             "usage": {k: usage[k] for k in ("prompt_tokens", "completion_tokens") if k in usage}})
 
     async def probe_connection(self, messages: Sequence[dict]) -> CompletionResult:
         """A bounded connectivity probe, independent of teaching-turn policy."""

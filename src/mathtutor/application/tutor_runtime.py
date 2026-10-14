@@ -14,6 +14,8 @@ from mathtutor.domain.turn_result import FinishReason, TutorTurnResult
 continuation_text: ContextVar[str] = ContextVar('continuation_text', default='')
 
 current_turn: ContextVar[TutorTurnResult | None] = ContextVar('tutor_turn', default=None)
+#: Set by a caller that can show verified text early; receives text so far.
+stream_preview: ContextVar = ContextVar('stream_preview', default=None)
 health = Counter()
 
 CONTINUATION_NOTICE = "\n\n> 续写接缝待核对：上一段末句可能未完成，以下保留续写原文。\n\n"
@@ -186,9 +188,15 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
                 turn.stop(FinishReason.TOKEN_LIMIT, text)
                 break
         turn.steps_used += 1
+        preview = stream_preview.get()
         try:
-            result = await asyncio.wait_for(provider.complete(messages, temperature=temperature,
-                max_tokens=allowance, max_retries=0), timeout=60)
+            if preview is not None and not text and not prior_text and hasattr(provider, "complete_streaming"):
+                # Only the first call streams; continuations are joined after checks.
+                result = await asyncio.wait_for(provider.complete_streaming(messages, temperature=temperature,
+                    max_tokens=allowance, on_delta=preview), timeout=120)
+            else:
+                result = await asyncio.wait_for(provider.complete(messages, temperature=temperature,
+                    max_tokens=allowance, max_retries=0), timeout=60)
         except asyncio.CancelledError:
             turn.stop(FinishReason.USER_CANCELLED, text)
             raise

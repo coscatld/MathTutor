@@ -354,6 +354,15 @@ async def _process_request(state, owner, session_id, user_message, event_key,
         try:
             await publish(StudentPublicEvent(event_type="assistant_start", payload={"turn_id": event_key, "conversation_id": session_id}).wire_dict())
             async for event in stream.subscribe():
+                if (event.metadata or {}).get("event_type") == "tutor_preview":
+                    # Verified sentences so far; the final content replaces them.
+                    await publish(StudentPublicEvent(event_type="assistant_delta", payload={
+                        "turn_id": event_key, "conversation_id": session_id,
+                        "message_id": message_id_for(owner.student_id, session_id, f"tutor:{event_key}:result"),
+                        "student_message": "\n\n".join([*texts, event.content]), "status": "STREAMING",
+                        "content_mode": "snapshot", "action": display_action or "TUTOR_CHAT",
+                        "effective_assistance_level": display_level}).wire_dict())
+                    continue
                 frame = _to_student_frame(event)
                 payload = frame["payload"]
                 payload.update(turn_id=event_key, conversation_id=session_id)

@@ -1066,13 +1066,26 @@ class MathTutorController:
                 extra = {"images": images} if images else {}
                 if document_context is not None:
                     extra["document_context"] = document_context
-                message = await responder.respond(
-                    text,
-                    history=history,
-                    problem_context=problem_context,
-                    unstructured_math=unstructured_math,
-                    **extra,
-                )
+                # Free chat streams: verified sentences are previewed as they arrive.
+                from mathtutor.application.math_claims import VerifiedPreview, anchor_for
+                from mathtutor.application.tutor_runtime import stream_preview
+                bound_for_preview = await self.sessions.load_verified(owner_id, session.cycle.cycle_id) if session and owner_id else None
+
+                async def emit_preview(verified_text):
+                    await stream.content(verified_text, source=self.manifest.name, metadata={"event_type": "tutor_preview"})
+                preview_token = stream_preview.set(VerifiedPreview(
+                    self.service.verification_backend, emit_preview,
+                    anchor=anchor_for(bound_for_preview[0]) if bound_for_preview else None))
+                try:
+                    message = await responder.respond(
+                        text,
+                        history=history,
+                        problem_context=problem_context,
+                        unstructured_math=unstructured_math,
+                        **extra,
+                    )
+                finally:
+                    stream_preview.reset(preview_token)
                 provider_result = "success"
             except TypeError:
                 if images:

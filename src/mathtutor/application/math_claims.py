@@ -227,6 +227,39 @@ def annotate(text: str, result: Certification) -> str:
     return f"{notice_for(result)}\n\n{body}"
 
 
+_SENTENCE_END = re.compile(r"[。！？!?；;\n]")
+
+
+class VerifiedPreview:
+    """Release streamed text one complete sentence at a time.
+
+    A prefix is shown only when its math delimiters are closed and every
+    formula in it passes ``certify``. The first refuted prefix stops the
+    preview; the full answer then goes through the normal check and repair,
+    and the final message replaces whatever was shown.
+    """
+
+    def __init__(self, backend, emit, *, anchor: tuple[str, str] | None = None):
+        self.backend, self.emit, self.anchor = backend, emit, anchor
+        self.released = ""
+        self.stopped = False
+
+    async def __call__(self, text: str) -> None:
+        from mathtutor.application.tutor_runtime import _unfinished_surface
+        if self.stopped:
+            return
+        ends = [m.end() for m in _SENTENCE_END.finditer(text)]
+        candidate = next((text[:end] for end in reversed(ends) if not _unfinished_surface(text[:end].rstrip())), "")
+        if len(candidate.strip()) <= len(self.released.strip()):
+            return
+        result = await certify(candidate, self.backend, anchor=self.anchor)
+        if result.refuted:
+            self.stopped = True
+            return
+        self.released = candidate
+        await self.emit(candidate.rstrip())
+
+
 def repair_request(result: Certification) -> str:
     items = "；".join(f"「{statement.shown}」{reason}" for statement, reason in result.refuted)
     return (f"你上一条回答里有算式没有通过本地验证器核对：{items}。请改正这些算式后重新完整回答原问题。"
@@ -267,5 +300,5 @@ async def certify_and_annotate(text: str, backend, *, anchor: tuple[str, str] | 
     return annotate(body, result), result
 
 
-__all__ = ["Certification", "Statement", "anchor_for", "annotate", "repair_request", "certify", "certify_and_annotate", "extract_statements",
+__all__ = ["Certification", "Statement", "VerifiedPreview", "anchor_for", "annotate", "repair_request", "certify", "certify_and_annotate", "extract_statements",
            "notice_for", "strip_notice"]

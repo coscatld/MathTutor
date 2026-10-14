@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Streaming in free chat
+- OpenAI-compatible providers can stream (SSE). Free chat shows the answer sentence by sentence, but a sentence is released only when its math delimiters are closed and every formula so far passes `verify_math`. The first failing formula stops the preview; the full answer then goes through the check and correction round, and the final message replaces what was shown.
+- The teaching path stays non-streaming: its disclosure guard needs the whole text before anything can be shown.
+- Servers that ignore streaming are read as a normal response, and a server that rejects streaming with HTTP 400 is asked once without streaming.
+
 ### Cost and budget
 - Settings → Tutor gains "模型费用与预算": input and output prices per million tokens, a daily money budget and a daily token budget. No vendor prices are built in; without prices `estimated_cost` stays empty and only tokens are counted.
 - Each turn's cost is computed from the provider's token usage and recorded on the turn trace; diagnostics health reports total cost and how many turns were blocked by the budget.
