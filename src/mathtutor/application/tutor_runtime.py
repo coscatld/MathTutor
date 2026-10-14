@@ -250,6 +250,81 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
     return result.model_copy(update={'text': text, 'turn_result': turn.wire()})
 
 
+VERIFY_MATH_TOOL = {"type": "function", "function": {
+    "name": "verify_math",
+    "description": ("用应用的本地确定性验证器核对一个结论。expression 是题目或算式（如 2x+3=7、(x+1)^2、"
+                    "x^2-5x+6>0、1/2+1/3），answer 是你的结论（如 x=2、x^2+2x+1、x<2或x>3、5/6）。"
+                    "返回 verified / refuted / unchecked；不会写入学生的学习记录。"),
+    "parameters": {"type": "object", "additionalProperties": False, "required": ["expression", "answer"],
+                   "properties": {"expression": {"type": "string", "maxLength": 200},
+                                  "answer": {"type": "string", "maxLength": 200}}}}}
+MATH_TOOL_INSTRUCTION = ("你可以调用 verify_math 核对计算、化简、解方程或不等式的结论。给出具体数学结论前先核对；"
+                         "结果为 refuted 时改正后再回答，为 unchecked 时如实说明未能核对。不要向学生描述调用过程。")
+
+
+async def complete_math_tools(provider, messages, *, verify, temperature=0.4, max_tokens=2048, max_calls=4):
+    """The model decides when to check its maths; the application runs the check.
+
+    Only ``verify_math`` is offered. Arguments are schema-checked, the shared
+    verifier runs them, and the receipt goes back to the model. The final
+    answer is ordinary prose and still passes the post-hoc formula check.
+    """
+    from mathtutor.infrastructure.generative_gateway import GenerativeProviderError
+    turn = current_turn.get() or TutorTurnResult()
+    turn.max_steps = max(turn.max_steps, max_calls + 2)
+    messages = [{"role": "system", "content": MATH_TOOL_INSTRUCTION}, *messages]
+    calls = 0
+    while True:
+        if turn.steps_used >= turn.max_steps:
+            turn.stop(FinishReason.STEP_CAP, turn.final_text)
+            raise RuntimeError("Tutor step budget exhausted")
+        tool_enabled = calls < max_calls and turn.steps_used < turn.max_steps - 1
+        turn.steps_used += 1
+        try:
+            result = await asyncio.wait_for(provider.complete(
+                messages, temperature=temperature, max_tokens=max_tokens, max_retries=0,
+                tools=[VERIFY_MATH_TOOL] if tool_enabled else None), timeout=60)
+        except asyncio.CancelledError:
+            turn.stop(FinishReason.USER_CANCELLED, "")
+            raise
+        except Exception:
+            turn.stop(FinishReason.PROVIDER_ERROR, "")
+            raise
+        turn.provider, turn.model = result.provider_id, result.model
+        prompt_estimate = sum(content_token_estimate(str(m.get("content", ""))) + 16 for m in messages)
+        turn.input_tokens += result.input_tokens if result.input_tokens is not None else prompt_estimate
+        turn.output_tokens += result.output_tokens if result.output_tokens is not None else len(result.text.encode("utf-8"))
+        turn.usage_estimated |= result.input_tokens is None or result.output_tokens is None
+        if result.tool_calls and tool_enabled:
+            messages.append({"role": "assistant", "content": result.text or "", "tool_calls": list(result.tool_calls)})
+            for call in result.tool_calls:
+                calls += 1
+                receipt = {"status": "rejected", "reason": "只能调用 verify_math，每轮最多核对 4 次"}
+                function = call.get("function") or {}
+                if function.get("name") == "verify_math" and calls <= max_calls:
+                    try:
+                        arguments = json.loads(function.get("arguments") or "{}")
+                        expression, answer = str(arguments["expression"])[:200], str(arguments["answer"])[:200]
+                        check = await verify(expression, answer)
+                        receipt = {"status": check.status, "signals": list(check.signals)}
+                    except (ValueError, KeyError, TypeError):
+                        receipt = {"status": "rejected", "reason": "参数需要 expression 和 answer 两个字符串"}
+                messages.append({"role": "tool", "tool_call_id": str(call.get("id", "")), "content": json.dumps(receipt, ensure_ascii=False)})
+            turn.tool_calls_count += len(result.tool_calls)
+            note_turn(tools={"verify_math": len(result.tool_calls)})
+            continue
+        text = (result.text or "").strip()
+        if not text:
+            turn.stop(FinishReason.PROVIDER_ERROR, "")
+            raise GenerativeProviderError("tool loop ended without an answer")
+        reason = result.finish_reason
+        if reason in {"stop", "end_turn", "stop_sequence"} and not _unfinished_surface(text):
+            turn.stop(FinishReason.NATURAL_STOP, text)
+        else:
+            turn.stop(FinishReason.TOKEN_LIMIT, text)
+        return result.model_copy(update={"text": text, "turn_result": turn.wire()})
+
+
 async def complete_auxiliary(provider, messages, *, temperature, max_tokens, max_retries):
     """Charge auxiliary generation to the same turn without treating it as final output.
 

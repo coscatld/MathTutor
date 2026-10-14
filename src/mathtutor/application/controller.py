@@ -1080,6 +1080,17 @@ class MathTutorController:
                 preview_token = stream_preview.set(VerifiedPreview(
                     self.service.verification_backend, emit_preview,
                     anchor=anchor_for(bound_for_preview[0]) if bound_for_preview else None))
+                from mathtutor.application.message_intent import is_concrete_math_input
+                import inspect
+                accepts = inspect.signature(responder.respond).parameters
+                takes_tools = "math_verify" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
+                if takes_tools and (unstructured_math or follow_up or is_concrete_math_input(text)):
+                    # Maths questions: the model may verify its own claims first.
+                    from mathtutor.application.math_verification import verify_math
+
+                    async def math_verify(expression, answer):
+                        return await verify_math(self.service.verification_backend, expression, answer)
+                    extra = {**extra, "math_verify": math_verify}
                 try:
                     message = await responder.respond(
                         text,

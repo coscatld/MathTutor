@@ -707,6 +707,7 @@ class GenerativeModelGateway:
         connection_probe: bool = False,
         tool_executor=None,
         structured_tools: bool = False,
+        math_verify=None,
     ) -> CompletionResult:
         provider = None if model_calls_blocked.get() else self._by_role.get(role)
         if provider is None:
@@ -729,6 +730,10 @@ class GenerativeModelGateway:
                 from mathtutor.application.tutor_runtime import complete_tools
                 return await complete_tools(provider, messages, executor=tool_executor,
                     structured=structured_tools, temperature=temperature, max_tokens=max_tokens)
+            if math_verify is not None and getattr(provider, "supports_native_tools", False):
+                from mathtutor.application.tutor_runtime import complete_math_tools
+                return await complete_math_tools(provider, messages, verify=math_verify,
+                    temperature=temperature, max_tokens=max_tokens or 2048)
             from mathtutor.application.tutor_runtime import complete_tutor
             return await complete_tutor(provider, messages, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries)
         from mathtutor.application.tutor_runtime import complete_auxiliary

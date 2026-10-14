@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Tutoring tool loop
+- On maths questions in free chat, a model with native tool calling may call `verify_math` before answering, at most four times per turn. The application checks the arguments against a schema, runs the shared verifier and returns a receipt (verified, refuted, unchecked or rejected); the model corrects itself and the final answer is ordinary prose that still passes the formula check. No other tool is offered; everyday chat keeps streaming without tools. Turn traces record tool calls.
+
 ### Quadratic inequalities
 - New problem family `quadratic_inequality` for one-variable quadratic inequalities with rational roots; irrational boundaries are rejected rather than approximated. The solution set is a union of exact intervals and is rendered as two-sided ranges, a between range, a single point, "x ≠ a", all reals or no solution.
 - The strategy reuses the quadratic-equation root steps and adds the parabola-sign step. The verifier checks the boundary roots and then compares the polynomial's sign at test points around every root with the claimed set, independently of the strategy's reasoning.

@@ -26,6 +26,7 @@ class TutorChatResponder:
         unstructured_math: bool = False,
         images: list | None = None,
         document_context: dict | None = None,
+        math_verify=None,
     ) -> str:
         provider = self._gateway.provider_for(ModelRole.TUTOR_WRITER)
         if images:
@@ -124,6 +125,7 @@ class TutorChatResponder:
                 temperature=0.4,
                 max_tokens=2048,
                 max_retries=0,
+                **({"math_verify": math_verify} if math_verify is not None else {}),
             )
             return result.text.strip()
         except Exception:
