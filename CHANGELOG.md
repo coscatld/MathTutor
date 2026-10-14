@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed multi-turn evaluation
+- 14 fixed multi-turn scenarios are played through the real app and scored automatically on the six tutor-v2 dimensions (math, relevance, evidence, actionability, adaptation, coherence). Scoring uses rules and the local verifier only; there is no human rater.
+- `scripts/tutor_multiturn_eval.py` writes JSON and Markdown reports and exits non-zero when the release gate fails. `--mode live` evaluates a real model before it goes to production.
+- Formula extraction no longer treats quoted student answers, brace exponents in plain text or `\text{或}` root lists as tutor claims.
+
 ### Explanations: formulas go through verify_math
 - Model-written explanations (free chat, knowledge mode and the model writer on the teaching path) are scanned for formulas. Each arithmetic equality, claimed identity and derivation step is checked by the same `verify_math` core as the knowledge tool. Derivation steps are compared with the bound problem when there is one, otherwise with the first equation of the explanation.
 - On the teaching path, a refuted formula never reaches the student: the verified template text is delivered instead.

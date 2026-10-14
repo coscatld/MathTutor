@@ -97,6 +97,7 @@ flowchart LR
 | Citation attribution | 4 claim cases / 5 links | Precision 0.875、Recall 1.000 | 是固定小样本的引用归属，不是回答 Faithfulness |
 | Historical receipts | 1 合法 / 4 非法探针 | 合法读取 1/1；未授权拒绝 4/4 | 分别验证可用性与拒绝能力 |
 | Knowledge old vs new | 5 queries | 三组命中均为 4/5；旧链读取 0、保存 0，新链两种协议均读取 2 个来源并新增 1 篇笔记 | 证明工具任务闭环，不证明真实回答质量提升 |
+| 固定多轮辅导评测（自动） | 14 个多轮场景 / 165 项检查 | 模板教学 14/14 通过，六个维度均为 1.0，发布门通过 | 全部由规则和本地验证器自动评分，**没有人工评分**；只证明答案边界、证据分流和算式核验没有走样，不证明讲解质量；真实模型尚未跑过。见 [评测说明](docs/eval/TUTOR_MULTITURN_EVAL.md) |
 | 真实回答 AI 初审 | 14 answers / 57 claims | provisional Faithfulness macro 0.520、关键内容覆盖 0.571、任务完成 6/14 | 开发质量为 **FAIL**；human review 仍为 **PENDING** |
 
 Context Redundancy 的记录值为 0.913，但 hard fixture 在检索前已经有 0.831 的 4-gram 重复率，因此不能把 0.913 直接解释为产品生成了大量重复内容。检索指标、引用合法性、来源支持和数学正确性是四个不同维度，不能互相替代。
@@ -304,6 +305,7 @@ shasum -a 256 desktop/dist/MathTutor-0.5.0-mac-arm64.dmg
 | 文档 | 内容 |
 |---|---|
 | [CHANGELOG](CHANGELOG.md) | 各版本改动与升级说明 |
+| [固定多轮辅导评测](docs/eval/TUTOR_MULTITURN_EVAL.md) | 自动评分的多轮场景、六维度、发布门与最近结果 |
 | [初评与选择题](docs/INITIAL_ASSESSMENT.md) | 首次评估、跳过与恢复、练习起点的含义 |
 | [RAG 架构](docs/RAG_ARCHITECTURE.md) | 共享检索、上下文与证据工具路径 |
 | [知识工作台](docs/KNOWLEDGE_WORKBENCH_DELIVERY.md) | 资料管理、问答与引用功能 |

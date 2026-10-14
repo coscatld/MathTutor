@@ -28,7 +28,8 @@ MAX_CLAIMS = 40
 _DERIVATION_TYPES = {"linear", "quadratic", "linear_system", "linear_inequality"}
 
 _LATEX_SPAN = re.compile(r"\$\$(.+?)\$\$|\\\[(.+?)\\\]|\\\((.+?)\\\)|\$([^$\n]+?)\$", re.S)
-_PLAIN_SPAN = re.compile(r"[0-9A-Za-z(（][0-9A-Za-z\s+\-−*/^()（）.=<>≤≥×÷·²³]*(?:=|<|>|≤|≥)[0-9A-Za-z\s+\-−*/^()（）.=<>≤≥×÷·²³]*[0-9A-Za-z)）²³]")
+_PLAIN_SPAN = re.compile(r"[0-9A-Za-z(（][0-9A-Za-z\s+\-−*/^(){}（）.=<>≤≥×÷·²³]*(?:=|<|>|≤|≥)[0-9A-Za-z\s+\-−*/^(){}（）.=<>≤≥×÷·²³]*[0-9A-Za-z)}）²³]")
+_QUOTED = re.compile(r"「[^」]*」")
 _ARROWS = re.compile(r"\\Rightarrow|\\implies|\\Longrightarrow|\\to|⇒|→|∴|\\therefore|\\quad|;|；|,\s|，(?![^=<>]*或)")
 _NEW_EXAMPLE = re.compile(r"例如|比如|举个例子|再看|另一个|换一道|类似地")
 _RELATION = re.compile(r"<=|>=|≤|≥|<|>")
@@ -65,13 +66,18 @@ def _normalize(span: str) -> str:
         text = text.replace(old, new)
     text = re.sub(r"\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}", r"((\1)/(\2))", text)
     text = re.sub(r"\^\{([^{}]*)\}", r"^(\1)", text)
+    text = re.sub(r"\\text\{\s*(或|or)\s*\}", r"或", text)
     text = re.sub(r"\\text\{[^{}]*\}|\\mathrm\{[^{}]*\}", "", text)
     text = text.replace("{", "(").replace("}", ")")
     return " ".join(text.split()).strip(" .。")
 
 
 def extract_statements(text: str) -> list[Statement]:
-    """Formulas with a relation, in reading order, split at arrows and commas."""
+    """Formulas with a relation, in reading order, split at arrows and commas.
+
+    Text in 「」 quotes the student and is not the tutor's claim.
+    """
+    text = _QUOTED.sub(lambda m: " " * len(m.group(0)), text)
     spans: list[tuple[int, int, str]] = []
     for match in _LATEX_SPAN.finditer(text):
         spans.append((match.start(), match.end(), next(g for g in match.groups() if g is not None)))

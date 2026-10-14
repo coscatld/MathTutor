@@ -1,0 +1,164 @@
+{
+  "version": "tutor-multiturn-v1",
+  "description": "Fixed multi-turn tutoring scenarios. Expectations are written down here and scored automatically; no human rater is involved.",
+  "scenarios": [
+    {
+      "id": "linear-independent",
+      "title": "一元一次：独立答对",
+      "problem": "2x+3=7",
+      "forbidden_before_solution": ["x\\s*=\\s*2(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "2x+3=7"}, "expect": {"state": "awaiting_attempt"}},
+        {"send": "submit_attempt", "payload": {"answer": "x=2"}, "expect": {"actions": ["correct"]}}
+      ],
+      "final": {"evidence": {"independent": 1, "assisted": 0, "post_solution": 0}}
+    },
+    {
+      "id": "linear-hint-then-correct",
+      "title": "一元一次：看提示后答对",
+      "problem": "3x-5=10",
+      "forbidden_before_solution": ["x\\s*=\\s*5(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "3x-5=10"}},
+        {"send": "request_hint", "ack": true, "expect": {"actions": ["GIVE_HINT"], "no_answer": true}},
+        {"send": "submit_attempt", "payload": {"answer": "x=5"}, "expect": {"actions": ["correct"]}}
+      ],
+      "final": {"evidence": {"independent": 0, "assisted": 1, "post_solution": 0}}
+    },
+    {
+      "id": "answer-gate",
+      "title": "先看一次提示才能看答案",
+      "problem": "4x-1=19",
+      "forbidden_before_solution": ["x\\s*=\\s*5(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "4x-1=19"}},
+        {"send": "request_solution", "expect": {"error_code": "HINT_REQUIRED", "no_answer": true, "state": "awaiting_attempt"}},
+        {"send": "request_hint", "ack": true, "expect": {"actions": ["GIVE_HINT"], "no_answer": true}},
+        {"send": "request_solution", "ack": true, "expect": {"actions": ["SHOW_SOLUTION"], "state": "solution_shown", "solution_shown": true}},
+        {"send": "submit_attempt", "payload": {"answer": "x=5"}}
+      ],
+      "final": {"evidence": {"independent": 0, "post_solution": 1}}
+    },
+    {
+      "id": "sign-error-diagnosis",
+      "title": "符号错误被诊断并进入画像",
+      "problem": "2x+3=7",
+      "forbidden_before_solution": ["x\\s*=\\s*2(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "2x+3=7"}},
+        {"send": "submit_attempt", "payload": {"answer": "x=-2"}, "expect": {"actions": ["incorrect"], "state": "awaiting_retry", "no_answer": true}},
+        {"send": "request_hint", "ack": true, "expect": {"actions": ["GIVE_HINT"], "no_answer": true}}
+      ],
+      "final": {"misconceptions": ["miscon-sign-error"]}
+    },
+    {
+      "id": "repeated-stuck",
+      "title": "连续卡住后换策略",
+      "problem": "2x+3=11",
+      "forbidden_before_solution": ["x\\s*=\\s*4(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "2x+3=11"}},
+        {"send": "send_message", "payload": {"text": "我不会，给个提示"}, "ack": true, "expect": {"no_answer": true}},
+        {"send": "send_message", "payload": {"text": "还是没懂，再给个提示"}, "ack": true, "expect": {"strategy_changed": true, "no_answer": true}}
+      ]
+    },
+    {
+      "id": "no-answer-request",
+      "title": "明确说不要答案",
+      "problem": "5x+1=26",
+      "forbidden_before_solution": ["x\\s*=\\s*5(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "5x+1=26"}},
+        {"send": "send_message", "payload": {"text": "不要告诉我答案，先给个提示"}, "ack": true, "expect": {"actions": ["GIVE_HINT"], "no_answer": true}}
+      ]
+    },
+    {
+      "id": "composite-answer-and-request",
+      "title": "交答案同时要答案",
+      "problem": "2x+3=7",
+      "forbidden_before_solution": ["x\\s*=\\s*2(?![0-9])"],
+      "steps": [
+        {"send": "send_message", "payload": {"text": "2x+3=7"}},
+        {"send": "send_message", "payload": {"text": "我算得 x=3，直接给我答案"}, "expect": {"actions": ["incorrect"], "error_code": "HINT_REQUIRED", "no_answer": true}, "replay": true}
+      ]
+    },
+    {
+      "id": "quadratic-missing-root",
+      "title": "一元二次：漏根",
+      "problem": "x^2-5x+6=0",
+      "forbidden_before_solution": ["x\\s*=\\s*2\\s*(?:或|,|，)\\s*x?\\s*=?\\s*3"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "x^2-5x+6=0"}},
+        {"send": "submit_attempt", "payload": {"answer": "x=2"}, "expect": {"actions": ["partial"], "state": "awaiting_retry"}},
+        {"send": "submit_attempt", "payload": {"answer": "x=2或x=3"}, "expect": {"actions": ["correct"]}}
+      ],
+      "final": {"misconceptions": ["miscon-missing-root"]}
+    },
+    {
+      "id": "system-partial",
+      "title": "二元一次方程组：只求出一个未知数",
+      "problem": "2x+y=7;x-y=2",
+      "forbidden_before_solution": ["x\\s*=\\s*3[^0-9][^。]*y\\s*=\\s*1(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "2x+y=7;x-y=2"}},
+        {"send": "submit_attempt", "payload": {"answer": "x=3"}, "expect": {"actions": ["partial"]}},
+        {"send": "submit_attempt", "payload": {"answer": "x=3,y=1"}, "expect": {"actions": ["correct"]}}
+      ]
+    },
+    {
+      "id": "inequality",
+      "title": "一步线性不等式",
+      "problem": "2x+1>5",
+      "forbidden_before_solution": ["x\\s*>\\s*2(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "2x+1>5"}},
+        {"send": "submit_attempt", "payload": {"answer": "x<2"}, "expect": {"actions": ["incorrect"], "no_answer": true}},
+        {"send": "submit_attempt", "payload": {"answer": "x>2"}, "expect": {"actions": ["correct"]}}
+      ]
+    },
+    {
+      "id": "graph-open-problem",
+      "title": "题目未完成时看图像",
+      "problem": "x^2-5x+6=0",
+      "forbidden_before_solution": ["与横轴交点 \\("],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "x^2-5x+6=0"}},
+        {"send": "send_message", "payload": {"text": "画出这道题的函数图像"}, "ack": true, "expect": {"actions": ["SHOW_GRAPH"], "no_answer": true}},
+        {"send": "submit_attempt", "payload": {"answer": "x=2或x=3"}, "expect": {"actions": ["correct"]}},
+        {"send": "send_message", "payload": {"text": "画出这道题的函数图像"}, "expect": {"actions": ["SHOW_GRAPH"], "contains": ["与横轴交点 (2, 0)"]}}
+      ],
+      "final": {"evidence": {"independent": 0, "assisted": 1}}
+    },
+    {
+      "id": "self-report-check",
+      "title": "说「我懂了」不算完成",
+      "problem": "3x+2=11",
+      "forbidden_before_solution": ["x\\s*=\\s*3(?![0-9])"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "3x+2=11"}},
+        {"send": "request_hint", "ack": true, "expect": {"no_answer": true}},
+        {"send": "send_message", "payload": {"text": "我懂了"}, "expect": {"no_answer": true, "state_not": "solved"}}
+      ],
+      "final": {"evidence": {"independent": 0}}
+    },
+    {
+      "id": "explanation-request",
+      "title": "请求讲解概念",
+      "problem": "x^2-4=0",
+      "forbidden_before_solution": ["x\\s*=\\s*[±]?\\s*2\\s*(?:或|,|，)"],
+      "steps": [
+        {"send": "submit_problem", "payload": {"text": "x^2-4=0"}},
+        {"send": "request_explanation", "ack": true, "expect": {"actions": ["EXPLAIN_CONCEPT"], "no_answer": true}},
+        {"send": "request_example", "ack": true, "expect": {"actions": ["SHOW_EXAMPLE"], "no_answer": true}}
+      ]
+    },
+    {
+      "id": "free-graph-and-chat",
+      "title": "无题目时画图与闲聊",
+      "steps": [
+        {"send": "send_message", "payload": {"text": "画出 y=x^2-2x-3 的图像"}, "expect": {"actions": ["SHOW_GRAPH"], "contains": ["顶点 (1, -4)"]}},
+        {"send": "send_message", "payload": {"text": "分数加法为什么要先通分？"}}
+      ]
+    }
+  ]
+}

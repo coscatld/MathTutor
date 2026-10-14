@@ -71,6 +71,10 @@ DELIBERATELY_EXCLUDED = (
 #: entry point is a source-checkout affordance only.
 SOURCE_CHECKOUT_ONLY = ("src/mathtutor/__main__.py",)
 
+#: Development tools under src/ that the app never imports: the fixed
+#: multi-turn evaluation runs from a source checkout and in CI only.
+SOURCE_CHECKOUT_ONLY_DIRS = ("src/mathtutor/evaluation/",)
+
 
 @pytest.fixture(scope="module")
 def allowlist() -> dict:
@@ -134,6 +138,8 @@ def test_no_production_module_is_silently_excluded():
         relative = str(path.relative_to(ROOT)).replace("\\", "/")
         if _shipped(relative, allowlist_source):
             continue
+        if relative.startswith(SOURCE_CHECKOUT_ONLY_DIRS):
+            continue
         name = path.name
         # Only files the policy *intends* to drop may be missing.
         known = DELIBERATELY_EXCLUDED + SOURCE_CHECKOUT_ONLY
@@ -144,3 +150,12 @@ def test_no_production_module_is_silently_excluded():
     # Tests and data live outside src/mathtutor, so anything here is a policy
     # gap rather than an expected omission.
     assert unshipped == [], f"production modules excluded from the package: {unshipped}"
+
+
+def test_source_checkout_only_dirs_are_not_imported_by_the_app():
+    """The evaluation stays out of the installer only while nothing ships it."""
+    for path in (ROOT / "src" / "mathtutor").rglob("*.py"):
+        relative = str(path.relative_to(ROOT)).replace("\\", "/")
+        if relative.startswith(SOURCE_CHECKOUT_ONLY_DIRS) or "__pycache__" in path.parts:
+            continue
+        assert "mathtutor.evaluation" not in path.read_text(encoding="utf-8"), relative
