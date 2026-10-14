@@ -262,28 +262,68 @@ MATH_TOOL_INSTRUCTION = ("你可以调用 verify_math 核对计算、化简、�
                          "结果为 refuted 时改正后再回答，为 unchecked 时如实说明未能核对。不要向学生描述调用过程。")
 
 
-async def complete_math_tools(provider, messages, *, verify, temperature=0.4, max_tokens=2048, max_calls=4):
-    """The model decides when to check its maths; the application runs the check.
+def _draw_receipt(arguments, figures: list, attempts: int) -> dict:
+    """Validate one ``draw_scene`` call with the Scene v2 builder; never raises."""
+    from mathtutor.application.scene import SceneError, build_scene
+    from mathtutor.skills.canvas_drawing import MAX_DRAW_ATTEMPTS, MAX_DRAWN
+    if attempts > MAX_DRAW_ATTEMPTS:
+        return {"status": "rejected", "reason": f"本轮作图次数已用完（最多 {MAX_DRAW_ATTEMPTS} 次），请直接用文字回答"}
+    if len(figures) >= MAX_DRAWN:
+        return {"status": "rejected", "reason": f"本轮最多 {MAX_DRAWN} 张图，已经够了，请直接回答"}
+    if not isinstance(arguments, dict):
+        return {"status": "rejected", "reason": "参数必须是 JSON 对象"}
+    definition = {key: arguments[key] for key in ("title", "params", "objects", "readouts") if key in arguments}
+    try:
+        scene = build_scene(definition, source="model")
+    except SceneError as exc:
+        return {"status": "rejected", "reason": str(exc)[:200]}
+    except (ValueError, TypeError, KeyError, RecursionError, OverflowError):
+        return {"status": "rejected", "reason": "场景定义无法解析，请检查格式"}
+    figures.append(scene)
+    return {"status": "drawn", "title": scene["title"]}
 
-    Only ``verify_math`` is offered. Arguments are schema-checked, the shared
-    verifier runs them, and the receipt goes back to the model. The final
-    answer is ordinary prose and still passes the post-hoc formula check.
+
+async def complete_math_tools(provider, messages, *, verify, draw=False, temperature=0.4, max_tokens=2048, max_calls=4):
+    """The model decides when to check its maths or draw; the application runs it.
+
+    ``verify_math`` is always offered; ``draw_scene`` (the canvas drawing
+    skill) only when ``draw`` is true, and then the skill text joins the
+    system message. Arguments are schema-checked, the application runs the
+    check or builds the scene, and only a receipt goes back to the model.
+    Accepted scenes are kept on the turn (``turn.figures``), never as model
+    text; the final answer is ordinary prose and still passes the post-hoc
+    formula check and figure sanitizer.
+
+    The first entry in a turn raises the step budget for the loop; a later
+    entry (a bounded repair) only uses the steps its caller granted.
     """
     from mathtutor.infrastructure.generative_gateway import GenerativeProviderError
     turn = current_turn.get() or TutorTurnResult()
-    turn.max_steps = max(turn.max_steps, max_calls + 2)
-    messages = [{"role": "system", "content": MATH_TOOL_INSTRUCTION}, *messages]
-    calls = 0
+    if not getattr(turn, "math_tools_entered", False):
+        turn.max_steps = max(turn.max_steps, max_calls + 2)
+        turn.math_tools_entered = True
+    from mathtutor.skills.canvas_drawing import MAX_DRAW_ATTEMPTS, MAX_DRAWN
+    from mathtutor.skills.canvas_drawing import DRAW_SCENE_TOOL, SKILL_TEXT
+    instruction = MATH_TOOL_INSTRUCTION
+    if draw:
+        instruction += "\n\n" + SKILL_TEXT
+    messages = [{"role": "system", "content": instruction}, *messages]
+    calls = draw_attempts = 0
+    figures: list = []
+    rejected = 0
     while True:
         if turn.steps_used >= turn.max_steps:
             turn.stop(FinishReason.STEP_CAP, turn.final_text)
             raise RuntimeError("Tutor step budget exhausted")
-        tool_enabled = calls < max_calls and turn.steps_used < turn.max_steps - 1
+        # Each tool has its own per-turn bound; all share the step budget.
+        tools = [tool for tool, open_ in ((VERIFY_MATH_TOOL, calls < max_calls),
+                                          (DRAW_SCENE_TOOL, draw and draw_attempts < MAX_DRAW_ATTEMPTS)) if open_]
+        tool_enabled = bool(tools) and turn.steps_used < turn.max_steps - 1
         turn.steps_used += 1
         try:
             result = await asyncio.wait_for(provider.complete(
                 messages, temperature=temperature, max_tokens=max_tokens, max_retries=0,
-                tools=[VERIFY_MATH_TOOL] if tool_enabled else None), timeout=60)
+                tools=tools if tool_enabled else None), timeout=60)
         except asyncio.CancelledError:
             turn.stop(FinishReason.USER_CANCELLED, "")
             raise
@@ -297,21 +337,35 @@ async def complete_math_tools(provider, messages, *, verify, temperature=0.4, ma
         turn.usage_estimated |= result.input_tokens is None or result.output_tokens is None
         if result.tool_calls and tool_enabled:
             messages.append({"role": "assistant", "content": result.text or "", "tool_calls": list(result.tool_calls)})
+            used = Counter()
             for call in result.tool_calls:
-                calls += 1
-                receipt = {"status": "rejected", "reason": "只能调用 verify_math，每轮最多核对 4 次"}
                 function = call.get("function") or {}
-                if function.get("name") == "verify_math" and calls <= max_calls:
+                name = function.get("name")
+                if draw and name == "draw_scene":
+                    draw_attempts += 1
+                    used["draw_scene"] += 1
                     try:
                         arguments = json.loads(function.get("arguments") or "{}")
-                        expression, answer = str(arguments["expression"])[:200], str(arguments["answer"])[:200]
-                        check = await verify(expression, answer)
-                        receipt = {"status": check.status, "signals": list(check.signals)}
-                    except (ValueError, KeyError, TypeError):
-                        receipt = {"status": "rejected", "reason": "参数需要 expression 和 answer 两个字符串"}
+                    except (ValueError, TypeError):
+                        arguments = None
+                    receipt = _draw_receipt(arguments, figures, draw_attempts)
+                    rejected += receipt["status"] == "rejected"
+                else:
+                    calls += 1
+                    used["verify_math"] += 1
+                    receipt = {"status": "rejected", "reason": ("只能调用 verify_math 或 draw_scene" if draw else
+                                                                "只能调用 verify_math") + "，每轮最多核对 4 次"}
+                    if name == "verify_math" and calls <= max_calls:
+                        try:
+                            arguments = json.loads(function.get("arguments") or "{}")
+                            expression, answer = str(arguments["expression"])[:200], str(arguments["answer"])[:200]
+                            check = await verify(expression, answer)
+                            receipt = {"status": check.status, "signals": list(check.signals)}
+                        except (ValueError, KeyError, TypeError):
+                            receipt = {"status": "rejected", "reason": "参数需要 expression 和 answer 两个字符串"}
                 messages.append({"role": "tool", "tool_call_id": str(call.get("id", "")), "content": json.dumps(receipt, ensure_ascii=False)})
             turn.tool_calls_count += len(result.tool_calls)
-            note_turn(tools={"verify_math": len(result.tool_calls)})
+            note_turn(tools=dict(used))
             continue
         text = (result.text or "").strip()
         if not text:
@@ -322,6 +376,10 @@ async def complete_math_tools(provider, messages, *, verify, temperature=0.4, ma
             turn.stop(FinishReason.NATURAL_STOP, text)
         else:
             turn.stop(FinishReason.TOKEN_LIMIT, text)
+        if draw:
+            # Scenes count only once the loop has produced an answer.
+            turn.figures = [*getattr(turn, "figures", []), *figures][:MAX_DRAWN]
+            note_turn(figures={"drawn": len(figures), "rejected": rejected})
         return result.model_copy(update={"text": text, "turn_result": turn.wire()})
 
 

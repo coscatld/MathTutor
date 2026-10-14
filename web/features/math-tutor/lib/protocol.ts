@@ -352,6 +352,7 @@ export function normalizeAssistanceLevel(level: number): number {
 
 const ACTION_LABELS: Readonly<Record<string, string>> = {
   TUTOR_CHAT: "Tutor",
+  TUTOR_CHAT_FIGURE: "讲解配图",
   ASK_STUDENT: "提问",
   GIVE_HINT: "提示",
   EXPLAIN_CONCEPT: "讲解",

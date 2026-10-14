@@ -453,12 +453,17 @@ class MathTutorController:
                     # Retrieved sources and declared math tool receipts do not
                     # independently verify every generated explanatory sentence.
                     from mathtutor.application.math_claims import certify_and_annotate
+                    from mathtutor.skills.canvas_drawing.enforce import sanitize_figures
+                    from mathtutor.application.tutor_runtime import note_turn
+                    message, removed = sanitize_figures(message)
+                    if removed:
+                        note_turn(figures={"removed": removed})
 
                     async def regenerate(feedback):
                         retry_history = (*request.conversation_messages, {"role": "student", "content": text},
                                          {"role": "tutor", "content": message})
-                        return await self.knowledge_qa.respond(owner.student_id, request.session_id,
-                                                               f"{text}\n\n{feedback}", retry_history, practice=None)
+                        return sanitize_figures(await self.knowledge_qa.respond(owner.student_id, request.session_id,
+                            f"{text}\n\n{feedback}", retry_history, practice=None) or "")[0]
                     checked, _ = await certify_and_annotate(message, self.service.verification_backend,
                                                             regenerate=regenerate)
                     await self._dialogue(stream, session, checked, "TUTOR_CHAT")
@@ -533,7 +538,7 @@ class MathTutorController:
         text = str(payload.get("text", ""))
         previous = next((m for m in reversed(request.conversation_messages) if m.get("role") == "tutor"), None)
         if text.strip() == "继续" and previous and previous.get("status") == "PARTIAL":
-            if previous.get("action") == "TUTOR_CHAT":
+            if previous.get("action") in {"TUTOR_CHAT", "TUTOR_CHAT_FIGURE"}:
                 chat_context = json.loads(previous.get("continuation_context") or "{}")
                 history = request.conversation_messages
                 if chat_context.get("raw_text"):
@@ -1082,6 +1087,8 @@ class MathTutorController:
             if verified is not None:
                 problem_context = getattr(verified[0], "display_latex", "") or ""
         provider_result = "fallback"
+        math_verify = None
+        draw_offered = False
         if responder is None:
             if images:
                 raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。")
@@ -1097,7 +1104,11 @@ class MathTutorController:
                 bound_for_preview = await self.sessions.load_verified(owner_id, session.cycle.cycle_id) if session and owner_id else None
 
                 async def emit_preview(verified_text):
-                    await stream.content(verified_text, source=self.manifest.name, metadata={"event_type": "tutor_preview"})
+                    # The preview never shows a figure: those come only with the final message.
+                    from mathtutor.skills.canvas_drawing.enforce import sanitize_figures
+                    verified_text = sanitize_figures(verified_text)[0]
+                    if verified_text:
+                        await stream.content(verified_text, source=self.manifest.name, metadata={"event_type": "tutor_preview"})
                 preview_token = stream_preview.set(VerifiedPreview(
                     self.service.verification_backend, emit_preview,
                     anchor=anchor_for(bound_for_preview[0]) if bound_for_preview else None))
@@ -1105,13 +1116,20 @@ class MathTutorController:
                 import inspect
                 accepts = inspect.signature(responder.respond).parameters
                 takes_tools = "math_verify" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
-                if takes_tools and (unstructured_math or follow_up or is_concrete_math_input(text)):
-                    # Maths questions: the model may verify its own claims first.
+                takes_figures = "draw_figures" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
+                from mathtutor.skills.canvas_drawing import wants_figure
+                figure_asked = wants_figure(text)
+                if takes_tools and (unstructured_math or follow_up or figure_asked or is_concrete_math_input(text)):
+                    # Maths questions: the model may verify its own claims first,
+                    # and show a figure only through the canvas (draw_scene).
                     from mathtutor.application.math_verification import verify_math
 
                     async def math_verify(expression, answer):
                         return await verify_math(self.service.verification_backend, expression, answer)
                     extra = {**extra, "math_verify": math_verify}
+                    if takes_figures:
+                        draw_offered = True
+                        extra["draw_figures"] = True
                 try:
                     message = await responder.respond(
                         text,
@@ -1141,6 +1159,18 @@ class MathTutorController:
         visible = project_assistant_message(message) or fallback_tutor_reply(text)
         if recovery and visible == fallback_tutor_reply(text):
             visible = "这道题的完整过程还不能逐步核验。你可以写出下一步的想法，或先练下面的相关基础题。"
+        # Canvas drawing skill: a figure the model drew by itself never reaches the student.
+        from mathtutor.application.tutor_runtime import current_turn, note_turn
+        from mathtutor.skills.canvas_drawing.enforce import sanitize_figures
+        turn = current_turn.get()
+        visible, removed = sanitize_figures(visible)
+        visible = visible or fallback_tutor_reply(text)
+        if removed:
+            note_turn(figures={"removed": removed})
+        if (removed and draw_offered and turn is not None and not getattr(turn, "figures", None)
+                and provider_result == "success" and not recovery):
+            visible = await self._redraw_on_canvas(responder, turn, text, history, visible, problem_context=problem_context,
+                unstructured_math=unstructured_math, images=images, math_verify=math_verify)
         raw_visible = visible
         from mathtutor.application.problem_recovery import simple_greeting
         from mathtutor.application.math_claims import strip_notice
@@ -1154,17 +1184,24 @@ class MathTutorController:
 
                 async def regenerate(feedback):
                     retry_history = (*history, {"role": "student", "content": text}, {"role": "tutor", "content": first_answer})
-                    return project_assistant_message(await responder.respond(
+                    return sanitize_figures(project_assistant_message(await responder.respond(
                         feedback, history=retry_history, problem_context=problem_context,
-                        unstructured_math=unstructured_math, **({"images": images} if images else {})))
+                        unstructured_math=unstructured_math, **({"images": images} if images else {}))) or "")[0]
             visible, checked = await certify_and_annotate(visible, self.service.verification_backend,
                                                           anchor=anchor_for(bound[0]) if bound else None,
                                                           regenerate=regenerate)
             raw_visible = strip_notice(visible) if not checked.refuted else raw_visible
+        action = "TUTOR_CHAT"
+        figures = list(getattr(turn, "figures", None) or []) if turn is not None else []
+        if figures:
+            # Scenes the application built from draw_scene calls, appended only
+            # to the final message (never to the streamed preview).
+            from mathtutor.application.scene import render_scene
+            visible += "".join("\n\n" + render_scene(scene) for scene in figures)
+            action = "TUTOR_CHAT_FIGURE"
+            note_turn(figures={"delivered": len(figures)})
         if recovery:
             visible += f"\n\n原题还保留在对话里。可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
-        from mathtutor.application.tutor_runtime import current_turn
-        turn = current_turn.get()
         if turn is not None:
             turn.continuation_context = json.dumps({"kind": "chat", "unstructured_math": unstructured_math,
                 "follow_up": follow_up, "raw_text": raw_visible,
@@ -1176,13 +1213,47 @@ class MathTutorController:
                 source=self.manifest.name,
                 metadata={
                     "event_type": "tutor_message",
-                    "action": "TUTOR_CHAT",
+                    "action": action,
                     "cycle_state": session.state.value if session is not None else "",
                     "cycle_state_version": session.version if session is not None else 0,
                     "allowed_next_inputs": student_allowed_inputs(session.state) if session is not None else [],
                 },
             )
         )
+
+    async def _redraw_on_canvas(self, responder, turn, text, history, first_answer, *, problem_context,
+                                unstructured_math, images, math_verify) -> str:
+        """One bounded repair: the answer drew a figure by itself; ask for draw_scene.
+
+        Like the formula repair, the turn gets a fixed extra budget (one
+        draw_scene call plus the answer). The new text is used only when a
+        scene was actually drawn; otherwise the sanitized first answer stays.
+        """
+        from mathtutor.application.tutor_runtime import note_turn
+        from mathtutor.skills.canvas_drawing.enforce import sanitize_figures
+        saved = (turn.finish_reason, turn.status, turn.final_text, turn.error_code)
+        turn.max_steps = max(turn.max_steps, turn.steps_used) + 2
+        feedback = ("你上一条回答里用文字、代码或图片画了图，应用不会显示这些内容。"
+                    "请调用 draw_scene 工具在画布上重新作图（只给定义），并重新完整回答原问题；"
+                    "如果这张图无法用画布表示，就只用文字讲解。不要提到这次修改。")
+        retry_history = (*history, {"role": "student", "content": text}, {"role": "tutor", "content": first_answer})
+        try:
+            again = project_assistant_message(await responder.respond(
+                feedback, history=retry_history, problem_context=problem_context, unstructured_math=unstructured_math,
+                math_verify=math_verify, draw_figures=True, **({"images": images} if images else {}))) or ""
+        except Exception:
+            logger.warning("canvas redraw call failed")
+            again = ""
+        again, removed = sanitize_figures(again)
+        drawn = bool(getattr(turn, "figures", None)) and bool(again.strip())
+        note_turn(figure_repair={"attempted": 1, "succeeded": int(drawn)})
+        if drawn:
+            if removed:
+                note_turn(figures={"removed": removed})
+            return again
+        turn.figures = []
+        turn.finish_reason, turn.status, turn.final_text, turn.error_code = saved
+        return first_answer
 
     # ------------------------------------------------------------- dispatch
 
@@ -2239,6 +2310,14 @@ class MathTutorController:
             action=action,
             document_context=document_context,
         )
+        if candidate_text.writer_version not in {TemplateTutorWriter.writer_version, "mt-grounded-template-v2"}:
+            # Model prose never carries its own figures (canvas drawing skill).
+            from mathtutor.skills.canvas_drawing.enforce import sanitize_figures
+            clean, removed = sanitize_figures(candidate_text.text)
+            if removed:
+                from mathtutor.application.tutor_runtime import note_turn
+                note_turn(figures={"removed": removed})
+                candidate_text = candidate_text.model_copy(update={"text": clean})
         if turn is not None and turn.conversation_id and owner_id:
             live = await self.sessions.load(owner_id, turn.conversation_id)
             if (live is None or live.cycle.cycle_id != session.cycle.cycle_id or live.version != session.version):

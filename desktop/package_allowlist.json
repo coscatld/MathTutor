@@ -24,6 +24,8 @@
       "pedagogy/**/*.py",
       "repositories/**/*.py",
       "security/**/*.py",
+      "skills/**/*.py",
+      "skills/*/SKILL.md",
       "solving/**/*.py",
       "infrastructure/migrations/script.py.mako"
     ],
@@ -48,7 +50,8 @@
       "infrastructure/migrations/versions/*.py",
       "application/practice_release.py",
       "infrastructure/verifier_worker.py",
-      "release_probe.py"
+      "release_probe.py",
+      "skills/canvas_drawing/SKILL.md"
     ],
     "retained_platform_core": []
   },

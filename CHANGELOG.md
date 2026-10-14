@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Canvas drawing skill (figures only through the canvas)
+- New skill `src/mathtutor/skills/canvas_drawing/` (`SKILL.md` plus a cached loader). In free chat, on maths questions and when the student asks for a picture, a model with native tool calling is offered `draw_scene` next to `verify_math`, and the skill text joins the system message. The scene author prompt reuses the same definition format and rules.
+- The application builds each `draw_scene` definition with the Scene v2 builder and returns `drawn` or `rejected` with the Chinese validation error, so the model can fix it. At most 2 scenes are accepted and 4 draw attempts made per turn, within the existing step budget.
+- Accepted scenes are appended after the formula check as `mathtutor-scene` blocks and the message is sent as `TUTOR_CHAT_FIGURE` (chip 「讲解配图」). The streamed preview never shows figures. Turn traces record drawn, rejected, delivered and removed figures.
+- Model-authored text in free chat, knowledge mode and the teaching writer passes through `sanitize_figures`. It removes forged scene or graph blocks, Markdown images, HTML img/svg/canvas, Mermaid/TikZ/SVG/plotting-code blocks, LaTeX picture environments and ASCII-art blocks, and puts 「（图示请用画布查看）」 in their place. Maths, Markdown tables and LaTeX are kept. If free chat removed a figure and none was drawn, the model is asked once to redraw with `draw_scene`.
+
 ### Scenes (数形结合, end to end)
 - Requests such as 「演示椭圆 x^2/4+y^2/3=1 上的动点 P(2cos t, √3 sin t) 到焦点 F(1,0) 的距离」 or 「画出三角形 ABC，A(0,0)，B(4,0)，C(m,3)，三角形ABC的面积」 are now read without a model: point definitions, segments, lines, rays, vectors, polygons and distance / angle / area readouts are extracted from the sentence, a point that uses a parameter becomes a moving point with a trace and a play button, and references to undefined points are dropped.
 - The view ignores unbounded boundaries (half-planes, hyperbola branches) when the scene has anything bounded; regions are filled in one pass with a crisp boundary, dashed for strict inequalities.
@@ -22,7 +28,7 @@
 - Every database opener (async engine, Alembic, pre-migration backup, release probe, migration check, offline readers) goes through one module. Adds the `sqlcipher3` dependency to both packaged runtimes. Uploaded source files are still plain files. Not yet verified on a real Windows machine.
 
 ### Tutoring tool loop
-- On maths questions in free chat, a model with native tool calling may call `verify_math` before answering, at most four times per turn. The application checks the arguments against a schema, runs the shared verifier and returns a receipt (verified, refuted, unchecked or rejected); the model corrects itself and the final answer is ordinary prose that still passes the formula check. No other tool is offered; everyday chat keeps streaming without tools. Turn traces record tool calls.
+- On maths questions in free chat, a model with native tool calling may call `verify_math` before answering, at most four times per turn. The application checks the arguments against a schema, runs the shared verifier and returns a receipt (verified, refuted, unchecked or rejected); the model corrects itself and the final answer is ordinary prose that still passes the formula check. Apart from `draw_scene` (canvas drawing skill) no other tool is offered; everyday chat keeps streaming without tools. Turn traces record tool calls.
 
 ### Quadratic inequalities
 - New problem family `quadratic_inequality` for one-variable quadratic inequalities with rational roots; irrational boundaries are rejected rather than approximated. The solution set is a union of exact intervals and is rendered as two-sided ranges, a between range, a single point, "x ≠ a", all reals or no solution.

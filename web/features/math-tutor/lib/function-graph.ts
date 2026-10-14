@@ -6,6 +6,8 @@
  */
 
 export const GRAPH_ACTION = "SHOW_GRAPH";
+/** Free-chat answer whose scenes the server built from draw_scene calls. */
+export const FIGURE_ACTION = "TUTOR_CHAT_FIGURE";
 
 export interface GraphMark { x: number; y: number; label: string }
 export interface GraphSeries { label: string; segments: [number, number][][] }

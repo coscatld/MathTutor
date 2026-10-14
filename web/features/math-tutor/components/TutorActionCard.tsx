@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { AlertCircle } from "lucide-react";
 import BrandMark from "@/components/common/BrandMark";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
@@ -9,8 +10,8 @@ import { supportExposureLabel } from "../lib/teaching-contract";
 import ImageAttachments from "./ImageAttachments";
 import FunctionGraph from "./FunctionGraph";
 import SceneCanvas from "./SceneCanvas";
-import { GRAPH_ACTION, splitGraphMessage } from "../lib/function-graph";
-import { splitSceneMessage } from "../lib/scene-eval";
+import { FIGURE_ACTION, GRAPH_ACTION, splitGraphMessage } from "../lib/function-graph";
+import { splitSceneBlocks } from "../lib/scene-eval";
 
 /**
  * One tutor message. Shows the student-facing message plus the current
@@ -37,10 +38,10 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
   }
 
   const label = actionLabel(message.action);
-  // Only the server sets SHOW_GRAPH; graph and scene blocks in any other message stay plain text.
-  const sceneSplit = message.action === GRAPH_ACTION ? splitSceneMessage(message.text) : null;
-  const scene = sceneSplit?.scene ? sceneSplit : null;
-  const graph = message.action === GRAPH_ACTION && !scene ? splitGraphMessage(message.text) : null;
+  // Only the server sets SHOW_GRAPH and TUTOR_CHAT_FIGURE (scenes it built from
+  // draw_scene calls); graph and scene blocks in any other message stay plain text.
+  const scenes = message.action === GRAPH_ACTION || message.action === FIGURE_ACTION ? splitSceneBlocks(message.text) : null;
+  const graph = message.action === GRAPH_ACTION && !scenes ? splitGraphMessage(message.text) : null;
   const level = normalizeAssistanceLevel(message.assistanceLevel);
 
   return (
@@ -55,10 +56,12 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
           {level > 0 && <span className="mt-chip mt-chip-warn">已展示：{supportExposureLabel(level)}</span>}
         </div>
         <div className="mt-answer-text">
-          {scene?.scene ? <>
-            {scene.before ? <MarkdownRenderer content={scene.before} enableMath /> : null}
-            <SceneCanvas scene={scene.scene} />
-            {scene.after ? <MarkdownRenderer content={scene.after} enableMath /> : null}
+          {scenes ? <>
+            {scenes.parts.map((part, index) => <Fragment key={index}>
+              {part.before ? <MarkdownRenderer content={part.before} enableMath /> : null}
+              <SceneCanvas scene={part.scene} />
+            </Fragment>)}
+            {scenes.after ? <MarkdownRenderer content={scenes.after} enableMath /> : null}
           </> : graph?.spec ? <>
             {graph.before ? <MarkdownRenderer content={graph.before} enableMath /> : null}
             <FunctionGraph spec={graph.spec} />
