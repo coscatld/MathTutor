@@ -34,6 +34,11 @@ from mathtutor.infrastructure.backup import (
 
 pytestmark = pytest.mark.asyncio
 
+# Encrypted exports plus manifest/retention checks can exceed ten seconds on
+# a busy Windows runner. This is a deadlock guard, not a backup speed contract;
+# the tests still synchronize on completed cycles and assert all their results.
+BACKUP_CYCLE_TIMEOUT = 60.0
+
 
 async def _seed_users(engine) -> None:
     from mathtutor.infrastructure.schema import users
@@ -68,7 +73,7 @@ class _ObservedBackupScheduler(BackupScheduler):
         return manifest
 
     async def next_cycle(self) -> BackupManifest:
-        manifest = await asyncio.wait_for(self.completed_cycles.get(), timeout=10.0)
+        manifest = await asyncio.wait_for(self.completed_cycles.get(), timeout=BACKUP_CYCLE_TIMEOUT)
         assert manifest is not None, "scheduled backup failed"
         return manifest
 
@@ -529,7 +534,7 @@ async def test_scheduler_wake_during_unfinished_backup_is_preserved(
     )
     scheduler.start()
     try:
-        await asyncio.wait_for(snapshot_ready.wait(), timeout=10.0)
+        await asyncio.wait_for(snapshot_ready.wait(), timeout=BACKUP_CYCLE_TIMEOUT)
         entries = BackupService.list_backups(directory)
         assert len(entries) == 1
         assert entries[0].status == "no_manifest"
