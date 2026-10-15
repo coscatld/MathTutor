@@ -1,0 +1,48 @@
+name: Windows startup diagnosis
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/diagnose-windows-startup-20261015]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download and verify the published installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'mathtutor-startup-diagnosis'
+          New-Item -ItemType Directory -Path $work -Force | Out-Null
+          gh release download v0.6.0 --repo $env:GITHUB_REPOSITORY --pattern 'MathTutor-0.6.0-win-x64.exe' --dir $work
+          if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
+          $installer = Join-Path $work 'MathTutor-0.6.0-win-x64.exe'
+          if ((Get-FileHash $installer -Algorithm SHA256).Hash.ToLower() -ne '05c13e5a14c786c46ce1b70f905a94b9f127d32c440a023803f9fc72f822e109') { throw 'Installer digest mismatch' }
+      - name: Install into a Unicode path and diagnose the shipped runtime
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'mathtutor-startup-diagnosis'
+          $install = Join-Path $work '安装目录\蛋蛋的app'
+          $env:MATHTUTOR_DATA_ROOT = Join-Path $work 'installer-auto-launch-data'
+          $p = Start-Process -FilePath (Join-Path $work 'MathTutor-0.6.0-win-x64.exe') -ArgumentList @('/S', "/D=$install") -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer exit $($p.ExitCode)" }
+          $report = Join-Path $work 'report'
+          New-Item -ItemType Directory -Path $report -Force | Out-Null
+          $running = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($install) })
+          $running | Select-Object ProcessId, ExecutablePath | ConvertTo-Json | Set-Content (Join-Path $report 'installer-auto-launch-processes.json') -Encoding utf8
+          foreach ($item in $running) { taskkill /PID $item.ProcessId /T /F 2>$null }
+          python scripts/diagnose-windows-startup.py --install $install --work $work
+          if ($LASTEXITCODE -ne 0) { throw 'Diagnosis harness failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-startup-diagnosis
+          path: ${{ runner.temp }}/mathtutor-startup-diagnosis/report/**
+          if-no-files-found: warn
