@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2 — Draw named examples and keep the drawing conversation
+
+- Requests such as 「画一个图展示一下双曲线」 choose a clearly labelled standard example with parameter sliders, including offline. Ellipses, parabolas, inverse proportional functions, sine and cosine have the same fallback. Given equations and conditions are preserved.
+- Short replies such as 「都可以」「你定」 continue the previous drawing request, including persisted conversations from before this fix. A different student topic or an already delivered graph stops this continuation.
+- Offer `draw_scene` for relevant mathematical concepts and related short follow-ups, allowing the model to choose a useful figure and example parameters. Keep the scene compiler, math verification and answer disclosure rules.
+- Add 28 drawing autonomy regressions and verify the real canvas redraws when a slider changes. Windows installed-startup acceptance reads the expected version from desktop package metadata.
+
 ## 0.6.1 — Recover Windows startup migrations
 
 - Serialize migrations for each database with an OS-owned process lock, and commit SQLite schema changes and version updates in one transaction. Concurrent first launches can no longer leave both 023 and 024 in the version table.

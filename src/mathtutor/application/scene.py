@@ -701,6 +701,42 @@ def _pretty_title(text: str) -> str:
     return re.sub(r"\s+", " ", text.replace("^2", "²").replace("^3", "³")).strip()[:MAX_LABEL]
 
 
+def example_scene_from_text(text: str, *, reveal: bool = True) -> dict[str, Any] | None:
+    """Choose a labelled standard example only when the student gives no data.
+
+    Restrict the remaining text to a request for a named curve, so conditions,
+    equations, coordinates and compound constructions are never overwritten.
+    """
+    raw = str(text or "")
+    names = {
+        "双曲线": ("x^2/a^2-y^2/b^2=1", "x²/4 − y² = 1", [("a", 2), ("b", 1)]),
+        "椭圆": ("x^2/a^2+y^2/b^2=1", "x²/4 + y² = 1", [("a", 2), ("b", 1)]),
+        "抛物线": ("y=a*x^2", "y = x²", [("a", 1)]),
+        "反比例函数": ("y=k/x", "y = 2/x", [("k", 2)]),
+        "正弦函数": ("y=a*sin(x)", "y = sin(x)", [("a", 1)]),
+        "余弦函数": ("y=a*cos(x)", "y = cos(x)", [("a", 1)]),
+    }
+    found = [name for name in names if name in raw]
+    if len(found) != 1 or not _DRAW.search(raw):
+        return None
+    name = found[0]
+    remainder = raw.replace(name, "")
+    remainder = re.sub(
+        r"画出|画一下|画个|绘制|绘出|作出|画|演示|显示|给我|帮我|请|一个|一条|一张|"
+        r"标准|简单|典型|任意|随便|都可以|示例|例子|展示|一下|看看|图像|图象|图形|图|的|吧|吗|可以", "", remainder)
+    if re.sub(r"[\s，,。.!！?？：:]", "", remainder):
+        return None
+    equation, label, values = names[name]
+    scene = build_scene({
+        "title": f"{name}示例",
+        "params": [{"name": n, "min": 0.5, "max": 4, "step": 0.1, "value": v} for n, v in values],
+        "objects": [{"id": "C", "type": "implicit", "equation": equation, "label": _pretty_title(equation)}],
+    }, source="deterministic", reveal=reveal)
+    scene["note"] = (f"你没有指定具体方程，我先选 {label} 作示例。可以拖动参数观察曲线变化。 "
+                     + scene.get("note", "")).strip()
+    return scene
+
+
 def scene_from_text(text: str, *, reveal: bool = True) -> dict[str, Any] | None:
     """Build a scene from 「画出 …」 requests; None when not deterministic."""
     raw = str(text or "")

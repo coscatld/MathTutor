@@ -91,5 +91,38 @@ def wants_figure(text: str) -> bool:
     return bool(_FIGURE_REQUEST.search(str(text or "")))
 
 
+_DRAWING_SUBJECT = re.compile(
+    r"椭圆|抛物线|双曲线|反比例|正比例|一次函数|二次函数|函数|正弦|余弦|正切|三角形|四边形|"
+    r"正方形|矩形|圆(?:的|心|周|内|外|上)|切线|渐近线|焦点|坐标|向量|轨迹|动点|几何|不等式|数形结合")
+_DRAWING_FOLLOWUP = re.compile(
+    r"(?:都可以|随便|你(?:来)?(?:定|选)|好(?:的|啊)?|可以|行|继续|画吧|为什么|怎么(?:看|理解|回事)|"
+    r"没(?:看|听)?懂|不(?:太)?(?:明白|理解|懂)|再(?:讲|说|解释)(?:一下)?|讲讲)[。！？?!，,\s]*")
+
+
+def can_offer_drawing(text: str, history: tuple[dict, ...] = ()) -> bool:
+    """Let the model choose a canvas for math topics and short related replies.
+
+    Check only the immediately preceding student topic; greetings and new
+    unrelated topics keep the normal chat/streaming path.
+    """
+    current = str(text or "").strip()
+    if wants_figure(current) or _DRAWING_SUBJECT.search(current):
+        return True
+    if not _DRAWING_FOLLOWUP.fullmatch(current):
+        return False
+    previous = list(history)
+    if previous and previous[-1].get("role") == "student" and previous[-1].get("content", "").strip() == current:
+        previous.pop()
+    for item in reversed(previous[-20:]):
+        if item.get("role") != "student":
+            continue
+        prior = str(item.get("content", "")).strip()
+        if wants_figure(prior) or _DRAWING_SUBJECT.search(prior):
+            return True
+        if not _DRAWING_FOLLOWUP.fullmatch(prior):
+            return False
+    return False
+
+
 __all__ = ["DEFINITION_FORMAT", "DRAWING_RULES", "DRAW_SCENE_TOOL", "MAX_DRAWN", "MAX_DRAW_ATTEMPTS", "SKILL_PATH",
-           "SKILL_TEXT", "section", "skill_text", "wants_figure"]
+           "SKILL_TEXT", "section", "skill_text", "wants_figure", "can_offer_drawing"]

@@ -55,9 +55,41 @@ def is_graph_request(text: str) -> bool:
         return True  # 画出三角形 ABC，A(0,0)…; 画出点 P(…)
     if _SOLVE_ONLY.search(text):
         return False
+    if re.search(r"(?:画|绘制|绘出|作出)(?!了)[^。？?\n]{0,30}(?:" + _SHAPES + r")", text):
+        return True
     if _VISUAL.search(text) and _MATH_CONTENT.search(_VISUAL.sub("", text)):
         return True
     return "运动" in text and bool(re.search(_SHAPES.replace("|函数", "").replace("|坐标", ""), text))
+
+
+_CHOOSE_EXAMPLE = re.compile(
+    r"(?:都(?:可以|行|好)|随便(?:一个)?|任意(?:一个)?|任选(?:一个)?|你(?:来)?(?:定|选|决定)|"
+    r"你看着(?:办|画)|选个(?:简单的|例子)|(?:画|开始)吧|可以|好(?:的|啊)?|行)[。！!，,\s]*")
+
+
+def resolve_graph_request(text: str, history: tuple[dict, ...] = ()) -> str | None:
+    """Keep a short delegation attached to the immediately preceding request.
+
+    History is persisted and can include the current student message. Never
+    search past a different student topic, or redraw an already delivered graph.
+    """
+    current = str(text or "").strip()
+    if is_graph_request(current):
+        return current
+    if not _CHOOSE_EXAMPLE.fullmatch(current):
+        return None
+    previous = list(history)
+    if previous and previous[-1].get("role") == "student" and previous[-1].get("content", "").strip() == current:
+        previous.pop()
+    for item in reversed(previous[-20:]):
+        if item.get("role") == "tutor" and item.get("action") in {GRAPH_ACTION, "TUTOR_CHAT_FIGURE"}:
+            return None
+        if item.get("role") == "student":
+            request = str(item.get("content", ""))
+            if _CHOOSE_EXAMPLE.fullmatch(request.strip()):
+                continue
+            return request if is_graph_request(request) else None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -644,5 +676,5 @@ def summarize_graph_blocks(text: str) -> str:
 
 __all__ = [
     "GRAPH_ACTION", "GRAPH_FENCE", "GRAPHABLE_TYPES", "GraphInputError", "extract_function_text",
-    "graph_for_function", "graph_for_problem", "is_graph_request", "parse_function", "summarize_graph_blocks",
+    "graph_for_function", "graph_for_problem", "is_graph_request", "resolve_graph_request", "parse_function", "summarize_graph_blocks",
 ]

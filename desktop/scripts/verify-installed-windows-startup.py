@@ -13,6 +13,9 @@ import traceback
 import urllib.request
 
 
+EXPECTED_VERSION = json.loads((Path(__file__).resolve().parents[1] / 'package.json').read_text(encoding='utf-8'))['version']
+
+
 def clean_environment(data: Path) -> dict[str, str]:
     env = {key: value for key, value in os.environ.items()
            if not key.upper().startswith(('MATHTUTOR_', 'PYTHON', 'CONDA', 'NODE_'))
@@ -103,7 +106,7 @@ def run_gui(executable, python, data, output, name, *, expect_failure=False):
                     assert migration == 'ok', readiness
                     with urllib.request.urlopen(base + '/version', timeout=5) as response:
                         version = json.load(response)
-                    assert version['version'] == '0.6.1', version
+                    assert version['version'] == EXPECTED_VERSION, version
                     return dict(case=name, seconds=round(time.monotonic() - started, 3),
                                 duplicate_exit=second.returncode, migration=migration,
                                 version=version['version'], databases=probe(python, data, SNAPSHOT))

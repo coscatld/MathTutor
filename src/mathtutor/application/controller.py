@@ -426,9 +426,10 @@ class MathTutorController:
                 await stream.error(str(exc), source=self.manifest.name)
             return
         if command == SEND_MESSAGE_COMMAND:
-            from mathtutor.application.function_graph import is_graph_request
-            if is_graph_request(str(payload.get("text", ""))):
-                await self._function_graph(owner.student_id, session, bound_verified, str(payload.get("text", "")), stream)
+            from mathtutor.application.function_graph import resolve_graph_request
+            graph_request = resolve_graph_request(str(payload.get("text", "")), request.conversation_messages)
+            if graph_request is not None:
+                await self._function_graph(owner.student_id, session, bound_verified, graph_request, stream)
                 return
             knowledge = getattr(self, "knowledge", None)
             if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
@@ -729,7 +730,7 @@ class MathTutorController:
         from mathtutor.application.function_graph import (
             GRAPH_ACTION, GRAPHABLE_TYPES, GraphInputError, extract_function_text, graph_for_function, graph_for_problem)
         import re
-        from mathtutor.application.scene import author_scene, has_math_content, render_scene, scene_from_text
+        from mathtutor.application.scene import author_scene, example_scene_from_text, has_math_content, render_scene, scene_from_text
         from mathtutor.application.student_contract import REVIEW_STATES, verified_binding
         bound = bool(session and verified_binding(verified) and session.state != CycleState.CLOSED)
         open_problem = bound and session.state not in REVIEW_STATES
@@ -737,7 +738,7 @@ class MathTutorController:
         example = "可以这样写：画出 y = x^2 - 2x - 3 的图像，或 画出 x^2/4+y^2/3=1 和 y=kx+1。"
         # Only multi-object or parametrized requests become scenes; a single
         # plain y = f(x) stays on the v1 path.
-        scene = scene_from_text(text, reveal=not open_problem)
+        scene = scene_from_text(text, reveal=not open_problem) or example_scene_from_text(text, reveal=not open_problem)
         error = ""
         if scene is None and source:
             try:
@@ -1117,9 +1118,9 @@ class MathTutorController:
                 accepts = inspect.signature(responder.respond).parameters
                 takes_tools = "math_verify" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
                 takes_figures = "draw_figures" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
-                from mathtutor.skills.canvas_drawing import wants_figure
-                figure_asked = wants_figure(text)
-                if takes_tools and (unstructured_math or follow_up or figure_asked or is_concrete_math_input(text)):
+                from mathtutor.skills.canvas_drawing import can_offer_drawing
+                drawing_relevant = can_offer_drawing(text, history)
+                if takes_tools and (unstructured_math or follow_up or drawing_relevant or is_concrete_math_input(text)):
                     # Maths questions: the model may verify its own claims first,
                     # and show a figure only through the canvas (draw_scene).
                     from mathtutor.application.math_verification import verify_math
