@@ -4,7 +4,7 @@
 
 MathTutor 不是把大模型套进聊天框。它把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**0.6.0 Windows x64** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0) · [下载安装包](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/MathTutor-0.6.0-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/SHA256SUMS-windows.txt) · [更新说明](docs/RELEASE_0.6.0.md)
+**0.6.1 Windows x64** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.1) · [下载安装包](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/MathTutor-0.6.1-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/SHA256SUMS-windows.txt) · [更新说明](docs/RELEASE_0.6.1.md)
 
 [项目定位](#项目定位) · [核心功能](#核心功能) · [差异化亮点](#差异化亮点) · [Benchmark](#benchmark-与当前结果) · [快速开始](#快速开始) · [能力说明](#资料问答与能力说明)
 
@@ -111,7 +111,11 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前版本为 **0.6.0**，Windows x64 安装包与 SHA-256 校验文件见 [v0.6.0 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+当前版本为 **0.6.1**，Windows x64 安装包与 SHA-256 校验文件见 [v0.6.1 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.1)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+
+### 0.6.1
+
+修复首次并发启动导致的数据库迁移异常：桌面程序增加单实例保护，迁移使用进程锁和完整事务。已出现 `023 + 024` 版本记录的数据库，会先备份并校验完整性及结构，再自动恢复；启动失败会显示具体错误，并写入用户数据目录的 `logs/startup.log`。关闭旧版后安装新版即可，无需删除学习数据或改英文目录。详见 [0.6.1 发布说明](docs/RELEASE_0.6.1.md)。
 
 ### 0.6.0
 
@@ -138,6 +142,7 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 | 版本 | 内容 | 安装包 | SHA-256 |
 |---|---|---|---|
+| [`v0.6.1`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.1) | 修复并发启动、迁移异常恢复与启动日志 | [`MathTutor-0.6.1-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/MathTutor-0.6.1-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/SHA256SUMS-windows.txt) |
 | [`v0.6.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0) | 讲解公式核验、交互式数形结合、K-12 题库 | [`MathTutor-0.6.0-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/MathTutor-0.6.0-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/SHA256SUMS-windows.txt) |
 | [`v0.5.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.5.0) | 先看提示再看答案、错误概念统计、函数图像 | `MathTutor-0.5.0-mac-arm64.dmg` | `3b7cd4da265e7a74a41b7a3a3a4fdbaf2bc0a71c55462e612a9e48dfd9c45861` |
 | | | `MathTutor-0.5.0-win-x64.exe` | `ab22ece2ee97b15a861ad81bb15a891c9f0eafadd4cbf9359519249bee27ac3a` |
@@ -295,13 +300,13 @@ npm run package:win
 脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器：
 
 ```text
-desktop/dist/MathTutor-0.6.0-win-x64.exe
+desktop/dist/MathTutor-0.6.1-win-x64.exe
 ```
 
 使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。下载后可检查摘要：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\MathTutor-0.6.0-win-x64.exe
+Get-FileHash -Algorithm SHA256 .\MathTutor-0.6.1-win-x64.exe
 ```
 
 ### macOS（Apple 芯片）

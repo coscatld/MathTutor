@@ -54,7 +54,7 @@ test("macOS package uses the MathTutor icon and a background-only frontend runti
   assert.equal(fs.existsSync(path.join(desktop, config.mac.icon)), true);
   assert.match(main, /utilityProcess\.fork\(runner, \[server\]/);
   assert.match(main, /serviceName: "MathTutor Web Runtime"/);
-  assert.match(main, /if \(IS_PACKAGED\) \{\s*startPackagedFrontend/);
+  assert.match(main, /if \(IS_PACKAGED\) \{\s*frontendChild = startPackagedFrontend/);
   const runner = fs.readFileSync(path.join(desktop, "runtime", "frontend-runner.js"), "utf8");
   assert.match(runner, /Module\._initPaths\(\)/);
 });

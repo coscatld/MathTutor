@@ -32,6 +32,19 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: ./desktop/scripts/build-windows.ps1 -RuntimePath .runtime/python-win-x64
+      - name: Verify installed startup, repeated launch and migration recovery
+        shell: pwsh
+        run: |
+          $Installer = Get-ChildItem desktop/dist/MathTutor-*-win-x64.exe | Select-Object -First 1
+          python desktop/scripts/verify-installed-windows-startup.py --installer $Installer.FullName --output desktop/dist/startup-acceptance
+          if ($LASTEXITCODE -ne 0) { throw "Installed Windows startup acceptance failed." }
+      - name: Upload installed startup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MathTutor-windows-startup-acceptance
+          if-no-files-found: warn
+          path: desktop/dist/startup-acceptance/
       - name: Checksums
         shell: pwsh
         working-directory: desktop/dist

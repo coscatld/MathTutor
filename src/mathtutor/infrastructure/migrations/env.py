@@ -45,13 +45,13 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection) -> None:
-    context.configure(connection=connection)
+    context.configure(connection=connection, transactional_ddl=True)
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    from sqlalchemy import create_engine
+    from sqlalchemy import create_engine, event
 
     from pathlib import Path
 
@@ -64,8 +64,18 @@ def run_migrations_online() -> None:
         engine = create_engine(url, future=True)
     else:
         engine = create_engine(url, future=True, creator=lambda: db_crypto.connect(path, key=key))
+    # sqlite3's legacy mode otherwise commits DDL independently of Alembic's
+    # version writes. Keep the entire upgrade atomic, including on Windows.
+    @event.listens_for(engine, "connect")
+    def disable_legacy_transactions(connection, _):
+        connection.isolation_level = None
+
+    @event.listens_for(engine, "begin")
+    def begin_migration(connection):
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
+
     try:
-        with engine.connect() as connection:
+        with engine.begin() as connection:
             do_run_migrations(connection)
     finally:
         engine.dispose()

@@ -16,7 +16,7 @@ def test_release_config_freezes_authoritative_runtime_contracts() -> None:
     from alembic.script import ScriptDirectory
     from mathtutor.infrastructure.migrate import alembic_config
     assert ScriptDirectory.from_config(alembic_config()).get_current_head() == MIGRATION_HEAD
-    assert RELEASE_CONFIG.app_version == "0.6.0"
+    assert RELEASE_CONFIG.app_version == "0.6.1"
     assert RELEASE_CONFIG.schema_version == SCHEMA_VERSION
     assert RELEASE_CONFIG.migration_head == MIGRATION_HEAD == "024"
     assert RELEASE_CONFIG.curriculum_active_version == StaticCurriculumProvider.VERSION_CODE

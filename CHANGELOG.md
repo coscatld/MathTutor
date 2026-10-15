@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 — Recover Windows startup migrations
+
+- Serialize migrations for each database with an OS-owned process lock, and commit SQLite schema changes and version updates in one transaction. Concurrent first launches can no longer leave both 023 and 024 in the version table.
+- Recover the observed 023/024 state only after a verified backup, complete current table/column/key checks, and SQLite integrity and foreign-key checks. Unknown or incomplete databases remain unchanged.
+- Keep one desktop instance and focus its window on repeated launch. Persist startup output in `logs/startup.log`; report failed child processes immediately with their stderr and log location.
+- Add process-race, crash-release, rollback, encrypted/plaintext recovery, rejected-recovery, and desktop startup tests, plus installed Windows startup acceptance in Chinese paths.
+
 ## 0.6.0 — Verified explanations, interactive scenes, and the K-12 question bank
 
 ### Windows CI

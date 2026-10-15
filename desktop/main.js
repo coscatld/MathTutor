@@ -41,6 +41,7 @@ const {
   resolveUserDataRoot,
   resolveWebRoot,
 } = require("./runtime/paths");
+const { claimSingleInstance, monitorService, waitForService } = require("./runtime/startup");
 
 const DESKTOP_DIR = __dirname;
 const IS_PACKAGED = Boolean(app && app.isPackaged);
@@ -73,17 +74,50 @@ const isSmoke = process.argv.includes("--smoke");
 // restarts the backend, then verifies readiness + durability again.
 const isSmokeFull = process.argv.includes("--smoke-full");
 const isSmokeProduction = process.argv.includes("--smoke-production");
+const ownsInstance = !app || isSmoke || isSmokeFull || isSmokeProduction ||
+  claimSingleInstance(app, () => BrowserWindow.getAllWindows());
+let startupLogPath = "";
+let startupLogBytes = 0;
+
+function writeStartupLog(message) {
+  if (!startupLogPath || startupLogBytes >= 2 * 1024 * 1024) return;
+  try {
+    const line = `${new Date().toISOString()} ${message}`;
+    fs.appendFileSync(startupLogPath, line, { mode: 0o600 });
+    startupLogBytes += Buffer.byteLength(line);
+  } catch {
+    // A logging failure must not hide the original startup error.
+  }
+}
+
+function initializeStartupLog(root) {
+  startupLogPath = path.join(root, "startup.log");
+  const previous = path.join(root, "startup.previous.log");
+  if (fs.existsSync(startupLogPath)) {
+    fs.rmSync(previous, { force: true });
+    fs.renameSync(startupLogPath, previous);
+  }
+  fs.writeFileSync(startupLogPath, "", { mode: 0o600 });
+  writeStartupLog(`MathTutor ${app.getVersion()} startup\n`);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function log(...args) {
-  process.stdout.write(`[desktop] ${args.join(" ")}\n`);
+  const message = `[desktop] ${args.join(" ")}\n`;
+  process.stdout.write(message);
+  writeStartupLog(message);
 }
 
 function fail(message) {
+  writeStartupLog(`FATAL: ${message}\n`);
+  if (startupLogPath) message += `\n\n启动日志：${startupLogPath}`;
   process.stderr.write(`[desktop] FATAL: ${message}\n`);
+  if (app) app.isQuitting = true;
+  stopChildren();
+  stopPickerServer();
   if (app && app.isReady() && !isSmokeFull) {
     // Headless smoke must never block on a GUI error box.
     dialog.showErrorBox("MathTutor 启动失败", message);
@@ -187,6 +221,8 @@ function backendEnvironment(dataLayout, extra = {}) {
     // A packaged backend must never inherit a checkout/editable import path.
     PYTHONPATH: IS_PACKAGED ? path.join(RESOURCES_DIR, "python-app") : process.env.PYTHONPATH,
     PYTHONNOUSERSITE: IS_PACKAGED ? "1" : process.env.PYTHONNOUSERSITE,
+    PYTHONUTF8: "1",
+    PYTHONIOENCODING: "utf-8",
     ...extra,
   };
 }
@@ -369,6 +405,8 @@ function stopPickerServer() {
 // ---------------------------------------------------------------------------
 
 const children = [];
+const serviceMonitors = new WeakMap();
+let startupServices = [];
 
 function startChild(cmd, args, env, cwd) {
   const child = spawn(cmd, args, {
@@ -377,6 +415,7 @@ function startChild(cmd, args, env, cwd) {
     stdio: isSmoke ? "inherit" : ["ignore", "pipe", "pipe"],
   });
   children.push(child);
+  serviceMonitors.set(child, monitorService(child, writeStartupLog));
   if (!isSmoke) {
     child.stdout.on("data", (d) => process.stdout.write(`[child] ${String(d)}`));
     child.stderr.on("data", (d) => process.stderr.write(`[child] ${String(d)}`));
@@ -409,6 +448,7 @@ function startPackagedFrontend(server, env, cwd) {
     serviceName: "MathTutor Web Runtime",
   });
   children.push(child);
+  serviceMonitors.set(child, monitorService(child, writeStartupLog));
   child.stdout?.on("data", (d) => process.stdout.write(`[child] ${String(d)}`));
   child.stderr?.on("data", (d) => process.stderr.write(`[child] ${String(d)}`));
   child.on("exit", (code) => {
@@ -433,18 +473,7 @@ function stopChildren() {
 }
 
 async function waitForHttp(url, timeoutMs, what) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return true;
-    } catch {
-      /* not up yet */
-    }
-    await sleep(300);
-  }
-  fail(`${what} 在 ${Math.round(timeoutMs / 1000)} 秒内未就绪。`);
-  return false;
+  return waitForService(url, { timeoutMs, what, services: startupServices });
 }
 
 /** Prove the rendered page's browser JS/CSS is actually available. */
@@ -1311,7 +1340,7 @@ if (isHeadlessNode) {
         "桌面 GUI 请取消该环境变量后运行 `electron .`；自动化验证请用 `npm run smoke` / `npm run smoke-full`。",
     );
   }
-} else {
+} else if (ownsInstance) {
 app.whenReady().then(async () => {
   if (isSmokeProduction) {
     try {
@@ -1364,6 +1393,7 @@ app.whenReady().then(async () => {
   // 3. Spawn the Python product service. Every mutable product artifact is
   //    rooted in Electron's per-user data directory, never the app bundle.
   const dataLayout = resolveDataLayout();
+  initializeStartupLog(dataLayout.logs);
   const python = resolvePython();
   const backend = backendCommand(python, backendPort);
   // MATHTUTOR_* is authoritative. The two older names are read-only aliases
@@ -1372,7 +1402,7 @@ app.whenReady().then(async () => {
   // account authentication is disabled by architecture, not by user setup.
   const authEnabled = "0";
   log(`backend: ${backend.cmd} ${backend.args.join(" ")}`);
-  startChild(backend.cmd, backend.args, backendEnvironment(dataLayout, {
+  const backendChild = startChild(backend.cmd, backend.args, backendEnvironment(dataLayout, {
     MATHTUTOR_DESKTOP: "1",
     MATHTUTOR_ELECTRON_PICKER_URL: pickerUrl,
     MATHTUTOR_API_BASE_URL: backendUrl,
@@ -1390,15 +1420,17 @@ app.whenReady().then(async () => {
     MATHTUTOR_API_BASE_URL: backendUrl,
     ...authEnvironment(authEnabled),
   };
+  let frontendChild;
   if (IS_PACKAGED) {
-    startPackagedFrontend(frontend.args[0], frontendEnv, frontend.cwd);
+    frontendChild = startPackagedFrontend(frontend.args[0], frontendEnv, frontend.cwd);
   } else {
     // Development still invokes Next's CLI through Electron's Node mode.
-    startChild(frontend.cmd, frontend.args, {
+    frontendChild = startChild(frontend.cmd, frontend.args, {
       ...frontendEnv,
       ELECTRON_RUN_AS_NODE: "1",
     }, frontend.cwd);
   }
+  startupServices = [backendChild, frontendChild].map((child) => serviceMonitors.get(child));
 
   // 5. Wait for readiness (backend first — the proxy needs it).
   await waitForHttp(`${backendUrl}/health`, BACKEND_READY_TIMEOUT_MS, "本地辅导服务");
@@ -1422,8 +1454,9 @@ app.whenReady().then(async () => {
     },
   });
   win.setMenuBarVisibility(false);
-  win.loadURL(frontendUrl);
-});
+  await win.loadURL(frontendUrl);
+  log("startup: ready");
+}).catch((error) => fail(error && error.message ? error.message : String(error)));
 
 app.on("window-all-closed", () => {
   app.isQuitting = true;
