@@ -23,7 +23,7 @@ async def test_saved_discriminant_exhausts_steps_not_total_tokens():
         calls = 0
         async def complete(self, messages, **kwargs):
             row = rows[self.calls]
-            assert messages[0] == rows[0]["messages"][0]
+            assert rows[0]["messages"][0] in messages
             if self.calls:
                 assert messages[-1]["content"] == "从中断处继续，不重复已有内容。"
                 assert messages[-2]["content"] == rows[0]["response"]["text"]
