@@ -4,6 +4,8 @@
 
 MathTutor 不是把大模型套进聊天框。它把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
+**0.6.0 Windows x64** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0) · [下载安装包](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/MathTutor-0.6.0-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/SHA256SUMS-windows.txt) · [更新说明](docs/RELEASE_0.6.0.md)
+
 [项目定位](#项目定位) · [核心功能](#核心功能) · [差异化亮点](#差异化亮点) · [Benchmark](#benchmark-与当前结果) · [快速开始](#快速开始) · [能力说明](#资料问答与能力说明)
 
 ## 项目定位
@@ -109,16 +111,11 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前正式版为 **0.5.0**；`main` 分支在此基础上继续迭代，数据库 migration head 为 **024**（新增逐轮诊断记录表，升级时自动迁移并先做备份）。
+当前版本为 **0.6.0**，Windows x64 安装包与 SHA-256 校验文件见 [v0.6.0 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
 
-### 0.5.0（当前正式版）
+### 0.6.0
 
-- 未解决的题目要先看过一次提示，才能查看完整答案；已答对或已看过答案的题目仍可随时回看。
-- 学习画像的「活跃错误概念」按作答诊断出的错误规则统计，同一技能之后独立答对即视为解除；数据导出列出同样的错误概念。
-- 新增函数图像：服务端计算坐标，前端用 canvas 绘制。题目未完成时不标出零点和交点，看过这道题的图像后再作答记为「受助」。
-- 数据库结构不变，从 0.4.5 升级无需数据迁移。完整说明见 [CHANGELOG](CHANGELOG.md)。
-
-### main 分支（0.5.0 之后）
+完整更新与升级说明见 [0.6.0 发布说明](docs/RELEASE_0.6.0.md)，三平台验证状态见 [GitHub Actions](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml)。
 
 - **讲解可信**：讲解中的算式逐一经 `verify_math` 核对，未通过时让模型改正一次；普通聊天按句流式显示，只放出已核对的句子；数学提问时模型可自行调用 `verify_math`。
 - **数形结合**：函数、隐式曲线（椭圆、双曲线、圆等）、参数与极坐标曲线、不等式区域、点、线段、多边形、切线；参数滑块与播放、动点轨迹，距离 / 角度 / 面积读数实时更新，不配置模型也能从「演示椭圆上的动点 P(2cos t, √3 sin t) 到焦点 F(1,0) 的距离」这类句子直接成图。
@@ -130,10 +127,18 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 - **题库与学段**：小学到高中 24 册、149 个单元、359 个知识点，按教材顺序排列；68 个知识点配有 449 道已验证练习题，42 个知识点配有数形结合演示；设置 → 学段 决定题库默认显示的册目。
 - **画图技能**：模型配图只能通过 `draw_scene` 在画布上绘制，讲解与图一起作为「讲解配图」消息呈现。
 
+### 0.5.0
+
+- 未解决的题目要先看过一次提示，才能查看完整答案；已答对或已看过答案的题目仍可随时回看。
+- 学习画像的「活跃错误概念」按作答诊断出的错误规则统计，同一技能之后独立答对即视为解除；数据导出列出同样的错误概念。
+- 新增函数图像：服务端计算坐标，前端用 canvas 绘制。题目未完成时不标出零点和交点，看过这道题的图像后再作答记为「受助」。
+- 数据库结构不变，从 0.4.5 升级无需数据迁移。完整说明见 [CHANGELOG](CHANGELOG.md)。
+
 ### 发布记录
 
 | 版本 | 内容 | 安装包 | SHA-256 |
 |---|---|---|---|
+| [`v0.6.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0) | 讲解公式核验、交互式数形结合、K-12 题库 | [`MathTutor-0.6.0-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/MathTutor-0.6.0-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/SHA256SUMS-windows.txt) |
 | [`v0.5.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.5.0) | 先看提示再看答案、错误概念统计、函数图像 | `MathTutor-0.5.0-mac-arm64.dmg` | `3b7cd4da265e7a74a41b7a3a3a4fdbaf2bc0a71c55462e612a9e48dfd9c45861` |
 | | | `MathTutor-0.5.0-win-x64.exe` | `ab22ece2ee97b15a861ad81bb15a891c9f0eafadd4cbf9359519249bee27ac3a` |
 | [`v0.4.5`](https://github.com/coscatld/MathTutor/releases/tag/v0.4.5) | 页面风格与视觉焕新，不改教学策略 | `MathTutor-0.4.5-mac-arm64.dmg` | `f0f8e7f7c1d37ac57a9143fe59494c29c9433a5ca14cddb3634e119d573003ff` |
@@ -147,7 +152,7 @@ macOS 安装包发布前都通过打包后冒烟测试（启动、作答、重�
 - 0.4.3 是界面版本，[`v0.4.3`](https://github.com/coscatld/MathTutor/releases/tag/v0.4.3) 以 pre-release 发布，附 Windows x64 安装包。见 [0.4.3 发布说明](docs/RELEASE_0.4.3.md)。
 - 0.4.2 完成 RAG 集成，见 [PR #2](https://github.com/coscatld/MathTutor/pull/2)。
 
-下载请查看 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)，并用上表的 SHA-256 核对。
+下载请查看 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)，并用对应版本的 SHA-256 校验文件或上表历史摘要核对。
 
 ## 快速开始
 
@@ -290,13 +295,13 @@ npm run package:win
 脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器：
 
 ```text
-desktop/dist/MathTutor-0.5.0-win-x64.exe
+desktop/dist/MathTutor-0.6.0-win-x64.exe
 ```
 
 使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。下载后可检查摘要：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\MathTutor-0.5.0-win-x64.exe
+Get-FileHash -Algorithm SHA256 .\MathTutor-0.6.0-win-x64.exe
 ```
 
 ### macOS（Apple 芯片）
@@ -309,7 +314,7 @@ export MATHTUTOR_PYTHON_RUNTIME=$PWD/.runtime/<python-runtime-dir>
 npm ci --prefix desktop
 npm run package:mac:unsigned --prefix desktop
 npm run smoke:packaged:mac --prefix desktop
-shasum -a 256 desktop/dist/MathTutor-0.5.0-mac-arm64.dmg
+shasum -a 256 desktop/dist/MathTutor-0.6.0-mac-arm64.dmg
 ```
 
 普通虚拟环境不可重定位，不能作为打包运行时。下载 Electron 较慢时，可设置 `ELECTRON_MIRROR` 与 `ELECTRON_BUILDER_BINARIES_MIRROR` 使用镜像。

@@ -55,19 +55,22 @@ def _integrity(path) -> str:
         conn.close()
 
 
-async def _wait_until(predicate, timeout: float = 2.0) -> None:
-    """Poll a predicate until true; raises asyncio.TimeoutError otherwise.
+class _ObservedBackupScheduler(BackupScheduler):
+    """Observe completed backup + retention cycles, including slow exports."""
 
-    ``predicate`` may return a plain value or a coroutine (async helper).
-    """
-    async with asyncio.timeout(timeout):
-        while True:
-            result = predicate()
-            if asyncio.iscoroutine(result):
-                result = await result
-            if result:
-                return
-            await asyncio.sleep(0.01)
+    def __init__(self, service: BackupService, policy: BackupPolicy) -> None:
+        super().__init__(service, policy)
+        self.completed_cycles: asyncio.Queue[BackupManifest | None] = asyncio.Queue()
+
+    async def run_once(self) -> BackupManifest | None:
+        manifest = await super().run_once()
+        self.completed_cycles.put_nowait(manifest)
+        return manifest
+
+    async def next_cycle(self) -> BackupManifest:
+        manifest = await asyncio.wait_for(self.completed_cycles.get(), timeout=10.0)
+        assert manifest is not None, "scheduled backup failed"
+        return manifest
 
 
 # ------------------------------------------------------------ policy
@@ -478,40 +481,90 @@ async def test_scheduler_interval_mode_backup_and_retention(migrated_db, tmp_pat
         retention_limit=2,
         interval_seconds=3600.0,  # 周期靠 wake 触发，不依赖真实时间
     )
-    scheduler = BackupScheduler(service, policy)
+    scheduler = _ObservedBackupScheduler(service, policy)
     scheduler.start()
     assert scheduler.is_running
 
-    await _wait_until(lambda: len(BackupService.list_backups(directory)) == 1)
-    first = BackupService.list_backups(directory)[-1].backup_path  # 最旧
+    try:
+        # A snapshot file exists before its manifest is written. Wait for the
+        # complete cycle, including retention, instead of counting those files.
+        first = Path((await scheduler.next_cycle()).backup_path)
+        scheduler.wake()
+        await scheduler.next_cycle()
+        scheduler.wake()  # 第三个备份 → retention 保留最新 2 个
+        await scheduler.next_cycle()
 
-    scheduler.wake()
-    await _wait_until(lambda: len(BackupService.list_backups(directory)) == 2)
-    scheduler.wake()  # 第三个备份 → retention 保留最新 2 个
-    await asyncio.sleep(0.4)
-    entries = BackupService.list_backups(directory)
-    assert len(entries) == 2
-    assert all(e.status == "ok" for e in entries)
-    assert not first.exists()  # 最旧的那个被 retention 删除（成对删 manifest）
-    assert not Path(f"{first}.manifest.json").exists()
-
-    await scheduler.stop(timeout=2.0)
+        entries = BackupService.list_backups(directory)
+        assert len(service.manifests) == 3
+        assert len(entries) == 2
+        assert all(e.status == "ok" for e in entries)
+        assert not first.exists()  # 最旧的那个被 retention 删除（成对删 manifest）
+        assert not Path(f"{first}.manifest.json").exists()
+    finally:
+        await scheduler.stop(timeout=10.0)
     assert not scheduler.is_running
     await scheduler.stop()  # 幂等
+
+
+async def test_scheduler_wake_during_unfinished_backup_is_preserved(
+    migrated_db, tmp_path, monkeypatch
+):
+    """An early wake queues another cycle while the first manifest is pending."""
+    service = BackupService(migrated_db)
+    directory = tmp_path / "bk"
+    snapshot_ready = asyncio.Event()
+    finish_snapshot = asyncio.Event()
+    journal_mode = service._journal_mode
+
+    async def delayed_journal_mode():
+        if not snapshot_ready.is_set():
+            snapshot_ready.set()
+            await finish_snapshot.wait()
+        return await journal_mode()
+
+    monkeypatch.setattr(service, "_journal_mode", delayed_journal_mode)
+    scheduler = _ObservedBackupScheduler(
+        service,
+        BackupPolicy(mode="interval", backup_dir=directory, interval_seconds=3600.0),
+    )
+    scheduler.start()
+    try:
+        await asyncio.wait_for(snapshot_ready.wait(), timeout=10.0)
+        entries = BackupService.list_backups(directory)
+        assert len(entries) == 1
+        assert entries[0].status == "no_manifest"
+        assert service.manifests == []
+        assert scheduler.completed_cycles.empty()
+
+        scheduler.wake()
+        finish_snapshot.set()
+        await scheduler.next_cycle()
+        await scheduler.next_cycle()
+
+        assert len(service.manifests) == 2
+        entries = BackupService.list_backups(directory)
+        assert len(entries) == 2
+        assert all(e.status == "ok" for e in entries)
+    finally:
+        finish_snapshot.set()
+        await scheduler.stop(timeout=10.0)
 
 
 async def test_scheduler_on_startup_mode_runs_once(migrated_db, tmp_path):
     service = BackupService(migrated_db)
     directory = tmp_path / "bk"
-    scheduler = BackupScheduler(
+    scheduler = _ObservedBackupScheduler(
         service, BackupPolicy(mode="on_startup", backup_dir=directory)
     )
     scheduler.start()
-    await _wait_until(lambda: scheduler.task is not None and scheduler.task.done())
-    entries = BackupService.list_backups(directory)
-    assert len(entries) == 1
-    assert entries[0].status == "ok"
-    await scheduler.stop()  # 任务已退出，stop 立即返回
+    try:
+        await scheduler.next_cycle()
+        assert scheduler.task is not None and scheduler.task.done()
+        entries = BackupService.list_backups(directory)
+        assert len(entries) == 1
+        assert entries[0].status == "ok"
+    finally:
+        await scheduler.stop(timeout=10.0)  # 任务已退出，stop 立即返回
 
 
 async def test_scheduler_manual_or_disabled_is_noop(migrated_db, tmp_path):

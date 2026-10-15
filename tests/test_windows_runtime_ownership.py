@@ -1,5 +1,6 @@
 """Deterministic ownership checks: retained references must not retain handles."""
 from contextlib import closing
+from pathlib import Path
 import sqlite3
 import asyncio
 
@@ -200,3 +201,52 @@ async def test_normal_repeated_shutdown_releases_directory(tmp_path):
         trace(id(state), "directory_cleanup_begin")
         directory.cleanup()
         trace(id(state), "directory_cleanup_complete")
+
+
+def test_disconnect_finishes_delivery_ack_before_releasing_database(tmp_path, monkeypatch):
+    """A cancelled SQLite execute can retain its unread cursor in a traceback."""
+    import threading
+    import aiosqlite
+    from test_tutor_p0 import client_at, send
+    from mathtutor.api.product_state import current_product_state
+
+    path = tmp_path / "delivery.db"
+    entered = threading.Event()
+    reader = []
+    retained = []
+    original = aiosqlite.Cursor.execute
+
+    async def pause_before_fetch(cursor, sql, parameters=None):
+        result = await original(cursor, sql, parameters)
+        if "SELECT teaching_deliveries." in sql and "teaching_deliveries.delivery_id =" in sql:
+            # Keep the cursor alive, as a retained cancellation traceback does.
+            # The driver has executed SELECT, but SQLAlchemy has not fetched it.
+            retained.append(cursor)
+            reader.append(next(task for task in asyncio.all_tasks()
+                               if task.get_coro().__name__ == "receive_messages"))
+            entered.set()
+            # Only the socket finalizer releases this barrier by cancelling
+            # its reader. The separately owned receipt must survive that.
+            async with asyncio.timeout(5):
+                while not reader[0].cancelling():
+                    await asyncio.sleep(0)
+        return result
+
+    with client_at(path) as client:
+        state = current_product_state()
+        with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+            send(ws, "submit_problem", "problem", {"text": "2x+3=11"})
+            frames = send(ws, "request_hint", "hint")
+            delivery = next(frame["delivery_id"] for frame in reversed(frames) if frame.get("delivery_id"))
+            monkeypatch.setattr(aiosqlite.Cursor, "execute", pause_before_fetch)
+            ws.send_json({"type": "delivery_presented", "delivery_id": delivery})
+            assert entered.wait(5)
+    assert state.lifecycle_status == "STOPPED"
+    assert reader[0].cancelling()
+    assert state.uow.engine.pool.checkedout() == 0
+    assert retained
+    with closing(sqlite3.connect(path)) as connection:
+        assert connection.execute("SELECT status FROM teaching_deliveries WHERE delivery_id = ?", (delivery,)).fetchone() == ("presented",)
+        assert connection.execute("SELECT count(*) FROM learning_events WHERE event_type = 'help_presented'").fetchone() == (1,)
+    assert not Path(f"{path}-wal").exists()
+    assert not Path(f"{path}-shm").exists()

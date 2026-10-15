@@ -124,7 +124,18 @@ async def math_tutor_websocket(ws: WebSocket) -> None:
                     if (isinstance(envelope, dict) and envelope.get("type") == "delivery_presented"
                             and set(envelope) == {"type", "delivery_id"}
                             and isinstance(envelope["delivery_id"], str) and len(envelope["delivery_id"]) <= 160):
-                        await state.controller.mark_delivery(owner.student_id, envelope["delivery_id"], "presented")
+                        # Disconnect cancels this reader directly. Let the short
+                        # receipt write finish: cancelling a driver execute can
+                        # retain an unread SQLite cursor and its file handle.
+                        receipt = asyncio.create_task(state.controller.mark_delivery(
+                            owner.student_id, envelope["delivery_id"], "presented"),
+                            name="delivery-presented")
+                        try:
+                            await asyncio.shield(receipt)
+                        except asyncio.CancelledError:
+                            with anyio.fail_after(5, shield=True):
+                                await asyncio.shield(receipt)
+                            raise
                         continue
                     validate_client_envelope(envelope)
                 except (ValueError, SecurityViolationError):

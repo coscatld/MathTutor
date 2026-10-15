@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — Verified explanations, interactive scenes, and the K-12 question bank
+
+### Windows CI
+- Backup scheduler tests now wait for the full backup, manifest and retention cycle instead of treating a database file or a fixed delay as completion. This removes a timing race on slower runners and checks that a wake request during an active backup schedules the next cycle.
+- A WebSocket disconnect now waits for an in-flight delivery acknowledgement to finish before releasing its request. Cancelling that SQLite read before fetching could retain a cursor, block the shutdown checkpoint and prevent Windows from deleting an evaluation's temporary database.
 
 ### Question bank and learner stage
 - A K-12 catalog in People's Education Press textbook order: 24 terms (一年级上册 … 九年级下册, then 人教A版 2019 必修第一册 … 选择性必修第三册 and a 高三下 review term), 149 units and 359 knowledge points.
