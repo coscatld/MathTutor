@@ -74,12 +74,17 @@ def continuation_delta(prefix: str, addition: str) -> tuple[str, bool]:
 def _missing_operand(text: str) -> bool:
     # Closing a formula's delimiters does not supply its missing operand.
     # Peel off only closing formatting and terminal punctuation, not content.
-    tail = text.rstrip()
+    # Markdown emphasis is formatting, not a trailing multiplication operator.
+    # Keep its contents so a bold but incomplete equation still stays partial.
+    tail = re.sub(r"\*\*(?=\S)(.+?)\*\*", r"\1", text, flags=re.S).rstrip()
     while True:
         shortened = re.sub(r"(?:\\\)|\\\]|\$\$|\$|```|[。.!?！？；;])\s*$", "", tail).rstrip()
         if shortened == tail:
             break
         tail = shortened
+    # A one-sided limit ends in a direction sign, not a missing operand.
+    if re.search(r"\\(?:to|rightarrow)\s*(?:[+-]?\d+(?:\.\d+)?|[a-zA-Z]|\\infty)\s*\^\s*[+-]$", tail):
+        return False
     # A provider may report 'stop' despite cutting off an equation.
     return bool(re.search(r"[=+\-−*/^×÷]\s*[\u4e00-\u9fff]?$", tail))
 
@@ -181,7 +186,8 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
             break
         if turn.steps_used == turn.max_steps - 1 or remaining < 2 * (prompt_estimate + allowance):
             turn.grace_call_used = True
-            messages.append({'role': 'system', 'content': '这是最后一次回答机会。不要调用工具或开始新的任务。接着已有回答完成可靠结论，不要重复前文；明确尚未完成的部分。'})
+            messages.insert(1 if messages and messages[0].get('role') == 'system' else 0,
+                {'role': 'system', 'content': '这是最后一次回答机会。不要调用工具或开始新的任务。接着已有回答完成可靠结论，不要重复前文；明确尚未完成的部分。'})
             prompt_estimate = sum(content_token_estimate(m.get("content", "")) + 16 for m in messages)
             allowance = min(allowance, remaining - prompt_estimate)
             if allowance <= 0:
@@ -258,8 +264,11 @@ VERIFY_MATH_TOOL = {"type": "function", "function": {
     "parameters": {"type": "object", "additionalProperties": False, "required": ["expression", "answer"],
                    "properties": {"expression": {"type": "string", "maxLength": 200},
                                   "answer": {"type": "string", "maxLength": 200}}}}}
-MATH_TOOL_INSTRUCTION = ("你可以调用 verify_math 核对计算、化简、解方程或不等式的结论。给出具体数学结论前先核对；"
-                         "结果为 refuted 时改正后再回答，为 unchecked 时如实说明未能核对。不要向学生描述调用过程。")
+MATH_TOOL_INSTRUCTION = ("你可以调用 verify_math 核对局部计算、化简、解方程或不等式的结论。"
+                         "对工具能处理的局部结论优先核对；refuted 时改正后再回答。"
+                         "unchecked 表示工具不支持，不表示结论错误，继续用数学依据解释，不因工具覆盖有限而拒绝高中问题。"
+                         "一般函数性质、方法来由和分段定义域不能冒充多项式等价变形送检；不要反复核对工具不支持的同一步。"
+                         "不要声称未核对的结论已通过机器验证，也不要向学生描述调用过程。")
 
 
 def _draw_receipt(arguments, figures: list, attempts: int) -> dict:

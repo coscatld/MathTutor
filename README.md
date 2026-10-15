@@ -4,7 +4,7 @@
 
 MathTutor 不是把大模型套进聊天框。它把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**0.6.2 Windows x64** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.2) · [下载安装包](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/MathTutor-0.6.2-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/SHA256SUMS-windows.txt) · [更新说明](docs/RELEASE_0.6.2.md)
+**0.6.3 Windows x64** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.3) · [下载安装包](https://github.com/coscatld/MathTutor/releases/download/v0.6.3/MathTutor-0.6.3-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.6.3/SHA256SUMS-windows.txt) · [更新说明](docs/RELEASE_0.6.3.md)
 
 [项目定位](#项目定位) · [核心功能](#核心功能) · [差异化亮点](#差异化亮点) · [Benchmark](#benchmark-与当前结果) · [快速开始](#快速开始) · [能力说明](#资料问答与能力说明)
 
@@ -111,7 +111,11 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前版本为 **0.6.2**，Windows x64 安装包与 SHA-256 校验文件见 [v0.6.2 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.2)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+当前版本为 **0.6.3**，Windows x64 安装包与 SHA-256 校验文件见 [v0.6.3 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.3)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+
+### 0.6.3
+
+高中模式粘贴题目后保存原题与讨论记录，Agent 自主选择追问、解释和配图；自然追问保留原题。常规核验范围在正文后折叠，实际错误保持醒目标注。自由辅导不写独立作答或掌握率。详见 [0.6.3 发布说明](docs/RELEASE_0.6.3.md)。
 
 ### 0.6.2
 
@@ -305,13 +309,13 @@ npm run package:win
 脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器：
 
 ```text
-desktop/dist/MathTutor-0.6.2-win-x64.exe
+desktop/dist/MathTutor-0.6.3-win-x64.exe
 ```
 
 使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。下载后可检查摘要：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\MathTutor-0.6.2-win-x64.exe
+Get-FileHash -Algorithm SHA256 .\MathTutor-0.6.3-win-x64.exe
 ```
 
 ### macOS（Apple 芯片）

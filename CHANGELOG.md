@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.3 — Preserve the original question and let the Tutor teach
+
+- High-school pasted tasks enter agent-led discussion, with durable original questions, current doubts, and recent explanations.
+- The model can explain motivations, ask a useful question, verify local calculations, or draw; natural follow-ups keep the saved question. Explicit verified practice retains its evidence protocol.
+- Routine verification scope folds below each answer; genuine refutations stay visible. Function notation and separate branches no longer trigger false equation comparisons.
+- Complete bold text and one-sided limits no longer falsely appear truncated. Images remain attached to saved original questions.
+- Model reasoning and figure definitions remain fallible; no claim of whole-problem verification or measured learning benefit.
+
 ## 0.6.2 — Draw named examples and keep the drawing conversation
 
 - Requests such as 「画一个图展示一下双曲线」 choose a clearly labelled standard example with parameter sliders, including offline. Ellipses, parabolas, inverse proportional functions, sine and cosine have the same fallback. Given equations and conditions are preserved.

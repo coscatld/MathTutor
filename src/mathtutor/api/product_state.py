@@ -444,12 +444,13 @@ class ProductState:
             practice_repository=self.practice_repository,
             practice_service=self.adaptive_practice,
             chat_responder=TutorChatResponder(
-                self.gateway, self.tutor_preferences.instruction()
+                self.gateway, self.tutor_preferences.instruction(), learner_settings=self.learner_settings
             ),
         )
         from mathtutor.infrastructure.tutor_intent import SemanticTeachingInterpreter
         self.controller.semantic_interpreter = SemanticTeachingInterpreter(self.gateway)
         self.controller.scene_gateway = self.gateway
+        self.controller.learner_settings = self.learner_settings
         self.controller.image_repository = self.images
         from mathtutor.application.chat_documents import ChatDocumentContext
         self.controller.chat_documents = ChatDocumentContext(
@@ -490,7 +491,7 @@ class ProductState:
             self.gateway, self.tutor_preferences.instruction()
         )
         self.controller.chat_responder = TutorChatResponder(
-            self.gateway, self.tutor_preferences.instruction()
+            self.gateway, self.tutor_preferences.instruction(), learner_settings=self.learner_settings
         )
 
     async def refresh_embedding_runtime(self) -> None:

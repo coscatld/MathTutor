@@ -129,7 +129,9 @@ async def test_controller_zero_over_zero_goes_to_tutor() -> None:
     assert "没法确定" not in blob
     assert "0/0" in blob or "除法" in blob
     session = await controller.sessions.load(_owner().student_id, "undef")
-    assert session is None
+    assert session is not None
+    context = await controller.sessions.teaching.load(_owner().student_id, session.cycle.cycle_id)
+    assert context["schema_version"] == "mt-discussion-v1"
 
 
 @pytest.mark.asyncio

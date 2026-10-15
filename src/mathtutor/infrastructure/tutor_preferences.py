@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 
 PERSONALITY_PRESETS = {
-    "patient": {"label": "耐心引导", "instruction": "语气耐心温和，先肯定有效尝试，再用一个小问题推进。"},
+    "patient": {"label": "耐心引导", "instruction": "耐心回应学生的具体疑问，讲清这一步为什么成立，再按需要确认理解；不用反问代替解释。"},
     "socratic": {"label": "苏格拉底式", "instruction": "优先用简短追问帮助学生自己发现下一步，不连续给出结论。"},
     "concise": {"label": "简洁直接", "instruction": "句子简短，只保留当前一步需要的信息。"},
     "detailed": {"label": "细致讲解", "instruction": "在披露边界内解释每一步缘由，并检查学生是否理解。"},

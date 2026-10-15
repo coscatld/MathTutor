@@ -4,6 +4,7 @@ import { Check, ChevronDown, CornerUpLeft, ListChecks } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { DiagnosisSummary, EvidenceSummary, ProblemContext } from "../types";
 import { evidenceStatusLabel } from "../lib/teaching-contract";
+import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 
 const LIFECYCLE_LABELS: Record<string, string> = { ACTIVE: "辅导中", COMPLETED: "本题已完成", RESOLVED: "本题已完成", PAUSED: "已搁置", CLOSED: "已结束", ENDED: "已结束", SKIPPED: "已跳过", NEEDS_CLARIFICATION: "待补充题目" };
 
@@ -39,8 +40,8 @@ export function CurrentProblem({ context }: { context?: ProblemContext | null })
       <ChevronDown className="mt-context-chevron h-3.5 w-3.5 shrink-0" aria-hidden="true" />
     </summary>
     <section aria-label="题目与目标详情" className="mt-context-popover">
-      <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]"><ListChecks className="h-3.5 w-3.5" aria-hidden="true" /><span>当前题目</span><span className="ml-auto rounded-full border border-[var(--border)] px-2 py-0.5">{LIFECYCLE_LABELS[lifecycle] || "当前任务"}</span></div>
-      <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{context.display_text || "请补充当前题目的完整要求。"}</p>
+      <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]"><ListChecks className="h-3.5 w-3.5" aria-hidden="true" /><span>当前题目</span><span className="ml-auto rounded-full border border-[var(--border)] px-2 py-0.5">{lifecycle === "DISCUSSION" ? "原题已保存 · 讨论中" : LIFECYCLE_LABELS[lifecycle] || "当前任务"}</span></div>
+      {lifecycle === "DISCUSSION" ? <div className="mt-3 max-h-72 overflow-auto text-sm leading-6"><MarkdownRenderer content={context.display_text} enableMath /></div> : <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{context.display_text || "请补充当前题目的完整要求。"}</p>}
       {context.current_subgoal?.prompt_target ? <div className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-[var(--primary-text)]">{completeStep ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <CornerUpLeft className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}<span>{completeStep ? "已验证步骤：" : "当前小目标："}{context.current_subgoal.prompt_target}</span></div> : null}
     </section>
   </details>;

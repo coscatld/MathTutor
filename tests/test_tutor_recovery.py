@@ -24,7 +24,6 @@ def events(db):
 
 
 @pytest.mark.parametrize("question,expected_type", [
-    ("求函数y=2x+3的图像", "linear"),
     ("解含参数方程 ax^2+bx+c=0", "quadratic"),
     ("sin(x)=1/2", "linear"),
 ])
@@ -95,11 +94,12 @@ def test_free_explanation_and_continue_survive_restart_with_raw_boundary(tmp_pat
         first = send(ws, "send_message", "first", {"text": question})
         result = terminal(first)
         assert result["event_type"] == "assistant_partial"
-        assert result["recovery_problem"]
+        assert result["recovery_problem"] is None
+        assert result["problem_context"]["lifecycle"] == "discussion"
         body = result["payload"]["final_text"]
         assert body.startswith(UNVERIFIED_NOTICE)
         assert summary(client)["messages"][-1]["content"] == body
-        assert provider.calls[0][1]["max_tokens"] == 2048
+        assert provider.calls[0][1]["max_tokens"] == 1024
         assert len(provider.calls) == 2 and events(db) == 0
         with closing(sqlite3.connect(db)) as connection:
             saved = json.loads(connection.execute("SELECT continuation_context FROM conversation_messages WHERE role='tutor'").fetchone()[0])

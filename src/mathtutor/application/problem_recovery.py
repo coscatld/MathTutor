@@ -22,6 +22,10 @@ def recovery_candidate(text: str, *, mathematical: bool = False) -> tuple[str, s
     concrete_task = re.search(r"求解|计算|化简|证明|解(?:不等式|方程)|求(?:值|根|面积|周长|长度|角)", source)
     if concept and not concrete_task:
         return None
+    if re.search(r"函数|零点|单调|奇偶|指数|对数|分段|数列|导数|圆锥曲线|椭圆|双曲线|三角函数|概率|统计|[fghFGH]\s*\(|(?:\d|e)\s*\^\s*[A-Za-z]", source) and not re.search(r"补基础|基础练习|先练基础", source):
+        # Keep a high-school task intact. Lack of a local solver is not
+        # evidence that the learner needs elementary equation practice.
+        return None
     task = bool(re.search(r"求|计算|证明|(?<!讲)解(?!释|读|说)|化简|多少|几[元米个岁]|应用题|题目", source))
     if not mathematical and not task:
         return None

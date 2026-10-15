@@ -27,6 +27,7 @@ The controller has no tool/capability/runtime surface.
 """
 
 from __future__ import annotations
+import re
 
 import json
 import logging
@@ -321,7 +322,7 @@ class MathTutorController:
     async def _teaching_context(self, owner_id, session, verified):
         from mathtutor.pedagogy.teaching_plan import initial_context
         context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
-        if verified and (context is None or context.get("schema_version") == "mt-recovery-v1" or context.get("pending_diagnostic_initialization")):
+        if verified and (context is None or context.get("schema_version") in {"mt-recovery-v1", "mt-discussion-v1"} or context.get("pending_diagnostic_initialization")):
             diagnostic_seed = {key: context[key] for key in (
                 "diagnostic_item", "resume_parent_cycle_id", "diagnostic_remaining", "client_session_id", "diagnosis", "understanding_check")
                 if context and key in context}
@@ -421,7 +422,8 @@ class MathTutorController:
             try:
                 images = await self.image_repository.resolve(owner.student_id, payload["attachment_ids"])
                 await self._chat_message(session, str(payload.get("text") or ""),
-                    request.conversation_messages, stream, owner_id=owner.student_id, images=images)
+                    request.conversation_messages, stream, owner_id=owner.student_id, images=images,
+                    unstructured_math=True, client_session_id=request.session_id)
             except ValueError as exc:
                 await stream.error(str(exc), source=self.manifest.name)
             return
@@ -577,6 +579,18 @@ class MathTutorController:
                 return
         from mathtutor.application.student_contract import problem_variable, verified_binding
         verified = await self.sessions.load_verified(request.owner.student_id, session.cycle.cycle_id) if session else None
+        learner_settings = getattr(self, "learner_settings", None)
+        if (not verified and learner_settings is not None and learner_settings.current().stage == "high"
+                and self.chat_responder is not None and getattr(self.chat_responder, "is_configured", True)):
+            from mathtutor.application.message_intent import is_concrete_math_input
+            if is_concrete_math_input(text):
+                # Pasted high-school homework starts an agent-led lesson.
+                # Explicit submit_problem/practice commands keep the verified
+                # exercise protocol and its independent evidence accounting.
+                await self._chat_message(session, text, request.conversation_messages, stream,
+                    owner_id=request.owner.student_id, client_session_id=request.session_id,
+                    unstructured_math=True, agent_discussion=True)
+                return
         import re
         if not verified and re.fullmatch(r"[+-]?\d+(?:\.\d+)?", text.strip()):
             await self._dialogue(stream, session, f"你希望对 {text.strip()} 做什么任务？请补充题目要求，例如计算、分解或检验某个结论。", "ASK_STUDENT")
@@ -680,8 +694,12 @@ class MathTutorController:
             await self._dialogue(stream, session, "这是你推到的下一步，还是一道新题？请回复“这是步骤”或“这是新题”。", "CLARIFY_INTENT")
             return
         if routed.intent is ConversationIntent.TEACHING_REQUEST:
-            if session is None:
-                await self._dialogue(stream, session, "请先发来要辅导的题目。", "ASK_STUDENT")
+            if not verified_binding(verified):
+                # A conceptual follow-up does not require a structured algebra
+                # binding. Keep the actual high-school question in its history.
+                await self._chat_message(session, text, request.conversation_messages, stream,
+                    owner_id=request.owner.student_id, client_session_id=request.session_id,
+                    follow_up=True, unstructured_math=True)
             else:
                 await self._run_explicit(request, session, routed.command, {"student_request": text}, envelope, stream)
             return
@@ -758,8 +776,14 @@ class MathTutorController:
             await self._dialogue(stream, session, content, GRAPH_ACTION)
             return
         gateway = getattr(self, "scene_gateway", None)
-        if scene is None and gateway is not None and has_math_content(text):
-            scene = await author_scene(gateway, text)
+        scene_request = text
+        if not source and session is not None:
+            from mathtutor.application.discussion_notebook import model_context
+            saved = model_context(await self.sessions.teaching.load(owner_id, session.cycle.cycle_id))
+            if saved:
+                scene_request = f"原题：{saved['original_question']}\n学生请求：{text}\n分段函数必须按各支定义域截取，不能把区间外的候选根画成原题零点。"
+        if scene is None and gateway is not None and has_math_content(scene_request):
+            scene = await author_scene(gateway, scene_request)
         if scene is not None:
             await self._dialogue(stream, session, render_scene(scene), GRAPH_ACTION)
             return
@@ -1056,11 +1080,31 @@ class MathTutorController:
         unstructured_math: bool = False,
         images: list | None = None,
         client_session_id: str = "",
+        agent_discussion: bool = False,
     ) -> None:
         recovery = None
-        if not images and text.strip() != "继续":
+        if not images and text.strip() != "继续" and not follow_up and not agent_discussion:
             session, recovery = await self._remember_recovery(session, owner_id, text,
                 client_session_id=client_session_id, mathematical=unstructured_math)
+        from mathtutor.application.discussion_notebook import SCHEMA, model_context, starts_new_question
+        notebook = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id) if session and owner_id else None
+        saved_discussion = model_context(notebook)
+        if unstructured_math and not follow_up and owner_id and not recovery and (images or not saved_discussion or starts_new_question(text)):
+            if session is None and client_session_id:
+                session = await self.sessions.create(owner_id, client_session_id)
+            if session is not None:
+                bound = await self.sessions.load_verified(owner_id, session.cycle.cycle_id)
+                if bound is None:
+                    notebook = {"schema_version": SCHEMA, "problem_id": f"discussion-{uuid4()}",
+                        "display_text": text or "图片中的数学题（原图已保存在本会话）", "skill_ids": [], "lifecycle": "discussion",
+                        "original_image_ids": [image["id"] for image in images or []],
+                        "student_focus": "", "discussed": [], "assessments": []}
+                    await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, notebook)
+                    saved_discussion = model_context(notebook)
+        if saved_discussion and text != saved_discussion["original_question"]:
+            notebook["student_focus"] = text
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, notebook)
+            saved_discussion = model_context(notebook)
         responder = self.chat_responder
         document_context = None
         document_source = getattr(self, "chat_documents", None)
@@ -1071,16 +1115,24 @@ class MathTutorController:
                 logger.warning("Chat document retrieval unavailable")
                 document_context = {"status": "retrieval_failed", "files": [], "chunks": []}
         if images is None and getattr(self, "image_repository", None) is not None:
+            if saved_discussion and notebook.get("original_image_ids"):
+                try:
+                    images = await self.image_repository.resolve(owner_id, notebook["original_image_ids"])
+                except ValueError:
+                    await stream.error("原题图片已删除或不可用，请重新上传。", source=self.manifest.name)
+                    return
             # Reattach the latest image turn for conversational follow-ups and
             # continuation. A new structured math task still uses its own route.
             previous = next((m for m in reversed(history[-20:]) if m.get("role") == "student" and m.get("attachments")), None)
-            if previous:
+            if previous and images is None:
                 try:
                     images = await self.image_repository.resolve(owner_id, [a["id"] for a in previous["attachments"]])
                 except ValueError:
                     await stream.error("之前的图片已删除或不可用，请重新上传。", source=self.manifest.name)
                     return
         problem_context = ""
+        if saved_discussion:
+            problem_context = json.dumps(saved_discussion, ensure_ascii=False)
         if follow_up and session is not None and owner_id:
             verified = await self.sessions.load_verified(
                 owner_id, session.cycle.cycle_id
@@ -1120,7 +1172,8 @@ class MathTutorController:
                 takes_figures = "draw_figures" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
                 from mathtutor.skills.canvas_drawing import can_offer_drawing
                 drawing_relevant = can_offer_drawing(text, history)
-                if takes_tools and (unstructured_math or follow_up or drawing_relevant or is_concrete_math_input(text)):
+                math_history = any(is_concrete_math_input(str(item.get("content", ""))) for item in history[-6:])
+                if takes_tools and (unstructured_math or follow_up or drawing_relevant or math_history or is_concrete_math_input(text)):
                     # Maths questions: the model may verify its own claims first,
                     # and show a figure only through the canvas (draw_scene).
                     from mathtutor.application.math_verification import verify_math
@@ -1203,6 +1256,9 @@ class MathTutorController:
             note_turn(figures={"delivered": len(figures)})
         if recovery:
             visible += f"\n\n原题还保留在对话里。可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
+        if saved_discussion and session is not None and provider_result == "success":
+            notebook["discussed"] = [*notebook.get("discussed", []), raw_visible[:1200]][-6:]
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, notebook)
         if turn is not None:
             turn.continuation_context = json.dumps({"kind": "chat", "unstructured_math": unstructured_math,
                 "follow_up": follow_up, "raw_text": raw_visible,
@@ -1500,6 +1556,10 @@ class MathTutorController:
         ):
             transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
             _, recovery = await self._remember_recovery(session, owner_id, constraint.raw_text, mathematical=True)
+            if self.chat_responder is not None and getattr(self.chat_responder, "is_configured", True):
+                await self._chat_message(session, constraint.raw_text, (), stream,
+                    owner_id=owner_id, unstructured_math=True)
+                return
             message = "这道题还不能逐步核验。原题已保留；继续讨论原题时，讲解会标为未经核验。"
             if recovery:
                 message += f"\n\n可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
@@ -1549,6 +1609,10 @@ class MathTutorController:
             logger.info("problem_grounding unsupported reason=%s", result.reason)
             transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
             _, recovery = await self._remember_recovery(session, owner_id, constraint.raw_text, mathematical=True)
+            if self.chat_responder is not None and getattr(self.chat_responder, "is_configured", True):
+                await self._chat_message(session, constraint.raw_text, (), stream,
+                    owner_id=owner_id, unstructured_math=True)
+                return
             message = "这道题还不能逐步核验。原题已保留；继续讨论原题时，讲解会标为未经核验。"
             if recovery:
                 message += f"\n\n可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"

@@ -36,6 +36,9 @@ _RELATION = re.compile(r"<=|>=|≤|≥|<|>")
 _IDENTITY_CUE = re.compile(r"展开|化简|因式分解|分解因式|公式|恒等|合并同类项|配方")
 _ROOT = re.compile(r"^\s*([A-Za-z])\s*=\s*([-+]?\d+(?:[./]\d+)?)\s*$")
 _ROOT_JOIN = re.compile(r"^\s*(?:或|或者|or|，|,|和|及)\s*$")
+_FUNCTION_VALUE = re.compile(r"[fghFGH]\s*\(")
+_DERIVATION_CUE = re.compile(r"得到|得出|得(?=\s*$)|所以|因此|因而|故|解得|化为|可得|两边|移项|除以|同乘|等价|推出|代入|整理|⇒|\\Rightarrow|\\implies")
+_INDEPENDENT_CUE = re.compile(r"端点|分界|边界|定义域|分别|第一[支段]|第二[支段]|候选|令|设|已知")
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,8 @@ class Statement:
     end: int           # offset in the source text, for in-place marks
     new_example: bool  # an explicit "for example" cue precedes it
     identity_cue: bool = False  # "expand / simplify / factor" precedes it
+    derivation_cue: bool = False
+    independent_cue: bool = False
 
 
 @dataclass
@@ -104,7 +109,8 @@ def extract_statements(text: str) -> list[Statement]:
             normalized = _normalize(part)
             if not normalized or not re.search(r"=|<|>", normalized) or "\\" in normalized:
                 continue
-            statements.append(Statement(normalized, part.strip(), end, cue and index == 0, identity_cue and index == 0))
+            statements.append(Statement(normalized, part.strip(), end, cue and index == 0, identity_cue and index == 0,
+                bool(_DERIVATION_CUE.search(prefix)) or index > 0, bool(_INDEPENDENT_CUE.search(prefix))))
     return statements[:MAX_CLAIMS]
 
 
@@ -144,8 +150,13 @@ async def certify(text: str, backend, *, anchor: tuple[str, str] | None = None) 
     result = Certification()
     chain_anchor = anchor[1] if anchor and anchor[0] in _DERIVATION_TYPES else None
     variables = set(re.findall(r"[A-Za-z]", chain_anchor or ""))
+    contextual_math = anchor is None and bool(re.search(r"函数|零点|定义域|分段|参数|[fghFGH]\s*(?:\\!?\s*)?\(", text))
     for statement in extract_statements(text):
         source = statement.text
+        if _FUNCTION_VALUE.search(source):
+            # A function value is not implicit multiplication by its argument.
+            result.unchecked += 1
+            continue
         relation = _RELATION.search(source)
         root_list = "或" in source
         if not relation and not root_list and source.count("=") >= 2:
@@ -173,8 +184,22 @@ async def certify(text: str, backend, *, anchor: tuple[str, str] | None = None) 
                 continue
         # A derivation step: same solution set as the anchor.
         own = set(re.findall(r"[A-Za-z]", source))
-        if chain_anchor is None or statement.new_example or (variables and not own <= variables):
+        if contextual_math:
+            # Function discussions mix definitions, domains, sample points,
+            # candidates and conclusions. There is no reliable single
+            # equation anchor for them; only identities/arithmetic above
+            # are machine-checkable without a bound exercise.
+            result.unchecked += 1
+            continue
+        if chain_anchor is None or statement.new_example or statement.independent_cue or (variables and not own <= variables):
             chain_anchor, variables = source, own  # a premise starts a new chain
+            result.unchecked += 1
+            continue
+        if anchor is None and not statement.derivation_cue:
+            # Distinct endpoint values and branch conditions are not an
+            # assertion of equivalence between their solution sets.
+            chain_anchor, variables = source, own
+            result.unchecked += 1
             continue
         check = await verify_math(backend, chain_anchor, source)
         reason = "漏掉了解" if "missing_root" in check.signals else "和前面的方程（不等式）不等价"

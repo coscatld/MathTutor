@@ -102,6 +102,11 @@ async def session_contract(store, owner_id, session, *, processing=False):
                         "label": "重新查看答案" if command == "request_solution" and assistance and assistance.max_level_issued == 5 else ""})
     from mathtutor.pedagogy.teaching_plan import public_context
     from mathtutor.application.function_graph import GRAPHABLE_TYPES
+    from mathtutor.application.discussion_notebook import public_discussion
+    if public_discussion(context):
+        for action in actions:
+            if action["reason_code"] == "NO_VERIFIED_SOLUTION":
+                action["description"] = "本题已保存，可以直接在对话中追问；尚未启用本地自动判题。"
     evidence = {"independent": 0, "assisted": 0, "post_solution": 0, "diagnostic": 0, "ungradable": 0, "status": "尚无独立检测证据"}
     tracking = getattr(store, "student_state", None)
     if tracking:
@@ -117,7 +122,7 @@ async def session_contract(store, owner_id, session, *, processing=False):
             "effective_assistance_level": assistance.max_level_issued if assistance else 0,
             "allowed_actions": actions, "allowed_next_inputs": [a["command"] for a in actions if a["enabled"]],
             "teaching_plan": context.get("last_plan") if context else None,
-            "problem_context": {**public_context(context), "graphable": verified[0].problem_type in GRAPHABLE_TYPES} if context and valid else None,
+            "problem_context": {**public_context(context), "graphable": verified[0].problem_type in GRAPHABLE_TYPES} if context and valid else public_discussion(context),
             "evidence_summary": evidence, "active_offer": active_offer,
             "diagnosis": context.get("diagnosis") if context else None,
             "recovery_problem": context.get("recovery_problem") if context else None}

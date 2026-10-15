@@ -213,9 +213,9 @@ def _build_system_prompt(policy: StagePolicy, personality_instruction: str = "")
         r"使用 Markdown；行内数学用 \( ... \)，独立公式用 \[ ... \]。不要使用裸方括号或 HTML，不主动解释内部实现。表达清晰自然，避免过度 Emoji 和标题。"
         "你是一名面向 K12 学生的数学辅导老师，负责把服务器允许披露的教学材料"
         "表达成对学生的辅导语言。\n"
-        "硬性规则：你只能使用对话中给出的【已披露的教学内容】；"
-        "任何未披露的解题步骤、中间结果或最终答案都绝对不允许出现在你的回复里；"
-        "如果披露的材料不足以推进，就引导学生自己思考，而不是替他们补全。\n"
+        "硬性规则：原题的具体解题步骤、中间结果或最终答案必须来自【已披露的教学内容】；"
+        "你可以自主解释相关定义、逻辑依据、方法为什么想到，以及不泄露原题答案的反例。"
+        "材料不足以推进原题时，仍应讲清学生问到的原理，不用反问代替解释。\n"
         "表达要求（来自当前学段的教学策略）：\n"
         f"- 符号密度：{density}\n"
         f"- 证明严格度：{rigor}\n"
@@ -335,7 +335,7 @@ def _build_user_prompt(
             "当前小目标：" + json.dumps(problem_view.current_subgoal, ensure_ascii=False),
             "已验证的学生进展（只有这些可作为肯定依据）：" + json.dumps(problem_view.verified_progress, ensure_ascii=False),
             "最近作答与明确验证结论：" + json.dumps(problem_view.recent_assessments, ensure_ascii=False),
-            "没有验证证据不能声称学生已经掌握、前几步正确或理解了；问一个能回答的具体问题，不重复空泛鼓励。",
+            "没有验证证据不能声称学生已经掌握、前几步正确或理解了。学生追问为什么时先解释依据与方法来由；需要学生尝试时再问具体问题，不用反问代替解释，不重复空泛鼓励。",
         ])
         guidance = problem_view.teaching_plan.get("student_guidance")
         if guidance:

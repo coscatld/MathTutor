@@ -59,9 +59,29 @@ async def test_grace_call_before_step_cap():
     assert turn.grace_call_used and turn.steps_used == 2
     assert '先把23拆成' in turn.final_text and turn.final_text.endswith('20+3。')
     assert '续写接缝待核对' in turn.final_text
-    assert '最后一次' in provider.calls[1][0][-1]['content']
+    assert any(m['role']=='system' and '最后一次' in m['content'] for m in provider.calls[1][0])
+    assert provider.calls[1][0][-1]['role']=='user'
     assert turn.status == 'PARTIAL'
     assert turn.input_tokens == 24
+
+
+@pytest.mark.asyncio
+async def test_complete_bold_explanation_is_not_a_trailing_multiplication():
+    provider = Provider(result('stop', '**移项是为了联系函数值域。**'))
+    turn = await run(provider)
+    assert turn.status == 'COMPLETED' and len(provider.calls) == 1
+
+
+def test_emphasis_does_not_hide_incomplete_equation():
+    from mathtutor.application.tutor_runtime import _unfinished_surface
+    assert _unfinished_surface('**计算得到 \\(x=\\)。**')
+    assert _unfinished_surface('计算得到 x=2*')
+
+
+def test_one_sided_limit_direction_is_a_complete_formula():
+    from mathtutor.application.tutor_runtime import _unfinished_surface
+    assert not _unfinished_surface(r'从 \(x\to1^+\) 到 \(x\to2^-\)。')
+    assert _unfinished_surface(r'计算得 \(x^\)。')
 
 
 @pytest.mark.asyncio

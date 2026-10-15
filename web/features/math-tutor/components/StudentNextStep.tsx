@@ -45,6 +45,9 @@ export default function StudentNextStep({ context, plan, evidence, offer, action
   const active = context?.lifecycle.toUpperCase() === "ACTIVE";
   const ended = ["CLOSED", "ENDED", "SKIPPED"].includes(context?.lifecycle.toUpperCase() || "");
   const checking = context?.understanding_check === true;
+  // The agent leads discussion lessons in the conversation; these fixed
+  // controls belong to the verified exercise protocol.
+  if (context?.lifecycle.toUpperCase() === "DISCUSSION") return null;
   if (!context && !validOffer) {
     const navigation = [
       { command: "resume_problem" as const, label: "回到原题" },
