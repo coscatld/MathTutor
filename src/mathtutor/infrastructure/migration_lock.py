@@ -13,9 +13,9 @@ def migration_lock(database: Path, *, timeout: float = 45.0):
     path = Path(f"{database}.migration.lock")
     path.parent.mkdir(parents=True, exist_ok=True)
     with os.fdopen(os.open(path, os.O_CREAT | os.O_RDWR, 0o600), "r+b") as handle:
-        if os.fstat(handle.fileno()).st_size == 0:
-            handle.write(b"\0")
-            handle.flush()
+        # Windows permits locking beyond EOF. Leave the file empty so two
+        # first launches cannot race writing a byte before acquiring the lock.
+        # https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/locking
         if os.name == "nt":
             import msvcrt
 

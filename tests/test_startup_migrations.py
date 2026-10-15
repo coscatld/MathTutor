@@ -193,3 +193,36 @@ with migration_lock(root / 'math_tutor.db'):
         if process.poll() is None:
             process.kill()
         process.wait()
+
+
+def test_simultaneous_lock_file_creation_serializes_all_writers(tmp_path):
+    code = '''
+from pathlib import Path
+import sys, time
+from mathtutor.infrastructure.migration_lock import migration_lock
+root, worker = Path(sys.argv[1]), sys.argv[2]
+(root / ('ready-' + worker)).touch()
+deadline = time.monotonic() + 15
+while not (root / 'go').exists():
+    assert time.monotonic() < deadline
+    time.sleep(.01)
+with migration_lock(root / 'math_tutor.db'):
+    counter = root / 'counter'
+    value = int(counter.read_text()) if counter.exists() else 0
+    counter.write_text(str(value + 1))
+'''
+    processes = [subprocess.Popen([sys.executable, "-c", code, str(tmp_path), str(index)],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE) for index in range(6)]
+    try:
+        for index in range(6):
+            wait_file(tmp_path / f"ready-{index}")
+        (tmp_path / "go").touch()
+        for process in processes:
+            out, err = process.communicate(timeout=15)
+            assert process.returncode == 0, (out, err)
+        assert (tmp_path / "counter").read_text() == "6"
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+            process.communicate()
