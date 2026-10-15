@@ -123,7 +123,7 @@ def test_short_student_formula_does_not_replace_saved_question(tmp_path):
         state.learner_settings.update('high',10)
         state.controller.chat_responder=DiscussionTeacher()
         send(ws,'send_message','question',{'text':QUESTION})
-        for index,text in enumerate(['a=2','g(1)=0','0<a<3']):
+        for index,text in enumerate(['a=2','g(1)=0','0<a<3','函数为什么在这段递增？']):
             send(ws,'send_message',f'step-{index}',{'text':text})
             assert summary(client)['problem_context']['display_text']==QUESTION
         next_question='已知f(x)=2^x-1，求它的零点。'

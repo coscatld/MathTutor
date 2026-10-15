@@ -11,6 +11,9 @@ def starts_new_question(text: str) -> bool:
     text = text.strip()
     if FOLLOWUP.match(text):
         return False
+    if (re.search(r"为什么|为何|看不懂|不明白|怎么想到|怎么算", text)
+            and not re.match(r"^(?:换题|新题|下一题|已知|若)", text)):
+        return False
     return bool(re.match(r"^(?:换题[：:]?|新题[：:]?|下一题[：:]?|已知|若|求|计算|化简|证明|解(?:方程|不等式)|函数|数列)", text)
                 or re.search(r"_{3,}|（\s*）|\(\s*\)", text))
 
