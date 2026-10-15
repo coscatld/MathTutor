@@ -40,6 +40,21 @@ jobs:
           foreach ($item in $running) { taskkill /PID $item.ProcessId /T /F 2>$null }
           python scripts/diagnose-windows-startup.py --install $install --work $work
           if ($LASTEXITCODE -ne 0) { throw 'Diagnosis harness failed' }
+      - name: Validate read-only collector with Windows PowerShell 5
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'mathtutor-startup-diagnosis'
+          $env:MATHTUTOR_DB_PATH = Join-Path $work '用户数据三\math_tutor.db'
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File scripts/Collect-MathTutorStartup.ps1 -InstallDir (Join-Path $work 'ascii-install')
+          if ($LASTEXITCODE -ne 0) { throw 'Collector execution failed' }
+          $desktop = [Environment]::GetFolderPath('DesktopDirectory')
+          $zip = Get-ChildItem $desktop -Filter 'MathTutor-startup-diagnosis-*.zip' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $zip) { throw 'Collector archive missing' }
+          Copy-Item $zip.FullName (Join-Path $work 'report\onsite-collector-sample.zip')
+          Expand-Archive $zip.FullName (Join-Path $work 'collector-check')
+          $payload = Get-Content (Join-Path $work 'collector-check\runtime-1.json') -Raw | ConvertFrom-Json
+          $db = @($payload.databases | Where-Object { $_.exists -and $_.revisions })
+          if ($db.Count -ne 1 -or $db[0].revisions[0][0] -ne '024') { throw 'Collector did not read expected migration version' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
