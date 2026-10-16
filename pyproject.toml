@@ -50,6 +50,7 @@ dev = [
   "numpy>=1.26,<3",
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
+  "sympy>=1.13,<2",
 ]
 
 [project.scripts]
