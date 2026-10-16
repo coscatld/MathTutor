@@ -152,14 +152,29 @@ def verify_code_plugins(base, python, executable, data, *, environment):
         assert actual['runtime'] == runtime, actual
         assert Path(actual['executable']).resolve() == expected_executable.resolve(), actual
         assert first['authority'] == 'reference_only' and first['sandboxed'] is False and first['read_only'] is False, first
+        path_configuration = None
         if runtime == 'python':
-            assert actual['isolated'] == actual['no_site'] == 1, actual
+            assert actual['isolated'] == 1, actual
+            assert type(actual['no_site']) is int and actual['no_site'] in (0, 1), actual
+            # The shipped Windows embeddable runtime pins its paths in this
+            # file and explicitly opts into site. That configuration can make
+            # no_site=0 despite -S; it is not a global/user Python dependency.
+            pth = python.parent / 'python312._pth'
+            if pth.is_file():
+                entries = [line.strip() for line in pth.read_text(encoding='utf-8-sig').splitlines()
+                           if line.strip() and not line.lstrip().startswith('#')]
+                path_configuration = {'file': pth.name, 'entries': entries, 'import_site': 'import site' in entries}
+            if actual['no_site'] == 0:
+                assert path_configuration and path_configuration['import_site'], 'site enabled without packaged ._pth opt-in'
         else:
             assert actual['node_version'], actual
-        result['cases'].append({'runtime': runtime, 'status': 'PASS', 'plugin_id': plugin['id'],
+        evidence = {'runtime': runtime, 'status': 'PASS', 'plugin_id': plugin['id'],
             'command': record['command'], 'source_sha256': sha256(source.encode('utf-8')).hexdigest(),
             'explicit_local_code_consent': True, 'runtime_available': True, 'data': actual,
-            'packaged_runtime': True, 'replayed_same_receipt': True, 'executions_after_replay': 1})
+            'packaged_runtime': True, 'replayed_same_receipt': True, 'executions_after_replay': 1}
+        if path_configuration is not None:
+            evidence['python_path_configuration'] = path_configuration
+        result['cases'].append(evidence)
         # Leave the disposable fresh profile safe for its subsequent relaunch;
         # disabling does not erase evidence or reset the execution ledger.
         disabled = local_api(base, path + '/enabled', method='PUT', payload={'enabled': False})

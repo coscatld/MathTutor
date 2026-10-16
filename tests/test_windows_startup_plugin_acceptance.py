@@ -33,10 +33,18 @@ def test_packaged_code_smoke_has_typed_typescript_and_utf8_python_sources():
     assert "sys.executable" in acceptance.PYTHON_PLUGIN
 
 
-@pytest.mark.parametrize("failure", [None, "duplicate-execution", "global-runtime"],
-                         ids=["valid-protocol", "replay-side-effect-detected", "global-python-detected"])
-def test_code_smoke_validates_explicit_consent_replay_and_install_runtime(tmp_path, monkeypatch, install_paths, failure):
+@pytest.mark.parametrize("failure,no_site", [(None, 1), (None, 0), ("isolated-disabled", 0),
+        ("site-without-optin", 0), ("duplicate-execution", 1), ("global-runtime", 1)],
+    ids=["valid-protocol", "embedded-site-explicitly-enabled", "nonisolated-python-rejected",
+         "site-without-packaged-optin-rejected", "replay-side-effect-detected", "global-python-detected"])
+def test_code_smoke_validates_explicit_consent_replay_and_install_runtime(tmp_path, monkeypatch, install_paths, failure, no_site):
     python, executable, environment = install_paths
+    if no_site == 0:
+        python.parent.mkdir(parents=True)
+        lines = ["python312.zip", ".", "Lib", "Lib/site-packages", "../python-app"]
+        if failure != "site-without-optin":
+            lines.append("import site")
+        (python.parent / "python312._pth").write_text("\n".join(lines) + "\n", encoding="ascii")
     rows, receipts, calls = {}, {}, []
 
     def local_api(base, path, *, method="GET", payload=None, file=None, operation_id=None, expected_status=200):
@@ -73,7 +81,8 @@ def test_code_smoke_validates_explicit_consent_replay_and_install_runtime(tmp_pa
                 actual_executable = tmp_path / "global/python.exe"
             receipts[plugin_id] = {"authority": "reference_only", "read_only": False, "sandboxed": False,
                 "data": {"text": payload["text"], "answer": 42, "executions": 1, "runtime": runtime,
-                "executable": str(actual_executable), "isolated": 1, "no_site": 1, "node_version": "fixture-only"}}
+                "executable": str(actual_executable), "isolated": 0 if failure == "isolated-disabled" else 1,
+                "no_site": no_site, "node_version": "fixture-only"}}
         elif failure == "duplicate-execution":
             # Returning the old receipt alone must not hide a repeated side effect.
             marker.write_text("2", encoding="utf-8")
@@ -88,6 +97,11 @@ def test_code_smoke_validates_explicit_consent_replay_and_install_runtime(tmp_pa
         assert result["status"] == "PASS" and result["provider_calls"] == 0
         assert {row["runtime"] for row in result["cases"]} == {"python", "typescript"}
         assert all(row["packaged_runtime"] and row["executions_after_replay"] == 1 for row in result["cases"])
+        python_case = next(row for row in result["cases"] if row["runtime"] == "python")
+        assert python_case["data"]["no_site"] == no_site
+        if no_site == 0:
+            assert python_case["python_path_configuration"]["file"] == "python312._pth"
+            assert python_case["python_path_configuration"]["import_site"] is True
         assert len([call for call in calls if call[0].endswith("/run")]) == 6
         assert all(not row["enabled"] for row in rows.values())
 
