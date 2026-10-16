@@ -1,4 +1,14 @@
-# CURRENT STATE — 2026-09-04 AUTH HOTFIX CANDIDATE
+# 0.7.0 公开发行记录 — 2026-10-17
+
+本次按维护者要求发布正式 GitHub Release，公开已经验收的未发行签名安装包。GitHub 的非预发布状态与发行证书、Mac 公证及 Gatekeeper 验证分别记录；本次没有宣称签名发布门通过，也没有放宽 `release-packaging.yml` 或 `package:mac:release` 的证书检查。
+
+- macOS arm64：应用、只读 DMG、凭据清理、业务与插件对话验收通过；无 Developer ID，未公证，Gatekeeper 默认打开体验未验证。
+- Windows x64：GitHub 构建、实际安装、中文路径启动、迁移及包内 Python/TypeScript 插件验收通过；无 Authenticode 发行证书。
+- Linux：源码 CI 通过，未提供或验收 Linux 安装包；Intel Mac 同样没有本轮安装包。
+
+0.7.0 的来源、文件摘要和验收链接见[更新说明](RELEASE_0.7.0.md)。下文保留历史决策与旧版记录；签名、公证及签名验证后的自动更新目标仍未完成，历史的 PARTIAL 不被改写为签名发布就绪。
+
+# 历史状态 — 2026-09-04 AUTH HOTFIX CANDIDATE
 
 - Core RC: **RC_READY**; macOS public release: **PARTIAL** only because real
   Developer ID signing, notarization/stapling and Gatekeeper validation lack

@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.7.0 — Knowledge vault and creator community (trial)
+## 0.7.0 — Knowledge vault and creator community
 
-- Use the formal product name “MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统”; keep `MathTutor` as the navigation, bundle and executable name. Target unsigned Windows x64 EXE and macOS Apple Silicon DMG trial builds; public attachments and acceptance records remain authoritative on the release page.
+- Use the formal product name “MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统”; keep `MathTutor` as the navigation, bundle and executable name. Publish v0.7.0 as a non-prerelease GitHub Release with verified Windows x64 EXE and macOS Apple Silicon DMG assets and SHA-256 checksums. The binaries have no publisher certificate; macOS notarization remains incomplete.
+- Add open-source contribution, conduct and security guides, Issue/PR templates, importable quadratic-function question and plugin examples, and a roadmap for a GitHub resource index, plugin version management and contribution review. Keep code execution behind explicit user trust and consent.
 - Unify answer-source selection in conversation materials. Manage folders, Markdown edits, versions, tags and backlinks in the knowledge vault; import and export shared question packs without widening a conversation's source scope or marking reference answers verified.
 - Add direct imports of user-downloaded community files and installed-plugin management. Keep creator APIs and GitHub/custom HTTPS catalog integration in developer documentation; imported question packs become editable personal copies.
 - Split document and plugin imports into separate entry points. Import UTF-8 Markdown/TXT files and folders with relative paths, preserve TXT names through edits and exports, reject wrong resource types before writes, and avoid accumulating hidden source-cache entries for shared files.
@@ -11,7 +12,7 @@
 - Import explicitly trusted Python/TypeScript single files or bounded code ZIPs. Run `/command arguments` through the host once, feed actual reference results to native or non-native models, and retain bounded replay receipts. Ship runtimes, require separate code consent, and label this execution as local-account code rather than an OS sandbox.
 - Connect the trusted, in-process creator SDK to the real tutor tool loop with strict schemas, bounded results and execution budgets. Explicit directory grants constrain text-file tools; grants expire on restart, and writing requires the current user's file-write request. This SDK is not an arbitrary third-party code sandbox or package installer.
 - Keep plugin statistics, reference material, memory and tool receipts separate from verified solution evidence and DKT/mastery updates. SQLite backup format and migration head remain unchanged at `024`; independent community settings require their own export, and successful database restore clears plugin data consent.
-- No paid model calls, new model weights or benchmark re-evaluation are included in this update. Historical scores and figures retain their original evaluation scope. See [0.7.0 trial notes](docs/RELEASE_0.7.0.md) for data flow and packaging boundaries.
+- No paid model calls, new model weights or benchmark re-evaluation are included in this update. Historical scores and figures retain their original evaluation scope. See [0.7.0 release notes](docs/RELEASE_0.7.0.md) for data flow and packaging boundaries.
 
 ## 0.6.5 — Learning support, effective memory and curriculum coverage
 

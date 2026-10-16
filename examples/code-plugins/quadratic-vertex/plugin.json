@@ -1,0 +1,19 @@
+{
+  "schema_version": "mathtutor.code-plugin.v1",
+  "kind": "code-plugin",
+  "workflow": "code",
+  "id": "example.quadratic-vertex",
+  "version": "1.0.0",
+  "name": "二次函数顶点计算示例",
+  "author": "MathTutor 社区示例",
+  "license": "Apache-2.0",
+  "description": "对整数系数二次函数 y=ax²+bx+c 计算精确顶点与判别式。",
+  "readme": "启用后输入 /vertex 1 -4 3。该计算工具不评价学生是否掌握知识。",
+  "changelog": "1.0.0：首次发布 Python 代码插件示例。",
+  "runtime": "python",
+  "command": "vertex",
+  "entrypoint": "vertex.py",
+  "required_permissions": [
+    "execute_local_code"
+  ]
+}

@@ -1,0 +1,27 @@
+name: Feature request
+description: 讨论功能或教学场景改进
+title: '[Feature] '
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景与问题
+      description: 描述教师或学生为什么需要这一功能，避免学生个人数据
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议方案
+    validations:
+      required: true
+  - type: textarea
+    id: evaluation
+    attributes:
+      label: 如何验证有效？
+      description: 说明应测量的功能指标、失败案例和实际教学效果指标
+  - type: textarea
+    id: boundary
+    attributes:
+      label: 权限、数据、安全与兼容性影响

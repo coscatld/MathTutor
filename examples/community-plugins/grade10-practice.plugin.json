@@ -1,0 +1,33 @@
+{
+  "schema_version": "mathtutor.community-plugin.v1",
+  "kind": "teaching-plugin",
+  "id": "example.grade10-practice",
+  "version": "1.0.0",
+  "name": "高一数学基础巩固",
+  "description": "按现有课程题库均衡抽取高一数学参考练习，先独立尝试再核对。",
+  "author": "MathTutor 社区示例",
+  "license": "Apache-2.0",
+  "tags": [
+    "高一",
+    "组卷",
+    "基础巩固"
+  ],
+  "grades": [
+    10
+  ],
+  "readme": "选择高一年级后从本地课程题库生成参考练习。关闭答案展示，引导学生先自主作答。作者题库解析不意味着学生步骤已自动核验。",
+  "changelog": "1.0.0：首次发布社区示例。",
+  "workflow": "exam-builder",
+  "defaults": {
+    "grade": 10,
+    "question_count": 6,
+    "seed": 2026,
+    "point_codes": [],
+    "include_answers": false,
+    "focus_weak_skills": false
+  },
+  "teaching_guidance": "学生先独立尝试，确认需求后给出分层提示；参考解析仅供核对，不标记学生已掌握。",
+  "required_permissions": [
+    "question_bank"
+  ]
+}

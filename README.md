@@ -1,14 +1,24 @@
 # MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统
 
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/badge/Release-v0.7.0-blue.svg)](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Benchmarks-yellow.svg)](https://huggingface.co/datasets/coscatld/mathtutor)
+
 **面向小学至高中的本地数学辅导系统，连接学习过程、可追溯资料与有明确边界的解题核验。**
 
 MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**当前版本：0.7.0 试用版**，面向 Windows x64 EXE 与 macOS Apple Silicon DMG。试用安装包未经发行证书签名；公开下载附件与校验记录以 [GitHub Releases](https://github.com/coscatld/MathTutor/releases) 为准。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
+**当前正式版本：0.7.0**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64.dmg) · [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0.txt)。安装包未使用发行证书签名，Mac 未公证。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
 
 **此前已发布的 0.6.5**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.5) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-win-x64.exe) · [更新说明](docs/RELEASE_0.6.5.md)
 
-[项目定位](#项目定位) · [核心功能](#核心功能) · [差异化亮点](#差异化亮点) · [Benchmark](#benchmark-与当前结果) · [快速开始](#快速开始) · [能力说明](#资料问答与能力说明)
+[项目定位](#项目定位) · [核心功能](#核心功能) · [差异化亮点](#差异化亮点) · [Benchmark](#benchmark-与当前结果) · [Hugging Face](https://huggingface.co/datasets/coscatld/mathtutor) · [快速开始](#快速开始) · [能力说明](#资料问答与能力说明)
+
+| 你想做什么 | 从这里开始 |
+|---|---|
+| 安装使用 | [0.7.0 安装包与 SHA-256](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)，内置 Python / Node，无需另装开发环境 |
+| 了解或复现评测 | [Hugging Face 评测工具与阶段结果](https://huggingface.co/datasets/coscatld/mathtutor)及下文的指标说明 |
+| 导入自己的资料和插件 | [社区使用指南](docs/COMMUNITY.md)，资料和插件分别导入，代码插件需明确确认信任 |
+| 贡献题库或插件 | [贡献指南](CONTRIBUTING.md)、[题库投稿](docs/QUESTION_PACK_CONTRIBUTION.md)、[插件快速入门](docs/PLUGIN_QUICKSTART.md) |
+| 开发核心功能 | [代码导航](docs/OPEN_SOURCE_REPOSITORY_MAP.md)和[源码运行方法](#快速开始) |
 
 ## 项目定位
 
@@ -82,6 +92,8 @@ flowchart LR
 
 ## Benchmark 与当前结果
 
+评测工具与阶段结果同时发布在 **[Hugging Face：coscatld/mathtutor](https://huggingface.co/datasets/coscatld/mathtutor)**，包含四基准适配、运行与评分工具、离线复现说明、费用控制及 Matplotlib 折线图。该仓库明确保留历史被测提交和未完成范围，不能当作 0.7.0 的全量成绩；原始第三方题库未重新分发，来源和许可见其仓库说明。
+
 2026-10-16新增K12内部基准：192道题，开发与封存测试各96道。同一DeepSeek模型经真实产品入口完成两轮agent改进后，封存测试严格答案通过率从87/96（90.6%）升至93/96（96.9%），高中从35/42（83.3%）升至40/42（95.2%）。初中有1题回退，保留全部失败与评分争议。指标包含所求量和格式约定，有限样本不代表所有年级或高考题的通用表现；方法与边界见[K12基准记录](docs/K12_BENCHMARK_20261016.md)。
 
 <!-- OPEN_SOURCE_BENCHMARK_20261016 -->
@@ -126,9 +138,9 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前版本为 **0.7.0 试用版**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG 两种构建目标。试用包使用无发行证书的构建方式，macOS 包未公证。构建日志、实际安装启动验收和 SHA-256 用于检查具体产物；公开版本与附件以 [GitHub Releases](https://github.com/coscatld/MathTutor/releases) 为准。数据库 migration head 保持 **024**，此次没有新增结构迁移。
+当前正式版本为 **0.7.0**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG。正式版表示 GitHub Release 的发行状态；两个安装包未使用发行证书签名，macOS 包未公证。三平台源码 CI、Windows 实际安装启动和 Mac 应用及只读 DMG 验收均已通过；下载后按随附 SHA-256 核对具体文件。数据库 migration head 保持 **024**，此次没有新增结构迁移。
 
-### 0.7.0：资料库、社区与创作者接口（试用版）
+### 0.7.0：资料库、社区与创作者接口
 
 参考资料选择已合并到对话页的“对话资料”，可以先预览再应用；知识库提供“题库与笔记”和“教学技能”两个入口。共享题库和 Markdown 文件夹可以导入、编辑并回导出；导入不会自动扩大对话参考范围，也不会把作者答案标为已验证。
 
@@ -185,6 +197,7 @@ DKT 的当前技能预测与独立作答证据现在共同影响普通聊天的�
 
 | 版本 | 内容 | 安装包 | SHA-256 |
 |---|---|---|---|
+| [`v0.7.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) | 对话资料、可编辑知识库、社区导入与插件斜杠命令 | [macOS arm64 DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64.dmg) / [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64.exe) | [SHA256SUMS-0.7.0.txt](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0.txt) |
 | [`v0.6.2`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.2) | 标准曲线示例、作图上下文续接与主动配图 | [`MathTutor-0.6.2-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/MathTutor-0.6.2-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/SHA256SUMS-windows.txt) |
 | [`v0.6.1`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.1) | 修复并发启动、迁移异常恢复与启动日志 | [`MathTutor-0.6.1-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/MathTutor-0.6.1-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/SHA256SUMS-windows.txt) |
 | [`v0.6.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0) | 讲解公式核验、交互式数形结合、K-12 题库 | [`MathTutor-0.6.0-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/MathTutor-0.6.0-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/SHA256SUMS-windows.txt) |
@@ -202,6 +215,16 @@ macOS 安装包发布前都通过打包后冒烟测试（启动、作答、重�
 - 0.4.2 完成 RAG 集成，见 [PR #2](https://github.com/coscatld/MathTutor/pull/2)。
 
 下载请查看 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)，并用对应版本的 SHA-256 校验文件或上表历史摘要核对。
+
+## 开源参与与社区生态
+
+MathTutor 采用 Apache-2.0 许可证。可以通过 Pull Request 贡献题库、插件、缺陷修复、测试与文档。
+
+- [参与贡献](CONTRIBUTING.md) · [代码导航](docs/OPEN_SOURCE_REPOSITORY_MAP.md) · [行为准则](CODE_OF_CONDUCT.md) · [安全披露](SECURITY.md)
+- [题库投稿](docs/QUESTION_PACK_CONTRIBUTION.md) · [共享题库规范](docs/SHARED_QUESTION_PACKS.md) · [题库示例](examples/question-packs/)
+- [插件快速入门](docs/PLUGIN_QUICKSTART.md) · [插件开发指南](docs/PLUGIN_DEVELOPMENT.md) · [Python/TypeScript 插件](docs/CODE_PLUGINS.md)
+
+当前社区由用户主动导入资源和插件。下一阶段重点建设 **GitHub 开源资源索引、插件版本管理和社区贡献审核**，验收范围见[社区路线图](docs/COMMUNITY_ROADMAP.md)。索引和审核不代替使用者授权；代码插件继续默认停用，经明确同意后启用，升级后重新确认，不自动安装或执行。历史评测结果保持原有口径。
 
 ## 快速开始
 

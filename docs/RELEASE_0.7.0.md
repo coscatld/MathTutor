@@ -1,8 +1,8 @@
-# MathTutor 0.7.0 试用更新说明
+# MathTutor 0.7.0 正式版更新说明
 
 正式名称：**MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统**。
 
-0.7.0 面向 Windows x64 EXE 与 macOS Apple Silicon DMG 两种试用包。试用构建不使用发行证书，Mac 包未公证；应结合具体产物的 SHA-256、构建日志和安装启动验收记录使用。本说明不表示附件已经公开上传，公开版本与下载附件以 [GitHub Releases](https://github.com/coscatld/MathTutor/releases) 为准。
+0.7.0 以非预发布的 GitHub Release 发行，提供 Windows x64 EXE 与 macOS Apple Silicon DMG。[正式发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)包含安装包、校验文件和可直接导入的社区示例。两个安装包未使用发行证书签名，Mac 未公证；正式版标记不代表签名、公证或 Gatekeeper 门禁通过，原签名发布构建门仍保留。
 
 ## 对话资料与知识库
 
@@ -46,11 +46,24 @@ SDK 处理器运行于可信应用进程，**不是代码沙盒**。SDK 处理�
 
 数据库 migration head 保持 **024**，没有新增结构迁移；现有备份格式仍仅覆盖 SQLite。社区源与插件设置是独立本地配置，换机前需单独导出资源或重新订阅、导入。成功恢复数据库后所有插件停用并清除数据同意；目录授权也须重新授予，不会随数据库备份转移访问权限。
 
-## 试用安装包目标
+## 开源贡献与下一阶段
+
+新增贡献指南、行为准则、安全政策、Issue/PR 模板和二次函数题库、声明式组卷、Python 顶点计算插件示例。文件直接位于仓库根目录及其 `docs/`、`examples/`、`tests/`、`.github/`，没有额外的 `overlay/` 层。开发者入口见[代码导航](OPEN_SOURCE_REPOSITORY_MAP.md)和[插件快速入门](PLUGIN_QUICKSTART.md)。
+
+下一阶段建设 GitHub 开源资源索引、插件版本管理与社区贡献审核，详见[路线图](COMMUNITY_ROADMAP.md)。这些是后续建设目标；当前用户仍主动导入文件，代码插件仍需明确授权，审核不等于安全沙盒或教学效果认证。
+
+## 安装包与验收
 
 - Windows x64：`MathTutor-0.7.0-win-x64.exe`。
 - macOS Apple Silicon（M 系列）：`MathTutor-0.7.0-mac-arm64.dmg`；本轮不承诺 Intel Mac 包。
 - 技术文件名和应用包名继续使用 `MathTutor`，正式中文名称用于 README、网页标题和桌面窗口标题。
 - 打包使用随附 Python 与前端运行时，终端用户不需要另装 Python、Node.js 或开发环境；配置在线模型仍需相应服务账户和网络。
 
-最终发布需记录本版本实际产物的 SHA-256、Windows CI 与 Mac 安装启动结果，以及签名、公证状态。旧版验收记录不能代替新包验收；构建与上传完成前请勿将上述文件名视为可下载链接。
+| 文件 | SHA-256 |
+|---|---|
+| `MathTutor-0.7.0-mac-arm64.dmg` | `cd5fec8a0fcf9835451aaad96446a694c2109ea9c28fb0a6025034a1a14cb0e6` |
+| `MathTutor-0.7.0-win-x64.exe` | `d70aa7e315b2228fb1daf325d9d32366d6737f4920515ae153543a2af3a155fc` |
+
+核心代码在[三平台 CI](https://github.com/coscatld/MathTutor/actions/runs/38925151778)通过。Windows 的[安装包构建与实际安装验收](https://github.com/coscatld/MathTutor/actions/runs/38923923503)覆盖全新中文路径、重复启动、迁移恢复与未知迁移拒绝，以及包内 Python/TypeScript 的真实执行和重放；Mac 完成应用与只读 DMG 启动、无模型配置、凭据清理和业务检查，并通过真实 WebSocket 验证插件斜杠命令。安装包包含随附运行时，用户无需另装 Python 或 Node。
+
+原始 Mac 构建提交为 `bce1d77`，Windows 为 `d0bcf85`，其后的源码资格提交为 `8a66bf7`。此次开源文件与发布文档合并不修改包内应用代码；保留原构建来源与逐文件一致性证明，不将文档提交冒充重新构建。发布页随附精简验收记录和校验文件。

@@ -1,0 +1,49 @@
+name: Bug report
+description: 报告可复现的问题（不要上传用户个人数据或密钥）
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请用虚构或已脱敏数据复现。安全漏洞请优先走私密披露渠道。
+  - type: input
+    id: version
+    attributes:
+      label: MathTutor 版本或提交 SHA
+      placeholder: '0.7.0 / commit SHA'
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: 模块
+      options:
+        - Python 后端
+        - React / Next.js 前端
+        - Electron 桌面端
+        - 数学解题 / 验证
+        - 教学提示 / 学情
+        - 题库 / 插件 / 社区
+        - 评测 / 构建
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: '1. ...\n2. ...'
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图（请脱敏）
+      description: 不要粘贴本地路径、API Key、聊天原文或学习记录
