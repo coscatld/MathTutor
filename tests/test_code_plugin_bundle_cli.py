@@ -15,20 +15,22 @@ spec.loader.exec_module(builder)
 
 
 @pytest.mark.parametrize("runtime,entrypoint,alias", [("python", "double.py", "double"), ("typescript", "double-ts.ts", "double-ts")])
-def test_shipped_examples_build_and_parse_with_exact_sources(tmp_path, runtime, entrypoint, alias):
+@pytest.mark.parametrize("newline", [b"\n", b"\r\n"], ids=["lf", "crlf"])
+def test_shipped_examples_build_and_parse_with_exact_sources(tmp_path, runtime, entrypoint, alias, newline):
     source = tmp_path / "source"
     source.mkdir()
     metadata = json.loads((EXAMPLES / "plugin.json").read_text(encoding="utf-8"))
     metadata.update(runtime=runtime, entrypoint=entrypoint, command=alias)
     (source / "plugin.json").write_text(json.dumps(metadata), encoding="utf-8")
-    (source / entrypoint).write_bytes((EXAMPLES / entrypoint).read_bytes())
+    source_bytes = (EXAMPLES / entrypoint).read_bytes().replace(b"\r\n", b"\n").replace(b"\n", newline)
+    (source / entrypoint).write_bytes(source_bytes)
     # An unselected file is never swept into an archive by directory traversal.
     (source / "private.json").write_text('{"private":"not selected"}', encoding="utf-8")
     output = tmp_path / "plugin.zip"
     assert builder.main([str(source), "-o", str(output)]) == 0
     package = parse_code_upload(output.read_bytes(), output.name)
     assert package.runtime == runtime and package.command == alias
-    assert package.files == {entrypoint: (EXAMPLES / entrypoint).read_text(encoding="utf-8")}
+    assert package.files == {entrypoint: source_bytes.decode("utf-8")}
     with zipfile.ZipFile(output) as archive:
         assert set(archive.namelist()) == {"plugin.json", entrypoint}
     assert builder.main([str(source), "-o", str(output)]) == 2
