@@ -1,10 +1,12 @@
-# MathTutor
+# MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统
 
-**一个把“数学教学闭环”和“可追溯资料问答”放进本地桌面端的 K12 数学学习助手。**
+**面向小学至高中的本地数学辅导系统，连接学习过程、可追溯资料与有明确边界的解题核验。**
 
-MathTutor 不是把大模型套进聊天框。它把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
+MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**0.6.5** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.5) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-win-x64.exe) · [更新说明](docs/RELEASE_0.6.5.md)
+**当前版本：0.7.0 试用版**，面向 Windows x64 EXE 与 macOS Apple Silicon DMG。试用安装包未经发行证书签名；公开下载附件与校验记录以 [GitHub Releases](https://github.com/coscatld/MathTutor/releases) 为准。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
+
+**此前已发布的 0.6.5**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.5) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-win-x64.exe) · [更新说明](docs/RELEASE_0.6.5.md)
 
 [项目定位](#项目定位) · [核心功能](#核心功能) · [差异化亮点](#差异化亮点) · [Benchmark](#benchmark-与当前结果) · [快速开始](#快速开始) · [能力说明](#资料问答与能力说明)
 
@@ -38,7 +40,11 @@ flowchart LR
 | 初次使用 | 配置模型服务；通过可跳过的 10 道选择题初评获得暂定练习起点 |
 | 练习与学习记录 | 保存会话、作答与可信学习事件，提供练习邀请、学习画像（含诊断出的错误概念）和阶段复盘 |
 | 自有资料问答 | 导入文本、Markdown 和可提取文字的 PDF，检索相关片段并查看引用原文 |
-| 知识库管理 | 管理资料空间、版本、标签、双向链接、检索范围、草稿与笔记，区分当前证据和历史引用凭证 |
+| 知识库管理 | 按文件夹管理题库与 Markdown 笔记，编辑、保留版本、标签和双向链接；导入共享题库 JSON / 资料库 ZIP，导出当前正文再分享。当前回答的参考范围统一在“对话资料”选择 |
+| 创作者能力 | 通过版本化 Python SDK 注册教学技能和真实工具；内置文件工具可读写用户单独授权目录中的文本，默认只读、可撤销，重启失效 |
+| 社区资源 | 发现、搜索和收藏社区资源，一键导入题库或插件；支持直接导入下载的文件，题库保留为可编辑的个人副本 |
+| 社区教学插件 | 导入后阅读数据权限并同意启用，使用智能组卷、错题整理和学习趋势；支持调整设置、保存结果、停用和卸载 |
+| 创作与分享 | 分享自己的题库，或通过表单创建教学插件；保存后可让其他用户直接导入，开发者另有完整的编写与发布指南 |
 | 受控模型工具 | 知识模式下允许检索、读取、验证、草拟、保存笔记和提出练习；普通数学提问时模型可自行调用 `verify_math` 核对结论，并按「画图技能」调用 `draw_scene` 在画布上配图；所有工具均由应用授权并执行 |
 | 画图技能 | 模型配图一律通过 `draw_scene` 交给应用在 canvas 上绘制，约束写在 `skills/canvas_drawing/SKILL.md`；字符画、Markdown 图片、Mermaid / TikZ / SVG / 绘图代码会被移除并改为画布作图 |
 | 回答交付 | 讲解中可解析的算式经 `verify_math` 核对；条件受限或超出语法范围的推理标为未核验，被反驳时让模型改正一次，仍错则原处标出；记录停止原因、token、费用与 PARTIAL 状态 |
@@ -120,7 +126,17 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前源码版本为 **0.6.5**，可用的 Windows x64 安装包、macOS Apple Silicon DMG 与 SHA-256 校验文件见 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+当前版本为 **0.7.0 试用版**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG 两种构建目标。试用包使用无发行证书的构建方式，macOS 包未公证。构建日志、实际安装启动验收和 SHA-256 用于检查具体产物；公开版本与附件以 [GitHub Releases](https://github.com/coscatld/MathTutor/releases) 为准。数据库 migration head 保持 **024**，此次没有新增结构迁移。
+
+### 0.7.0：资料库、社区与创作者接口（试用版）
+
+参考资料选择已合并到对话页的“对话资料”，可以先预览再应用；知识库改为题库与笔记、教学技能、能力扩展三个入口。共享题库和 Markdown 文件夹可以导入、编辑并回导出；导入不会自动扩大对话参考范围，也不会把作者答案标为已验证。
+
+创作者可注册有参数校验、执行预算和真实处理器的工具。文件读写示例已接入普通辅导的原生工具循环；用户选择目录并添加授权后才能使用，写入还须有当前用户明确的文件保存或修改请求。授权默认只读，重启失效。SDK 处理器由可信应用启动配置加载，不是第三方代码沙盒；普通 Markdown 不会自动执行为技能。格式与示例见[共享题库](docs/SHARED_QUESTION_PACKS.md)和[创作者接口](docs/CREATOR_EXTENSIONS.md)。这些改动尚未包含在已发布的 0.6.5 安装包中。
+
+社区现在提供资源发现、我的插件和创作与分享。点卡片上的“导入”，或选择从社区下载的文件，就能把题库加入个人知识库、把插件加入“我的插件”。插件设置使用表单，结果可保存为可阅读的文本；需要更多内容时可在“社区来源”订阅 GitHub 或自定义目录。开发者可按独立指南编写、打包和发布插件，也可用 Python SDK 增加新的工具实现。组卷读取实际课程题库，错题和学情统计读取当前用户的真实记录，空记录保持为空。项目随附的 2 个题库和 3 个插件标为项目示例，社区源与协作链接由用户选择。详见[社区使用与发布](docs/COMMUNITY.md)及[教学插件格式](docs/COMMUNITY_PLUGINS.md)。
+
+插件安装后默认停用，启用前逐项确认数据权限；升级保留配置并重新停用，卸载停止后续调用。社区源不接收学习记录，用户在当前对话调用插件工具时，才会把有界结果交给所配置的对话模型。插件统计不改写掌握度或 DKT，题库参考答案不自动变成已核验结论。此次没有付费模型调用或历史基准重评，README 中的已有分数与图表继续对应原评测版本。完整边界见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
 
 ### 0.6.5：学习支持界面、记忆与完整课程题库
 
@@ -261,6 +277,8 @@ npm start
 | 能力 | 说明 |
 |---|---|
 | 文档解析 | 支持文本、Markdown 和可提取文字的 PDF；安装 `pdf-rich` 后启用增强版式解析 |
+| 共享资料库 | 导入题库 JSON 或 Markdown 文件夹 ZIP，在知识库编辑并保留版本，导出当前正文；相同正文的多路径别名明确共享编辑 |
+| 对话参考范围 | 在“对话资料”选择知识库和具体文档，先查看实际生效来源，再应用到当前会话；导入与授权分别管理 |
 | 检索 | 内置词法检索开箱即用；安装 `embedding` 后叠加向量检索 |
 | 引用与来源 | 引用绑定资料版本和原文区间，可随时回到原文；来源支持与数学正确分开判断 |
 | Knowledge 摘要 | 先读取证据、再做支持检查，原文引用与 AI 摘要分开呈现 |
@@ -328,13 +346,13 @@ npm run package:win
 脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器：
 
 ```text
-desktop/dist/MathTutor-0.6.3-win-x64.exe
+desktop/dist/MathTutor-0.7.0-win-x64.exe
 ```
 
 使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。下载后可检查摘要：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\MathTutor-0.6.3-win-x64.exe
+Get-FileHash -Algorithm SHA256 .\MathTutor-0.7.0-win-x64.exe
 ```
 
 ### macOS（Apple 芯片）
@@ -347,7 +365,7 @@ export MATHTUTOR_PYTHON_RUNTIME=$PWD/.runtime/<python-runtime-dir>
 npm ci --prefix desktop
 npm run package:mac:unsigned --prefix desktop
 npm run smoke:packaged:mac --prefix desktop
-shasum -a 256 desktop/dist/MathTutor-0.6.0-mac-arm64.dmg
+shasum -a 256 desktop/dist/MathTutor-0.7.0-mac-arm64.dmg
 ```
 
 普通虚拟环境不可重定位，不能作为打包运行时。下载 Electron 较慢时，可设置 `ELECTRON_MIRROR` 与 `ELECTRON_BUILDER_BINARIES_MIRROR` 使用镜像。
@@ -361,6 +379,11 @@ shasum -a 256 desktop/dist/MathTutor-0.6.0-mac-arm64.dmg
 | [初评与选择题](docs/INITIAL_ASSESSMENT.md) | 首次评估、跳过与恢复、练习起点的含义 |
 | [RAG 架构](docs/RAG_ARCHITECTURE.md) | 共享检索、上下文与证据工具路径 |
 | [知识工作台](docs/KNOWLEDGE_WORKBENCH_DELIVERY.md) | 资料管理、问答与引用功能 |
+| [共享题库与 Markdown 资料库](docs/SHARED_QUESTION_PACKS.md) | JSON / ZIP 格式、文件夹、编辑、别名与可回导导出 |
+| [创作者扩展接口](docs/CREATOR_EXTENSIONS.md) | 教学技能、真实工具 SDK、目录读写授权与离线示例 |
+| [社区使用与发布](docs/COMMUNITY.md) | 发现、收藏、版本、GitHub / 自定义源、创作者打包与社区协作 |
+| [社区教学插件](docs/COMMUNITY_PLUGINS.md) | 声明式插件包、权限、组卷、错题复盘和真实学情趋势 |
+| [插件开发者指南](docs/PLUGIN_DEVELOPMENT.md) | 从模板编写插件、离线校验打包、调试、版本升级与社区发布 |
 | [RAG 实施报告](docs/RAG_IMPLEMENTATION_REPORT.md) | 实现范围、工程证据与遗留事项 |
 | [RAG 评测报告](docs/RAG_EVALUATION.md) | 指标口径、测试结果和验收限制 |
 | [0.4.2 离线数学修复](docs/OFFLINE_MATH_REPAIR_042.md) | 数学条件、退化情况与保存响应回放 |

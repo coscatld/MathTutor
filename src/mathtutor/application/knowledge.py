@@ -39,6 +39,26 @@ class KnowledgeError(ValueError):
     pass
 
 
+def reference_configuration(value=None):
+    """Complete defaults for both old bindings and newly opened conversations."""
+    result = {"space_ids": [], "only_selected": False, "document_ids": [],
+              "mode": "tutor", "save_space_id": "", "tool_mode": "native", "hints_only": False,
+              **(value or {})}
+    # Callers edit drafts; never expose a mutable list from a stored payload.
+    result["space_ids"] = list(result["space_ids"])
+    result["document_ids"] = list(result["document_ids"])
+    return result
+
+
+def markdown_fingerprint(sid, title, body, tags, document_id, expected_version, path_intent=None):
+    value = [sid, title, body, list(tags), document_id, expected_version]
+    # Preserve historical callers' six-field fingerprints. Only an explicit,
+    # stable path intention extends it; current source provenance is mutable.
+    if path_intent:
+        value.append({"path_intent": path_intent})
+    return digest(value)
+
+
 class KnowledgeService:
     def __init__(self, state, engine):
         self.state, self.engine = state, engine
@@ -101,34 +121,62 @@ class KnowledgeService:
             raise KnowledgeError("当前会话不存在或已删除。")
         return row
 
-    async def configure(self, owner, cid, *, space_ids, only_selected=False, document_ids=(),
-                        mode="knowledge", save_space_id="", tool_mode="native", hints_only=False):
-        if not await self.state.conversations.get(owner, cid):
-            from mathtutor.infrastructure.schema import conversations
-            async with self.engine.connect() as db:
-                exists = (await db.execute(select(conversations.c.student_id).where(conversations.c.conversation_id == cid))).scalar_one_or_none()
-            if exists is not None:
-                raise KnowledgeError("当前会话不可用。")
-            if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", cid):
-                raise KnowledgeError("会话标识无效。")
-            await self.state.conversations.ensure(owner, cid)
-        await self.require_conversation(owner, cid)
+    async def _reference_conversation(self, owner, cid, *, allow_missing=False):
+        row = await self.state.conversations.get(owner, cid)
+        if row:
+            if row.get("trashed_at") or row.get("purged_at"):
+                raise KnowledgeError("当前会话不存在或已删除。")
+            return row
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", cid):
+            raise KnowledgeError("会话标识无效。")
+        # A missing owner-scoped row may still belong to another owner. A
+        # preview may inspect the caller's libraries, never that conversation.
+        from mathtutor.infrastructure.schema import conversations
+        async with self.engine.connect() as db:
+            exists = (await db.execute(select(conversations.c.student_id).where(
+                conversations.c.conversation_id == cid))).scalar_one_or_none()
+        if exists is not None:
+            raise KnowledgeError("当前会话不可用。")
+        if not allow_missing:
+            raise KnowledgeError("当前会话不存在或已删除。")
+        return None
+
+    async def _validate_reference_configuration(self, owner, cid, value, *, allow_missing=False):
+        await self._reference_conversation(owner, cid, allow_missing=allow_missing)
+        payload = reference_configuration(value)
+        space_ids, document_ids = payload["space_ids"], payload["document_ids"]
         if len(space_ids) > 32 or len(document_ids) > 128:
             raise KnowledgeError("一次最多挂载 32 个库、选择 128 份资料。")
+        if any(not isinstance(x, str) for x in [*space_ids, *document_ids]):
+            raise KnowledgeError("知识库和资料标识无效。")
         for sid in set(space_ids):
             space = await self.require_space(owner, sid, enabled=True)
             if space["kind"] == "session" and space["conversation_id"] != cid:
                 raise KnowledgeError("会话资料不能挂载到其他会话；请显式导入个人库。")
-        payload = {"space_ids": list(dict.fromkeys(space_ids)), "only_selected": bool(only_selected),
-                   "document_ids": list(dict.fromkeys(document_ids)), "mode": mode,
-                   "save_space_id": save_space_id, "tool_mode": tool_mode, "hints_only": hints_only}
-        if mode not in {"knowledge", "tutor"} or tool_mode not in {"native", "structured"}:
+        if payload["mode"] not in {"knowledge", "tutor"} or payload["tool_mode"] not in {"native", "structured"}:
             raise KnowledgeError("问答或工具协议模式无效。")
-        if save_space_id:
-            await self.require_space(owner, save_space_id, enabled=True)
-        allowed = await self.scope(owner, cid, configuration={**payload, "only_selected": False})
+        if payload["save_space_id"]:
+            space = await self.require_space(owner, payload["save_space_id"], enabled=True)
+            if space["kind"] == "session" and space["conversation_id"] != cid:
+                raise KnowledgeError("笔记不能保存到其他会话的资料库。")
+        payload["space_ids"] = list(dict.fromkeys(space_ids))
+        payload["document_ids"] = list(dict.fromkeys(document_ids))
+        payload["only_selected"] = bool(payload["only_selected"])
+        allowed, _ = await self._reference_candidates(owner, cid, payload)
         if not set(document_ids).issubset({str(x) for x in allowed}):
             raise KnowledgeError("所选资料不属于本会话已挂载范围。")
+        return payload
+
+    async def configure(self, owner, cid, *, space_ids, only_selected=False, document_ids=(),
+                        mode="tutor", save_space_id="", tool_mode="native", hints_only=False):
+        payload = await self._validate_reference_configuration(owner, cid, {
+            "space_ids": space_ids, "only_selected": only_selected, "document_ids": document_ids,
+            "mode": mode, "save_space_id": save_space_id, "tool_mode": tool_mode, "hints_only": hints_only,
+        }, allow_missing=True)
+        # Validation and preview are read-only. Only an explicit save creates
+        # the conversation and binding, after all selected sources are valid.
+        if not await self.state.conversations.get(owner, cid):
+            await self.state.conversations.ensure(owner, cid)
         async with self.engine.begin() as db:
             await self.bump(owner, db)
             await db.execute(insert(bindings).values(student_id=owner, conversation_id=cid, payload=payload)
@@ -147,24 +195,67 @@ class KnowledgeService:
 
     async def configuration(self, owner, cid):
         async with self.engine.connect() as db:
-            return (await db.execute(select(bindings.c.payload).where(bindings.c.student_id == owner,
-                bindings.c.conversation_id == cid))).scalar_one_or_none() or {
-                    "space_ids": [], "only_selected": False, "document_ids": []}
+            payload = (await db.execute(select(bindings.c.payload).where(bindings.c.student_id == owner,
+                bindings.c.conversation_id == cid))).scalar_one_or_none()
+        return reference_configuration(payload)
 
-    async def scope(self, owner, cid, *, configuration=None):
-        await self.require_conversation(owner, cid)
-        config = configuration if configuration is not None else await self.configuration(owner, cid)
+    async def _reference_candidates(self, owner, cid, config):
         legacy = await self.state.conversations.document_ids(owner, cid)
         # Existing explicit global consent is retained; no legacy row is promoted.
         globals_ = [d.document_id for d in await self.state.documents.list_documents(owner) if d.is_global]
         async with self.engine.connect() as db:
-            stmt = select(members.c.document_id).select_from(members.join(spaces,
+            stmt = select(members.c.document_id, members.c.space_id).select_from(members.join(spaces,
                 (spaces.c.student_id == members.c.student_id) & (spaces.c.space_id == members.c.space_id))).where(
                 members.c.student_id == owner, spaces.c.student_id == owner, spaces.c.deleted_at.is_(None),
                 spaces.c.enabled == 1, spaces.c.space_id.in_(config["space_ids"]),
                 (spaces.c.kind != "session") | (spaces.c.conversation_id == cid))
-            mounted = [UUID(x) for x in (await db.execute(stmt)).scalars()]
+            rows = (await db.execute(stmt)).all()
+            mounted = [UUID(x.document_id) for x in rows]
         ids = list(dict.fromkeys([*legacy, *globals_, *mounted]))
+        legacy_set, global_set = set(legacy), set(globals_)
+        memberships = {}
+        for row in rows:
+            memberships.setdefault(row.document_id, []).append(row.space_id)
+        origins = {str(did): {"origin": "conversation" if did in legacy_set else "global" if did in global_set else "library",
+                              "space_ids": list(dict.fromkeys(memberships.get(str(did), [])))} for did in ids}
+        return ids, origins
+
+    async def reference_state(self, owner, cid, *, configuration=None, preview=False):
+        """Project candidates and effective selection without creating any rows.
+
+        New conversation IDs are valid preview targets, but an ordinary GET
+        remains empty until the conversation exists. Stored disabled libraries
+        are tolerated on reads and excluded by the candidate query; a new save
+        or preview must validate its explicitly selected libraries.
+        """
+        if preview:
+            config = await self._validate_reference_configuration(owner, cid, configuration, allow_missing=True)
+        else:
+            row = await self.state.conversations.get(owner, cid)
+            if row is None:
+                return {**reference_configuration(), "available_documents": [], "effective_document_ids": []}
+            await self.require_conversation(owner, cid)
+            config = await self.configuration(owner, cid)
+        ids, origins = await self._reference_candidates(owner, cid, config)
+        selected = set(config["document_ids"])
+        available, effective = [], []
+        for did in ids:
+            doc = await self.state.documents.get_document(owner, did)
+            if doc is None or doc.deleted_at is not None:
+                continue
+            chosen = not config["only_selected"] or str(did) in selected
+            enabled = doc.is_retrievable()
+            available.append({"document_id": str(did), "title": doc.filename, "status": doc.status,
+                "enabled": enabled, "retrieval_enabled": doc.retrieval_enabled,
+                "selected": chosen, **origins[str(did)]})
+            if chosen and enabled:
+                effective.append(str(did))
+        return {**config, "available_documents": available, "effective_document_ids": effective}
+
+    async def scope(self, owner, cid, *, configuration=None):
+        await self.require_conversation(owner, cid)
+        config = reference_configuration(configuration) if configuration is not None else await self.configuration(owner, cid)
+        ids, _ = await self._reference_candidates(owner, cid, config)
         if config["only_selected"]:
             ids = [x for x in ids if str(x) in config["document_ids"]]
         # Repository repeats owner/status/disabled checks before scoring.
@@ -218,9 +309,14 @@ class KnowledgeService:
             doc = await self.state.documents.get_document(owner, UUID(did))
             if doc:
                 v = await self.snapshot(owner, did)
+                provenance = dict(v["provenance"])
+                paths = provenance.get("vault_paths", {}).get(sid)
+                if paths:
+                    provenance["relative_path"] = paths[0]["path"]
+                    provenance["relative_paths"] = [path["path"] for path in paths]
                 rows.append({"document_id": did, "title": v["title"], "version": v["version"],
                     "tags": v["tags"], "links": v["links"], "retrieval_enabled": doc.retrieval_enabled,
-                    "editable": v["provenance"].get("format") == "markdown"})
+                    "editable": v["provenance"].get("format") == "markdown", "provenance": provenance})
         return rows
 
     @staticmethod
@@ -242,14 +338,34 @@ class KnowledgeService:
             start = end
         return chunks
 
+    async def markdown_operation_receipt(self, owner, sid, *, title, body, tags=(), operation_id,
+                                         document_id=None, expected_version=None, path_intent=None):
+        """Replay before a caller resolves a now-moved source path.
+
+        The normal save repeats this check inside its write transaction. This
+        read is for adapters preparing provenance from the latest snapshot;
+        an exact retry must not depend on that snapshot still being unchanged.
+        """
+        await self.require_space(owner, sid, enabled=True)
+        async with self.engine.connect() as db:
+            receipt = (await db.execute(select(operations).where(operations.c.student_id == owner,
+                operations.c.operation_id == operation_id))).mappings().first()
+        if receipt is None:
+            return None
+        fingerprint = markdown_fingerprint(sid, title, body, tags, document_id, expected_version, path_intent)
+        if receipt["fingerprint"] != fingerprint:
+            raise KnowledgeError("重复请求的内容不一致。")
+        return receipt["payload"]
+
     async def save_markdown(self, owner, sid, *, title, body, tags=(), operation_id,
-                            document_id=None, expected_version=None, expected_generation=None, provenance=None):
+                            document_id=None, expected_version=None, expected_generation=None, provenance=None,
+                            path_intent=None):
         if not body.strip() or len(body.encode()) > 1024 * 1024 or len(title) > 120 or not title.strip():
             raise KnowledgeError("笔记须有标题和正文，正文最多 1 MiB。")
         if len(tags) > 32 or any(not isinstance(t, str) or len(t) > 64 for t in tags):
             raise KnowledgeError("标签最多 32 个，每个最多 64 字。")
         generation = await self.generation(owner) if expected_generation is None else expected_generation
-        fingerprint = digest([sid, title, body, list(tags), document_id, expected_version])
+        fingerprint = markdown_fingerprint(sid, title, body, tags, document_id, expected_version, path_intent)
         content_hash = sha256(body.encode("utf-8")).hexdigest()
         did = document_id or str(uuid4())
         stored_ref = None

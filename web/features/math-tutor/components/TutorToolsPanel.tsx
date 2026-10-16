@@ -13,6 +13,8 @@ import ActionBar from "./ActionBar";
 import HintLadder from "./HintLadder";
 import ImageAttachments from "./ImageAttachments";
 import { DiagnosisNotice, EvidenceSummaryCard } from "./TeachingContext";
+import ConversationReferenceScope, { scopeOriginLabel, type ConversationScopeController } from "./ConversationReferenceScope";
+import type { ScopeDocument } from "../knowledge/api";
 
 export type ToolView = "hints" | "documents" | "memory";
 
@@ -36,8 +38,8 @@ function PanelEmpty({ view }: { view: "documents" | "memory" }) {
   return <div className="mt-tool-empty"><span className="mt-tool-empty-icon"><Icon className="h-6 w-6" aria-hidden="true" /></span><h3>{view === "documents" ? "把参考资料放在手边" : "从你的学习偏好开始"}</h3><p>{view === "documents" ? "添加讲义、课堂笔记或题目文档，让回答可以参考你的资料。" : "记下你喜欢的讲解方式与学习目标，相关内容会在后续辅导时供 Tutor 参考。"}</p>{view === "memory" ? <Link className="mt-btn mt-4" href="/math-tutor/memory"><Plus className="h-4 w-4" aria-hidden="true" />添加第一条记忆</Link> : null}</div>;
 }
 
-export default function TutorToolsPanel({ view, onClose, sessionId, level, plan, evidence, diagnosis, offer, allowed, actions, busy, disabled, onCommand }: { view: ToolView; onClose: (restoreFocus?: boolean) => void; sessionId: string; level: number; plan?: TeachingPlan | null; evidence?: EvidenceSummary | null; diagnosis?: DiagnosisSummary | null; offer?: ActiveOffer | null; allowed: string[]; actions?: AllowedAction[]; busy: boolean; disabled: boolean; onCommand: (command: MathTutorCommand, payload?: Record<string, string>) => void }) {
-  const [documents, setDocuments] = useState<DesktopDocument[]>([]);
+export default function TutorToolsPanel({ view, onClose, sessionId, referenceScope, level, plan, evidence, diagnosis, offer, allowed, actions, busy, disabled, onCommand }: { view: ToolView; onClose: (restoreFocus?: boolean) => void; sessionId: string; referenceScope?: ConversationScopeController; level: number; plan?: TeachingPlan | null; evidence?: EvidenceSummary | null; diagnosis?: DiagnosisSummary | null; offer?: ActiveOffer | null; allowed: string[]; actions?: AllowedAction[]; busy: boolean; disabled: boolean; onCommand: (command: MathTutorCommand, payload?: Record<string, string>) => void }) {
+  const [documents, setDocuments] = useState<Array<DesktopDocument & {in_scope?: boolean; origin?: ScopeDocument["origin"]; space_ids?: string[]}>>([]);
   const [images, setImages] = useState<Array<{ id: string; name: string; url: string }>>([]);
   const [messageCount, setMessageCount] = useState(0);
   const [error, setError] = useState("");
@@ -67,6 +69,11 @@ export default function TutorToolsPanel({ view, onClose, sessionId, level, plan,
     finally { if (version === requestVersion.current) setLoading(false); }
   }, [view, sessionId]);
   useEffect(() => { if (!busy) void refresh(); return () => { requestVersion.current++; }; }, [refresh, busy]);
+  useEffect(() => {
+    const changed = () => { if (view === "documents") void refresh(); };
+    window.addEventListener("mathtutor-reference-scope-changed", changed);
+    return () => window.removeEventListener("mathtutor-reference-scope-changed", changed);
+  }, [refresh, view]);
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [view]);
   useEffect(() => {
     const protectFocus = (event: FocusEvent) => {
@@ -94,6 +101,7 @@ export default function TutorToolsPanel({ view, onClose, sessionId, level, plan,
     const ready = ["ready", "ready_with_warnings"].includes(document.status);
     toast({ title: "资料已加入当前对话", description: ready ? `《${document.filename}》已就绪。` : `《${document.filename}》已导入，可在下方查看处理状态。` });
     await refresh();
+    await referenceScope?.refresh();
   };
   const add = async () => {
     setImporting(true);
@@ -125,17 +133,18 @@ export default function TutorToolsPanel({ view, onClose, sessionId, level, plan,
       {error ? <div role="alert" className="mt-tool-message text-[var(--destructive)]"><p>{error}</p><button type="button" onClick={() => void refresh()} className="mt-btn mt-btn-sm mt-2"><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />重新加载</button></div> : null}
       {view === "hints" ? <div className="space-y-4"><p className="mt-tools-intro">看清这一轮的目标，选择适合自己的帮助。</p><HintLadder level={level} plan={plan} /><DiagnosisNotice diagnosis={diagnosis} /><ActionBar offer={offer} actions={actions} allowed={allowed} busy={busy} disabled={disabled} onCommand={onCommand} /><EvidenceSummaryCard evidence={evidence} /></div> : null}
       {view === "documents" ? <div className="space-y-5">
-        <div><p className="mt-tools-intro">当前对话的文档与图片，集中保存在这里。</p><button type="button" onClick={() => void add()} disabled={importing} className="mt-btn mt-btn-primary mt-4 min-h-11 w-full">{importing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}{importing ? "正在导入…" : "添加学习资料"}</button><p className="mt-2 text-center text-[11px] leading-5 text-[var(--muted-foreground)]">PDF · Markdown · TXT · LaTeX</p><input ref={fileInput} type="file" className="hidden" accept=".txt,.md,.markdown,.tex,.pdf" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ""; }} /></div>
+        <div><p className="mt-tools-intro">添加资料，选择本次回答的参考范围。</p><button type="button" onClick={() => void add()} disabled={importing || busy || referenceScope?.blocking} className="mt-btn mt-btn-primary mt-4 min-h-11 w-full">{importing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}{importing ? "正在导入…" : "添加学习资料"}</button><p className="mt-2 text-center text-[11px] leading-5 text-[var(--muted-foreground)]">PDF · Markdown · TXT · LaTeX</p><input ref={fileInput} type="file" className="hidden" accept=".txt,.md,.markdown,.tex,.pdf" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ""; }} /></div>
+        {referenceScope ? <ConversationReferenceScope controller={referenceScope} busy={busy || importing} /> : null}
         {loading ? <p role="status" className="mt-tool-loading"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />正在读取对话资料…</p> : !error ? <>
           <dl className="mt-tool-stats"><div><dt>文档</dt><dd>{documents.length}</dd></div><div><dt>图片</dt><dd>{images.length}</dd></div><div><dt>对话记录</dt><dd>{messageCount}</dd></div></dl>
           {documents.length ? <section aria-label="本对话文档"><h3 className="mt-tool-section-title"><FileText className="h-4 w-4" aria-hidden="true" />参考文档</h3><ul className="mt-3 space-y-3">{documents.map(doc => {
             const ready = ["ready", "ready_with_warnings"].includes(doc.status);
-            return <li key={doc.document_id} className="mt-tool-item"><p className="break-words text-sm font-medium leading-6">{doc.filename}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="mt-tool-badge" data-tone={ready && doc.retrieval_enabled ? "active" : ["failed", "needs_ocr"].includes(doc.status) ? "warning" : undefined}>{documentStatusLabel(doc.status)}</span><span className="text-xs text-[var(--muted-foreground)]">{ready ? `${doc.chunk_count} 个片段 · ${doc.retrieval_enabled ? "允许检索" : "检索已关闭"}` : "尚未参与检索"}</span></div>{doc.error || doc.parse_warning ? <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{doc.error || doc.parse_warning}</p> : null}</li>;
+            return <li key={doc.document_id} className="mt-tool-item"><p className="break-words text-sm font-medium leading-6">{doc.filename}</p><p className="mt-1 text-[11px] leading-5 text-[var(--muted-foreground)]">{scopeOriginLabel(doc.origin || (doc.is_global ? "global" : "conversation"))} · {doc.in_scope === false ? "未在已应用范围内" : doc.in_scope === true ? "在已应用范围内" : "范围见上方设置"}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="mt-tool-badge" data-tone={ready && doc.retrieval_enabled && doc.in_scope !== false ? "active" : ["failed", "needs_ocr"].includes(doc.status) ? "warning" : undefined}>{documentStatusLabel(doc.status)}</span><span className="text-xs text-[var(--muted-foreground)]">{ready ? `${doc.chunk_count} 个片段 · ${doc.retrieval_enabled ? "允许检索" : "检索已关闭"}` : "尚未参与检索"}</span></div>{doc.error || doc.parse_warning ? <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{doc.error || doc.parse_warning}</p> : null}</li>;
           })}</ul></section> : <PanelEmpty view="documents" />}
           {images.length ? <section aria-label="本对话图片"><h3 className="mt-tool-section-title"><Image className="h-4 w-4" aria-hidden="true" />已发送图片</h3><div className="mt-3"><ImageAttachments images={images} /></div><p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">图片由视觉模型读取，尚不支持自动文字检索。</p></section> : null}
           {messageCount > 0 || documents.length > 0 || images.length > 0 ? <a className="mt-btn min-h-11 w-full" href={`/api/v2/math-tutor/desktop/conversations/${encodeURIComponent(sessionId)}/export`} download><ArrowDownToLine className="h-4 w-4" aria-hidden="true" />导出完整资料夹</a> : null}
         </> : null}
-        <Link href={`/math-tutor/knowledge?conversation=${encodeURIComponent(sessionId)}`} className="mt-tool-link"><Library className="h-4 w-4" aria-hidden="true" /><span>管理知识库与问答范围</span><ArrowUpRight className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" /></Link><p className="text-xs leading-5 text-[var(--muted-foreground)]">在知识库中设置回答可参考的资料；添加文档不会自动开放其他对话的资料。</p>
+        <Link href={`/math-tutor/knowledge?conversation=${encodeURIComponent(sessionId)}`} className="mt-tool-link"><Library className="h-4 w-4" aria-hidden="true" /><span>打开知识库</span><ArrowUpRight className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" /></Link><p className="text-xs leading-5 text-[var(--muted-foreground)]">知识库用于长期整理文件与笔记。当前对话的参考范围在此面板选择；导出完整资料夹仍保留本对话资料。</p>
       </div> : null}
       {view === "memory" ? <div className="space-y-5"><div className="mt-tool-message"><p className="text-sm font-medium">偏好与目标，让辅导更合拍</p><p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">使用已配置模型辅导时，Tutor 可参考与当前问题相关的已启用记忆。AI 推测需要先由你确认。</p></div>{loading ? <p role="status" className="mt-tool-loading"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />正在读取学习记忆…</p> : !error ? <>{memories.length ? <><div className="flex items-center justify-between gap-2"><h3 className="mt-tool-section-title">已保存 {memories.length} 条</h3><span className="text-xs text-[var(--muted-foreground)]">{eligibleMemories} 条允许用于辅导</span></div><ul className="space-y-3">{memories.map(memory => <ToolMemoryCard key={memory.memory_id} memory={memory} busy={mutating !== null} onToggle={() => void changeMemory(memory)} onConfirm={() => void changeMemory(memory, true)} />)}</ul></> : <PanelEmpty view="memory" />}</> : null}<Link href="/math-tutor/memory" className="mt-tool-link"><BrainCircuit className="h-4 w-4" aria-hidden="true" /><span>添加、编辑与管理记忆</span><ArrowUpRight className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" /></Link><p className="text-xs leading-5 text-[var(--muted-foreground)]">允许参考不代表本轮已使用，也不等同于知识掌握度。离线基础辅导暂不按文字偏好调整。</p></div> : null}
     </div>

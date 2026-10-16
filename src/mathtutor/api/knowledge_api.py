@@ -14,6 +14,7 @@ from mathtutor.application.knowledge import KnowledgeError
 from mathtutor.application.knowledge_tools import Strict, KnowledgeTools, Save
 from mathtutor.security.scopes import StudentOwnerScope
 from mathtutor.infrastructure.knowledge_schema import drafts
+from mathtutor.infrastructure.document_storage import sanitize_filename
 
 router = APIRouter(prefix="/knowledge")
 
@@ -78,7 +79,7 @@ class MountInput(Strict):
     space_ids: list[str] = Field(default_factory=list, max_length=32)
     document_ids: list[str] = Field(default_factory=list, max_length=128)
     only_selected: bool = False
-    mode: Literal["knowledge", "tutor"] = "knowledge"
+    mode: Literal["knowledge", "tutor"] = "tutor"
     save_space_id: str = Field(default="", max_length=80)
     tool_mode: Literal["native", "structured"] = "native"
     hints_only: bool = False
@@ -92,6 +93,7 @@ class NoteInput(Strict):
     document_id: UUID | None = None
     expected_version: int | None = Field(default=None, ge=1)
     relative_path: str = Field(default="", max_length=512)
+    previous_relative_path: str | None = Field(default=None, max_length=512)
 
 
 @router.get("/libraries")
@@ -121,14 +123,50 @@ async def notes(sid: str, owner: StudentOwnerScope = Depends(require_student_own
 
 @router.post("/libraries/{sid}/notes")
 async def save_note(sid: str, body: NoteInput, owner: StudentOwnerScope = Depends(require_student_owner)):
-    path = PurePosixPath(body.relative_path.replace("\\", "/"))
-    if body.relative_path and (path.is_absolute() or ".." in path.parts or any(p.startswith(".") for p in path.parts)
-                               or path.suffix.lower() != ".md"):
-        raise HTTPException(422, "仅导入明确选择的 Markdown 文件；隐藏目录、插件和越界路径不会导入。")
-    return await invoke(owner, lambda s, o: s.knowledge.save_markdown(o, sid,
-        title=body.title, body=body.body, tags=body.tags, operation_id=body.operation_id,
-        document_id=str(body.document_id) if body.document_id else None, expected_version=body.expected_version,
-        provenance={"origin": "user", "relative_path": body.relative_path}))
+    relative_path = body.relative_path.replace("\\", "/")
+    previous_path = body.previous_relative_path.replace("\\", "/") if body.previous_relative_path is not None else None
+    for value in (relative_path, previous_path):
+        path = PurePosixPath(value or "")
+        if value and (path.is_absolute() or ":" in value or any(ord(c) < 32 for c in value)
+                      or any(p in {"", ".", ".."} or p.startswith(".") for p in value.split("/"))
+                      or path.suffix.lower() not in {".md", ".markdown"}):
+            raise HTTPException(422, "仅导入明确选择的 Markdown 文件；隐藏目录、插件和越界路径不会导入。")
+    path_intent = {}
+    if "relative_path" in body.model_fields_set:
+        path_intent["relative_path"] = relative_path
+    if previous_path is not None:
+        path_intent["previous_relative_path"] = previous_path
+    async def action(s, o):
+        receipt = await s.knowledge.markdown_operation_receipt(o, sid,
+            title=body.title, body=body.body, tags=body.tags, operation_id=body.operation_id,
+            document_id=str(body.document_id) if body.document_id else None,
+            expected_version=body.expected_version, path_intent=path_intent)
+        if receipt is not None:
+            return receipt
+        provenance = {}
+        if body.document_id:
+            previous = await s.knowledge.snapshot(o, str(body.document_id))
+            provenance = dict(previous["provenance"])
+        provenance["origin"] = "user"
+        if "relative_path" in body.model_fields_set or "relative_path" not in provenance:
+            provenance["relative_path"] = relative_path
+            paths = provenance.get("vault_paths", {}).get(sid)
+            if paths:
+                target = previous_path if previous_path is not None else paths[0]["path"]
+                index = next((i for i, entry in enumerate(paths) if entry["path"] == target), None)
+                if index is None:
+                    raise KnowledgeError("文件路径已变化，请重新打开后保存。")
+                path = relative_path or sanitize_filename(body.title.removesuffix(".md") + ".md")
+                if any(i != index and entry["path"].casefold() == path.casefold() for i, entry in enumerate(paths)):
+                    raise KnowledgeError("该资料已在目标路径中，请选择其他路径。")
+                updated = [{**entry, "path": path} if i == index else entry for i, entry in enumerate(paths)]
+                provenance["vault_paths"] = {**provenance["vault_paths"], sid: updated}
+                provenance["relative_path"] = updated[0]["path"]
+        return await s.knowledge.save_markdown(o, sid,
+            title=body.title, body=body.body, tags=body.tags, operation_id=body.operation_id,
+            document_id=str(body.document_id) if body.document_id else None, expected_version=body.expected_version,
+            provenance=provenance, path_intent=path_intent)
+    return await invoke(owner, action)
 
 
 @router.post("/libraries/{sid}/imports")
@@ -159,24 +197,29 @@ async def export_library(sid: str, owner: StudentOwnerScope = Depends(require_st
 
 @router.get("/conversations/{cid}")
 async def mount_state(cid: str, owner: StudentOwnerScope = Depends(require_student_owner)):
-    async def action(s, o):
-        if not await s.conversations.get(o, cid):
-            return {"space_ids": [], "document_ids": [], "only_selected": False, "mode": "tutor", "available_documents": []}
-        await s.knowledge.require_conversation(o, cid)
-        config = await s.knowledge.configuration(o, cid)
-        ids = await s.knowledge.scope(o, cid, configuration={**config, "only_selected": False})
-        eligible = []
-        for did in ids:
-            doc = await s.documents.get_document(o, did)
-            if doc:
-                eligible.append({"document_id": str(did), "title": doc.filename, "enabled": doc.is_retrievable()})
-        return {**config, "available_documents": eligible}
-    return await invoke(owner, action)
+    return await invoke(owner, lambda s, o: s.knowledge.reference_state(o, cid))
+
+
+@router.post("/conversations/{cid}/preview")
+async def preview_mount(cid: str, body: MountInput, owner: StudentOwnerScope = Depends(require_student_owner)):
+    # POST carries a draft too large for a query string. It never saves a
+    # binding, creates a conversation, or advances a knowledge generation.
+    return await invoke(owner, lambda s, o: s.knowledge.reference_state(
+        o, cid, configuration=body.model_dump(), preview=True))
 
 
 @router.put("/conversations/{cid}")
 async def mount(cid: str, body: MountInput, owner: StudentOwnerScope = Depends(require_student_owner)):
-    return await invoke(owner, lambda s, o: s.knowledge.configure(o, cid, **body.model_dump()))
+    async def action(s, o):
+        previous = await s.knowledge.configuration(o, cid)
+        payload = body.model_dump()
+        # Older clients may only send a library selection. Defaults complete a
+        # new binding; they must not silently reset an existing dialogue mode,
+        # hint policy, save target, or tool compatibility choice.
+        for name in payload.keys() - body.model_fields_set:
+            payload[name] = previous[name]
+        return await s.knowledge.configure(o, cid, **payload)
+    return await invoke(owner, action)
 
 
 @router.get("/sources/{did}")

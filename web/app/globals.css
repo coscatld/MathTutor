@@ -303,6 +303,23 @@ button.mt-brand-mark:hover { transform: scale(1.06); }
 .mt-tool-loading { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 140px; font-size: 13px; color: var(--muted-foreground); }
 .mt-tool-message { border: 1px solid var(--border); border-radius: 14px; padding: 16px; background: var(--card); }
 .mt-knowledge-page { max-width: 1200px; }
+.mt-vault-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--sidebar); }
+.mt-vault-tabs > button { display: flex; flex: 1; min-width: max-content; min-height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: 1px solid transparent; border-radius: 10px; color: var(--muted-foreground); font-size: 13px; font-weight: 550; transition: color var(--dur-fast), background var(--dur-fast); }
+.mt-vault-tabs > button[aria-pressed="true"] { border-color: var(--primary-border); background: var(--card); color: var(--primary-text); box-shadow: var(--shadow-xs); }
+.mt-vault-tabs > button:hover { color: var(--primary-text); }
+.mt-vault-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 10px; color: var(--muted-foreground); font-size: 12px; }
+.mt-vault-breadcrumbs button { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 8px; overflow-wrap: anywhere; text-align: left; }
+.mt-vault-breadcrumbs button:hover { background: var(--accent); color: var(--foreground); }
+.mt-vault-files { overflow: hidden; border: 1px solid var(--border); border-radius: 13px; }
+.mt-vault-files:empty { display: none; }
+.mt-vault-files > li + li { border-top: 1px solid var(--border); }
+.mt-vault-folder { display: flex; width: 100%; min-height: 58px; align-items: center; gap: 12px; padding: 10px 14px; font-size: 13px; }
+.mt-vault-folder:hover, .mt-vault-file:hover { background: var(--accent); }
+.mt-vault-file { display: flex; align-items: start; gap: 10px; padding: 10px 14px; }
+.mt-vault-file[data-selected="true"] { background: var(--primary-soft); }
+.mt-creator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.mt-creator-workspaces { display: flex; flex-direction: column; gap: 8px; }
+.mt-creator-workspace { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--sidebar); }
 .mt-knowledge-alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border)); border-radius: 14px; padding: 16px; font-size: 14px; color: var(--destructive); }
 .mt-knowledge-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 24px; }
 .mt-knowledge-sidebar { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--sidebar); }

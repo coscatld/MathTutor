@@ -1,0 +1,40 @@
+{
+  "schema_version": "mathtutor.community-plugin.v1",
+  "kind": "teaching-plugin",
+  "id": "mathtutor.learning-report",
+  "version": "1.0.0",
+  "name": "学情可视化",
+  "description": "查看独立作答的正确率变化和知识点记录，提示后的作答单独展示。",
+  "author": "MathTutor",
+  "license": "Apache-2.0",
+  "tags": [
+    "趋势",
+    "学情",
+    "证据"
+  ],
+  "grades": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "readme": "按时间查看真实独立作答的正确率变化，同时显示各知识点的记录数量。正确率只说明这些练习的作答情况，不代表已经掌握整个知识点；没有记录时会提示先积累练习。",
+  "changelog": "1.0.0：支持本地运行，使用学习记录前先征得同意。",
+  "workflow": "learning-report",
+  "defaults": {
+    "window_size": 10,
+    "max_events": 500
+  },
+  "teaching_guidance": "结合观察数量解释变化，不把短期波动当作能力下降；无数据时先积累独立练习记录。",
+  "required_permissions": [
+    "read_learning_records"
+  ]
+}

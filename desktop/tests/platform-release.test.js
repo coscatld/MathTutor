@@ -13,6 +13,7 @@ const spec = JSON.parse(read("docs", "rc", "RC_PUBLIC_RELEASE_SMOKE.json"));
 const schema = JSON.parse(read("docs", "rc", "RC_PUBLIC_RELEASE_SMOKE_REPORT.schema.json"));
 const config = require(path.join(desktop, "electron-builder.config.cjs"));
 const main = read("desktop", "main.js");
+const preload = read("desktop", "preload.js");
 const runtimePaths = read("desktop", "runtime", "paths.js");
 const worker = read("src", "mathtutor", "infrastructure", "verifier_worker.py");
 const keychain = read("src", "mathtutor", "infrastructure", "keychain_secret_store.py");
@@ -111,10 +112,12 @@ test("Credential Manager and secret-tool contracts are fail closed and secret-fr
   assert.doesNotMatch(secretProbe, /add_argument\("--value"/);
 });
 
-test("native picker stays explicit and single-file only", () => {
+test("native file imports stay single-file and directory picks only select a grant root", () => {
   assert.match(main, /dialog\s*\.showOpenDialog/);
-  assert.match(main, /properties: \["openFile"\]/);
-  assert.doesNotMatch(main, /openDirectory/);
+  assert.match(main, /properties: directoryPick \? \["openDirectory"\] : \["openFile"\]/);
+  assert.match(main, /req\.url === "\/native-directory"/);
+  assert.match(main, /req\.headers\.origin/);
+  assert.doesNotMatch(preload, /readFile|writeFile|ipcRenderer|openDirectory/);
   assert.match(main, /MAX_PICK_BYTES = 20 \* 1024 \* 1024/);
 });
 

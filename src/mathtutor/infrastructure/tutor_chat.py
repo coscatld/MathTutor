@@ -16,10 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 class TutorChatResponder:
-    def __init__(self, gateway: GenerativeModelGateway, personality_instruction: str = "", *, learner_settings=None) -> None:
+    def __init__(self, gateway: GenerativeModelGateway, personality_instruction: str = "", *, learner_settings=None,
+                 extension_registry=None) -> None:
         self._gateway = gateway
         self._personality_instruction = personality_instruction.strip()
         self._learner_settings = learner_settings
+        self._extension_registry = extension_registry
 
     @property
     def is_configured(self) -> bool:
@@ -40,6 +42,7 @@ class TutorChatResponder:
         response_request: str | None = None,
         learner_context: dict | None = None,
         personal_memory: PersonalMemoryContext | None = None,
+        execution_context=None,
     ) -> str:
         provider = self._gateway.provider_for(ModelRole.TUTOR_WRITER)
         if images:
@@ -96,6 +99,11 @@ class TutorChatResponder:
             )
         if self._personality_instruction:
             system += f"\n表达风格：{self._personality_instruction}"
+        extension_executor = None
+        if self._extension_registry is not None:
+            system += self._extension_registry.skill_instruction()
+            if execution_context is not None:
+                extension_executor = self._extension_registry.bind(execution_context, request_text=current_request)
         if document_context is not None:
             system += (
                 "\n本轮会话资料由应用检索提供，可能同时有图片与文档。优先根据用户当前指代选择来源，"
@@ -222,6 +230,7 @@ class TutorChatResponder:
                 max_retries=0,
                 **({"math_verify": math_verify} if math_verify is not None else {}),
                 **({"draw_figures": True} if draw_figures and math_verify is not None else {}),
+                **({"extension_executor": extension_executor} if extension_executor is not None else {}),
             )
             return result.text.strip()
         except Exception:

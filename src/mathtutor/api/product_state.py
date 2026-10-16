@@ -207,6 +207,7 @@ class ProductState:
         embedding_runtime: EmbeddingRuntime | None = None,
         metrics: MathTutorMetrics | None = None,
         verification_backend: VerificationBackend | None = None,
+        extension_registry=None,
     ) -> None:
         self.store: SessionStoreProtocol = store or InMemorySessionStore()
         # Request-level maintenance barrier.  Restore is the only operation
@@ -225,6 +226,10 @@ class ProductState:
         # resolved through it (TUTOR_WRITER role; fail-closed template).
         self.secret_store: SecretStore = secret_store or _default_secret_store()
         self.gateway = GenerativeModelGateway(self.secret_store)
+        from mathtutor.extensions.builtin import default_registry
+        from mathtutor.extensions.workspaces import WorkspaceGrants
+        self.workspace_grants = WorkspaceGrants()
+        self.extension_registry = extension_registry if extension_registry is not None else default_registry(self.workspace_grants)
         # No embedding backend by default. User settings may replace it only
         # after an explicitly selected local/cloud configuration is ready.
         self.embedding_runtime = embedding_runtime or EmbeddingRuntime()
@@ -445,7 +450,8 @@ class ProductState:
             practice_repository=self.practice_repository,
             practice_service=self.adaptive_practice,
             chat_responder=TutorChatResponder(
-                self.gateway, self.tutor_preferences.instruction(), learner_settings=self.learner_settings
+                self.gateway, self.tutor_preferences.instruction(), learner_settings=self.learner_settings,
+                extension_registry=self.extension_registry,
             ),
         )
         from mathtutor.infrastructure.tutor_intent import SemanticTeachingInterpreter
@@ -481,6 +487,11 @@ class ProductState:
         if self.stage_review:
             self.student_state.stage_review = self.stage_review
             self.outbox_relay.sink = ReviewDispatchSink(self.stage_review, self.outbox_relay.sink)
+        from mathtutor.extensions.community_plugins import CommunityPluginService, register_community_tool
+        self.community_plugins = CommunityPluginService(state=self, storage_root=Path(data_dir) / "community-plugins")
+        register_community_tool(self.extension_registry, self.community_plugins)
+        from mathtutor.application.community import CommunityService
+        self.community = CommunityService(self)
 
     @property
     def capability(self) -> MathTutorController:
@@ -493,7 +504,8 @@ class ProductState:
             self.gateway, self.tutor_preferences.instruction()
         )
         self.controller.chat_responder = TutorChatResponder(
-            self.gateway, self.tutor_preferences.instruction(), learner_settings=self.learner_settings
+            self.gateway, self.tutor_preferences.instruction(), learner_settings=self.learner_settings,
+            extension_registry=self.extension_registry,
         )
 
     async def refresh_embedding_runtime(self) -> None:
@@ -626,6 +638,9 @@ class ProductState:
                 await asyncio.wait_for(self._maintenance_condition.wait_for(
                     lambda: self._active_requests <= (1 if restore else 0)), timeout=5.0)
         await stage("requests", drain)
+        plugins = getattr(self, "community_plugins", None)
+        if plugins is not None:
+            plugins.close_runtime()
         for name in ("outbox_relay", "backup_scheduler"):
             service = getattr(self, name, None)
             if service is not None:
@@ -675,6 +690,7 @@ class ProductState:
             trace(id(self), "shutdown_failed", error=errors[0])
             raise errors[0]
         self.lifecycle_status = "STOPPED"
+        self.workspace_grants.clear()
         trace(id(self), "shutdown_complete")
 
     def _build_context_assembler(self, engine) -> ContextAssembler:
@@ -746,7 +762,7 @@ class ProductState:
 _default_state: ProductState | None = None
 
 
-def get_product_state(db_path: Path | None = None) -> ProductState:
+def get_product_state(db_path: Path | None = None, *, extension_registry=None) -> ProductState:
     """Return the process singleton, initializing it on first use.
 
     ``db_path`` is honored only on first initialization: pass the same value
@@ -787,9 +803,12 @@ def get_product_state(db_path: Path | None = None) -> ProductState:
                 data_dir=db_path.parent,
                 db_path=db_path,
                 verification_backend=verification_backend,
+                extension_registry=extension_registry,
             )
         else:
-            _default_state = ProductState()
+            _default_state = ProductState(extension_registry=extension_registry)
+    elif extension_registry is not None and _default_state.extension_registry is not extension_registry:
+        raise ValueError("Inject the extension registry before product state initialization")
     return _default_state
 
 

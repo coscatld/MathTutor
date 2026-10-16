@@ -50,7 +50,7 @@ def test_knowledge_explanation_keeps_prose_certainty_separate_from_source_receip
     db = tmp_path / "knowledge-notice.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         state = get_product_state()
-        asyncio.run(state.knowledge.configure("local-admin", "p0", space_ids=[]))
+        asyncio.run(state.knowledge.configure("local-admin", "p0", space_ids=[], mode="knowledge"))
         state.controller.knowledge_qa = SourceResponse()
         frames = send(ws, "send_message", "source-explanation", {"text": "解释这份资料"})
         visible = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]["final_text"]

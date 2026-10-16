@@ -1155,6 +1155,17 @@ async def _restore_backup_while_quiesced(state, backup_path: Path, recovery_key:
             "ok": False,
             "message": f"恢复后迁移失败：{error}；已自动恢复原数据库。",
         }
+    # Community settings live outside the SQLite-only backup. A restored
+    # learning database requires a fresh consent before plugins read it.
+    try:
+        plugins = getattr(state, "community_plugins", None)
+        if plugins is not None:
+            plugins.revoke_all_consents()
+    except Exception:
+        rollback_error = await _rollback_failed_restore(rollback_path, state.db_path)
+        _rebuild_after_restore(state)
+        return {"ok": False, "message": "插件访问权限重置失败，已取消恢复。" +
+                ("原数据库自动回滚失败，请使用保护副本恢复。" if rollback_error else "已恢复原数据库；请重新确认插件权限。")}
     rollback_path.unlink(missing_ok=True)
     reset_product_state()
     get_product_state(state.db_path)
@@ -1490,11 +1501,18 @@ async def set_document_scope_setting(document_id: UUID, body: DocumentScopeInput
 
 @router.get("/conversations/{conversation_id}/resources")
 async def conversation_resources(conversation_id: str, owner: StudentOwnerScope = Depends(require_student_owner)):
-    from mathtutor.application.conversation_resources import resources
+    from mathtutor.application.conversation_resources import resources, reference_state
     from mathtutor.api.conversation_guard import require_active
     await require_active(get_product_state(), owner.student_id, conversation_id)
-    documents, images, messages = await resources(get_product_state(), owner.student_id, conversation_id)
-    return {"documents": [_project_document(d) for d in documents], "images": images, "message_count": len(messages)}
+    state = get_product_state()
+    scope = await reference_state(state, owner.student_id, conversation_id)
+    documents, images, messages = await resources(state, owner.student_id, conversation_id, scope=scope)
+    candidates = {d["document_id"]: d for d in scope["available_documents"]}
+    effective = set(scope["effective_document_ids"])
+    return {"documents": [{**_project_document(d), "in_scope": str(d.document_id) in effective,
+                          "origin": candidates[str(d.document_id)]["origin"],
+                          "space_ids": candidates[str(d.document_id)]["space_ids"]} for d in documents],
+            "images": images, "message_count": len(messages), "scope": scope}
 
 
 @router.get("/conversations/{conversation_id}/export")

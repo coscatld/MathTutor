@@ -8,7 +8,7 @@ import pytest
 from mathtutor.api.product_app import create_math_tutor_app
 from mathtutor.security.gate import SecurityConfigurationError
 from mathtutor.security.settings import MathTutorSecuritySettings
-from mathtutor.security.allowlist import MATHTUTOR_FORBIDDEN_ROUTE_MARKERS
+from mathtutor.security.allowlist import MATHTUTOR_FORBIDDEN_ROUTE_MARKERS, MATHTUTOR_OWNER_RESOURCE_ROUTES
 
 
 def _dev_settings() -> MathTutorSecuritySettings:
@@ -82,6 +82,37 @@ class TestPositiveAllowlist:
                 "['GET'] /api/v2/math-tutor/desktop/knowledge/libraries/{sid}/export",
                 "['GET'] /api/v2/math-tutor/desktop/knowledge/conversations/{cid}",
                 "['PUT'] /api/v2/math-tutor/desktop/knowledge/conversations/{cid}",
+                "['POST'] /api/v2/math-tutor/desktop/knowledge/conversations/{cid}/preview",
+                "['GET'] /api/v2/math-tutor/desktop/creator/catalog",
+                "['GET'] /api/v2/math-tutor/desktop/creator/workspaces",
+                "['POST'] /api/v2/math-tutor/desktop/creator/workspaces",
+                "['DELETE'] /api/v2/math-tutor/desktop/creator/workspaces/{workspace_id}",
+                "['POST'] /api/v2/math-tutor/desktop/creator/workspaces/pick",
+                "['POST'] /api/v2/math-tutor/desktop/content/question-packs/import",
+                "['GET'] /api/v2/math-tutor/desktop/content/libraries/{sid}/export",
+                "['GET'] /api/v2/math-tutor/desktop/community/plugins",
+                "['GET'] /api/v2/math-tutor/desktop/community/plugins/examples",
+                "['POST'] /api/v2/math-tutor/desktop/community/plugins/validate",
+                "['POST'] /api/v2/math-tutor/desktop/community/plugins",
+                "['PUT'] /api/v2/math-tutor/desktop/community/plugins/{plugin_id}/enabled",
+                "['PATCH'] /api/v2/math-tutor/desktop/community/plugins/{plugin_id}/config",
+                "['DELETE'] /api/v2/math-tutor/desktop/community/plugins/{plugin_id}",
+                "['POST'] /api/v2/math-tutor/desktop/community/plugins/{plugin_id}/run",
+                "['GET'] /api/v2/math-tutor/desktop/community/plugins/{plugin_id}/export",
+                "['GET'] /api/v2/math-tutor/desktop/community/catalog",
+                "['POST'] /api/v2/math-tutor/desktop/community/import",
+                "['GET'] /api/v2/math-tutor/desktop/community/resources/{resource_id}",
+                "['PUT'] /api/v2/math-tutor/desktop/community/resources/{resource_id}/favorite",
+                "['POST'] /api/v2/math-tutor/desktop/community/resources/{resource_id}/import",
+                "['GET'] /api/v2/math-tutor/desktop/community/resources/{resource_id}/export",
+                "['GET'] /api/v2/math-tutor/desktop/community/sources",
+                "['POST'] /api/v2/math-tutor/desktop/community/sources",
+                "['POST'] /api/v2/math-tutor/desktop/community/sources/import",
+                "['POST'] /api/v2/math-tutor/desktop/community/sources/{source_id}/refresh",
+                "['DELETE'] /api/v2/math-tutor/desktop/community/sources/{source_id}",
+                "['GET'] /api/v2/math-tutor/desktop/community/history",
+                "['POST'] /api/v2/math-tutor/desktop/community/libraries/{sid}/publish",
+                "['DELETE'] /api/v2/math-tutor/desktop/community/state",
                 "['GET'] /api/v2/math-tutor/desktop/knowledge/sources/{did}",
                 "['GET'] /api/v2/math-tutor/desktop/knowledge/drafts",
                 "['POST'] /api/v2/math-tutor/desktop/knowledge/drafts/{draft_id}/save",
@@ -196,7 +227,11 @@ class TestPositiveAllowlist:
 class TestForbiddenRoutes:
     def test_no_forbidden_route_markers(self) -> None:
         app = _app()
-        inventory = " ".join(_route_inventory(app)).lower()
+        # These exact, authenticated management paths contain legacy marker
+        # substrings ("space", "question"). The positive inventory above still
+        # checks every method and route; arbitrary descendants remain forbidden.
+        inventory = " ".join(entry for entry in _route_inventory(app)
+                             if entry.split(" ")[-1] not in MATHTUTOR_OWNER_RESOURCE_ROUTES).lower()
         for marker in MATHTUTOR_FORBIDDEN_ROUTE_MARKERS:
             assert marker not in inventory, f"forbidden route marker {marker!r} found"
 

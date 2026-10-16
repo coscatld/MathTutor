@@ -168,7 +168,7 @@ def test_knowledge_mode_repairs_with_the_question_and_feedback(tmp_path):
     knowledge = Knowledge()
     with client_at(tmp_path / "repair.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         state = get_product_state()
-        asyncio.run(state.knowledge.configure("local-admin", "p0", space_ids=[]))
+        asyncio.run(state.knowledge.configure("local-admin", "p0", space_ids=[], mode="knowledge"))
         state.controller.knowledge_qa = knowledge
         frames = send(ws, "send_message", "kq", {"text": "解释这份资料"})
         final = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]["final_text"]

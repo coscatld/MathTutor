@@ -398,6 +398,14 @@ def test_restore_e2e_replaces_database_and_always_reports_restart(tmp_path: Path
     reset_product_state()
 
     with _client(db_file) as client:
+        plugin = client.get("/api/v2/math-tutor/desktop/community/plugins/examples").json()["items"][0]
+        installed = client.post("/api/v2/math-tutor/desktop/community/plugins", json={"package": plugin})
+        assert installed.status_code == 200
+        path = f'/api/v2/math-tutor/desktop/community/plugins/{plugin["id"]}'
+        configured = client.patch(path + "/config", json={"config": {"seed": 314}})
+        assert configured.status_code == 200
+        enabled = client.put(path + "/enabled", json={"enabled": True, "consent_permissions": plugin["required_permissions"]})
+        assert enabled.status_code == 200 and enabled.json()["enabled"]
         restored = client.post(
             "/api/v2/math-tutor/desktop/backup/restore", json={"path": backup_name}
         )
@@ -408,12 +416,40 @@ def test_restore_e2e_replaces_database_and_always_reports_restart(tmp_path: Path
             "restart_required": True,
             "message": "备份已恢复，请重启应用以完成恢复。",
         }
+        # Installed local configuration is independent from the DB backup;
+        # renewed data consent is required against the restored records.
+        retained = client.get("/api/v2/math-tutor/desktop/community/plugins").json()["items"]
+        assert len(retained) == 1 and retained[0]["plugin"]["id"] == plugin["id"]
+        assert retained[0]["config"]["seed"] == 314
+        assert retained[0]["enabled"] is False
+        assert retained[0]["consented_permissions"] == []
     assert _cycle_count(db_file) == 1, "the restored db is back to cycle A only"
 
     # The rebuilt runtime serves the restored database.
     state = get_product_state(db_file)
     assert state.outbox_relay is not None
     assert state.db_path == db_file.resolve()
+    reset_product_state()
+
+
+def test_restore_plugin_consent_io_failure_rolls_back_database(tmp_path: Path, monkeypatch) -> None:
+    db_file = tmp_path / "math_tutor.db"
+    reset_product_state()
+    with _client(db_file) as client:
+        _submit_solved_problem(client, "2x + 3 = 7", "2", "plugin-restore-a")
+        created = client.post("/api/v2/math-tutor/desktop/backup", json={}).json()
+        _submit_solved_problem(client, "x + 1 = 2", "1", "plugin-restore-b")
+        state = get_product_state()
+        def refuse_reset():
+            raise OSError("fixture disk failure")
+        monkeypatch.setattr(state.community_plugins, "revoke_all_consents", refuse_reset)
+        response = client.post("/api/v2/math-tutor/desktop/backup/restore", json={"path": created["backup"]["path"]})
+        assert response.status_code == 200
+        assert response.json()["ok"] is False
+        assert "插件访问权限重置失败" in response.json()["message"]
+        assert "fixture disk failure" not in response.text
+        assert _cycle_count(db_file) == 2
+        assert get_product_state() is not state
     reset_product_state()
 
 

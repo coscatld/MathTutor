@@ -1,0 +1,41 @@
+{
+  "schema_version": "mathtutor.community-plugin.v1",
+  "kind": "teaching-plugin",
+  "id": "mathtutor.mistake-review",
+  "version": "1.0.0",
+  "name": "错题复盘",
+  "description": "根据自己的真实作答，整理做错或尚未完全做对的题目，方便回顾。",
+  "author": "MathTutor",
+  "license": "Apache-2.0",
+  "tags": [
+    "错题",
+    "复盘",
+    "学习记录"
+  ],
+  "grades": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "readme": "区分独立、提示后和看过解答后的作答。原题或学生答案缺失时明确标记，不补造错误原因，不修改掌握状态。",
+  "changelog": "1.0.0：支持本地运行，使用学习记录前先征得同意。",
+  "workflow": "mistake-review",
+  "defaults": {
+    "limit": 12,
+    "include_assisted": true,
+    "include_partial": true
+  },
+  "teaching_guidance": "让学生先回顾原题条件和自己的关键步骤，再逐项核对；不把一次错误概括为不会整个知识点。",
+  "required_permissions": [
+    "read_learning_records"
+  ]
+}

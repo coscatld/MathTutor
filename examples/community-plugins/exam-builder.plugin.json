@@ -1,0 +1,44 @@
+{
+  "schema_version": "mathtutor.community-plugin.v1",
+  "kind": "teaching-plugin",
+  "id": "mathtutor.exam-builder",
+  "version": "1.0.0",
+  "name": "智能组卷",
+  "description": "按年级和知识点均衡选题，可调整出题顺序，并按需附上参考答案。",
+  "author": "MathTutor",
+  "license": "Apache-2.0",
+  "tags": [
+    "组卷",
+    "题库",
+    "均衡练习"
+  ],
+  "grades": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "readme": "从内置课程题库中轮流选取不同知识点的练习；保持选题范围和出题顺序设置相同，可再次得到同一份试卷。运行后可以保存完整试卷。参考解析供核对，不表示学生的解题步骤已通过检查。",
+  "changelog": "1.0.0：支持本地运行，使用学习记录前先征得同意。",
+  "workflow": "exam-builder",
+  "defaults": {
+    "grade": 10,
+    "question_count": 8,
+    "seed": 42,
+    "point_codes": [],
+    "include_answers": true,
+    "focus_weak_skills": false
+  },
+  "teaching_guidance": "先让学生独立尝试，再按需查看参考答案；参考解析不能替代学生的推理。",
+  "required_permissions": [
+    "question_bank"
+  ]
+}

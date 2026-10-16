@@ -27,12 +27,13 @@ import base64
 import inspect
 import os
 from typing import Awaitable, Callable, Protocol
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from pydantic import BaseModel, ConfigDict
 
 # The Electron shell's native-picker listener URL (set by the shell when it
-# spawns the Python service). Example: http://127.0.0.1:38291
+# spawns the Python service). A base URL or the full /native-pick URL works.
 PICKER_URL_ENV = "MATHTUTOR_ELECTRON_PICKER_URL"
 
 # Timeout for asking the shell to show the dialog (local loopback).
@@ -137,7 +138,8 @@ class LoopbackElectronPickTransport:
     The Electron main process runs a tiny localhost HTTP listener (started
     before it spawns the Python service) and passes its URL via the
     ``MATHTUTOR_ELECTRON_PICKER_URL`` environment variable. This transport
-    POSTs a pick request to ``{url}/native-pick``; the shell shows the OS
+    POSTs a pick request to ``/native-pick`` on that loopback origin; the
+    setting may already include the endpoint. The shell shows the OS
     dialog and answers with the picked file bytes (base64) or
     ``{"cancelled": true}``.
 
@@ -160,7 +162,23 @@ class LoopbackElectronPickTransport:
         self._http = http
 
     def available(self) -> bool:
-        return bool(self._picker_url)
+        try:
+            return bool(self._endpoint())
+        except PickTransportUnavailableError:
+            return False
+
+    def _endpoint(self) -> str:
+        try:
+            parsed = urlsplit(self._picker_url)
+            valid = (parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+                     and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment
+                     and parsed.path in {"", "/native-pick"})
+            parsed.port  # Reject malformed or out-of-range ports before any request.
+        except ValueError:
+            valid = False
+        if not valid:
+            raise PickTransportUnavailableError("native picker URL must be a local HTTP picker endpoint")
+        return urlunsplit((parsed.scheme, parsed.netloc, "/native-pick", "", ""))
 
     async def pick(self, student_id: str) -> PickedFile | None:
         if not self._picker_url:
@@ -168,11 +186,13 @@ class LoopbackElectronPickTransport:
                 f"no native picker URL ({PICKER_URL_ENV} unset) — native "
                 "file picking unsupported"
             )
+        endpoint = self._endpoint()
         try:
-            async with self._http or httpx.AsyncClient(timeout=self._timeout) as client:
+            async with self._http or httpx.AsyncClient(timeout=self._timeout, trust_env=False) as client:
                 response = await client.post(
-                    f"{self._picker_url}/native-pick",
+                    endpoint,
                     json={"student_id": student_id},
+                    follow_redirects=False,
                 )
         except httpx.HTTPError as error:
             raise PickTransportUnavailableError(

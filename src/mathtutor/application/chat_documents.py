@@ -52,16 +52,20 @@ class ChatDocumentContext:
 
         inventory = []
         eligible = []
-        for document_id in scope[:32]:
+        # A presentation budget must not silently exclude the 33rd authorized
+        # file from retrieval. Evidence/context budgets are applied downstream.
+        for document_id in scope:
             doc = await self.documents.get_document(owner, document_id)
             if doc is None or doc.deleted_at is not None:
                 continue
-            inventory.append({"filename": doc.filename, "status": doc.status,
-                              "retrieval_enabled": doc.retrieval_enabled})
+            if len(inventory) < 32:
+                inventory.append({"filename": doc.filename, "status": doc.status,
+                                  "retrieval_enabled": doc.retrieval_enabled})
             if doc.can_enable_retrieval() and doc.retrieval_enabled:
                 eligible.append(doc)
 
-        result = {"files": inventory, "status": "no_retrievable_documents", "chunks": []}
+        result = {"files": inventory, "status": "no_retrievable_documents", "chunks": [],
+                  "document_count": len(scope), "inventory_partial": len(scope) > len(inventory)}
         if not eligible:
             return result
 
@@ -102,13 +106,18 @@ class ChatDocumentContext:
                 chunks = await self.repository.list_retrievable_chunks(owner, doc.document_id)
                 total_chunks += len(chunks)
                 overview.extend((doc.filename, chunk) for chunk in chunks[:MAX_CHUNKS])
+            remaining = MAX_CONTEXT_CHARS
             for filename, chunk in overview[:MAX_CHUNKS]:
+                if remaining <= 0:
+                    break
+                text = chunk.text[:remaining]
                 result["chunks"].append({
                     "filename": filename,
                     "chunk": chunk.sequence + 1,
-                    "text": chunk.text[:MAX_CONTEXT_CHARS],
+                    "text": text,
                     "selection": "文档概览",
                 })
+                remaining -= len(text)
 
         result["status"] = "available" if result["chunks"] else "no_matching_chunks"
         result["partial"] = True  # bounded selections are never proof of full-file reading

@@ -11,7 +11,9 @@ const output = await mkdtemp(path.join(tmpdir(), "mathtutor-learning-support-"))
 const browser = await chromium.launch({ executablePath: process.env.CHROME_EXECUTABLE, headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 await page.emulateMedia({ reducedMotion: "reduce" });
-const errors = [], mutations = [], layouts = [];
+const errors = [], mutations = [], previews = [], layouts = [];
+let failNextWrite = false, failReadAfterWrite = false, failNextRead = "";
+const failedReads = new Set();
 page.on("pageerror", error => errors.push(error.message));
 const settings = { is_configured: true, onboarding_completed: true, preset_id: "local", model: "fixture", base_url: "http://127.0.0.1", key_masked: null, provider_configs: {} };
 const goal = "先确定对数函数的定义域，再讨论单调性";
@@ -32,9 +34,19 @@ let memories = Array.from({ length: 23 }, (_, i) => ({
   memory_id: `memory-${i}`, memory_type: "example_preference", subject: `讲解偏好 ${i + 1}`, predicate: "内容", object_json: { value: i === 22 ? "最新偏好：先给一个具体例子，再解释抽象定义。" : `学习偏好 ${i + 1}：请保留必要的中间步骤。` },
   source_type: i === 21 ? "MODEL_INFERRED" : "USER_EXPLICIT", confidence: .9, retrieval_enabled: i !== 20, created_at: "2026-10-16T09:00:00Z", updated_at: "2026-10-16T09:00:00Z",
 }));
-const libraries = [{ space_id: "lib-functions", name: "高中函数笔记", kind: "course", conversation_id: "", enabled: 1 }, { space_id: "lib-personal", name: "我的错题整理", kind: "personal", conversation_id: "", enabled: 1 }];
+const libraries = [{ space_id: "lib-functions", name: "高中函数笔记", kind: "course", conversation_id: "", enabled: 1 }, { space_id: "lib-personal", name: "我的错题整理", kind: "personal", conversation_id: "", enabled: 1 }, { space_id: "lib-other-session", name: "其他对话的专属资料", kind: "session", conversation_id: "other", enabled: 1 }];
 const notes = [{ document_id: "note-domain", title: "对数函数的定义域.md", version: 2, tags: ["函数", "定义域"], links: [], retrieval_enabled: true, editable: true }];
-let mount = { space_ids: ["lib-functions"], document_ids: [], only_selected: false, mode: "tutor", hints_only: false, available_documents: [{ document_id: "note-domain", title: notes[0].title, enabled: true }] };
+const initialMount = { space_ids: ["lib-functions"], document_ids: [], only_selected: false, mode: "tutor", hints_only: false, save_space_id: "lib-functions", tool_mode: "structured" };
+const mounts = new Map([["support", initialMount]]);
+const config = cid => mounts.get(cid) || { space_ids: [], document_ids: [], only_selected: false, mode: "tutor", hints_only: false, save_space_id: "", tool_mode: "native" };
+const scopeProjection = (cid, value = config(cid)) => {
+  const candidates = [
+    ...(cid === "support" ? documents.map(doc => ({document_id: doc.document_id, title: doc.filename, enabled: doc.retrieval_enabled && ["ready", "ready_with_warnings"].includes(doc.status), status: doc.status, retrieval_enabled: doc.retrieval_enabled, origin: "conversation", space_ids: []})) : []),
+    ...(value.space_ids.includes("lib-functions") ? [{document_id: "note-domain", title: notes[0].title, enabled: true, status: "ready", retrieval_enabled: true, origin: "library", space_ids: ["lib-functions"]}] : []),
+    ...(value.space_ids.includes("lib-personal") ? [{document_id: "note-mistake", title: "本周易错题.md", enabled: true, status: "ready", retrieval_enabled: true, origin: "library", space_ids: ["lib-personal"]}] : []),
+  ].map(doc => ({...doc, selected: !value.only_selected || value.document_ids.includes(doc.document_id)}));
+  return {...value, available_documents: candidates, effective_document_ids: candidates.filter(doc => doc.selected && doc.enabled).map(doc => doc.document_id)};
+};
 await page.route("**/api/**", async route => {
   const request = route.request(), url = new URL(request.url()), pathname = url.pathname, method = request.method();
   let body = [];
@@ -44,7 +56,11 @@ await page.route("**/api/**", async route => {
   else if (pathname.endsWith("/presets")) body = [];
   else if (pathname.endsWith("/sessions")) body = [{ conversation_id: "support", title: "函数与定义域" }];
   else if (pathname.includes("/sessions/")) body = session;
-  else if (pathname.endsWith("/resources")) body = { documents, images: [], message_count: 2 };
+  else if (pathname.endsWith("/resources")) {
+    const cid = decodeURIComponent(pathname.split("/").at(-2)), scope = scopeProjection(cid);
+    const projected = scope.available_documents.map(candidate => ({...(documents.find(doc => doc.document_id === candidate.document_id) || {document_id: candidate.document_id, filename: candidate.title, status: "ready", retrieval_enabled: true, chunk_count: 3, created_at: "2026-10-16T09:00:00Z"}), in_scope: scope.effective_document_ids.includes(candidate.document_id), origin: candidate.origin, space_ids: candidate.space_ids}));
+    body = {documents: projected, images: [], message_count: 2, scope};
+  }
   else if (pathname.endsWith("/memory")) body = memories;
   else if (/\/memory\/[^/]+\/retrieval$/.test(pathname)) {
     const id = pathname.split("/").at(-2), input = request.postDataJSON();
@@ -57,9 +73,20 @@ await page.route("**/api/**", async route => {
   } else if (pathname.endsWith("/knowledge/libraries")) body = libraries;
   else if (pathname.endsWith("/knowledge/drafts")) body = [];
   else if (/\/knowledge\/libraries\/[^/]+\/notes$/.test(pathname)) body = notes;
-  else if (pathname.endsWith("/knowledge/conversations/support")) {
-    if (method !== "GET") { const input = request.postDataJSON(); mount = { ...mount, ...input }; mutations.push({ kind: "mount", ...input }); }
-    body = mount;
+  else if (/\/knowledge\/conversations\/[^/]+\/preview$/.test(pathname)) {
+    const cid = decodeURIComponent(pathname.split("/").at(-2)), input = request.postDataJSON();
+    assert.equal(method, "POST"); previews.push({cid, ...input}); body = scopeProjection(cid, input);
+  } else if (/\/knowledge\/conversations\/[^/]+$/.test(pathname)) {
+    const cid = decodeURIComponent(pathname.split("/").at(-1));
+    if (method === "GET" && (failNextRead === cid || failedReads.has(cid))) { failNextRead = ""; return route.fulfill({status: 503, json: {detail: "模拟范围读取失败"}}); }
+    if (method === "PUT") {
+      if (failNextWrite) { failNextWrite = false; return route.fulfill({status: 409, json: {detail: "模拟保存冲突，原范围仍有效"}}); }
+      const input = request.postDataJSON();
+      assert.equal("available_documents" in input, false); assert.equal("effective_document_ids" in input, false);
+      mounts.set(cid, input); mutations.push({kind: "mount", cid, ...input});
+      if (failReadAfterWrite) { failReadAfterWrite = false; failNextRead = cid; }
+    }
+    body = scopeProjection(cid);
   } else if (pathname.endsWith("/knowledge/sources/note-domain")) body = { ...notes[0], body: "# 对数函数\n\n真数必须大于零。", body_hash: "fixture-hash", provenance: { format: "markdown" }, backlinks: [] };
   else if (pathname.endsWith("/documents")) body = documents;
   else if (pathname.includes("embedding")) body = { enabled: false, status: "disabled", local_models: [] };
@@ -88,9 +115,74 @@ try {
   await page.keyboard.press("Escape");
   assert.equal(await page.getByRole("button", { name: "当前教学支持与可用操作", exact: true }).evaluate(el => el === document.activeElement), true);
   await page.getByRole("button", { name: "当前对话的学习资料", exact: true }).click();
-  await page.locator(".mt-tools-panel").getByText(documents[0].filename, { exact: true }).waitFor();
-  await page.locator(".mt-tools-panel").getByText(documents[2].filename, { exact: true }).waitFor();
+  await page.locator(".mt-tools-panel").getByText(documents[0].filename, { exact: true }).first().waitFor();
+  await page.locator(".mt-tools-panel").getByText(documents[2].filename, { exact: true }).first().waitFor();
   await checkBounds(); await capture("documents-desktop");
+  const reference = page.getByRole("region", {name: "回答参考资料", exact: true});
+  const applyScope = reference.getByRole("button", {name: "应用到当前对话", exact: true});
+  assert.equal(await page.getByRole("link", {name: "知识库与问答范围", exact: true}).count(), 0);
+  assert.equal(await reference.getByRole("checkbox", {name: "其他对话的专属资料", exact: true}).count(), 0);
+  await reference.getByRole("checkbox", {name: libraries[1].name, exact: true}).check();
+  await reference.getByText("本周易错题.md", {exact: true}).waitFor();
+  assert.equal(mutations.filter(row => row.kind === "mount").length, 0, "preview cannot persist a configuration");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", {name: "当前对话的学习资料", exact: true}).click();
+  assert.equal(await reference.getByRole("checkbox", {name: libraries[1].name, exact: true}).isChecked(), true, "closing the panel preserves its draft");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("button", {name: "新建对话", exact: true}).click();
+  assert.ok(page.url().includes("session=support"), "canceling new-conversation navigation retains the current draft");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("link", {name: "打开知识库", exact: true}).click();
+  assert.ok(page.url().includes("session=support"), "canceling link navigation retains the current draft");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("link", {name: "打开知识库", exact: true}).click();
+  await page.waitForURL("**/math-tutor/knowledge?conversation=support");
+  await page.goBack();
+  await page.waitForURL("**/math-tutor?session=support");
+  await page.getByRole("button", {name: "当前对话的学习资料", exact: true}).click();
+  await reference.getByText("本周易错题.md", {exact: true}).waitFor();
+  assert.equal(await reference.getByRole("checkbox", {name: libraries[1].name, exact: true}).isChecked(), true, "Back restores only this conversation's draft");
+  await applyScope.click();
+  await reference.getByText("已应用，下一条消息将使用这个资料范围。", {exact: true}).waitFor();
+  assert.deepEqual(config("support").space_ids, ["lib-functions", "lib-personal"]);
+  assert.equal(config("support").tool_mode, "structured");
+  assert.equal(config("support").save_space_id, "lib-functions");
+  await reference.getByRole("checkbox", {name: /仅使用我勾选的文档/}).check();
+  await applyScope.click();
+  assert.deepEqual(scopeProjection("support").effective_document_ids, [], "a strict empty selection must stay empty");
+  await reference.getByRole("checkbox", {name: notes[0].title, exact: true}).check();
+  await applyScope.click();
+  assert.deepEqual(scopeProjection("support").effective_document_ids, ["note-domain"]);
+  await reference.getByRole("checkbox", {name: documents[0].filename, exact: true}).check();
+  const savedBeforeFailure = mutations.filter(row => row.kind === "mount").length;
+  failNextWrite = true;
+  await applyScope.click();
+  await reference.getByText("模拟保存冲突，原范围仍有效", {exact: true}).waitFor();
+  assert.equal(mutations.filter(row => row.kind === "mount").length, savedBeforeFailure);
+  assert.deepEqual(config("support").document_ids, ["note-domain"]);
+  await reference.getByRole("button", {name: "重新读取范围", exact: true}).click();
+  failReadAfterWrite = true;
+  await applyScope.click();
+  await reference.getByText("设置已提交，但尚未确认当前范围。请重新读取后再继续对话。", {exact: true}).waitFor();
+  assert.equal(await page.getByRole("textbox", {name: "聊天输入", exact: true}).isDisabled(), true);
+  await reference.getByRole("button", {name: "重新读取范围", exact: true}).click();
+  await reference.getByText("已应用", {exact: true}).waitFor();
+  assert.equal(await page.getByText("资料范围尚待确认，请在对话资料中重新读取后继续。", {exact: true}).count(), 0);
+  failedReads.add("read-failed");
+  const writesBeforeReadFailure = mutations.filter(row => row.kind === "mount").length;
+  await page.goto(`${base}/math-tutor?session=read-failed&panel=documents`);
+  await reference.getByText("模拟范围读取失败", {exact: true}).waitFor();
+  assert.equal(await applyScope.count(), 0, "failed initial reads cannot save an invented default");
+  assert.equal(mutations.filter(row => row.kind === "mount").length, writesBeforeReadFailure);
+  failedReads.delete("read-failed");
+  await reference.getByRole("button", {name: "重新读取范围", exact: true}).click();
+  await reference.getByText("已应用", {exact: true}).waitFor();
+  assert.equal(await reference.getByRole("checkbox", {name: libraries[1].name, exact: true}).isChecked(), false, "conversation drafts never cross session IDs");
+  await page.goto(`${base}/math-tutor?session=support&panel=documents`);
+  await reference.getByText("已应用", {exact: true}).waitFor();
+  assert.equal(await reference.getByRole("checkbox", {name: documents[0].filename, exact: true}).isChecked(), true);
+  assert.ok(previews.length > 1, "scope edits use read-only previews");
+  await checkBounds(); await capture("documents-selected-scope");
   await page.getByRole("button", { name: "关闭工具栏", exact: true }).click();
   await page.getByRole("button", { name: "查看 Tutor 使用的学习记忆", exact: true }).click();
   const panel = page.locator(".mt-tools-panel");
@@ -118,22 +210,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${base}/math-tutor/knowledge?conversation=support`);
   await page.getByText(libraries[0].name, { exact: true }).first().waitFor();
-  const scope = page.getByRole("region", { name: "会话挂载", exact: true });
-  await scope.getByRole("checkbox", { name: /我的错题整理/ }).check();
-  await scope.getByText("有未保存的范围修改", { exact: true }).waitFor();
-  assert.equal(mutations.filter(row => row.kind === "mount").length, 0, "scope editing must not claim to have saved");
-  page.once("dialog", dialog => dialog.dismiss());
-  await page.getByRole("link", { name: "返回对话", exact: true }).click();
-  assert.ok(page.url().includes("/knowledge"), "cancel must preserve unsaved scope");
-  await scope.getByRole("button", { name: "保存挂载与范围", exact: true }).click();
-  await scope.getByText("当前已保存范围", { exact: true }).waitFor();
-  assert.deepEqual(mount.space_ids, ["lib-functions", "lib-personal"]);
-  await scope.getByRole("checkbox", { name: /进一步限定到指定文档/ }).check();
-  await scope.getByRole("checkbox", { name: notes[0].title, exact: true }).check();
-  await scope.getByRole("button", { name: "保存挂载与范围", exact: true }).click();
-  await scope.getByText("当前已保存范围", { exact: true }).waitFor();
-  assert.equal(mount.only_selected, true);
-  assert.deepEqual(mount.document_ids, ["note-domain"]);
+  assert.equal(await page.getByRole("region", {name: "会话挂载", exact: true}).count(), 0, "knowledge management has no duplicate scope editor");
   await page.locator(".mt-library-choice").filter({ hasText: libraries[0].name }).click();
   await page.locator(".mt-note-open").filter({ hasText: notes[0].title }).click();
   await page.getByRole("textbox", { name: "笔记标题", exact: true }).waitFor();
@@ -147,6 +224,6 @@ try {
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await checkBounds(); await capture("knowledge-dark-mobile");
   assert.deepEqual(errors, []);
-  await writeFile(path.join(output, "result.json"), JSON.stringify({ status: "PASS", mocked_traffic: true, paid_model_calls: 0, mutations, layouts, page_errors: errors }, null, 2));
+  await writeFile(path.join(output, "result.json"), JSON.stringify({ status: "PASS", mocked_traffic: true, paid_model_calls: 0, mutations, previews, layouts, page_errors: errors }, null, 2));
   console.log(JSON.stringify({ status: "PASS", output, paid_model_calls: 0 }));
 } finally { await browser.close(); }

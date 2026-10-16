@@ -1149,6 +1149,7 @@ class MathTutorController:
         verification_notice = ""
         learner_context = None
         personal_memory = None
+        execution_context = None
         if responder is None:
             if images:
                 raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。")
@@ -1175,6 +1176,10 @@ class MathTutorController:
                 from mathtutor.application.message_intent import is_concrete_math_input
                 import inspect
                 accepts = inspect.signature(responder.respond).parameters
+                if "execution_context" in accepts and owner_id and client_session_id:
+                    from mathtutor.extensions import ExecutionContext
+                    execution_context = ExecutionContext(owner_id=owner_id, conversation_id=client_session_id)
+                    extra["execution_context"] = execution_context
                 personal_memory = await self._personal_memory_context(owner_id)
                 if personal_memory is not None and "personal_memory" in accepts:
                     extra["personal_memory"] = personal_memory
@@ -1261,7 +1266,7 @@ class MathTutorController:
             visible = await self._redraw_on_canvas(responder, turn, text, history, visible, problem_context=problem_context,
                 unstructured_math=unstructured_math, images=images, math_verify=math_verify,
                 response_request=request_text, learner_context=learner_context, document_context=document_context,
-                personal_memory=personal_memory)
+                personal_memory=personal_memory, execution_context=execution_context)
         raw_visible = visible
         from mathtutor.application.problem_recovery import simple_greeting
         from mathtutor.application.math_claims import strip_notice
@@ -1289,6 +1294,8 @@ class MathTutorController:
                         repair_options["learner_context"] = learner_context
                     if personal_memory is not None and "personal_memory" in repair_parameters:
                         repair_options["personal_memory"] = personal_memory
+                    if execution_context is not None and "execution_context" in repair_parameters:
+                        repair_options["execution_context"] = execution_context
                     return sanitize_figures(project_assistant_message(await responder.respond(
                         feedback, history=retry_history, problem_context=problem_context,
                         unstructured_math=unstructured_math, **repair_options)) or "")[0]
@@ -1347,7 +1354,8 @@ class MathTutorController:
 
     async def _redraw_on_canvas(self, responder, turn, text, history, first_answer, *, problem_context,
                                 unstructured_math, images, math_verify, response_request=None,
-                                learner_context=None, document_context=None, personal_memory=None) -> str:
+                                learner_context=None, document_context=None, personal_memory=None,
+                                execution_context=None) -> str:
         """One bounded repair: the answer drew a figure by itself; ask for draw_scene.
 
         Like the formula repair, the turn gets a fixed extra budget (one
@@ -1367,7 +1375,8 @@ class MathTutorController:
             supported = inspect.signature(responder.respond).parameters
             context_options = {key: value for key, value in {
                 "response_request": response_request, "learner_context": learner_context,
-                "document_context": document_context, "personal_memory": personal_memory
+                "document_context": document_context, "personal_memory": personal_memory,
+                "execution_context": execution_context,
             }.items() if key in supported and value is not None}
             again = project_assistant_message(await responder.respond(
                 feedback, history=retry_history, problem_context=problem_context, unstructured_math=unstructured_math,

@@ -1,11 +1,12 @@
 "use client";
 
-import { BookCheck, BookOpen, BrainCircuit, ChevronLeft, FileText, GraduationCap, Library, MessageSquarePlus, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import { BookCheck, BookOpen, BrainCircuit, ChevronLeft, Compass, FileText, GraduationCap, Library, MessageSquarePlus, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, apiUrl } from "@/lib/api";
 import { makeSessionId } from "../../lib/protocol";
+import { requestTutorNavigation } from "../../lib/navigation-guard";
 import ConversationDeleteDialog from "./ConversationDeleteDialog";
 import { conversationAction } from "../lib/conversation-trash";
 import Tooltip from "./Tooltip";
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/math-tutor/question-bank", label: "题库", icon: BookCheck },
   { href: "/math-tutor/documents", label: "资料", icon: FileText },
   { href: "/math-tutor/knowledge", label: "知识库", icon: Library },
+  { href: "/math-tutor/community", label: "社区", icon: Compass },
   { href: "/math-tutor/memory", label: "记忆", icon: BrainCircuit },
 ];
 
@@ -53,6 +55,7 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
   }, [loadConversations]);
 
   const createConversation = () => {
+    if (!requestTutorNavigation()) return;
     const conversationId = makeSessionId();
     // A URL/session id is only an in-memory draft. The backend creates the
     // durable conversation when the first student message arrives.
@@ -73,7 +76,7 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
         <p className="mt-sidebar-label">最近对话</p>
         <div className="space-y-0.5">{conversations.length ? conversations.map((item) => <div key={item.conversation_id} className="mt-history-row flex min-w-0 items-center"><Link href={`/math-tutor?session=${encodeURIComponent(item.conversation_id)}`} aria-current={selected === item.conversation_id ? "true" : undefined} className="mt-history-item">{item.title || "新对话"}</Link><button type="button" aria-label={`删除对话：${item.title || "新对话"}`} onClick={() => setDeleteTarget(item)} className="mt-history-delete flex h-10 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--destructive)]"><Trash2 className="h-4 w-4" aria-hidden="true" /></button></div>) : <p className="px-3 py-2 text-xs leading-5 text-[var(--muted-foreground)]">发出第一条消息后，对话会保存在这里。</p>}</div>
       </div> : <div className="flex-1" />}
-      <nav aria-label="主要功能" className="flex shrink-0 flex-col gap-0.5 p-3">{NAV_ITEMS.map((item) => {
+      <nav aria-label="主要功能" className="flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto p-3">{NAV_ITEMS.map((item) => {
         const active = item.href === "/math-tutor" ? inTutor : pathname.startsWith(item.href);
         const link = <Link key={item.href} href={item.href} aria-label={item.label} aria-current={active ? "page" : undefined} className="mt-nav-item"><item.icon className="h-4 w-4 shrink-0" />{!collapsed ? item.label : null}</Link>;
         return collapsed ? <Tooltip key={item.href} label={item.label} side="right" wrapperClassName="flex w-full">{link}</Tooltip> : link;
@@ -82,9 +85,10 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
     </aside>
     <main id="workspace-content" className={`min-h-0 min-w-0 flex-1 ${inTutor || pathname.startsWith("/math-tutor/settings") ? "overflow-hidden" : "overflow-y-auto"}`}>{children}</main>
     {deleteTarget ? <ConversationDeleteDialog title={deleteTarget.title || "对话"} onCancel={() => setDeleteTarget(null)} onConfirm={async () => {
+      if (selected === deleteTarget.conversation_id && !requestTutorNavigation()) return;
       await conversationAction(deleteTarget.conversation_id, "trash");
       setConversations(rows => rows.filter(row => row.conversation_id !== deleteTarget.conversation_id));
-      if (selected === deleteTarget.conversation_id) createConversation();
+      if (selected === deleteTarget.conversation_id) router.push(`/math-tutor?session=${encodeURIComponent(makeSessionId())}`);
       setDeleteTarget(null);
     }} /> : null}
   </div>;

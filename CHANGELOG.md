@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0 — Knowledge vault and creator community (trial)
+
+- Use the formal product name “MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统”; keep `MathTutor` as the navigation, bundle and executable name. Target unsigned Windows x64 EXE and macOS Apple Silicon DMG trial builds; public attachments and acceptance records remain authoritative on the release page.
+- Unify answer-source selection in conversation materials. Manage folders, Markdown edits, versions, tags and backlinks in the knowledge vault; import and export shared question packs without widening a conversation's source scope or marking reference answers verified.
+- Add community resource discovery, favorites, version-aware imports, GitHub/custom HTTPS sources and creator package building. Imported resources are personal copies; community sources do not receive student records.
+- Import downloaded plugin or resource files in one action, without editing configuration files; use natural creation forms and readable text result exports. Add a runnable offline bundler and [developer guide](docs/PLUGIN_DEVELOPMENT.md) for building, testing, updating and sharing plugins.
+- Install strict, declarative teaching plugins for deterministic exam building, evidence-based mistake review and learning trends. Require per-plugin data consent and explicit activation; preserve user configuration on upgrades, disable upgraded plugins, and stop subsequent calls on uninstall. Empty learning histories remain empty.
+- Connect the trusted, in-process creator SDK to the real tutor tool loop with strict schemas, bounded results and execution budgets. Explicit directory grants constrain text-file tools; grants expire on restart, and writing requires the current user's file-write request. This SDK is not an arbitrary third-party code sandbox or package installer.
+- Keep plugin statistics, reference material, memory and tool receipts separate from verified solution evidence and DKT/mastery updates. SQLite backup format and migration head remain unchanged at `024`; independent community settings require their own export, and successful database restore clears plugin data consent.
+- No paid model calls, new model weights or benchmark re-evaluation are included in this update. Historical scores and figures retain their original evaluation scope. See [0.7.0 trial notes](docs/RELEASE_0.7.0.md) for data flow and packaging boundaries.
+
 ## 0.6.5 — Learning support, effective memory and curriculum coverage
 
 - Redesign teaching hints, conversation resources and knowledge scope with clear loading, saved and retrieval states. Remove the duplicate top-level collapse control and preserve keyboard focus and responsive reading space.

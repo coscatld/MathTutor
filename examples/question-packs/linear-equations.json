@@ -1,0 +1,26 @@
+{
+  "format": "mathtutor.question-pack.v1",
+  "name": "一元一次方程入门示例",
+  "author": "MathTutor 社区示例",
+  "description": "展示共享题库格式。导入后可以自由编辑题目、参考答案和讲解。",
+  "questions": [
+    {
+      "id": "linear-equation-001",
+      "title": "先减后除",
+      "stem": "解方程：2x + 3 = 7。",
+      "answer": "x = 2。",
+      "explanation": "方程两边同时减去 3，得到 2x = 4；再同时除以 2，得到 x = 2。代回检验：2×2+3=7。",
+      "grade": 7,
+      "tags": ["一元一次方程", "等式性质"]
+    },
+    {
+      "id": "linear-equation-002",
+      "title": "移项后求解",
+      "stem": "解方程：3x - 4 = 11。",
+      "answer": "x = 5。",
+      "explanation": "方程两边同时加上 4，得到 3x = 15；再同时除以 3，得到 x = 5。代回检验：3×5-4=11。",
+      "grade": 7,
+      "tags": ["一元一次方程", "检验"]
+    }
+  ]
+}

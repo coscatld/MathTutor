@@ -16,6 +16,7 @@ from mathtutor.infrastructure.vision import content_token_estimate
 from mathtutor.application.chat_documents import ChatDocumentContext, MAX_CONTEXT_CHARS
 from mathtutor.domain.documents import DocumentQueryResult, RetrievedChunk
 from mathtutor.application.conversation_scope import set_document_scope, reset_document_scope
+from mathtutor.application.knowledge import reference_configuration
 
 PREFIX = "/api/v2/math-tutor/desktop"
 FACT = "微网储能每日电价预算为独特样本甲乙丙。"
@@ -46,7 +47,10 @@ def test_chat_rag_and_folder_survive_restart(tmp_path, with_image):
         assert len(folder["documents"]) == 1
         assert len(folder["images"]) == int(with_image)
         assert folder["message_count"] >= 2
-        assert client.get(PREFIX + "/conversations/other/resources").json() == {"documents": [], "images": [], "message_count": 0}
+        assert client.get(PREFIX + "/conversations/other/resources").json() == {
+            "documents": [], "images": [], "message_count": 0,
+            "scope": {**reference_configuration(), "available_documents": [], "effective_document_ids": []},
+        }
         assert client.get(PREFIX + "/conversations/other/export").status_code == 404
         exported = client.get(PREFIX + "/conversations/p0/export")
         assert exported.status_code == 200

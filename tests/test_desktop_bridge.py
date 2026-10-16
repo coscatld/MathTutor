@@ -485,6 +485,61 @@ async def test_loopback_transport_happy_and_cancel() -> None:
     assert await cancel_transport.pick("s") is None
 
 
+@pytest.mark.parametrize("configured", [
+    "http://127.0.0.1:38001", "http://127.0.0.1:38001/",
+    "http://127.0.0.1:38001/native-pick", "http://127.0.0.1:38001/native-pick/",
+])
+async def test_loopback_transport_base_and_production_endpoint_use_exact_native_pick_path(configured, monkeypatch):
+    requests = []
+    def handler(request):
+        requests.append(request)
+        assert request.url.path == "/native-pick"
+        assert request.method == "POST" and json.loads(request.content) == {"student_id": "student-a"}
+        return httpx.Response(200, json={"filename": "中文讲义.md", "mime_type": "text/markdown",
+            "data_base64": base64.b64encode("原生选择的正文。".encode()).decode(), "original_path": "D:/课堂/中文讲义.md"})
+    # Exercise the environment entry point used by the real Electron process.
+    monkeypatch.setenv("MATHTUTOR_ELECTRON_PICKER_URL", configured)
+    transport = LoopbackElectronPickTransport(http=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    assert transport.available() is True
+    picked = await transport.pick("student-a")
+    assert len(requests) == 1 and picked.filename == "中文讲义.md"
+    assert picked.data == "原生选择的正文。".encode()
+
+
+@pytest.mark.parametrize("configured", [
+    "https://127.0.0.1:38001/native-pick", "http://example.invalid/native-pick",
+    "http://127.0.0.1.example.invalid/native-pick", "http://user:pass@127.0.0.1/native-pick",
+    "http://127.0.0.1:99999/native-pick", "http://127.0.0.1/native-pick?redirect=remote",
+    "http://127.0.0.1/native-pick#fragment", "http://127.0.0.1/native-pick/native-pick",
+])
+async def test_loopback_transport_rejects_nonlocal_or_ambiguous_endpoints_before_http(configured):
+    requests = []
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"cancelled": True})
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        transport = LoopbackElectronPickTransport(configured, http=client)
+        assert transport.available() is False
+        with pytest.raises(PickTransportUnavailableError):
+            await transport.pick("student-a")
+        assert requests == []
+    finally:
+        await client.aclose()
+
+
+async def test_loopback_transport_does_not_follow_redirect_outside_local_picker():
+    requests = []
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"location": "https://example.invalid/upload"})
+    transport = LoopbackElectronPickTransport("http://localhost:38001/native-pick",
+        http=httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True))
+    with pytest.raises(PickTransportUnavailableError, match="HTTP 302"):
+        await transport.pick("student-a")
+    assert len(requests) == 1 and requests[0].url.host == "localhost"
+
+
 async def test_loopback_transport_unreachable_is_unsupported() -> None:
     transport = LoopbackElectronPickTransport(
         "http://127.0.0.1:38002",

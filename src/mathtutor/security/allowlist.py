@@ -97,6 +97,25 @@ MATHTUTOR_FORBIDDEN_ROUTE_MARKERS: tuple[str, ...] = (
     "agents",
 )
 
+# Explicit owner-authenticated resource management, separate from the legacy
+# general execution surfaces caught by the broad substring markers above.
+# Paths are exact templates: neither a prefix nor a permission for new routes.
+MATHTUTOR_OWNER_RESOURCE_ROUTES: frozenset[str] = frozenset({
+    "/api/v2/math-tutor/desktop/creator/workspaces",
+    "/api/v2/math-tutor/desktop/creator/workspaces/{workspace_id}",
+    "/api/v2/math-tutor/desktop/creator/workspaces/pick",
+    "/api/v2/math-tutor/desktop/content/question-packs/import",
+    "/api/v2/math-tutor/desktop/community/import",
+    "/api/v2/math-tutor/desktop/community/plugins",
+    "/api/v2/math-tutor/desktop/community/plugins/examples",
+    "/api/v2/math-tutor/desktop/community/plugins/validate",
+    "/api/v2/math-tutor/desktop/community/plugins/{plugin_id}/enabled",
+    "/api/v2/math-tutor/desktop/community/plugins/{plugin_id}/config",
+    "/api/v2/math-tutor/desktop/community/plugins/{plugin_id}",
+    "/api/v2/math-tutor/desktop/community/plugins/{plugin_id}/run",
+    "/api/v2/math-tutor/desktop/community/plugins/{plugin_id}/export",
+})
+
 
 class SecurityViolationError(Exception):
     """A client message violated the product security allowlists."""
@@ -159,6 +178,7 @@ __all__ = [
     "MATHTUTOR_ENVELOPE_ALLOWED_KEYS",
     "MATHTUTOR_ENVELOPE_FORBIDDEN_KEYS",
     "MATHTUTOR_FORBIDDEN_ROUTE_MARKERS",
+    "MATHTUTOR_OWNER_RESOURCE_ROUTES",
     "SecurityViolationError",
     "validate_active_capability",
     "validate_client_envelope",

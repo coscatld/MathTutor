@@ -8,16 +8,16 @@
  *      uvicorn, `--factory` entrypoint) on 127.0.0.1 with a random port;
  *   2. spawn the Next.js frontend (production `next start` when a build
  *      exists, else `next dev`) pointed at that backend;
- *   3. host a loopback-only `/native-pick` HTTP endpoint that opens the OS
- *      file dialog and returns the picked file bytes to the Python bridge
+ *   3. host loopback-only native file/directory picker endpoints that open OS
+ *      dialogs and return file bytes or the chosen folder path to Python
  *      (invoked only on the user's explicit click in the UI);
  *   4. open one BrowserWindow with a locked-down webPreferences.
  *
  * NO business logic lives here: no API keys, no documents, no memory, no
  * tutoring state. The renderer reaches the backend through the Next
  * middleware proxy exactly like the web app; the only Electron-specific path
- * is the native file pick, and it never scans directories — it returns only
- * the bytes of the single file the user picked.
+ * is native picking. It never scans directories: file selection returns one
+ * file, and directory selection returns a path without granting access.
  */
 
 const { app, BrowserWindow, dialog, utilityProcess } = require("electron");
@@ -314,8 +314,18 @@ let pickerServer = null;
 
 function startPickerServer(port) {
   const server = http.createServer((req, res) => {
-    if (req.method !== "POST" || req.url !== "/native-pick") {
+    const directoryPick = req.url === "/native-directory";
+    if (req.method !== "POST" || (!directoryPick && req.url !== "/native-pick")) {
       res.writeHead(404).end();
+      return;
+    }
+    // Only the Python bridge calls this loopback endpoint. Browser pages
+    // cannot open native dialogs directly or grant directories by posting
+    // a simple cross-origin form.
+    if (req.headers.origin || !String(req.headers["content-type"] || "").toLowerCase().startsWith("application/json")) {
+      res.writeHead(403, { "Content-Type": "application/json" }).end(
+        JSON.stringify({ error: "native picker requires a local bridge request" }),
+      );
       return;
     }
     let body = "";
@@ -340,12 +350,12 @@ function startPickerServer(port) {
         return;
       }
       // The OS dialog is opened ONLY here, and only because the UI's
-      // explicit "添加资料" click reached this endpoint via the bridge.
+      // explicit file/directory selection click reached the Python bridge.
       dialog
         .showOpenDialog(BrowserWindow.getFocusedWindow() || undefined, {
-          title: "选择学习资料",
-          properties: ["openFile"],
-          filters: PICK_FILTERS,
+          title: directoryPick ? "选择允许智能体访问的文件夹" : "选择学习资料",
+          properties: directoryPick ? ["openDirectory"] : ["openFile"],
+          ...(directoryPick ? {} : { filters: PICK_FILTERS }),
         })
         .then((result) => {
           if (result.canceled || result.filePaths.length === 0) {
@@ -355,6 +365,14 @@ function startPickerServer(port) {
             return;
           }
           const filePath = result.filePaths[0];
+          if (directoryPick) {
+            // Selection only: the authenticated application service owns
+            // the separate read/write grant. The picker never scans a tree.
+            res.writeHead(200, { "Content-Type": "application/json" }).end(
+              JSON.stringify({ cancelled: false, path: filePath }),
+            );
+            return;
+          }
           fs.readFile(filePath, (err, data) => {
             if (err || data.length === 0) {
               res.writeHead(200, { "Content-Type": "application/json" }).end(
@@ -1444,7 +1462,7 @@ app.whenReady().then(async () => {
     height: 840,
     minWidth: 960,
     minHeight: 640,
-    title: "MathTutor 数学辅导",
+    title: "MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统",
     webPreferences: {
       preload: path.join(DESKTOP_DIR, "preload.js"),
       contextIsolation: true,
