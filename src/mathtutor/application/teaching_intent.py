@@ -36,6 +36,24 @@ _PERSISTENT = re.compile(r"(?:还是|仍然|依然|又|一直|仍旧)")
 _NEGATED_ANSWER = re.compile(r"(?:不要|别|先不|不想|不用|不能|不需要)[^，,。；;]{0,18}(?:答案|解答|解法|解析)")
 _EXPLICIT_SOLUTION = re.compile(r"(?:给我|告诉我|请(?:给|展示|提供)|我(?:想要|需要|想|要)(?:看|知道|查看)?|查看|看一下|让我看|直接给|显示|展示)[^，,。；;]{0,12}(?:答案|完整解答|完整解析|完整解法)")
 
+_EN_NEGATED_ANSWER = re.compile(r"\b(?:do\s+not|don't|dont|never|without|avoid)\b[^.!?\n]{0,60}\b(?:answer|solution|solving)\b", re.I)
+_EN_EXPLICIT_SOLUTION = re.compile(
+    r"\b(?:provide|give|show|state|write|tell\s+me)\s+(?:me\s+)?(?:your\s+|the\s+|a\s+)?(?:final\s+answer|complete\s+(?:correct\s+)?solution|full\s+(?:solution|answer)|answer)\b"
+    r"|\bsolve\s+(?:the\s+|this\s+)?(?:question|problem|equation)\s+step[- ]by[- ]step\b", re.I)
+
+
+def current_request_text(text: str) -> str:
+    """Disclosure is governed by the current request, not an embedded transcript."""
+    latest = re.search(r"(?:student[’']s\s+latest\s+message|学生(?:的)?最新(?:消息|问题))\s*[:：]", text, re.I)
+    if latest:
+        return text[latest.end():]
+    history = re.search(r"(?:^|\n)\s*(?:conversation|dialog(?:ue)?\s+history|对话(?:记录|历史)?)\s*[:：]", text, re.I)
+    return text[:history.start()] if history else text
+
+
+def contains_student_work(text: str) -> bool:
+    return bool(re.search(r"(?:^|\n)\s*(?:student(?:[’']s)?\s*(?:solution|latest\s+message)?|learner|teacher|tutor|conversation|previous\s+explanation|学生(?:解答|步骤|最新消息)?|老师|教师|对话记录)\s*[:：]", text, re.I))
+
 
 def current_subgoal_id(context: dict) -> str:
     current = context.get("current_subgoal")
@@ -64,12 +82,14 @@ def visible_self_report(text: str) -> str:
 
 
 def negates_solution(text: str) -> bool:
-    return bool(_NEGATED_ANSWER.search(_QUOTED.sub(" ", text)))
+    unquoted = _QUOTED.sub(" ", current_request_text(text))
+    return bool(_NEGATED_ANSWER.search(unquoted) or _EN_NEGATED_ANSWER.search(unquoted))
 
 
 def explicit_solution_request(text: str) -> bool:
     """Disclosure safety gate: mentioning an answer is not asking to reveal it."""
-    return bool(_EXPLICIT_SOLUTION.search(_QUOTED.sub(" ", text))) and not negates_solution(text)
+    unquoted = _QUOTED.sub(" ", current_request_text(text))
+    return bool(_EXPLICIT_SOLUTION.search(unquoted) or _EN_EXPLICIT_SOLUTION.search(unquoted)) and not negates_solution(text)
 
 
 def rule_teaching_intent(text: str, *, context: dict) -> SemanticTeachingIntent:

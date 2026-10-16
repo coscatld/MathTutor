@@ -29,7 +29,7 @@ MAX_DEPTH = 40
 SAMPLES = 241
 MAX_MARKS = 8
 
-_GRAPH_REQUEST = re.compile(r"(?:画|作|绘制|绘|看看|看一下|显示|给我).{0,12}(?:图像|图象|函数图|图形|曲线|图)|(?:图像|图象)(?:是什么|长什么样|怎么画)|画(?:出|一下)?\s*(?:y\s*=|f\s*\(\s*x\s*\)|函数)|plot|graph", re.I)
+_GRAPH_REQUEST = re.compile(r"(?:画|作|绘制|绘|看看|看一下|显示|给我).{0,12}(?:图像|图象|函数图|图形|曲线|图)|(?:图像|图象)(?:是什么|长什么样|怎么画)|画(?:出|一下)?\s*(?:y\s*=|f\s*\(\s*x\s*\)|函数)|(?:^|[.!?\n])\s*(?:please\s+|(?:can|could|would)\s+you\s+)?(?:plot|graph)\b|\b(?:draw|show)\s+(?:me\s+)?(?:the\s+|a\s+)?(?:graph|plot|curve)\b", re.I)
 _BLOCK = re.compile(r"```" + GRAPH_FENCE + r"\n(.*?)\n```", re.S)
 _SCENE_BLOCK = re.compile(r"```mathtutor-scene\n(.*?)\n```", re.S)
 # 「画出 x^2/4+y^2/3=1」: a draw verb followed by an equation or inequality in x, y or r.

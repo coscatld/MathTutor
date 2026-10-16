@@ -1211,7 +1211,8 @@ class MathTutorController:
             session.state.value if session is not None else "",
         )
         visible = project_assistant_message(message) or fallback_tutor_reply(text)
-        if recovery and visible == fallback_tutor_reply(text):
+        using_fallback = visible == fallback_tutor_reply(text)
+        if recovery and using_fallback:
             visible = "这道题的完整过程还不能逐步核验。你可以写出下一步的想法，或先练下面的相关基础题。"
         # Canvas drawing skill: a figure the model drew by itself never reaches the student.
         from mathtutor.application.tutor_runtime import current_turn, note_turn
@@ -1254,7 +1255,7 @@ class MathTutorController:
             visible += "".join("\n\n" + render_scene(scene) for scene in figures)
             action = "TUTOR_CHAT_FIGURE"
             note_turn(figures={"delivered": len(figures)})
-        if recovery:
+        if recovery and using_fallback:
             visible += f"\n\n原题还保留在对话里。可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
         if saved_discussion and session is not None and provider_result == "success":
             notebook["discussed"] = [*notebook.get("discussed", []), raw_visible[:1200]][-6:]

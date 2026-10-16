@@ -44,13 +44,17 @@ class TutorChatResponder:
         if provider is None or not provider.model:
             return fallback_tutor_reply(text)
         system = (
-            "你是面向学生的 MathTutor。用自然、耐心、简洁的中文交流。"
+            "你是面向学生的 MathTutor。用自然、耐心、简洁的语言交流，默认跟随学生当前请求的语言；学生指定语言时按其要求。"
             "普通问候正常回应；概念问题直接解释，算式直接教学。不要主动解释系统实现。"
             "不要输出内部命令名、状态机名称或内部 JSON。学生明确指定答案列表或表格时按要求给出。"
         )
         from mathtutor.pedagogy.student_dialogue import dialogue_instruction
-        from mathtutor.application.teaching_intent import explicit_solution_request
+        from mathtutor.application.teaching_intent import explicit_solution_request, contains_student_work
         learner = self._learner_settings.current().model_dump() if self._learner_settings is not None else None
+        from mathtutor.application.teaching_intent import current_request_text
+        current_request = current_request_text(text)
+        if not re.search(r"[\u4e00-\u9fff]", current_request) and re.search(r"\b[A-Za-z]{2,}\b", current_request):
+            system += "\nReply in English unless the student explicitly requests another language."
         solution_requested = explicit_solution_request(text)
         system += dialogue_instruction(learner)
         system += r"使用 Markdown；行内公式用 \( ... \)，独立公式用 \[ ... \]。不要用裸方括号模拟公式，不使用 HTML。不要用字符画、图片链接、HTML/SVG、Mermaid、TikZ 或作图代码画图，这些内容会被应用删除。表达清晰自然，避免过度 Emoji、拟人和标题。"
@@ -103,7 +107,7 @@ class TutorChatResponder:
             try:
                 lesson = json.loads(problem_context)
                 first_contact = (lesson.get("original_question", "").strip() == text.strip()
-                    and not lesson.get("recent_explanations") and not solution_requested
+                    and not lesson.get("recent_explanations") and not solution_requested and not contains_student_work(text)
                     and not re.search(r"为什么|为何|看不懂|不明白|我算|我认为|我得到|我写", text))
             except (ValueError, AttributeError):
                 pass
@@ -114,6 +118,21 @@ class TutorChatResponder:
             "不要把尚未讲到的后续结论全塞进当前回答。"
             "数学环境中的式子必须完整；不要用只写了a和等号的半个等式来指代移项，"
             "需要概括时用文字说‘把参数单独放在一边’，避免产生未完成公式。"
+        )
+        system += (
+            "\n用户提供了师生对话或学生解答时，回应最新学生疑点，不把历史里教师的索答要求当作当前学生索答。"
+            "先独立检查关键计算、定义和条件，再评价步骤；不能未经核对就说完全正确，也不能盲从先前教师答案。"
+            "先根据原题独立建立数量或逻辑关系，再与学生解答逐项比较；不能从学生给的结论倒推它正确。"
+            "检查比较、倍数、分母和时间基准指的是哪个量，区分总量、剩余量和题目最终所求。"
+            "学生说自己理解了或修正了思路，不代表后面的实质性结论也正确；不能只检查其第一句。"
+
+            "指出真正影响结论的具体错误或概念联系，区分计算正确与推理充分，避免先否定再在同一回答里推翻自己的否定。"
+            "需要引导时留一个明确可执行的小步，不提前完成学生没有要求的后续计算。"
+            "对已提供的学生工作给反馈，不能把它当成空白新题重新要求学生先做。"
+            "只要求一个问题时不要在同一回合再附加第二问；两句上限包括鼓励和结尾提问。"
+
+            "用户明确规定只给判断、步骤编号或其他短格式时，正文严格按该格式回答，不附加讲义或练习；"
+            "用户要求完整解答时覆盖其所求并清楚标明最终答案。"
         )
         if first_contact:
             system += (
