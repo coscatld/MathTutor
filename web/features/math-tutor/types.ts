@@ -23,6 +23,8 @@ export interface StudentPayload {
   status?: string;
   finish_reason?: string;
   final_text?: string;
+  /** Routine verification scope, displayed separately from the lesson body. */
+  verification_notice?: string;
   action?: string;
   effective_assistance_level?: number;
   student_message?: string;
@@ -197,6 +199,7 @@ export interface SessionSummary {
     finish_reason?: string;
     role?: "student" | "tutor" | "error";
     content?: string;
+    verification_notice?: string;
     attachments?: import("./lib/attachments").MessageAttachment[];
     action?: string;
     assistance_level?: number;
@@ -217,6 +220,7 @@ export interface TutorMessage {
   status?: string;
   turnId?: string;
   finishReason?: string;
+  verificationNotice?: string;
   id: string;
   kind: "student" | "tutor" | "error";
   text: string;

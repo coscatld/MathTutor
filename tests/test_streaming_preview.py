@@ -52,7 +52,8 @@ def test_verified_sentences_stream_in_and_the_final_message_replaces_them(tmp_pa
     assert shown[-1].endswith("和不变。") and len(shown) >= 2
     final = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]
     assert final["status"] == "COMPLETED" and final["input_tokens"] == 50
-    assert final["final_text"].startswith("> 本段讲解中的 1 处算式已由本地验证器逐一核对")
+    assert final["verification_notice"].startswith("本段讲解中的 1 处算式已由本地验证器逐一核对")
+    assert not final["final_text"].startswith("> 本段讲解")
 
 
 def test_a_wrong_formula_is_never_previewed_and_the_repair_replaces_it(tmp_path):

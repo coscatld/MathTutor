@@ -119,7 +119,11 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前版本为 **0.6.3**，Windows x64 安装包与 SHA-256 校验文件见 [v0.6.3 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.3)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+当前源码版本为 **0.6.4**，可用的 Windows x64 安装包与 SHA-256 校验文件见 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+
+### 0.6.4
+
+DKT 的当前技能预测与独立作答证据现在共同影响普通聊天的讲解步幅，结构化教学也会保留明确的模型指导；学生当前的求助、完整解答和格式要求优先。新增有理系数一元多项式求导的精确局部核验，并修复中英文请求边界及常规核验说明挤占答案格式的问题。现有 DKT 未覆盖的高中知识点保持未知，旧基准成绩不变。详见 [0.6.4 发布说明](docs/RELEASE_0.6.4.md)与[本轮改进说明](docs/TUTOR_ADAPTATION_20261016.md)。
 
 ### 0.6.3
 

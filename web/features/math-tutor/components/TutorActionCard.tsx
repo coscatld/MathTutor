@@ -39,7 +39,8 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
   }
 
   const label = actionLabel(message.action);
-  const { body, scope } = splitVerificationNotice(message.text);
+  const { body, scope: legacyScope } = splitVerificationNotice(message.text);
+  const scope = message.verificationNotice?.trim() || legacyScope;
   // Only the server sets SHOW_GRAPH and TUTOR_CHAT_FIGURE (scenes it built from
   // draw_scene calls); graph and scene blocks in any other message stay plain text.
   const scenes = message.action === GRAPH_ACTION || message.action === FIGURE_ACTION ? splitSceneBlocks(body) : null;
@@ -69,13 +70,13 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
             <FunctionGraph spec={graph.spec} />
             {graph.after ? <MarkdownRenderer content={graph.after} enableMath /> : null}
           </> : <MarkdownRenderer content={body} enableMath />}
-          {scope ? <details aria-label="本条回复的核验范围" className="mt-3 text-xs leading-6 text-[var(--muted-foreground)]">
-            <summary className="min-h-9 cursor-pointer py-1 focus-visible:outline-2 focus-visible:outline-[var(--ring)]">核验范围</summary>
-            <p className="mt-1 max-w-prose">{scope}</p>
-          </details> : null}
           {message.status === "PARTIAL" && <div role="status" className="mt-3 border-l-2 border-[var(--border)] pl-3 text-sm leading-6 text-[var(--muted-foreground)]">这段还没讲完，末尾的公式和结论可能不完整。{onContinue ? <button type="button" className="ml-2 min-h-9 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>继续讲完</button> : "请接着查看后续回复。"}</div>}
           {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-[var(--primary-text)] underline underline-offset-2" onClick={onRecover}>重新同步</button>}
         </div>
+        {scope ? <details aria-label="本条回复的核验范围" className="mt-3 text-xs leading-6 text-[var(--muted-foreground)]">
+          <summary className="min-h-9 cursor-pointer py-1 focus-visible:outline-2 focus-visible:outline-[var(--ring)]">核验范围</summary>
+          <p className="mt-1 max-w-prose">{scope}</p>
+        </details> : null}
       </div>
     </div>
   );

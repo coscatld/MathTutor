@@ -34,6 +34,7 @@ class TeachingPlan:
     material_refs: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
     student_guidance: str = ""
+    model_guidance: str = ""
 
     def public(self):
         return asdict(self)
@@ -236,7 +237,8 @@ def choose_plan(context, action, student_request=""):
         plan = TeachingPlan(**{**asdict(plan), "strategy": "offer_alternative", "support_mode": "choice",
                                "reason_codes": (*plan.reason_codes, "REPEATED_TEACHING_OPERATION"),
                                "exit_options": ("request_example", "request_solution", "request_practice", "end_problem")})
-    plan = apply_trained_dkt(plan, context.get("dkt_forecast") or {})
+    plan = apply_trained_dkt(plan, context.get("dkt_forecast") or {},
+                             context=context, student_request=student_request)
     context["last_plan"] = plan.public()
     return context, plan
 
@@ -251,40 +253,71 @@ _DKT_PHRASE = {
 }
 
 
-def apply_trained_dkt(plan: TeachingPlan, forecast: dict) -> TeachingPlan:
+def apply_trained_dkt(plan: TeachingPlan, forecast: dict, *, context=None, student_request="") -> TeachingPlan:
     """Let a mapped trained probability move the next step by one notch.
 
     Only with a product skill mapping and the student's own attempts (see
     ``dkt_policy``); a foreign prior alone changes nothing. Never print the number.
     """
     from mathtutor.pedagogy.dkt_policy import dkt_may_adjust, note_dkt
-    if plan.action == "SHOW_SOLUTION" or not dkt_may_adjust(forecast):
+    from mathtutor.application.teaching_intent import explicit_solution_request, rule_teaching_intent
+    if (plan.action == "SHOW_SOLUTION" or explicit_solution_request(student_request)
+            or not dkt_may_adjust(forecast, skill_ids=plan.target_skill_ids)):
         return plan
     probability = forecast["probability"]
-    skills = forecast["mapped_product_skills"]
+    from mathtutor.learning.knowledge_tracing.mapped_dkt import expand
+    _sources, current, _unmapped = expand(plan.target_skill_ids)
+    skills = [skill for skill in current if forecast["target_history_by_skill"].get(skill, 0) > 0]
     phrase = _DKT_PHRASE.get(skills[0], "这一步")
+
+    def guidance(sentence):
+        # A concrete misconception explanation remains first. The trained
+        # support instruction is composed with it, not swallowed by ``or``.
+        old = plan.student_guidance.strip()
+        return old if sentence in old else (old.rstrip("。") + "。" if old else "") + sentence
+
+    context = context or {}
+    signal = rule_teaching_intent(student_request, context=context) if student_request else None
+    protected_action = (plan.action in {"EXPLAIN_CONCEPT", "SHOW_EXAMPLE", "GIVE_HINT"}
+                        or bool(signal and signal.intent in {"explanation", "example", "hint"}))
     if probability < 0.45:
         note_dkt("teaching", "more_support")
-        sentence = f"先只写{phrase}，不用一次算完。"
+        sentence = (f"保留学生请求的讲解或示例，围绕{phrase}先解释一个关键联系，再衔接所需步骤。"
+                    if protected_action else f"先只写{phrase}的一步，并说明这一步所用的条件，不用一次算完。")
         return replace(
             plan,
-            strategy="smaller_step",
-            support_mode="scaffold",
-            max_assistance_level=min(4, plan.max_assistance_level + 1) if plan.max_assistance_level < 2 else plan.max_assistance_level,
-            student_guidance=plan.student_guidance or sentence,
+            strategy=plan.strategy if protected_action or plan.student_guidance else "smaller_step",
+            support_mode=plan.support_mode if protected_action else "scaffold",
+            max_assistance_level=(plan.max_assistance_level if protected_action or plan.max_assistance_level >= 2
+                                  else plan.max_assistance_level + 1),
+            student_guidance=guidance(sentence),
+            model_guidance=sentence,
             reason_codes=(*plan.reason_codes, "DKT_UNSTEADY"),
         )
     if probability > 0.75:
+        # A source-domain forecast cannot cancel a current request or stronger
+        # direct evidence that the student needs help now.
+        needs_help = (protected_action or context.get("stuck_count", 0) > 0
+                      or context.get("help_without_progress", 0) >= 2
+                      or bool(set(plan.reason_codes).intersection({
+                          "LANGUAGE_CONFUSION", "REPEATED_EXPLICIT_STUCK", "HELP_WITHOUT_VERIFIED_PROGRESS",
+                          "VERIFIED_ERROR", "REPEATED_VERIFIED_ERROR", "REPEATED_INDEPENDENT_DIFFICULTY"}))
+                      or bool(signal and (signal.confusion != "none" or signal.intent in {"explanation", "example", "hint"})))
+        if needs_help:
+            return plan
         note_dkt("teaching", "less_support")
-        sentence = f"你来写{phrase}，我再检查。"
+        sentence = f"让学生自主写出{phrase}的下一步及理由，再核对；保留求助入口，不追加未请求的整题解答。"
         return replace(
             plan,
-            max_assistance_level=max(1, plan.max_assistance_level - 1),
-            student_guidance=plan.student_guidance or sentence,
+            max_assistance_level=max(0, plan.max_assistance_level - 1),
+            student_guidance=guidance(sentence),
+            model_guidance=sentence,
             reason_codes=(*plan.reason_codes, "DKT_STEADY"),
         )
-    sentence = f"先写出{phrase}，再交给我检查。"
-    return replace(plan, student_guidance=plan.student_guidance or sentence, reason_codes=(*plan.reason_codes, "DKT_GUIDE"))
+    sentence = (f"保留所请求的提示、解释或示例，先围绕{phrase}核对一个关键联系。"
+                if protected_action else f"先围绕{phrase}核对当前一步，再决定是否增加帮助。")
+    return replace(plan, student_guidance=guidance(sentence), model_guidance=sentence,
+                   reason_codes=(*plan.reason_codes, "DKT_GUIDE"))
 
 
 def assessment_feedback(record):

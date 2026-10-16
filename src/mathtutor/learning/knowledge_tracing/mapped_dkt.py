@@ -143,6 +143,29 @@ def replay_state(package, history):
     return state, updates
 
 
+def _target_history(package, history, products):
+    """Counts of relevant independent items, not per-skill mastery labels.
+
+    A joint task can provide an observation concerning a mapped skill without
+    proving that skill was the cause of an error. Keep the item deduplicated;
+    assisted/answer-exposed/invalidated observations never open the policy gate.
+    """
+    by_skill = {skill: set() for skill in products}
+    items = set()
+    for event in valid_events(history):
+        if not _eligible(event) or not event.problem_revision:
+            continue
+        sources, observed, _unmapped = expand(event.skill_ids)
+        relevant = set(observed).intersection(by_skill)
+        if not relevant or query_vector(package, sources) is None:
+            continue
+        identity = (event.student_id, event.problem_revision)
+        items.add(identity)
+        for skill in relevant:
+            by_skill[skill].add(identity)
+    return len(items), {skill: len(identities) for skill, identities in by_skill.items()}
+
+
 def forecast_for(package, history, skill_ids) -> dict:
     """Calibrated source-domain probability for the mapped subset of ``skill_ids``."""
     sources, products, unmapped = expand(skill_ids)
@@ -159,6 +182,9 @@ def forecast_for(package, history, skill_ids) -> dict:
         "partial_coverage": bool(sources) and bool(unmapped),
         "learning_effect_verified": False,
         "history_updates": 0,
+        "target_skill_ids": list(products),
+        "target_history_updates": 0,
+        "target_history_by_skill": {skill: 0 for skill in products},
         "reason": "no mapped ASSISTments skill in assist2009-mt-topic-v1; probability stays empty",
     }
     if package is None or not sources:
@@ -172,6 +198,7 @@ def forecast_for(package, history, skill_ids) -> dict:
     if not math.isfinite(probability):
         result["reason"] = "trained model returned a non-finite probability"
         return result
+    target_updates, target_by_skill = _target_history(package, history, products)
     result.update(
         probability=probability,
         probability_source="assist2009_trained_dkt",
@@ -179,6 +206,8 @@ def forecast_for(package, history, skill_ids) -> dict:
         product_runtime_enabled=True,
         controls_teaching=True,
         history_updates=updates,
+        target_history_updates=target_updates,
+        target_history_by_skill=target_by_skill,
         reason="trained ASSISTments DKT via assist2009-mt-topic-v1; not a calibrated MathTutor mastery grade",
     )
     return result

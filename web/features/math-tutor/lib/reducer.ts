@@ -114,8 +114,10 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
       const id = frame.payload.message_id || frame.payload.turn_id;
       const existing = state.messages.find(m => m.id === id);
       next.messages = existing ? state.messages.map(m => m === existing ? { ...m, text: frame.payload.content_mode === "snapshot" ? text : m.text + text,
+        verificationNotice: frame.payload.verification_notice ?? m.verificationNotice,
         action: frame.payload.action || m.action, assistanceLevel: Math.max(m.assistanceLevel, normalizeAssistanceLevel(frame.payload.effective_assistance_level || 0)) } : m)
         : [...state.messages, { id: id || nextMessageId(), kind: "tutor", text, status: "STREAMING",
+          verificationNotice: frame.payload.verification_notice,
           turnId: frame.payload.turn_id, action: frame.payload.action || "",
           assistanceLevel: normalizeAssistanceLevel(frame.payload.effective_assistance_level || 0), version: next.seenVersion }].slice(-100) as TutorMessage[];
     }
@@ -123,7 +125,8 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
   }
   if (["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)) {
     const status = frame.event_type === "assistant_complete" ? "COMPLETED" : frame.event_type === "assistant_partial" ? "PARTIAL" : frame.payload.status === "CANCELLED" ? "CANCELLED" : "FAILED";
-    next.messages = state.messages.map(m => m.turnId === frame.payload.turn_id ? { ...m, status, finishReason: frame.payload.finish_reason } : m);
+    next.messages = state.messages.map(m => m.turnId === frame.payload.turn_id ? { ...m, status, finishReason: frame.payload.finish_reason,
+      verificationNotice: frame.payload.verification_notice ?? m.verificationNotice } : m);
     const matching = next.messages.filter(m => m.turnId === frame.payload.turn_id);
     if (matching.length === 1 && shouldRenderTutorText(frame.payload.final_text || "")) {
       next.messages = next.messages.map(m => m === matching[0] ? { ...m, text: frame.payload.final_text! } : m);
@@ -175,6 +178,7 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
         status: "STREAMING",
         turnId: frame.payload.turn_id,
         text: message.trim(),
+        verificationNotice: frame.payload.verification_notice,
         action,
         assistanceLevel: level,
         version: frame.cycle_state_version,
@@ -220,7 +224,9 @@ function applyRestore(
         const kind = message.role === "student" ? "student" : message.role === "error" ? "error" : "tutor";
         if (kind !== "student" && !shouldRenderTutorText(text)) return [];
         const visible = kind === "error" ? projectTurnError(text) : text;
-        return [{ attachments, status: message.status || "COMPLETED", turnId: message.turn_id, finishReason: message.finish_reason, id: message.message_id || nextMessageId(), kind, text: visible, action: String(message.action ?? ""), assistanceLevel: normalizeAssistanceLevel(Number(message.assistance_level ?? 0)), version: stateVersion } satisfies TutorMessage];
+        return [{ attachments, status: message.status || "COMPLETED", turnId: message.turn_id, finishReason: message.finish_reason,
+          verificationNotice: typeof message.verification_notice === "string" ? message.verification_notice.trim() : undefined,
+          id: message.message_id || nextMessageId(), kind, text: visible, action: String(message.action ?? ""), assistanceLevel: normalizeAssistanceLevel(Number(message.assistance_level ?? 0)), version: stateVersion } satisfies TutorMessage];
       })
     : null;
   return {

@@ -557,6 +557,7 @@ class MathTutorController:
                 await self._chat_message(session, text, history, stream,
                     owner_id=request.owner.student_id,
                     follow_up=bool(chat_context.get("follow_up")),
+                    response_request=chat_context.get("response_request"),
                     unstructured_math=bool(chat_context.get("unstructured_math")))
                 return
             context = json.loads(previous.get("continuation_context") or "{}")
@@ -888,6 +889,7 @@ class MathTutorController:
                 owner_id=request.owner.student_id,
                 unstructured_math=True,
                 client_session_id=request.session_id,
+                agent_discussion=constraint.reason == "unsupported_operation",
             )
             return
         owner_id = request.owner.student_id
@@ -1081,7 +1083,9 @@ class MathTutorController:
         images: list | None = None,
         client_session_id: str = "",
         agent_discussion: bool = False,
+        response_request: str | None = None,
     ) -> None:
+        request_text = text if response_request is None else response_request
         recovery = None
         if not images and text.strip() != "继续" and not follow_up and not agent_discussion:
             session, recovery = await self._remember_recovery(session, owner_id, text,
@@ -1142,6 +1146,8 @@ class MathTutorController:
         provider_result = "fallback"
         math_verify = None
         draw_offered = False
+        verification_notice = ""
+        learner_context = None
         if responder is None:
             if images:
                 raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。")
@@ -1168,6 +1174,30 @@ class MathTutorController:
                 from mathtutor.application.message_intent import is_concrete_math_input
                 import inspect
                 accepts = inspect.signature(responder.respond).parameters
+                if response_request is not None and "response_request" in accepts:
+                    extra["response_request"] = request_text
+                if "learner_context" in accepts:
+                    from mathtutor.pedagogy.adaptive_dialogue import build_adaptive_context, resolve_dialogue_skills
+                    # One owner-scoped, read-only snapshot per answer. Repairs
+                    # reuse it; generating advice never manufactures a student
+                    # observation or rewrites a presentation-time prediction.
+                    skills = resolve_dialogue_skills(request_text,
+                        problem=bound_for_preview[0] if bound_for_preview and follow_up else None,
+                        original_question=saved_discussion["original_question"] if saved_discussion else "")
+                    learner_context = await build_adaptive_context(
+                        getattr(self.sessions, "student_state", None), owner_id or "", skills)
+                    extra["learner_context"] = learner_context
+                    from mathtutor.application.tutor_runtime import note_turn
+                    strategy = learner_context["strategy"]
+                    note_turn(adaptation={"strategy": strategy,
+                        "evidence_count": learner_context["evidence_count"],
+                        "skill_ids": learner_context["skill_ids"],
+                        "reason_codes": learner_context["reason_codes"],
+                        "model_sha256": learner_context["forecast"].get("source_model", {}).get("model_sha256"),
+                        "forecast_status": learner_context["forecast"]["status"]})
+                    if strategy != "neutral":
+                        from mathtutor.pedagogy.dkt_policy import note_dkt
+                        note_dkt("dialogue", strategy)
                 takes_tools = "math_verify" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
                 takes_figures = "draw_figures" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
                 from mathtutor.skills.canvas_drawing import can_offer_drawing
@@ -1225,7 +1255,8 @@ class MathTutorController:
         if (removed and draw_offered and turn is not None and not getattr(turn, "figures", None)
                 and provider_result == "success" and not recovery):
             visible = await self._redraw_on_canvas(responder, turn, text, history, visible, problem_context=problem_context,
-                unstructured_math=unstructured_math, images=images, math_verify=math_verify)
+                unstructured_math=unstructured_math, images=images, math_verify=math_verify,
+                response_request=request_text, learner_context=learner_context, document_context=document_context)
         raw_visible = visible
         from mathtutor.application.problem_recovery import simple_greeting
         from mathtutor.application.math_claims import strip_notice
@@ -1239,13 +1270,38 @@ class MathTutorController:
 
                 async def regenerate(feedback):
                     retry_history = (*history, {"role": "student", "content": text}, {"role": "tutor", "content": first_answer})
+                    # Internal repair feedback must not replace the student's
+                    # language, answer-disclosure or presentation constraints.
+                    repair_options = {"images": images} if images else {}
+                    repair_parameters = inspect.signature(responder.respond).parameters
+                    if "response_request" in repair_parameters:
+                        repair_options["response_request"] = request_text
+                    if document_context is not None and "document_context" in repair_parameters:
+                        repair_options["document_context"] = document_context
+                    if math_verify is not None and "math_verify" in repair_parameters:
+                        repair_options["math_verify"] = math_verify
+                    if learner_context is not None:
+                        repair_options["learner_context"] = learner_context
                     return sanitize_figures(project_assistant_message(await responder.respond(
                         feedback, history=retry_history, problem_context=problem_context,
-                        unstructured_math=unstructured_math, **({"images": images} if images else {}))) or "")[0]
+                        unstructured_math=unstructured_math, **repair_options)) or "")[0]
             visible, checked = await certify_and_annotate(visible, self.service.verification_backend,
                                                           anchor=anchor_for(bound[0]) if bound else None,
                                                           regenerate=regenerate)
             raw_visible = strip_notice(visible) if not checked.refuted else raw_visible
+            if not checked.refuted:
+                # The same public receipt remains visible in the UI, replay
+                # and restored history, without becoming an unsolicited
+                # Chinese sentence in a student's requested answer format.
+                from mathtutor.application.math_claims import notice_for
+                verification_notice = notice_for(checked).removeprefix("> ")
+                visible = strip_notice(visible)
+        from mathtutor.application.response_contract import extract_response_contract
+        violations = extract_response_contract(request_text).violations(raw_visible)
+        if violations:
+            # Observe failures honestly. Never truncate a proof or select a
+            # yes/no label just to make the answer look compliant.
+            note_turn(response_contract={"violations": len(violations), "codes": list(violations)})
         action = "TUTOR_CHAT"
         figures = list(getattr(turn, "figures", None) or []) if turn is not None else []
         if figures:
@@ -1263,6 +1319,8 @@ class MathTutorController:
         if turn is not None:
             turn.continuation_context = json.dumps({"kind": "chat", "unstructured_math": unstructured_math,
                 "follow_up": follow_up, "raw_text": raw_visible,
+                "response_request": request_text,
+                "verification_notice": verification_notice,
                 "boundary_unverified": turn.error_code == "CONTINUATION_BOUNDARY_UNVERIFIED"}, ensure_ascii=False)
         await stream.emit(
             MathTutorEvent(
@@ -1272,6 +1330,7 @@ class MathTutorController:
                 metadata={
                     "event_type": "tutor_message",
                     "action": action,
+                    "verification_notice": verification_notice,
                     "cycle_state": session.state.value if session is not None else "",
                     "cycle_state_version": session.version if session is not None else 0,
                     "allowed_next_inputs": student_allowed_inputs(session.state) if session is not None else [],
@@ -1280,7 +1339,8 @@ class MathTutorController:
         )
 
     async def _redraw_on_canvas(self, responder, turn, text, history, first_answer, *, problem_context,
-                                unstructured_math, images, math_verify) -> str:
+                                unstructured_math, images, math_verify, response_request=None,
+                                learner_context=None, document_context=None) -> str:
         """One bounded repair: the answer drew a figure by itself; ask for draw_scene.
 
         Like the formula repair, the turn gets a fixed extra budget (one
@@ -1296,9 +1356,15 @@ class MathTutorController:
                     "如果这张图无法用画布表示，就只用文字讲解。不要提到这次修改。")
         retry_history = (*history, {"role": "student", "content": text}, {"role": "tutor", "content": first_answer})
         try:
+            import inspect
+            supported = inspect.signature(responder.respond).parameters
+            context_options = {key: value for key, value in {
+                "response_request": response_request, "learner_context": learner_context,
+                "document_context": document_context}.items() if key in supported and value is not None}
             again = project_assistant_message(await responder.respond(
                 feedback, history=retry_history, problem_context=problem_context, unstructured_math=unstructured_math,
-                math_verify=math_verify, draw_figures=True, **({"images": images} if images else {}))) or ""
+                math_verify=math_verify, draw_figures=True, **context_options,
+                **({"images": images} if images else {}))) or ""
         except Exception:
             logger.warning("canvas redraw call failed")
             again = ""

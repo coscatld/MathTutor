@@ -147,8 +147,8 @@ def test_literal_continuation_delivery_and_persistence(tmp_path, first, second, 
             body = terminal["final_text"]
             assert first in body and second in body
             if expected_status == "COMPLETED":
-                from mathtutor.application.problem_recovery import mark_unverified
-                assert body == mark_unverified(first + second)
+                assert body == first + second
+                assert terminal["verification_notice"] == "本段讲解未经逐句数学核验。"
             saved = client.get("/api/v2/math-tutor/sessions/literal").json()["messages"][-1]
             assert saved["content"] == body and saved["status"] == expected_status
             if expected_status == "COMPLETED":

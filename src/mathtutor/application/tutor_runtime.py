@@ -260,11 +260,14 @@ VERIFY_MATH_TOOL = {"type": "function", "function": {
     "name": "verify_math",
     "description": ("用应用的本地确定性验证器核对一个结论。expression 是题目或算式（如 2x+3=7、(x+1)^2、"
                     "x^2-5x+6>0、1/2+1/3），answer 是你的结论（如 x=2、x^2+2x+1、x<2或x>3、5/6）。"
-                    "返回 verified / refuted / unchecked；不会写入学生的学习记录。"),
+                    "一元多项式求导用 expression=derivative((2*x+1)^3,x)，answer=6*(2*x+1)^2（最高12次、有理系数）。"
+                    "返回 verified / refuted / unchecked；只核局部结论，不核整段证明，不会写入学生的学习记录。"),
     "parameters": {"type": "object", "additionalProperties": False, "required": ["expression", "answer"],
                    "properties": {"expression": {"type": "string", "maxLength": 200},
                                   "answer": {"type": "string", "maxLength": 200}}}}}
 MATH_TOOL_INSTRUCTION = ("你可以调用 verify_math 核对局部计算、化简、解方程或不等式的结论。"
+                         "一元有理系数多项式求导可用 derivative(多项式,x)，answer 只写导数表达式，最高12次。"
+                         "局部导数核验不证明极值、单调性或整题推理正确；三角、对数、分段等求导仍不支持。"
                          "对工具能处理的局部结论优先核对；refuted 时改正后再回答。"
                          "unchecked 表示工具不支持，不表示结论错误，继续用数学依据解释，不因工具覆盖有限而拒绝高中问题。"
                          "一般函数性质、方法来由和分段定义域不能冒充多项式等价变形送检；不要反复核对工具不支持的同一步。"
@@ -367,11 +370,14 @@ async def complete_math_tools(provider, messages, *, verify, draw=False, tempera
                     if name == "verify_math" and calls <= max_calls:
                         try:
                             arguments = json.loads(function.get("arguments") or "{}")
-                            expression, answer = str(arguments["expression"])[:200], str(arguments["answer"])[:200]
+                            expression, answer = arguments["expression"], arguments["answer"]
+                            if any(not isinstance(value, str) or not value.strip() or len(value) > 200
+                                   for value in (expression, answer)):
+                                raise ValueError("invalid math tool argument")
                             check = await verify(expression, answer)
                             receipt = {"status": check.status, "signals": list(check.signals)}
                         except (ValueError, KeyError, TypeError):
-                            receipt = {"status": "rejected", "reason": "参数需要 expression 和 answer 两个字符串"}
+                            receipt = {"status": "rejected", "reason": "参数需要 expression 和 answer 两个非空字符串，各不超过200个字符"}
                 messages.append({"role": "tool", "tool_call_id": str(call.get("id", "")), "content": json.dumps(receipt, ensure_ascii=False)})
             turn.tool_calls_count += len(result.tool_calls)
             note_turn(tools=dict(used))

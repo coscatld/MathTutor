@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.4 — Student-model-guided dialogue and response boundaries
+
+- Read the bundled DKT and owner-scoped, same-skill independent observations before ordinary chat. Change explanation granularity only with corroborating evidence; preserve the student's current request and unknown high-school coverage.
+- Keep DKT guidance in structured teaching plans alongside concrete error guidance. Require attributable target-skill history and a finite probability; global history alone cannot unlock adaptation.
+- Respect current hint/full-solution and presentation requests across embedded conversations and mathematical repairs. Deliver routine verification scope separately from the answer body, including replay and restored history; refutations remain prominent.
+- Check explicit rational-coefficient polynomial derivatives exactly, with bounded degree and syntax. Reject invalid or oversized tool arguments instead of silently truncating them.
+- No new model weights, benchmark-score changes or paid model calls are included in this update.
+
 ## 0.6.3 — Preserve the original question and let the Tutor teach
 
 - High-school pasted tasks enter agent-led discussion, with durable original questions, current doubts, and recent explanations.

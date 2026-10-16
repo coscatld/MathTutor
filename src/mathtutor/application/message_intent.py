@@ -16,6 +16,7 @@ from mathtutor.application.input_normalizer import (
     normalize_math_problem_text,
 )
 from mathtutor.application.state_machine import CycleState
+from mathtutor.application.math_operation_scope import requires_unstructured_math
 
 
 class ConversationMode(StrEnum):
@@ -43,30 +44,13 @@ class RoutedIntent:
 
 _NEW_PROBLEM = re.compile(r"^(?:先不做这题[，,：: ]*|换(?:一道)?题[，,：: ]*|新题[，,：: ]*|解另一题[，,：: ]*)(?:解\s*)?(.+)$")
 _ATTEMPT_PREFIX = re.compile(r"^(?:我的(?:答案|步骤)(?:是)?|我(?:算得|算出|得到|认为)|答案(?:是|为)|(?:移项|化简|计算)后(?:是|得到)?|下一步(?:是)?)[：:\s]*")
-_NEGATED_ANSWER = re.compile(r"(?:不要|别|先不|不想|不用|不能)[^，,。；;]{0,18}(?:答案|解答)")
-_ANSWER_REQUEST = re.compile(r"(?:给我|告诉我|查看|看|要|求|直接)[^，,。；;]{0,12}(?:答案|完整解答|完整解析)")
-_HINT_REQUEST = re.compile(r"(?:提示|引导|一点帮助)")
-_EXAMPLE_REQUEST = re.compile(r"(?:例子|例题|示例)")
-_EXPLANATION_REQUEST = re.compile(r"(?:解释|讲解|讲一下|讲讲|为什么|是不是先|是否先|能不能先)")
-
-
 def _requested_action(text: str) -> str:
-    # Negation scopes to an answer request, not to the whole utterance.
-    if _ANSWER_REQUEST.search(text) and not _NEGATED_ANSWER.search(text):
-        return "request_solution"
-    if _HINT_REQUEST.search(text):
-        return "request_hint"
-    if _EXAMPLE_REQUEST.search(text):
-        return "request_example"
-    if _EXPLANATION_REQUEST.search(text):
-        return "request_explanation"
+    # Routing and the semantic adapter must agree about consent to reveal an
+    # answer, including when the message contains an old dialogue or English.
     from mathtutor.application.teaching_intent import rule_teaching_intent
     perception = rule_teaching_intent(text, context={})
-    if perception.intent in {"explanation", "confusion"} and perception.confusion != "none":
-        return "request_explanation"
-    if _NEGATED_ANSWER.search(text):
-        return "request_hint"
-    return ""
+    return {"solution": "request_solution", "hint": "request_hint", "example": "request_example",
+            "explanation": "request_explanation", "practice": "request_practice"}.get(perception.intent, "")
 
 
 def _math_fragment(text: str) -> tuple[str, bool]:
@@ -157,6 +141,8 @@ def _looks_like_math_problem(text: str) -> bool:
     compact = " ".join(source.split())
     if not compact:
         return False
+    if requires_unstructured_math(source):
+        return True
     normalized = normalize_input(compact)
     surface = _operator_surface(normalized.normalized)
     blob = f"{compact} {normalized.normalized}"
@@ -223,7 +209,12 @@ def classify_user_message(
             return RoutedIntent(ConversationIntent.ATTEMPT, ConversationMode.MATH_PROBLEM, answer_text=pending_math_text)
         if re.fullmatch(r"(?:这是|是)?(?:一道)?新题[。！!]?", compact):
             return RoutedIntent(ConversationIntent.MATH_PROBLEM, ConversationMode.MATH_PROBLEM, problem_text=pending_math_text)
-    action = _requested_action(compact)
+    if requires_unstructured_math(str(text or "")):
+        # A derivative/extremum question cannot be submitted as an algebra
+        # attempt or a simplification of the contained polynomial.  The
+        # constraint layer preserves its original operation for free teaching.
+        return RoutedIntent(ConversationIntent.MATH_PROBLEM, ConversationMode.MATH_PROBLEM)
+    action = _requested_action(str(text or ""))
     fragment, explicit_attempt = _math_fragment(compact)
     if active and (explicit_attempt or _is_answer_shape(fragment, variable, variables)):
         return RoutedIntent(ConversationIntent.ATTEMPT, ConversationMode.MATH_PROBLEM, answer_text=fragment, command=action)

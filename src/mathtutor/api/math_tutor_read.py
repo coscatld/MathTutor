@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from mathtutor.api.conversation_guard import require_active
 from mathtutor.application.conversation_trash import purge_conversation
+from mathtutor.application.verification_notice import verification_notice_fields
 from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.product_state import get_product_state
 from mathtutor.security.scopes import StudentOwnerScope
@@ -123,7 +124,8 @@ async def get_session(
     return {
         **summary,
         **(conversation or {}),
-        "messages": [{key: value for key, value in message.items() if key != "continuation_context"}
+        "messages": [{**{key: value for key, value in message.items() if key != "continuation_context"},
+                      **verification_notice_fields(message.get("continuation_context"))}
                      for message in await state.conversations.messages(owner.student_id, session_id)],
         "document_ids": [str(value) for value in await state.conversations.document_ids(owner.student_id, session_id)],
     }

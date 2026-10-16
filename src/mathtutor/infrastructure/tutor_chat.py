@@ -35,6 +35,8 @@ class TutorChatResponder:
         document_context: dict | None = None,
         math_verify=None,
         draw_figures: bool = False,
+        response_request: str | None = None,
+        learner_context: dict | None = None,
     ) -> str:
         provider = self._gateway.provider_for(ModelRole.TUTOR_WRITER)
         if images:
@@ -49,13 +51,16 @@ class TutorChatResponder:
             "不要输出内部命令名、状态机名称或内部 JSON。学生明确指定答案列表或表格时按要求给出。"
         )
         from mathtutor.pedagogy.student_dialogue import dialogue_instruction
-        from mathtutor.application.teaching_intent import explicit_solution_request, contains_student_work
+        from mathtutor.application.teaching_intent import explicit_solution_request, contains_student_work, response_scope_instruction
+        from mathtutor.application.response_contract import extract_response_contract
+        # A mathematical repair changes the answer, not the student's request.
+        request_text = text if response_request is None else response_request
         learner = self._learner_settings.current().model_dump() if self._learner_settings is not None else None
         from mathtutor.application.teaching_intent import current_request_text
-        current_request = current_request_text(text)
+        current_request = current_request_text(request_text)
         if not re.search(r"[\u4e00-\u9fff]", current_request) and re.search(r"\b[A-Za-z]{2,}\b", current_request):
             system += "\nReply in English unless the student explicitly requests another language."
-        solution_requested = explicit_solution_request(text)
+        solution_requested = explicit_solution_request(request_text)
         system += dialogue_instruction(learner)
         system += r"使用 Markdown；行内公式用 \( ... \)，独立公式用 \[ ... \]。不要用裸方括号模拟公式，不使用 HTML。不要用字符画、图片链接、HTML/SVG、Mermaid、TikZ 或作图代码画图，这些内容会被应用删除。表达清晰自然，避免过度 Emoji、拟人和标题。"
         if draw_figures and math_verify is not None:
@@ -106,9 +111,9 @@ class TutorChatResponder:
         if problem_context.strip():
             try:
                 lesson = json.loads(problem_context)
-                first_contact = (lesson.get("original_question", "").strip() == text.strip()
-                    and not lesson.get("recent_explanations") and not solution_requested and not contains_student_work(text)
-                    and not re.search(r"为什么|为何|看不懂|不明白|我算|我认为|我得到|我写", text))
+                first_contact = (lesson.get("original_question", "").strip() == request_text.strip()
+                    and not lesson.get("recent_explanations") and not solution_requested and not contains_student_work(request_text)
+                    and not re.search(r"为什么|为何|看不懂|不明白|我算|我认为|我得到|我写", request_text))
             except (ValueError, AttributeError):
                 pass
         system += (
@@ -134,12 +139,24 @@ class TutorChatResponder:
             "用户明确规定只给判断、步骤编号或其他短格式时，正文严格按该格式回答，不附加讲义或练习；"
             "用户要求完整解答时覆盖其所求并清楚标明最终答案。"
         )
+        system += (
+            "\n先忠实保留题目数据、学生原式、符号和条件，独立求出关键关系再比较学生步骤。"
+            "指出首个确切错误及其原因，不能为了纠错而改写题目或假设学生做错。"
+            "求极值或范围时检查定义域、端点、不可导点和无界趋势，驻点不是极值的充分条件。"
+            "讨论极限或收敛时检查单侧方向和区间内奇点。"
+            "统计结论先核对原数据、样本条件与检验前提；信息不足时指出缺少的量并给条件化结论，"
+            "不补造数据，不把近似结果说成精确值。"
+        )
         if first_contact:
             system += (
                 "\n本轮是学生刚贴题的首次接触，尚未要求完整解答。只用一两段指出本题一个关键联系，"
                 "再提出一个有内容的起步问题，等待学生回答。此轮不计算最终范围或最终答案，不展开整套解答，"
                 "暂不作图。不能把完整答案放在结尾、总结或图形说明中。"
             )
+        from mathtutor.pedagogy.adaptive_dialogue import adaptive_instruction
+        system += adaptive_instruction(learner_context, learner)
+        system += "\n" + response_scope_instruction(request_text)
+        system += extract_response_contract(request_text).system_instruction()
         try:
             document_context = copy.deepcopy(document_context)
             messages = [{"role": "system", "content": system}]

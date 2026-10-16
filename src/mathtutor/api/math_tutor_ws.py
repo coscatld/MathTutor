@@ -34,6 +34,7 @@ from mathtutor.application.message_projection import project_turn_error
 from mathtutor.domain.hashing import content_hash
 from mathtutor.repositories.conversation_repository import message_id_for
 from mathtutor.application.conversation_scope import reset_document_scope, set_document_scope
+from mathtutor.application.verification_notice import parse_continuation_context, verification_notice_fields
 from mathtutor.security.allowlist import (
     SecurityViolationError,
     validate_client_envelope,
@@ -78,6 +79,7 @@ def _to_student_frame(event: Any) -> dict[str, Any]:
                 # Structured problem surface (student-safe fields only).
                 "problem_latex": str(metadata.get("problem_latex") or ""),
                 "problem_type": str(metadata.get("problem_type") or ""),
+                **verification_notice_fields(metadata),
             },
             # Phase 5 public projections ONLY — every other metadata key
             # (internal fields included) is structurally dropped.
@@ -267,19 +269,23 @@ async def _process_request(state, owner, session_id, user_message, event_key,
             frames = stored["frames"]
             if stored["status"] != "FINISHED":
                 # A previous process stopped after claim. Do not replay effects.
-                snapshots = [f["payload"].get("student_message", "") for f in frames if f["event_type"] == "assistant_delta"]
-                text = snapshots[-1] if snapshots else ""
+                snapshots = [f["payload"] for f in frames if f["event_type"] == "assistant_delta"]
+                text = snapshots[-1].get("student_message", "") if snapshots else ""
+                recovered_notice = verification_notice_fields(snapshots[-1]) if snapshots else {}
                 # The approved history snapshot is written before its frame.
                 # A crash in that gap must not discard already saved content.
                 messages = await state.conversations.messages(owner.student_id, session_id)
                 saved = next((m for m in reversed(messages) if m.get("turn_id") == event_key and m["role"] == "tutor"), None)
-                if saved and saved["content"] != text:
+                saved_notice = verification_notice_fields(saved.get("continuation_context")) if saved else {}
+                if saved and (saved["content"] != text or saved_notice != recovered_notice):
                     text = saved["content"]
+                    recovered_notice = saved_notice
                     frames = [*frames, StudentPublicEvent(event_type="assistant_delta", payload={
                         "turn_id": event_key, "conversation_id": session_id,
                         "message_id": saved["message_id"], "student_message": text,
                         "content_mode": "snapshot", "action": saved["action"],
                         "effective_assistance_level": saved["assistance_level"],
+                        **recovered_notice,
                     }).wire_dict()]
                 recovered = TutorTurnResult(turn_id=event_key, conversation_id=session_id)
                 recovered.stop(FinishReason.STREAM_INTERRUPTED, text)
@@ -290,7 +296,7 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                 await state.conversations.finalize_turn(*key, status=recovered.status, finish_reason=recovered.finish_reason.value)
                 frames = [*frames, StudentPublicEvent(
                     event_type="assistant_partial" if text else "assistant_error",
-                    payload={**recovered.wire(), "error_code": "REQUEST_INTERRUPTED",
+                    payload={**recovered.wire(), **recovered_notice, "error_code": "REQUEST_INTERRUPTED",
                              "error": "上次处理已中断；已保存的作答不会重复提交，请重新同步题目状态。"},
                 ).wire_dict()]
                 await journal.record(*key, frames, finished=True)
@@ -455,8 +461,9 @@ async def _process_request(state, owner, session_id, user_message, event_key,
             problem_revision=contract["problem_revision"], allowed_actions=contract["allowed_actions"],
             allowed_next_inputs=contract["allowed_next_inputs"],
             **{key: contract[key] for key in ("teaching_plan", "problem_context", "evidence_summary", "active_offer", "diagnosis", "recovery_problem")},
-            delivery_id=json.loads(getattr(turn, "continuation_context", "") or "{}").get("delivery_id"),
-            payload={**turn.wire(), "error": error_text, "effective_assistance_level": contract["effective_assistance_level"]},
+            delivery_id=parse_continuation_context(getattr(turn, "continuation_context", "")).get("delivery_id"),
+            payload={**turn.wire(), **verification_notice_fields(getattr(turn, "continuation_context", "")),
+                     "error": error_text, "effective_assistance_level": contract["effective_assistance_level"]},
         ).wire_dict(), finished=True)
         if turn.status == "COMPLETED":
             active = await state.store.load(owner.student_id, session_id)

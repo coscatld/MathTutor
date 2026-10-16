@@ -69,7 +69,7 @@ def test_unparseable_task_preserves_bound_problem_and_empty_evidence(tmp_path):
         assert after["state"] == before["state"]
         assert events(db) == count_before
         assert after["evidence_summary"]["independent"] == 0
-        assert UNVERIFIED_NOTICE in after["messages"][-1]["content"]
+        assert after["messages"][-1]["verification_notice"] == UNVERIFIED_NOTICE.removeprefix("> ")
 
 
 class ReplayProvider:
@@ -97,7 +97,8 @@ def test_free_explanation_and_continue_survive_restart_with_raw_boundary(tmp_pat
         assert result["recovery_problem"] is None
         assert result["problem_context"]["lifecycle"] == "discussion"
         body = result["payload"]["final_text"]
-        assert body.startswith(UNVERIFIED_NOTICE)
+        assert not body.startswith(UNVERIFIED_NOTICE)
+        assert result["payload"]["verification_notice"] == UNVERIFIED_NOTICE.removeprefix("> ")
         assert summary(client)["messages"][-1]["content"] == body
         assert provider.calls[0][1]["max_tokens"] == 1024
         assert len(provider.calls) == 2 and events(db) == 0
@@ -111,7 +112,8 @@ def test_free_explanation_and_continue_survive_restart_with_raw_boundary(tmp_pat
         second = send(ws, "send_message", "continue", {"text": "继续"})
         result = terminal(second)
         assert result["event_type"] == "assistant_complete"
-        assert result["payload"]["final_text"].count(UNVERIFIED_NOTICE) == 1
+        assert UNVERIFIED_NOTICE not in result["payload"]["final_text"]
+        assert result["payload"]["verification_notice"] == UNVERIFIED_NOTICE.removeprefix("> ")
         restored = summary(client)
         assert restored["messages"][-1]["content"] == result["payload"]["final_text"]
         prompt = resumed_provider.calls[0][0]

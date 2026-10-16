@@ -74,4 +74,6 @@ def test_greeting_is_warm_but_a_generated_math_claim_still_requires_disclosure(t
         send(ws, "send_message", "greet", {"text": "你好"})
         assert summary(client)["messages"][-1]["content"] == "你好，同学！"
         send(ws, "send_message", "claim", {"text": "你好"})
-        assert summary(client)["messages"][-1]["content"].startswith(NOTICE)
+        claim = summary(client)["messages"][-1]
+        assert not claim["content"].startswith(NOTICE)
+        assert claim["verification_notice"] == NOTICE.removeprefix("> ")

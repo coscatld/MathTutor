@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from mathtutor.application.input_normalizer import NormalizedInput, normalize_input
+from mathtutor.application.math_operation_scope import requires_unstructured_math
 from mathtutor.solving.parser import ParseOutcome, parse_problem
 
 _CJK = re.compile(r"[\u4e00-\u9fff]")
@@ -67,6 +68,15 @@ def evaluate_constraints(text: str) -> ConstraintResult:
             normalized_text="",
             repairs=normalized.repairs,
             reason="empty_input",
+        )
+
+    if requires_unstructured_math(normalized.raw):
+        return ConstraintResult(
+            status=ConstraintStatus.SOFT_FAIL,
+            raw_text=normalized.raw,
+            normalized_text=normalized.normalized,
+            repairs=normalized.repairs,
+            reason="unsupported_operation",
         )
 
     parse = parse_problem(normalized.normalized)

@@ -130,7 +130,8 @@ def test_free_chat_repairs_a_wrong_formula_once_and_shows_the_checked_answer(tmp
         frames = send(ws, "send_message", "chat", {"text": "分数怎么相加？"})
         final = next(f for f in frames if f["event_type"] == "assistant_complete")["payload"]
     assert final["status"] == "COMPLETED"
-    assert final["final_text"].startswith("> 本段讲解中的 1 处算式已由本地验证器逐一核对")
+    assert final["verification_notice"].startswith("本段讲解中的 1 处算式已由本地验证器逐一核对")
+    assert not final["final_text"].startswith("> 本段讲解")
     assert "2}{5}" not in final["final_text"] and "⚠️" not in final["final_text"]
     feedback, history = chat.prompts[1]
     assert "没有通过本地验证器核对" in feedback and "计算结果不对" in feedback

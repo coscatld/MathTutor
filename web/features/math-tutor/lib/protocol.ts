@@ -31,6 +31,7 @@ const PAYLOAD_KEYS: ReadonlyArray<keyof StudentPayload> = [
   "trigger_command",
   "error",
   "error_code", "content_mode",
+  "verification_notice",
 ];
 
 const EVENT_TYPES: ReadonlySet<string> = new Set<MathTutorEventType>([
@@ -67,6 +68,10 @@ export function projectStudentFrame(raw: RawStudentFrame): StudentFrame | null {
   for (const key of PAYLOAD_KEYS) {
     const value = rawPayload[key];
     if (value === undefined || value === null) continue;
+    if (key === "verification_notice") {
+      if (typeof value === "string") payload[key] = value.trim();
+      continue;
+    }
     if (key === "effective_assistance_level") {
       const level = Number(value);
       payload[key] = Number.isFinite(level) ? level : 0;

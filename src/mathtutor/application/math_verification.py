@@ -1,9 +1,10 @@
 """The single ``verify_math`` core shared by the knowledge tool and the
 explanation claim checker.
 
-It parses the expression, solves it with the deterministic solver, requires
-the isolated verifier to accept that solution, then assesses ``answer`` the
-same way a student attempt is assessed. Nothing here writes learning facts.
+Existing equation families are solved deterministically, accepted by the
+isolated verifier, then assessed the same way as a student attempt. Explicit
+``derivative(polynomial, x)`` requests instead use the bounded exact local
+coefficient checker. Neither path writes learning facts or certifies prose.
 """
 
 from __future__ import annotations
@@ -58,8 +59,17 @@ async def verify_math(backend, expression: str, answer: str) -> MathCheck:
     """Check ``answer`` against ``expression``.
 
     An equivalent intermediate equation counts as verified; a partial answer
-    that drops a root or any other mismatch is refuted.
+    that drops a root or any other mismatch is refuted. An explicit polynomial
+    derivative request checks only the derivative formula, not function
+    properties inferred from that formula.
     """
+    from mathtutor.application.bounded_calculus import check_polynomial_derivative
+
+    calculus = check_polynomial_derivative(expression, answer)
+    if calculus is not None:
+        status, signal = calculus
+        return MathCheck(status, "correct" if status == "verified" else "incorrect" if status == "refuted" else "",
+                         (signal,), reason=signal if status == "unchecked" else "")
     try:
         problem, candidate = await verified_problem(backend, expression)
         assessed = await assess_answer(backend, problem, candidate, answer)
