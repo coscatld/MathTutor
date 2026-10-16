@@ -46,10 +46,12 @@ class TutorChatResponder:
         system = (
             "你是面向学生的 MathTutor。用自然、耐心、简洁的中文交流。"
             "普通问候正常回应；概念问题直接解释，算式直接教学。不要主动解释系统实现。"
-            "不要输出内部命令名、状态机名称或 JSON。"
+            "不要输出内部命令名、状态机名称或内部 JSON。学生明确指定答案列表或表格时按要求给出。"
         )
         from mathtutor.pedagogy.student_dialogue import dialogue_instruction
+        from mathtutor.application.teaching_intent import explicit_solution_request
         learner = self._learner_settings.current().model_dump() if self._learner_settings is not None else None
+        solution_requested = explicit_solution_request(text)
         system += dialogue_instruction(learner)
         system += r"使用 Markdown；行内公式用 \( ... \)，独立公式用 \[ ... \]。不要用裸方括号模拟公式，不使用 HTML。不要用字符画、图片链接、HTML/SVG、Mermaid、TikZ 或作图代码画图，这些内容会被应用删除。表达清晰自然，避免过度 Emoji、拟人和标题。"
         if draw_figures and math_verify is not None:
@@ -59,13 +61,14 @@ class TutorChatResponder:
                 "只说图形名称或说‘都可以、你定’时，自行选标准示例并说明所选方程和参数，"
                 "不要反复要求学生提供公式。学生已给出的条件必须保留。"
             )
-        system += (
-            "讨论参数方程时先说明适用条件：ax²+bx+c=0在a=0时，b≠0才是一次方程；"
-            "b=0且c≠0无解，b=c=0为恒等式。a≠0、c=0时根为0和-b/a，b=0时为二重零根，"
-            "不能称含零的根为一正一负。等式两边同乘0有定义但可能丢失等价性；"
-            "去分母须保留原分母非零条件并代回检验。资料若漏条件或有错，应指出而非照抄。"
-            "这些解释不等于已经过数学验证；超出可核验范围时明确说明。"
-        )
+        if not learner or learner.get("stage") != "primary":
+            system += (
+                "讨论参数方程时先说明适用条件：ax²+bx+c=0在a=0时，b≠0才是一次方程；"
+                "b=0且c≠0无解，b=c=0为恒等式。a≠0、c=0时根为0和-b/a，b=0时为二重零根，"
+                "不能称含零的根为一正一负。等式两边同乘0有定义但可能丢失等价性；"
+                "去分母须保留原分母非零条件并代回检验。资料若漏条件或有错，应指出而非照抄。"
+                "这些解释不等于已经过数学验证；超出可核验范围时明确说明。"
+            )
         previous = next((item for item in reversed(history) if item.get("role") == "tutor"), None)
         if text.strip() == "继续" and previous and previous.get("status") == "PARTIAL":
             system += "接着上一条未完成回答继续，只输出后续内容，不重复前半段。保留原问题上下文。"
@@ -99,9 +102,8 @@ class TutorChatResponder:
         if problem_context.strip():
             try:
                 lesson = json.loads(problem_context)
-                from mathtutor.application.teaching_intent import explicit_solution_request
                 first_contact = (lesson.get("original_question", "").strip() == text.strip()
-                    and not lesson.get("recent_explanations") and not explicit_solution_request(text)
+                    and not lesson.get("recent_explanations") and not solution_requested
                     and not re.search(r"为什么|为何|看不懂|不明白|我算|我认为|我得到|我写", text))
             except (ValueError, AttributeError):
                 pass
@@ -168,7 +170,10 @@ class TutorChatResponder:
                 ModelRole.TUTOR_WRITER,
                 messages,
                 temperature=0.4,
-                max_tokens=1024 if first_contact else 4096 if not learner or learner.get("stage") in {None, "high"} else 2048,
+                # Reasoning-capable providers count internal reasoning against
+                # this allowance too. A requested full solution needs room to
+                # reach the visible answer, including in lower school stages.
+                max_tokens=1024 if first_contact else 4096 if solution_requested or not learner or learner.get("stage") in {None, "high"} else 2048,
                 max_retries=0,
                 **({"math_verify": math_verify} if math_verify is not None else {}),
                 **({"draw_figures": True} if draw_figures and math_verify is not None else {}),

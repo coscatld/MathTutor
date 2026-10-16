@@ -125,6 +125,25 @@ def _merge_root_lists(spans, text):
             if a and b and a.group(1) == b.group(1) and _ROOT_JOIN.match(text[last_end:start]):
                 merged[-1] = (last_start, end, f"{last_body}或{body}")
                 continue
+            # A factor equation on either side of "or" describes a union,
+            # not two separate assertions of the complete solution set.
+            # For polynomial equations A=B or C=D the union is exactly
+            # (A-B)(C-D)=0. Use only the existing bounded parser; unsupported
+            # expressions remain unverified instead of expanding the grammar.
+            if re.fullmatch(r"\s*(?:或|或者|or)\s*", text[last_end:start]):
+                left, right = _normalize(last_body), _normalize(body)
+                if left.count("=") == right.count("=") == 1 and not _RELATION.search(left + right):
+                    from mathtutor.solving.parser import parse_problem
+                    pa, pb = parse_problem(left), parse_problem(right)
+                    if (pa.problem and pb.problem and pa.problem.problem_type in {"linear", "quadratic"}
+                            and pb.problem.problem_type in {"linear", "quadratic"}
+                            and pa.problem.variable == pb.problem.variable):
+                        al, ar = left.split("="); bl, br = right.split("=")
+                        union = f"(({al})-({ar}))*(({bl})-({br}))=0"
+                        combined = parse_problem(union)
+                        if combined.problem and combined.problem.problem_type in {"linear", "quadratic"}:
+                            merged[-1] = (last_start, end, union)
+                            continue
         merged.append((start, end, body))
     return merged
 
@@ -151,7 +170,13 @@ async def certify(text: str, backend, *, anchor: tuple[str, str] | None = None) 
     chain_anchor = anchor[1] if anchor and anchor[0] in _DERIVATION_TYPES else None
     variables = set(re.findall(r"[A-Za-z]", chain_anchor or ""))
     contextual_math = anchor is None and bool(re.search(r"函数|零点|定义域|分段|参数|[fghFGH]\s*(?:\\!?\s*)?\(", text))
-    for statement in extract_statements(text):
+    statements = extract_statements(text)
+    # Without a bound exercise, constraints can qualify later equations:
+    # e.g. a>0 followed by a²=9 and a=3. The one-equation verifier cannot
+    # represent the intersection of all such assumptions. It must not use
+    # a domain constraint as an equation whose whole solution set is retained.
+    contextual_math |= anchor is None and any(_RELATION.search(s.text) for s in statements)
+    for statement in statements:
         source = statement.text
         if _FUNCTION_VALUE.search(source):
             # A function value is not implicit multiplication by its argument.
@@ -178,13 +203,16 @@ async def certify(text: str, backend, *, anchor: tuple[str, str] | None = None) 
             if identity.status == "verified":
                 result.verified += 1
                 continue
-            if statement.identity_cue and _has_variable(left) and _has_variable(right):
+            same_variables = set(re.findall(r"[A-Za-z]", left)) == set(re.findall(r"[A-Za-z]", right))
+            if statement.identity_cue and _has_variable(left) and _has_variable(right) and same_variables:
                 # "Expand / simplify / factor" claims equality for every value.
                 await _record(result, statement, identity, "两边不是恒等的")
                 continue
         # A derivation step: same solution set as the anchor.
         own = set(re.findall(r"[A-Za-z]", source))
-        if contextual_math:
+        # y=x is a relation/definition, not an identity in two independent
+        # variables, even if "simplify" happened to precede the formula.
+        if contextual_math or (anchor is None and len(own) > 1):
             # Function discussions mix definitions, domains, sample points,
             # candidates and conclusions. There is no reliable single
             # equation anchor for them; only identities/arithmetic above
@@ -315,7 +343,9 @@ async def certify_and_annotate(text: str, backend, *, anchor: tuple[str, str] | 
             logger.warning("math_claims repair call failed")
             corrected = ""
         retried = await certify(corrected, backend, anchor=anchor) if corrected.strip() else None
-        improved = retried is not None and len(retried.refuted) < len(result.refuted)
+        # A provider's fallback or empty prose contains zero wrong formulas,
+        # but that is not evidence of a successful mathematical correction.
+        improved = retried is not None and retried.checked_any and len(retried.refuted) < len(result.refuted)
         note_turn(repair={"attempted": 1, "succeeded": int(improved and not retried.refuted)})
         if improved:
             body, result = corrected, retried
