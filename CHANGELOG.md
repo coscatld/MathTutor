@@ -4,6 +4,7 @@
 
 - Redesign teaching hints, conversation resources and knowledge scope with clear loading, saved and retrieval states. Remove the duplicate top-level collapse control and preserve keyboard focus and responsive reading space.
 - Deliver enabled, user-authored or confirmed memory to ordinary chat and structured model tutoring; select recent edits within a whole-record budget. Keep unconfirmed inference, other owners and deleted/disabled entries out of new context; memory never grants mastery or solution disclosure.
+- Persist strictly increasing, owner-scoped memory update times so tied or backward-moving clocks cannot push a newly edited preference out of the prompt budget. Serialize SQLite timestamp selection with writes and preserve ordering across restarts.
 - Cover 383 curriculum points with 801 original reference questions and worked answers, alongside 353 locally step-verifiable exercises. Add grade filtering, distinct verification labels and question-only tutor launches; fix mismatched arithmetic templates and add the requested advanced topics.
 - Preserve frozen benchmark results without new paid model calls. Distribute Windows x64 and macOS Apple Silicon installers with version-specific package and startup evidence.
 

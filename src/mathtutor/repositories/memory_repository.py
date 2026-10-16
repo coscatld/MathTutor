@@ -20,7 +20,7 @@ the same contract.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Protocol, Sequence
 from uuid import UUID
 
@@ -83,11 +83,25 @@ class InMemoryMemoryRepository:
         self._nodes: dict[UUID, PersonalMemoryNode] = {}
         self._edges: dict[UUID, PersonalMemoryEdge] = {}
 
+    def _next_updated_at(self, owner: UUID, *, not_before: datetime | None = None) -> datetime:
+        """Order owner writes even when the wall clock repeats or moves back."""
+        timestamp = _now()
+        if not_before is not None:
+            timestamp = max(timestamp, not_before)
+        previous = [time for node in self._nodes.values() if node.student_id == owner
+                    for time in (node.updated_at, node.created_at)]
+        if previous:
+            timestamp = max(timestamp, max(previous) + timedelta(microseconds=1))
+        return timestamp
+
     # ------------------------------------------------------------- nodes
 
     async def add_node(self, student_id: str, node: PersonalMemoryNode) -> PersonalMemoryNode:
         owner = student_uuid(student_id)
-        stored = node.model_copy(update={"student_id": owner})
+        stored = node.model_copy(update={
+            "student_id": owner,
+            "updated_at": self._next_updated_at(owner, not_before=max(node.created_at, node.updated_at)),
+        })
         self._nodes[stored.memory_id] = stored
         return stored
 
@@ -109,7 +123,8 @@ class InMemoryMemoryRepository:
         if current is None or current.student_id != owner or current.deleted_at is not None:
             return None
         stored = node.model_copy(
-            update={"student_id": owner, "updated_at": _now()}
+            update={"student_id": owner, "created_at": current.created_at,
+                    "updated_at": self._next_updated_at(owner)}
         )
         self._nodes[stored.memory_id] = stored
         return stored
@@ -130,7 +145,7 @@ class InMemoryMemoryRepository:
         if current is None or current.student_id != owner or current.deleted_at is not None:
             return None
         stored = current.model_copy(
-            update={"retrieval_enabled": enabled, "updated_at": _now()}
+            update={"retrieval_enabled": enabled, "updated_at": self._next_updated_at(owner)}
         )
         self._nodes[memory_id] = stored
         return stored

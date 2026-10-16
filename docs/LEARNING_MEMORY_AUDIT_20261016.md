@@ -12,6 +12,8 @@
 
 原实现按创建顺序只取最早 20 条，新增及近期修改的记忆可能一直无法参与回答。现按最近修改顺序选择，最多 20 条、总计 4,800 个投影 JSON 字符，每条最多 1,600 字符。超出预算的整条记录暂不注入，不切断原句或条件；数据库内容不变。诊断的 `detail` 记录候选与选入数量，不能把“启用”理解为每条都会在每轮使用。
 
+发布前 Windows CI 进一步发现：低精度时钟下，多次保存和编辑可能获得相同时间戳，旧记录刚编辑后仍可能被后创建的记录挤出预算。内存仓库与 SQLite 仓库现在在同一用户范围内持久化严格递增的更新时间；SQLite 在写事务中序列化取时与更新，不依赖进程内计数或等待时钟跳动。冻结时钟、时间回拨和数据库重启的回归检查覆盖这一边界；原有最近编辑必须进入上下文的断言保留。
+
 ## 使用边界
 
 - 只有 `USER_EXPLICIT` 和 `USER_CONFIRMED` 会参与回答。未确认的 `MODEL_INFERRED` 留在管理列表，可确认或删除，确认前不作为用户事实注入。
@@ -33,10 +35,12 @@
 6. 长历史不会挤掉本轮记忆、文档与学生当前问题。
 7. 不新增 `mastery_evidence`，离线模板不接受记忆授予完整解答许可。
 
+`tests/test_memory_write_order.py` 另外用固定时钟与固定标识，验证同一时钟刻度内的新增、编辑、确认与启停顺序；覆盖时钟回拨、用户隔离、SQLite 重启、首次保存时的时钟跳变和两条独立数据库连接的并发写入。CI 在完整回归之前先运行这组检查。
+
 诊断可通过已有 `/api/v2/math-tutor/desktop/diagnostics/turns` 查看 `details.memory`：`status`、`included_count`、`memory_ids` 和选择说明。这里不保存记忆正文。它证明投影读取，外部模型最终是否充分使用仍需结合实际回答判断。
 
 运行命令：
 
 ```bash
-python -m pytest tests/test_memory_output_integration.py tests/test_personal_memory.py tests/test_context_assembler.py tests/test_chat_document_context.py tests/test_tutor_output_contract_integration.py -q
+python -m pytest tests/test_memory_write_order.py tests/test_memory_output_integration.py tests/test_personal_memory.py tests/test_context_assembler.py tests/test_chat_document_context.py tests/test_tutor_output_contract_integration.py -q
 ```

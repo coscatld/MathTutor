@@ -18,7 +18,7 @@ this module.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Sequence
 from uuid import UUID
 
@@ -42,6 +42,41 @@ def _parse_dt(value: str | None) -> datetime | None:
     if not value:
         return None
     return datetime.fromisoformat(value)
+
+
+async def _next_updated_at(
+    conn: AsyncConnection, student_id: str, *, not_before: str | None = None
+) -> str:
+    """Reserve the SQLite writer before reading an owner's logical clock.
+
+    The no-op UPDATE takes a write reservation even for an empty owner, so
+    separate connections cannot read the same maximum then publish a tie.
+    The reservation lives until the caller's existing transaction commits.
+    """
+    owner_node = (
+        select(personal_memory_nodes.c.memory_id)
+        .where(personal_memory_nodes.c.student_id == student_id)
+        .limit(1)
+        .correlate(None)
+        .scalar_subquery()
+    )
+    await conn.execute(
+        personal_memory_nodes.update()
+        .where(personal_memory_nodes.c.student_id == student_id,
+               personal_memory_nodes.c.memory_id == owner_node)
+        .values(updated_at=personal_memory_nodes.c.updated_at)
+    )
+    rows = await conn.execute(
+        select(personal_memory_nodes.c.updated_at, personal_memory_nodes.c.created_at)
+        .where(personal_memory_nodes.c.student_id == student_id)
+    )
+    previous = [_parse_dt(value) for row in rows for value in row if value]
+    timestamp = datetime.fromisoformat(_now())
+    if not_before is not None:
+        timestamp = max(timestamp, datetime.fromisoformat(not_before))
+    if previous:
+        timestamp = max(timestamp, max(previous) + timedelta(microseconds=1))
+    return timestamp.isoformat()
 
 
 # ------------------------------------------------------------- row models
@@ -81,6 +116,8 @@ def _edge_from_row(row: Any) -> PersonalMemoryEdge:
 async def insert_personal_memory_node(
     conn: AsyncConnection, *, student_id: str, node: PersonalMemoryNode
 ) -> UUID:
+    created_at = _now()
+    updated_at = await _next_updated_at(conn, student_id, not_before=created_at)
     await ensure_student(conn, student_id=student_id)
     await conn.execute(
         personal_memory_nodes.insert().values(
@@ -93,8 +130,8 @@ async def insert_personal_memory_node(
             source_type=node.source_type,
             confidence=node.confidence,
             retrieval_enabled=1 if node.retrieval_enabled else 0,
-            created_at=_now(),
-            updated_at=_now(),
+            created_at=created_at,
+            updated_at=updated_at,
             deleted_at=None,
         )
     )
@@ -105,6 +142,7 @@ async def update_personal_memory_node(
     conn: AsyncConnection, *, student_id: str, node: PersonalMemoryNode
 ) -> PersonalMemoryNode | None:
     """Owner-scoped full update (bumps updated_at). Returns the new state."""
+    updated_at = await _next_updated_at(conn, student_id)
     result = await conn.execute(
         personal_memory_nodes.update()
         .where(
@@ -120,7 +158,7 @@ async def update_personal_memory_node(
             source_type=node.source_type,
             confidence=node.confidence,
             retrieval_enabled=1 if node.retrieval_enabled else 0,
-            updated_at=_now(),
+            updated_at=updated_at,
         )
     )
     if result.rowcount == 0:
@@ -148,6 +186,7 @@ async def soft_delete_personal_memory_node(
 async def set_memory_retrieval_enabled(
     conn: AsyncConnection, *, student_id: str, memory_id: UUID, enabled: bool
 ) -> PersonalMemoryNode | None:
+    updated_at = await _next_updated_at(conn, student_id)
     result = await conn.execute(
         personal_memory_nodes.update()
         .where(
@@ -155,7 +194,7 @@ async def set_memory_retrieval_enabled(
             personal_memory_nodes.c.student_id == student_id,
             personal_memory_nodes.c.deleted_at.is_(None),
         )
-        .values(retrieval_enabled=1 if enabled else 0, updated_at=_now())
+        .values(retrieval_enabled=1 if enabled else 0, updated_at=updated_at)
     )
     if result.rowcount == 0:
         return None
