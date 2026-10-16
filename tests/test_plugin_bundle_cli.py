@@ -85,7 +85,7 @@ async def test_exact_project_templates_keep_catalog_metadata_compatible(tmp_path
 @pytest.mark.parametrize("invalid", [
     b'{"schema_version":"mathtutor.community-plugin.v1","schema_version":"other"}',
     b'{"value":NaN}', b'[]', b'x' * 65537,
-])
+], ids=["duplicate-fields", "nonfinite-number", "non-object", "over-64k"])
 def test_invalid_manifests_do_not_create_output(tmp_path, invalid):
     manifest, output = tmp_path / "invalid.json", tmp_path / "invalid.mtplugin"
     manifest.write_bytes(invalid)

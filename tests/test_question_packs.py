@@ -27,6 +27,17 @@ def archive(items, *, compression=zipfile.ZIP_DEFLATED):
     return result.getvalue()
 
 
+def raw_backslash_archive():
+    # Windows zipfile writers normalize backslashes before writing. Replace
+    # the equal-length name in both ZIP headers so every platform receives
+    # the same actually malicious bytes, rather than a repaired safe path.
+    data = archive([("folder/file.md", "bad")])
+    assert data.count(b"folder/file.md") == 2
+    data = data.replace(b"folder/file.md", b"folder\\file.md")
+    assert data.count(b"folder\\file.md") == 2 and b"folder/file.md" not in data
+    return data
+
+
 def question_json(**overrides):
     payload = {"format": QUESTION_FORMAT, "name": "共享代数题库", "author": "课堂创作者", "questions": [
         {"id": "linear-1", "title": "一元一次方程", "stem": "求解 2x+3=7。", "answer": "x=2",
@@ -106,7 +117,7 @@ async def test_legacy_export_is_supported_and_same_owner_reimport_preserves_libr
 
 def bad_archives():
     for path in ("../escape.md", "/absolute.md", "C:/drive.md", "C:drive.md", "folder\\file.md", "folder/../escape.md"):
-        yield archive([(path, "bad")])
+        yield raw_backslash_archive() if "\\" in path else archive([(path, "bad")])
     yield archive([("a.md", "one"), ("A.md", "two")])
     symlink = zipfile.ZipInfo("link.md")
     symlink.create_system = 3
@@ -123,10 +134,29 @@ def bad_archives():
     yield bytes(encrypted)
 
 
-@pytest.mark.parametrize("data", list(bad_archives()))
+@pytest.mark.parametrize("data", list(bad_archives()), ids=[
+    "parent-traversal", "absolute-path", "drive-absolute", "drive-relative",
+    "backslash-path", "nested-parent", "casefold-duplicate", "symlink",
+    "zip-bomb", "invalid-utf8", "nul-binary", "encrypted",
+])
 def test_malicious_archives_are_rejected_before_any_write(data):
     with pytest.raises(QuestionPackError):
         parse_pack(data, "unsafe.zip")
+
+
+@pytest.mark.parametrize("reader_sep,reader_altsep", [("/", None), ("\\", "/")], ids=["posix-reader", "windows-reader"])
+def test_raw_backslash_paths_are_rejected_even_when_zip_reader_normalizes_them(monkeypatch, reader_sep, reader_altsep):
+    data = raw_backslash_archive()
+    monkeypatch.setattr(zipfile.os, "sep", reader_sep)
+    monkeypatch.setattr(zipfile.os, "altsep", reader_altsep)
+    with zipfile.ZipFile(io.BytesIO(data)) as source:
+        info = source.infolist()[0]
+        assert info.orig_filename == "folder\\file.md"
+        assert info.filename == ("folder/file.md" if reader_sep == "\\" else "folder\\file.md")
+    with pytest.raises(QuestionPackError, match="无效"):
+        parse_pack(data, "unsafe.zip")
+    # A genuinely ordinary path remains importable on either reader.
+    assert parse_pack(archive([("folder/file.md", "正文")]), "safe.zip").notes[0].path == "folder/file.md"
 
 
 @pytest.mark.asyncio
