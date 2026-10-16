@@ -322,7 +322,8 @@ def create_math_tutor_app(
             from mathtutor.infrastructure.db import check_db_health
 
             try:
-                payload.update(await check_db_health())
+                engine = getattr(getattr(state, "uow", None), "engine", None)
+                payload.update(await check_db_health(engine))
             except Exception as exc:  # readiness must reflect a broken db
                 payload["status"] = "degraded"
                 payload["db_error"] = str(exc)

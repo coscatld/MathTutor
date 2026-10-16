@@ -12,11 +12,12 @@
 - 保留句数、语言和短格式要求；常规核验范围在正文外展示，重启、续写与重放仍保留。实际错误警告继续留在正文。
 - 多项式求导可通过 `verify_math` 精确核对有理系数、最高 12 次的一元多项式。一般函数、变量分母及资源超限保持 `unchecked`；局部导数通过不代表整题证明通过。
 - 中英文求导、极值等问题保留原任务，不再把其中的多项式误当成化简题。超长工具参数直接拒绝，不截断后误验另一条算式。
+- 修复健康检查额外创建数据库引擎而未释放连接的问题；复用应用持有的引擎，自建临时引擎在探针结束后关闭，避免退出时留下 SQLite 连接。
 
 实现边界与本地回归记录见 [学生模型与回答质量改进](TUTOR_ADAPTATION_20261016.md)。旧四基准回答、分数和图表没有修改，本轮没有新增付费模型测试。
 
 ## 安装与验证
 
-关闭旧版 MathTutor，运行 `MathTutor-0.6.4-win-x64.exe`。现有数据继续保留，数据库 migration head 仍为 024，无新增结构迁移。Windows 安装器沿用项目现有的未签名构建方式；macOS 未在本轮重新打包。
+Windows x64：关闭旧版 MathTutor，运行 `MathTutor-0.6.4-win-x64.exe`。macOS Apple Silicon（M 系列）：打开 `MathTutor-0.6.4-mac-arm64.dmg`，将 MathTutor 拖入 Applications 后启动。现有数据继续保留，数据库 migration head 仍为 024，无新增结构迁移。Windows 安装器未进行 Authenticode 签名，DMG 未经 Developer ID 签名或 Apple 公证。
 
-源码使用 `Cross-platform verification` 在 Linux、macOS 和 Windows 运行统一检查；安装器另由 Windows runner 准备可搬移 Python、构建 NSIS 并执行实际安装验收，覆盖中文路径、精简系统 PATH 下启动、重复启动、重启及迁移恢复。运行链接、提交身份、SHA-256 和实际验收结果随发布产物保存，不以旧版本验收替代本版结果。
+源码使用 `Cross-platform verification` 在 Linux、macOS 和 Windows 运行统一检查；Windows runner 准备可搬移 Python、构建 NSIS 并执行实际安装验收，覆盖中文路径、精简系统 PATH 下启动、重复启动、重启及迁移恢复。macOS arm64 使用独立可搬移 Python 构建，并验证应用启动、只读 DMG 挂载启动、无 API 密钥和业务路径。运行链接、提交身份、SHA-256 和实际验收结果随发布产物保存，不以旧版本验收替代本版结果。

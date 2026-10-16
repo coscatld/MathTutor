@@ -6,6 +6,8 @@
 - Keep DKT guidance in structured teaching plans alongside concrete error guidance. Require attributable target-skill history and a finite probability; global history alone cannot unlock adaptation.
 - Respect current hint/full-solution and presentation requests across embedded conversations and mathematical repairs. Deliver routine verification scope separately from the answer body, including replay and restored history; refutations remain prominent.
 - Check explicit rational-coefficient polynomial derivatives exactly, with bounded degree and syntax. Reject invalid or oversized tool arguments instead of silently truncating them.
+- Reuse the application's database engine for health checks and dispose temporary health-check engines, so probes cannot leave SQLite connections open at shutdown.
+- Provide Windows x64 and macOS Apple Silicon installers with platform-specific startup evidence; packages are unsigned and the DMG is not notarized.
 - No new model weights, benchmark-score changes or paid model calls are included in this update.
 
 ## 0.6.3 — Preserve the original question and let the Tutor teach

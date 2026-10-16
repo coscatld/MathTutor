@@ -119,7 +119,7 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前源码版本为 **0.6.4**，可用的 Windows x64 安装包与 SHA-256 校验文件见 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)。macOS 最近发布的安装包仍为 0.5.0。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+当前源码版本为 **0.6.4**，可用的 Windows x64 安装包、macOS Apple Silicon DMG 与 SHA-256 校验文件见 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
 
 ### 0.6.4
 

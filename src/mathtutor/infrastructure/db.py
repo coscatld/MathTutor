@@ -81,16 +81,24 @@ def create_db_engine(db_path: Path | None = None) -> AsyncEngine:
 
 async def check_db_health(engine: AsyncEngine | None = None) -> dict[str, str]:
     """Readiness probe: file reachable, WAL active, schema present."""
-    engine = engine or create_db_engine()
-    async with engine.connect() as conn:
-        ok = (await conn.execute(text("SELECT 1"))).scalar_one()
-        journal_mode = (await conn.execute(text("PRAGMA journal_mode"))).scalar_one()
-        fk = (await conn.execute(text("PRAGMA foreign_keys"))).scalar_one()
-    return {
-        "status": "ok" if ok == 1 else "failed",
-        "journal_mode": str(journal_mode),
-        "foreign_keys": "on" if fk else "off",
-    }
+    owns_engine = engine is None
+    if engine is None:
+        engine = create_db_engine()
+    try:
+        async with engine.connect() as conn:
+            ok = (await conn.execute(text("SELECT 1"))).scalar_one()
+            journal_mode = (await conn.execute(text("PRAGMA journal_mode"))).scalar_one()
+            fk = (await conn.execute(text("PRAGMA foreign_keys"))).scalar_one()
+        return {
+            "status": "ok" if ok == 1 else "failed",
+            "journal_mode": str(journal_mode),
+            "foreign_keys": "on" if fk else "off",
+        }
+    finally:
+        # Returning a connection to a private pool still retains its SQLite
+        # handle. Borrowed pools belong to the runtime and must stay open.
+        if owns_engine:
+            await engine.dispose()
 
 
 __all__ = ["check_db_health", "create_db_engine", "resolve_db_path"]
