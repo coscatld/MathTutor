@@ -209,6 +209,8 @@ try {
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${base}/math-tutor/knowledge?conversation=support`);
+  assert.equal(await page.getByRole("link", {name: /返回对话/}).count(), 0, "knowledge has no explicit return-to-chat link");
+  assert.equal(await page.getByRole("button", {name: /返回对话|能力扩展/}).count(), 0, "developer extensions and return buttons are absent");
   await page.getByText(libraries[0].name, { exact: true }).first().waitFor();
   assert.equal(await page.getByRole("region", {name: "会话挂载", exact: true}).count(), 0, "knowledge management has no duplicate scope editor");
   await page.locator(".mt-library-choice").filter({ hasText: libraries[0].name }).click();

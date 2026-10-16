@@ -19,16 +19,19 @@ from uuid import uuid4
 from pydantic import Field, model_validator
 
 from mathtutor.extensions.registry import ExtensionError, ExtensionManifest, StrictArguments
+from mathtutor.extensions.code_plugins import (CODE_SCHEMA, CodePluginRuntime, is_code_upload, parse_code_upload,
+    strict_json, validate_code_package)
 from mathtutor.learning.knowledge_tracing.events import evidence_summary, valid_events
 from mathtutor.learning.skill_graph import FAMILY_SKILLS, SKILLS
 
 PACKAGE_SCHEMA = "mathtutor.community-plugin.v1"
 STATE_SCHEMA = "mathtutor.community-plugin-state.v1"
 RESULT_SCHEMA = "mathtutor.community-result.v1"
-Permission = Literal["question_bank", "read_learning_records"]
+LegacyPermission = Literal["question_bank", "read_learning_records"]
+Permission = Literal["question_bank", "read_learning_records", "execute_local_code"]
 Workflow = Literal["exam-builder", "mistake-review", "learning-report"]
 MAX_PACKAGE_BYTES = 65536
-MAX_STATE_BYTES = 2 * 1024 * 1024
+MAX_STATE_BYTES = 24 * 1024 * 1024
 
 
 class ExamConfig(StrictArguments):
@@ -57,6 +60,14 @@ MIN_PERMISSIONS = {"exam-builder": {"question_bank"}, "mistake-review": {"read_l
 
 
 def _configuration(workflow, value):
+    if workflow == "code":
+        from mathtutor.extensions.registry import _json_bytes
+        try:
+            if not isinstance(value, dict) or len(_json_bytes(value)) > 8192:
+                raise ValueError
+            return value
+        except (ValueError, TypeError, RecursionError):
+            raise ExtensionError("代码插件设置须为有界对象。") from None
     try:
         config = CONFIGS[workflow].model_validate(value, strict=True).model_dump()
     except (ValueError, TypeError, KeyError):
@@ -82,7 +93,7 @@ class PluginPackage(StrictArguments):
     workflow: Workflow
     defaults: dict = Field(default_factory=dict)
     teaching_guidance: str = Field(default="", max_length=2000)
-    required_permissions: list[Permission] = Field(max_length=2)
+    required_permissions: list[LegacyPermission] = Field(max_length=2)
 
     @model_validator(mode="after")
     def bounded_metadata(self):
@@ -109,6 +120,8 @@ def canonical_bytes(value):
 
 
 def validate_package(payload) -> PluginPackage:
+    if isinstance(payload, dict) and payload.get("schema_version") == CODE_SCHEMA:
+        return validate_code_package(payload)
     try:
         if not isinstance(payload, dict) or len(canonical_bytes(payload)) > MAX_PACKAGE_BYTES:
             raise ValueError("Package too large")
@@ -119,6 +132,19 @@ def validate_package(payload) -> PluginPackage:
 
 def package_hash(payload):
     return hashlib.sha256(canonical_bytes(validate_package(payload).model_dump())).hexdigest()
+
+
+def parse_plugin_upload(data, filename):
+    if is_code_upload(data, filename):
+        return parse_code_upload(data, filename).model_dump()
+    return validate_package(strict_json(data)).model_dump()
+
+
+def _command(package):
+    if package.get("kind") == "code-plugin":
+        return package["command"]
+    alias = re.sub(r"[^a-z0-9_-]", "_", package["id"].split(".")[-1].lower())[:32]
+    return alias if re.fullmatch(r"[a-z][a-z0-9_-]{1,31}", alias) else "plugin_" + hashlib.sha256(package["id"].encode()).hexdigest()[:12]
 
 
 def builtin_plugin_packages():
@@ -150,6 +176,7 @@ class CommunityPluginService:
         self.state, self.storage_root, self._bank = state, Path(storage_root), question_bank
         self._lock = threading.RLock()
         self._closed = False
+        self.code_runtime = CodePluginRuntime(self.storage_root)
 
     def _owner_directory(self, owner):
         if not isinstance(owner, str) or not owner or len(owner) > 128:
@@ -217,9 +244,13 @@ class CommunityPluginService:
         except OSError:
             raise ExtensionError("插件配置保存失败，原配置已保留。") from None
 
-    @staticmethod
-    def _public(record):
-        return {key: value for key, value in record.items() if key != "revision"}
+    def _public(self, record):
+        result = {key: value for key, value in record.items() if key != "revision"}
+        plugin = record["plugin"]
+        code = plugin.get("kind") == "code-plugin"
+        result["plugin"] = {key: value for key, value in plugin.items() if not (code and key == "files")}
+        return {**result, "kind": plugin["kind"], "command": _command(plugin),
+            "runtime_available": self.code_runtime.available(plugin["runtime"]) if code else True}
 
     def list_installed(self, owner):
         with self._lock:
@@ -235,18 +266,21 @@ class CommunityPluginService:
             if prior:
                 if prior["package_hash"] == digest:
                     return self._public(prior)
+            if any(row["plugin"]["id"] != package.id and _command(row["plugin"]) == _command(payload) for row in data["items"]):
+                raise ExtensionError("已有插件使用相同的斜线命令；请换用不同命令的插件包。")
+            if prior:
                 if tuple(map(int, package.version.split("."))) <= tuple(map(int, prior["plugin"]["version"].split("."))):
                     raise ExtensionError("升级须使用更高版本号；同版本内容不可悄悄替换。")
-                if package.workflow != prior["plugin"]["workflow"]:
+                if package.workflow != prior["plugin"]["workflow"] or package.kind != prior["plugin"]["kind"]:
                     raise ExtensionError("升级不能改变插件工作流；请使用新的插件标识。")
                 config = _configuration(package.workflow, prior["config"])
                 row = {**prior, "plugin": payload, "package_hash": digest, "config": config, "enabled": False,
-                    "consented_permissions": [p for p in prior["consented_permissions"] if p in package.required_permissions],
+                    "consented_permissions": [] if package.kind == "code-plugin" else [p for p in prior["consented_permissions"] if p in package.required_permissions],
                     "updated_at": _now(), "revision": uuid4().hex}
                 data["items"][data["items"].index(prior)] = row
             else:
                 if len(data["items"]) >= 32:
-                    raise ExtensionError("最多安装 32 个声明式插件。")
+                    raise ExtensionError("最多安装 32 个插件。")
                 row = {"plugin": payload, "config": package.defaults, "enabled": False, "consented_permissions": [],
                     "package_hash": digest, "installed_at": _now(), "updated_at": _now(), "revision": uuid4().hex}
                 data["items"].append(row)
@@ -269,6 +303,8 @@ class CommunityPluginService:
             row = self._record(owner, plugin_id)
             required = set(row["plugin"]["required_permissions"])
             consent = set(consent_permissions)
+            if enabled and row["plugin"].get("kind") == "code-plugin" and not self.code_runtime.available(row["plugin"]["runtime"]):
+                raise ExtensionError("代码插件运行时不可用，请使用完整桌面安装包。")
             if not consent.issubset(required) or (enabled and not required.issubset(consent)):
                 raise ExtensionError("启用前须明确同意插件逐项声明的数据权限。")
             updated = {**row, "enabled": enabled, "consented_permissions": sorted(consent) if enabled else row["consented_permissions"],
@@ -284,7 +320,7 @@ class CommunityPluginService:
             if not isinstance(config, dict):
                 raise ExtensionError("插件设置无效，请检查后重新保存。")
             merged = _configuration(row["plugin"]["workflow"], {**row["config"], **config})
-            if merged.get("focus_weak_skills") and "read_learning_records" not in row["plugin"]["required_permissions"]:
+            if row["plugin"]["workflow"] != "code" and merged.get("focus_weak_skills") and "read_learning_records" not in row["plugin"]["required_permissions"]:
                 raise ExtensionError("这个插件未声明读取学习记录权限。")
             updated = {**row, "config": merged, "updated_at": _now(), "revision": uuid4().hex}
             data["items"][data["items"].index(row)] = updated
@@ -309,12 +345,14 @@ class CommunityPluginService:
             if directory.is_symlink():
                 raise ExtensionError("插件目录状态异常。")
             (directory / "plugins.json").unlink(missing_ok=True)
+            (directory / "code-runs.json").unlink(missing_ok=True)
 
     def enabled_hint(self, owner):
         if self._closed:
             return []
         return [{"plugin_id": row["plugin"]["id"], "name": row["plugin"]["name"],
-                 "workflow": row["plugin"]["workflow"]} for row in self.list_installed(owner) if row["enabled"]]
+                 "workflow": row["plugin"]["workflow"]} for row in self.list_installed(owner)
+                if row["enabled"] and row["kind"] != "code-plugin"]
 
     def model_hint(self, owner):
         rows = self.enabled_hint(owner)
@@ -330,6 +368,27 @@ class CommunityPluginService:
         """Invalidate old SDK bindings without deleting persistent choices."""
         with self._lock:
             self._closed = True
+            self.code_runtime.close()
+
+    def commands(self, owner):
+        if self._closed:
+            return []
+        return [{"command": row["command"], "plugin_id": row["plugin"]["id"], "name": row["plugin"]["name"],
+            "description": row["plugin"]["description"], "kind": row["kind"], "enabled": row["enabled"],
+            "runtime_available": row["runtime_available"]} for row in self.list_installed(owner)]
+
+    def resolve_command(self, owner, alias):
+        if not isinstance(alias, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{1,31}", alias):
+            return None
+        choices = [row for row in self.list_installed(owner) if row["command"] == alias]
+        return choices[0] if len(choices) == 1 else None
+
+    async def run_slash(self, owner, alias, text, *, operation_id, conversation_id=""):
+        row = self.resolve_command(owner, alias)
+        if row is None:
+            raise ExtensionError("未找到当前用户的插件命令。")
+        return await self.run(owner, row["plugin"]["id"], text=text, operation_id=operation_id,
+            conversation_id=conversation_id, explicit_code=True)
 
     def revoke_all_consents(self):
         """Successful DB restore must not silently restore old data authority."""
@@ -364,7 +423,7 @@ class CommunityPluginService:
         # Defense in depth even when a custom repository violates its contract.
         return [e for e in await tracker.events(owner) if e.student_id == owner]
 
-    async def run(self, owner, plugin_id, config=None):
+    async def run(self, owner, plugin_id, config=None, *, text="", operation_id=None, conversation_id="", explicit_code=False):
         with self._lock:
             if self._closed:
                 raise ExtensionError("插件运行时已停止，请在当前应用中重新打开。")
@@ -372,12 +431,22 @@ class CommunityPluginService:
             if config is not None and not isinstance(config, dict):
                 raise ExtensionError("运行设置无效，请检查后重试。")
             current = _configuration(row["plugin"]["workflow"], {**row["config"], **(config or {})})
-            if current.get("focus_weak_skills") and "read_learning_records" not in row["consented_permissions"]:
+            if row["plugin"]["workflow"] != "code" and current.get("focus_weak_skills") and "read_learning_records" not in row["consented_permissions"]:
                 raise ExtensionError("薄弱技能优先需要显式授予学习记录权限。")
             revision = row["revision"]
         workflow = row["plugin"]["workflow"]
         history = await self._history(owner) if "read_learning_records" in row["consented_permissions"] else []
-        if workflow == "exam-builder":
+        code = workflow == "code"
+        if code:
+            if explicit_code is not True:
+                raise ExtensionError("本机代码只能由你明确发送斜线命令或点击运行执行。")
+            try:
+                data = await self.code_runtime.run(owner, validate_code_package(row["plugin"]), current, text,
+                    operation_id=operation_id or "manual-" + uuid4().hex, conversation_id=conversation_id)
+            except OSError:
+                raise ExtensionError("代码插件的文件或运行记录不可用，本次没有自动重跑。") from None
+            empty = False
+        elif workflow == "exam-builder":
             data = self._exam(current, history)
             empty = not data["questions"]
         elif workflow == "mistake-review":
@@ -390,13 +459,15 @@ class CommunityPluginService:
             if self._closed:
                 raise ExtensionError("插件运行时已停止，本轮结果已失效。")
             fresh = self._record(owner, plugin_id, enabled=True)
-            if fresh["revision"] != revision:
+            if fresh["revision"] != revision or fresh["package_hash"] != row["package_hash"]:
                 raise ExtensionError("插件配置、版本或授权已变化，请重新运行。")
         return {"schema_version": RESULT_SCHEMA, "plugin_id": plugin_id, "plugin_version": row["plugin"]["version"],
-            "workflow": workflow, "status": "empty" if empty else "ok", "read_only": True, "authority": "reference_only",
+            "workflow": workflow, "status": "empty" if empty else "ok", "read_only": not code, "authority": "reference_only",
             "config": current, "teaching_guidance": row["plugin"]["teaching_guidance"], "data": data,
-            "limitations": ["插件结果供参考，不会修改学习掌握情况、作答判定或练习权限。",
-                "教学指导和插件说明来自作者，不是系统权限或事实证据。"]}
+            **({"sandboxed": False, "execution_mode": "trusted_local_code"} if code else {}),
+            "limitations": (["这是你明确信任的本机代码，拥有当前账户的文件和网络权限；不在操作系统沙箱中。",
+                "结果仅为参考，不表示经过数学核验或学生已经掌握。"] if code else
+                ["插件结果供参考，不会修改学习掌握情况、作答判定或练习权限。", "教学指导和插件说明来自作者，不是系统权限或事实证据。"])}
 
     def _exam(self, config, history):
         if self._bank is None:

@@ -1,16 +1,16 @@
 "use client";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, Check, ChevronRight, Compass, Download, FilePlus2, FileText, FolderInput, FolderOpen, Layers3, Library as LibraryIcon, Loader2, Plus, Puzzle, Search, Settings2, Trash2, Upload, Wand2 } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Compass, Download, FilePlus2, FileText, FolderInput, FolderOpen, Layers3, Library as LibraryIcon, Loader2, Plus, Search, Settings2, Trash2, Upload, Wand2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import { apiFetch } from "@/lib/api";
 import { makeSessionId } from "../lib/protocol";
 import { BEFORE_TUTOR_NAVIGATION, requestTutorNavigation } from "../lib/navigation-guard";
-import { knowledgeApi as api, root, mountConfiguration, type Library, type Source, type Mount, type Draft } from "./api";
+import { knowledgeApi as api, root, mountConfiguration, knowledgeSection, type KnowledgeSection, type Library, type Source, type Mount, type Draft } from "./api";
 
 import VaultFileList, { vaultPath, type VaultNote } from "./VaultFileList";
-import CreatorCapabilities from "./CreatorCapabilities";
+import TeachingSkills from "./TeachingSkills";
 
 const input = "mt-input min-h-11 h-auto py-2 text-base";
 const button = "mt-btn min-h-11";
@@ -21,10 +21,13 @@ export default function KnowledgeWorkbench() {
   const cid = search.get("conversation") || "";
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [sid, setSid] = useState("");
+  const linkedLibrary = search.get("library") || "", appliedLibrary = useRef("");
   const [notes, setNotes] = useState<VaultNote[]>([]);
   const [source, setSource] = useState<Source | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [section, setSection] = useState<"files" | "skills" | "extensions">("files");
+  const requestedSection = search.get("tab");
+  const [section, setSection] = useState<KnowledgeSection>(knowledgeSection(requestedSection));
+  useEffect(() => { setSection(knowledgeSection(requestedSection)); }, [requestedSection]);
   const [currentFolder, setCurrentFolder] = useState("");
   const [relativePath, setRelativePath] = useState("");
   const [previousPath, setPreviousPath] = useState("");
@@ -47,6 +50,7 @@ export default function KnowledgeWorkbench() {
     const [libs, ds] = await Promise.all([api<Library[]>("/libraries"), api<Draft[]>("/drafts")]);
     setLibraries(libs); setDrafts(ds);
   }, []);
+  useEffect(() => { if (linkedLibrary && linkedLibrary !== appliedLibrary.current && libraries.some(library => library.space_id === linkedLibrary)) {appliedLibrary.current = linkedLibrary; setSid(linkedLibrary);} }, [linkedLibrary, libraries]);
   const perform = async (action: () => Promise<void>) => {
     setBusy(true); setError(""); setNotice("");
     try { await action(); } catch (e) { setError(e instanceof Error ? e.message : "操作未完成，输入已保留。"); }
@@ -156,12 +160,12 @@ export default function KnowledgeWorkbench() {
   const kindLabel = (value: Library["kind"]) => ({personal: "个人资料库", course: "课程与题库", session: "会话资料"})[value];
   return <div className="mt-page mt-knowledge-page text-[var(--foreground)]">
     <header className="flex flex-wrap items-end justify-between gap-5">
-      <div><p className="mt-eyebrow flex items-center gap-2"><LibraryIcon className="h-3.5 w-3.5" aria-hidden="true" />你的学习文件库</p><h1 className="mt-3">知识库</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">整理、编辑与分享题库和笔记，查看教学技能与智能体扩展。当前回答使用哪些资料，请在对话中的“对话资料”选择。</p></div>
-      <div className="flex flex-wrap gap-2"><Link className={button} href="/math-tutor/community"><Compass className="h-4 w-4" aria-hidden="true" />社区资源</Link><input ref={packInput} type="file" hidden accept=".json,.zip" onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; void importPack(file); }} /><button type="button" className={`${button} mt-btn-primary`} disabled={busy} onClick={() => packInput.current?.click()}><Upload className="h-4 w-4" aria-hidden="true" />导入共享题库</button><Link className={button} href={cid ? `/math-tutor?session=${encodeURIComponent(cid)}&panel=documents` : "/math-tutor?panel=documents"}><ArrowLeft className="h-4 w-4" aria-hidden="true" />返回对话资料</Link></div>
+      <div><p className="mt-eyebrow flex items-center gap-2"><LibraryIcon className="h-3.5 w-3.5" aria-hidden="true" />你的学习文件库</p><h1 className="mt-3">知识库</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">整理、编辑与分享题库和笔记，查看教学技能。当前回答使用哪些资料，请在对话中的“对话资料”选择。</p></div>
+      <div className="flex flex-wrap gap-2"><Link className={button} href="/math-tutor/community"><Compass className="h-4 w-4" aria-hidden="true" />社区资源</Link><input ref={packInput} type="file" hidden accept=".json,.zip" onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; void importPack(file); }} /><button type="button" className={`${button} mt-btn-primary`} disabled={busy} onClick={() => packInput.current?.click()}><Upload className="h-4 w-4" aria-hidden="true" />导入共享题库</button></div>
     </header>
     {error && <div role="alert" className="mt-knowledge-alert"><p>{error}</p><button className={button} onClick={() => void perform(retryLoad)}>刷新重试</button></div>}
     {(busy || notice) && <p role="status" className="flex items-center gap-2 text-sm text-[var(--primary-text)]" aria-live="polite">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />}{busy ? "正在处理，请稍候…" : notice}</p>}
-    <nav className="mt-vault-tabs" aria-label="知识库内容类型">{([{id: "files", label: "题库与笔记", icon: FolderOpen}, {id: "skills", label: "教学技能", icon: Wand2}, {id: "extensions", label: "能力扩展", icon: Puzzle}] as const).map(item => <button type="button" key={item.id} aria-pressed={section === item.id} onClick={() => setSection(item.id)}><item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />{item.label}</button>)}</nav>
+    <nav className="mt-vault-tabs" aria-label="知识库内容类型">{([{id: "files", label: "题库与笔记", icon: FolderOpen}, {id: "skills", label: "教学技能", icon: Wand2}] as const).map(item => <button type="button" key={item.id} aria-pressed={section === item.id} onClick={() => setSection(item.id)}><item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />{item.label}</button>)}</nav>
     {section === "files" ? <>
     <div className="mt-tool-message"><p className="text-sm leading-7">导入 JSON 题库或 Markdown 资料库 ZIP 后，可逐份编辑、保留版本，再导出分享。导入的参考答案由资料作者提供，仍需核对；添加资料不会自动扩大对话范围。</p></div>
     <div className="mt-knowledge-layout">
@@ -187,6 +191,6 @@ export default function KnowledgeWorkbench() {
         {drafts.length > 0 && <section className={`${panel} space-y-4`}><h2 className="text-base font-semibold">待整理的笔记草稿</h2><p className="text-sm leading-6 text-[var(--muted-foreground)]">先预览，再决定是否保存到所选知识库。</p>{drafts.map(d => <details key={d.draft_id} className="mt-knowledge-details"><summary>{d.title}<ChevronRight className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" /></summary><div className="py-4"><MarkdownRenderer content={d.markdown} /></div><button className={button} disabled={busy || !sid} onClick={() => void perform(async () => { await api(`/drafts/${d.draft_id}/save`, {space_id: sid}); setNotes(await api<VaultNote[]>(`/libraries/${sid}/notes`)); setNotice("已保存到当前选择的库；重复保存不会新增副本。"); })}><Plus className="h-4 w-4" aria-hidden="true" />保存新笔记到所选库</button></details>)}</section>}
       </div>
     </div>
-    </> : <CreatorCapabilities section={section} />}
+    </> : <TeachingSkills />}
   </div>;
 }

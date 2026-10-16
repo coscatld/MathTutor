@@ -416,19 +416,25 @@ class KnowledgeService:
                             fingerprint=fingerprint, payload=result, generation=generation))
                         return result
                     version = 1
-                safe_title = sanitize_filename(title.removesuffix(".md") + ".md")
+                text_note = PurePosixPath(str((provenance or {}).get("relative_path", ""))).suffix.lower() == ".txt"
+                title_suffix = PurePosixPath(title).suffix
+                if text_note:
+                    stem = title[:-len(title_suffix)] if title_suffix.lower() in {".txt", ".md", ".markdown"} else title
+                    safe_title = sanitize_filename(stem + ".txt")
+                else:
+                    safe_title = sanitize_filename(title.removesuffix(".md") + ".md")
                 stored_ref = self.state.document_storage.ref_for(student_uuid(owner), UUID(did), f"v{version}-{safe_title}")
                 await self.state.document_storage.store_bytes(stored_ref, body.encode())
                 chunks = self.markdown_chunks(owner, did, version, body)
                 doc_values = dict(filename=safe_title, content_hash=content_hash, storage_ref=stored_ref,
                     size_bytes=len(body.encode()), status="ready", parser_version="markdown_exact_v1", chunk_count=len(chunks))
                 if document_id:
-                    doc = doc.model_copy(update=doc_values)
+                    doc = doc.model_copy(update={**doc_values, "mime_type": "text/plain" if text_note else "text/markdown"})
                     await sd.update_user_document(db, student_id=owner, doc=doc)
                     for table in (document_chunk_vectors, document_index_builds):
                         await db.execute(delete(table).where(table.c.student_id == owner, table.c.document_id == did))
                 else:
-                    doc = UserDocument(document_id=UUID(did), student_id=student_uuid(owner), mime_type="text/markdown", **doc_values)
+                    doc = UserDocument(document_id=UUID(did), student_id=student_uuid(owner), mime_type="text/plain" if text_note else "text/markdown", **doc_values)
                     await sd.insert_user_document(db, student_id=owner, doc=doc)
                 await sd.replace_document_chunks(db, student_id=owner, document_id=UUID(did), chunks=chunks)
                 await db.execute(versions.insert().values(student_id=owner, document_id=did, version=version,

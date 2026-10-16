@@ -134,8 +134,8 @@ def _key(path):
 
 def _note(path, title, body, tags=(), provenance=None):
     _path(path)
-    if PurePosixPath(path).suffix.lower() not in {".md", ".markdown"}:
-        raise QuestionPackError("资料文件必须是 Markdown。")
+    if PurePosixPath(path).suffix.lower() not in {".md", ".markdown", ".txt"}:
+        raise QuestionPackError("资料文件必须是 Markdown 或 TXT 文本。")
     if not isinstance(body, str) or not body.strip() or "\x00" in body or len(body.encode("utf-8")) > MAX_MARKDOWN_BYTES:
         raise QuestionPackError("Markdown 须有正文、不能含二进制内容，单份最多 1 MiB。")
     if not title.strip() or len(title) > 120:
@@ -207,8 +207,8 @@ def _zip_pack(data, filename):
                 if hidden:
                     warnings.append(f"已跳过隐藏配置：{path}")
                     continue
-                if path != "manifest.json" and PurePosixPath(path).suffix.lower() not in {".md", ".markdown"}:
-                    warnings.append(f"已跳过非 Markdown 文件：{path}")
+                if path != "manifest.json" and PurePosixPath(path).suffix.lower() not in {".md", ".markdown", ".txt"}:
+                    warnings.append(f"已跳过非 Markdown/TXT 文件：{path}")
                     continue
                 with archive.open(info) as source:
                     content = source.read(MAX_MARKDOWN_BYTES + 1)
@@ -262,7 +262,7 @@ def _zip_pack(data, filename):
         item = metadata.get(path, {})
         title = item.get("title") or PurePosixPath(path).name[:120]
         notes.append(_note(path, title, body, item.get("tags", []), {
-            "pack_format": format_name, "source_format": item.get("source_format", "markdown"),
+            "pack_format": format_name, "source_format": item.get("source_format", "text" if PurePosixPath(path).suffix.lower() == ".txt" else "markdown"),
         }))
     if any(PurePosixPath(note.path).name.casefold() == "skill.md" for note in notes):
         warnings.append("SKILL.md 仅作为普通 Markdown 参考资料导入，不会启用技能或插件。")
@@ -397,7 +397,7 @@ class QuestionPackService:
                         _path(path)
                     except QuestionPackError:
                         path = sanitize_filename(source["title"]).removesuffix(".md") + ".md"
-                    if PurePosixPath(path).suffix.lower() not in {".md", ".markdown"}:
+                    if PurePosixPath(path).suffix.lower() not in {".md", ".markdown", ".txt"}:
                         path += ".md"
                     # Reserved/hidden paths are never emitted as trusted vault
                     # entries; imported hidden files were skipped at parse time.

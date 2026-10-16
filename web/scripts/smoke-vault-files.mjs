@@ -91,6 +91,8 @@ const exportCurrent = async name => {
 };
 try {
   await page.goto(`${base}/math-tutor/knowledge?conversation=vault-fixture`);
+  assert.equal(await page.getByRole("link", {name: /返回对话/}).count(), 0, "knowledge has no explicit return-to-chat link");
+  assert.equal(await page.getByRole("button", {name: /返回对话|能力扩展/}).count(), 0, "developer extensions and return buttons are absent");
   await page.locator(".mt-library-choice").filter({ hasText: library.name }).click();
   await list.getByRole("button", { name: /^复习/ }).click();
   await list.locator(".mt-note-open").first().click();

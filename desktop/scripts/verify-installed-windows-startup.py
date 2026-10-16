@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,8 @@ import subprocess
 import tempfile
 import time
 import traceback
+import urllib.error
+import urllib.parse
 import urllib.request
 
 
@@ -50,6 +53,118 @@ def probe(python, data, code):
     if result.returncode:
         raise AssertionError(result.stderr.decode('utf-8', errors='replace'))
     return json.loads(result.stdout.decode('utf-8'))
+
+
+def local_api(base, path, *, method='GET', payload=None, file=None, operation_id=None, expected_status=200):
+    """Only call this GUI instance's loopback API; never a provider endpoint."""
+    assert re.fullmatch(r'http://127\.0\.0\.1:[0-9]+', base), 'loopback API required'
+    assert path.startswith('/api/v2/math-tutor/desktop/community/plugins'), 'plugin API required'
+    headers = {'Origin': base}
+    body = None
+    if file is not None:
+        filename, source = file
+        assert re.fullmatch(r'[a-z][a-z0-9_-]+\.(?:py|ts)', filename)
+        boundary = 'MathTutorStartupAcceptanceBoundary'
+        body = (f'--{boundary}\r\nContent-Disposition: form-data; name="operation_id"\r\n\r\n{operation_id}\r\n'
+                f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+                'Content-Type: text/plain; charset=utf-8\r\n\r\n').encode('ascii')
+        body += source.encode('utf-8') + f'\r\n--{boundary}--\r\n'.encode('ascii')
+        headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
+    elif payload is not None:
+        body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8')
+        headers['Content-Type'] = 'application/json'
+    request = urllib.request.Request(base + path, data=body, headers=headers, method=method)
+    # Ignore machine HTTP_PROXY/HTTPS_PROXY settings even for localhost: smoke
+    # requests must reach the installed service, not an external proxy.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        response = opener.open(request, timeout=20)
+    except urllib.error.HTTPError as error:
+        response = error
+    with response:
+        value = json.loads(response.read(256 * 1024).decode('utf-8'))
+        assert response.code == expected_status, f'plugin API {method} {path}: status={response.code}, response={value}'
+    return value
+
+
+PYTHON_PLUGIN = '''def run(request):
+    import sys
+    from pathlib import Path
+    marker = Path(request["config"]["marker"])
+    executions = int(marker.read_text(encoding="utf-8")) + 1 if marker.exists() else 1
+    marker.write_text(str(executions), encoding="utf-8")
+    return {"text": request["text"], "answer": 6 * 7, "executions": executions,
+            "runtime": "python", "executable": sys.executable,
+            "isolated": sys.flags.isolated, "no_site": sys.flags.no_site}
+'''
+
+TYPESCRIPT_PLUGIN = '''import {existsSync, readFileSync, writeFileSync} from "node:fs";
+type Input = {text: string; config: {marker: string}};
+export function run(request: Input) {
+    const marker: string = request.config.marker;
+    const executions: number = existsSync(marker) ? Number(readFileSync(marker, "utf8")) + 1 : 1;
+    writeFileSync(marker, String(executions), "utf8");
+    return {text: request.text, answer: 6 * 7, executions, runtime: "typescript",
+            executable: process.execPath, node_version: process.versions.node};
+}
+'''
+
+
+def verify_code_plugins(base, python, executable, data, *, environment):
+    """Real raw-source import/consent/process/replay, with no model request."""
+    expected_path = [str(Path(os.environ['SystemRoot']) / 'System32'), str(Path(os.environ['SystemRoot']))]
+    assert environment['PATH'].split(';') == expected_path, 'GUI smoke PATH contains non-system runtimes'
+    root = data / 'plugin-acceptance'
+    root.mkdir(parents=True, exist_ok=True)
+    result = {'status': 'PASS', 'provider_calls': 0, 'api': 'loopback_only',
+              'system_only_gui_path': True, 'cases': []}
+    prefix = '/api/v2/math-tutor/desktop/community/plugins'
+    for runtime, suffix, source, expected_executable in (
+            ('python', 'py', PYTHON_PLUGIN, python),
+            ('typescript', 'ts', TYPESCRIPT_PLUGIN, executable)):
+        marker = root / f'{runtime}-executions.txt'
+        assert not marker.exists(), 'fresh code plugin marker already exists'
+        receipt = local_api(base, prefix + '/import', method='POST',
+            file=(f'{runtime}_acceptance.{suffix}', source), operation_id=f'startup-import-{runtime}')
+        assert receipt['kind'] == 'plugin', receipt
+        record = receipt['plugin']
+        assert record['kind'] == 'code-plugin' and not record['enabled'] and not record['consented_permissions'], record
+        assert record['runtime_available'], record
+        plugin = record['plugin']
+        assert plugin['runtime'] == runtime and plugin['required_permissions'] == ['execute_local_code'], plugin
+        plugin_id = urllib.parse.quote(plugin['id'], safe='')
+        path = prefix + '/' + plugin_id
+        run_body = {'text': '中文插件验收🙂', 'config': {'marker': str(marker)},
+                    'operation_id': f'startup-code-{runtime}-once'}
+        assert not marker.exists(), 'import unexpectedly ran code'
+        local_api(base, path + '/run', method='POST', payload=run_body, expected_status=409)
+        assert not marker.exists(), 'disabled plugin unexpectedly ran code'
+        enabled = local_api(base, path + '/enabled', method='PUT',
+                            payload={'enabled': True, 'consent_permissions': ['execute_local_code']})
+        assert enabled['enabled'] and enabled['consented_permissions'] == ['execute_local_code'], enabled
+        assert not marker.exists(), 'enable unexpectedly ran code'
+        first = local_api(base, path + '/run', method='POST', payload=run_body)
+        repeated = local_api(base, path + '/run', method='POST', payload=run_body)
+        assert repeated == first, 'same operation did not replay its original receipt'
+        actual = first['data']
+        assert actual['text'] == run_body['text'] and actual['answer'] == 42 and actual['executions'] == 1, actual
+        assert marker.read_text(encoding='utf-8') == '1', 'replay executed code twice'
+        assert actual['runtime'] == runtime, actual
+        assert Path(actual['executable']).resolve() == expected_executable.resolve(), actual
+        assert first['authority'] == 'reference_only' and first['sandboxed'] is False and first['read_only'] is False, first
+        if runtime == 'python':
+            assert actual['isolated'] == actual['no_site'] == 1, actual
+        else:
+            assert actual['node_version'], actual
+        result['cases'].append({'runtime': runtime, 'status': 'PASS', 'plugin_id': plugin['id'],
+            'command': record['command'], 'source_sha256': sha256(source.encode('utf-8')).hexdigest(),
+            'explicit_local_code_consent': True, 'runtime_available': True, 'data': actual,
+            'packaged_runtime': True, 'replayed_same_receipt': True, 'executions_after_replay': 1})
+        # Leave the disposable fresh profile safe for its subsequent relaunch;
+        # disabling does not erase evidence or reset the execution ledger.
+        disabled = local_api(base, path + '/enabled', method='PUT', payload={'enabled': False})
+        assert disabled['enabled'] is False
+    return result
 
 
 SNAPSHOT = '''
@@ -107,9 +222,13 @@ def run_gui(executable, python, data, output, name, *, expect_failure=False):
                     with urllib.request.urlopen(base + '/version', timeout=5) as response:
                         version = json.load(response)
                     assert version['version'] == EXPECTED_VERSION, version
-                    return dict(case=name, seconds=round(time.monotonic() - started, 3),
-                                duplicate_exit=second.returncode, migration=migration,
-                                version=version['version'], databases=probe(python, data, SNAPSHOT))
+                    ready_seconds = round(time.monotonic() - started, 3)
+                    result = dict(case=name, seconds=ready_seconds,
+                                  duplicate_exit=second.returncode, migration=migration,
+                                  version=version['version'], databases=probe(python, data, SNAPSHOT))
+                    if name == 'fresh_unicode':
+                        result['code_plugins'] = verify_code_plugins(base, python, executable, data, environment=env)
+                    return result
                 assert first.poll() is None, f'first instance exited: {first.returncode}'
                 time.sleep(.2)
             raise TimeoutError(f'normal GUI did not become ready: {name}')

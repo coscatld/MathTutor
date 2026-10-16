@@ -1,6 +1,8 @@
 import { apiFetch } from "@/lib/api";
 
 export const root = "/api/v2/math-tutor/desktop/knowledge";
+export type KnowledgeSection = "files" | "skills";
+export function knowledgeSection(value: string | null): KnowledgeSection { return value === "skills" ? "skills" : "files"; }
 export async function knowledgeApi<T>(path: string, body?: unknown, method?: string): Promise<T> {
   const response = await apiFetch(root + path, {method: method ?? (body === undefined ? "GET" : "POST"),
     headers: {"Content-Type": "application/json"}, body: body === undefined ? undefined : JSON.stringify(body)});

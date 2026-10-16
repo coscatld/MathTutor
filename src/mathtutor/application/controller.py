@@ -318,6 +318,7 @@ class MathTutorController:
         self.semantic_interpreter = semantic_interpreter
         # Gateway for model-proposed scene definitions (None: deterministic only).
         self.scene_gateway: Any = None
+        self.community_plugins: Any = None
 
     async def _teaching_context(self, owner_id, session, verified):
         from mathtutor.pedagogy.teaching_plan import initial_context
@@ -412,6 +413,12 @@ class MathTutorController:
             await stream.error(conflict[1], source=self.manifest.name, metadata={"error_code": conflict[0]})
             return
         payload = envelope.get("payload") or {}
+        if command == SEND_MESSAGE_COMMAND:
+            from mathtutor.application.plugin_commands import parse_plugin_command
+            slash = parse_plugin_command(str(payload.get("text", "")))
+            if slash is not None:
+                await self._plugin_command(request, session, bound_verified, envelope, slash, stream)
+                return
         if payload.get("attachment_ids"):
             knowledge = getattr(self, "knowledge", None)
             if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
@@ -530,6 +537,47 @@ class MathTutorController:
             logger.exception("tutor turn failed conversation_id=%s", request.session_id)
             await stream.error("这次没能处理完成，请重新同步对话后再试。", source=self.manifest.name)
 
+    async def _plugin_command(self, request, session, verified, envelope, slash, stream):
+        """One explicit host execution, then optional model expression only."""
+        from mathtutor.application.plugin_commands import plugin_reference_context, slash_operation_id
+        from mathtutor.application.tutor_runtime import current_turn
+        from mathtutor.extensions.registry import ExtensionError
+        service = self.community_plugins
+        alias, argument = slash
+        if service is None:
+            await self._dialogue(stream, session, "当前环境尚未提供插件命令，请到‘我的插件’检查。", "TUTOR_CHAT")
+            return
+        try:
+            record = service.resolve_command(request.owner.student_id, alias)
+            if record is None:
+                raise ExtensionError(f"未找到 /{alias} 命令。请到‘我的插件’查看已安装的命令。")
+            if not record.get("enabled"):
+                raise ExtensionError(f"/{alias} 所属插件尚未启用，请先查看权限并明确启用。")
+            if not record.get("runtime_available", True):
+                raise ExtensionError(f"/{alias} 所需的运行环境不可用，请到‘我的插件’检查。")
+            turn = current_turn.get()
+            stable_request = turn.turn_id if turn is not None else str(envelope.get("idempotency_key") or envelope.get("request_id") or "")
+            operation_id = slash_operation_id(request.owner.student_id, request.session_id, stable_request)
+            receipt = await service.run_slash(request.owner.student_id, alias, argument,
+                operation_id=operation_id, conversation_id=request.session_id)
+            context = plugin_reference_context(record, alias, receipt)
+            if verified and session is not None:
+                assistance = await self.sessions.load_assistance(request.owner.student_id, session.cycle.cycle_id)
+                context["exercise_scope"] = {"cycle_state": session.state.value,
+                    "assistance_level": assistance.max_level_issued,
+                    "full_answer_authorized": assistance.max_level_issued >= 5,
+                    "instruction": "只沿用已有教学帮助范围；插件执行不授权完整解答，不提交学生作答或推进题目。"}
+        except ExtensionError as exc:
+            await self._dialogue(stream, session, str(exc), "TUTOR_CHAT")
+            return
+        except Exception:
+            logger.warning("Plugin slash command failed")
+            await self._dialogue(stream, session, "插件命令未能完成；没有自动重试，请到‘我的插件’查看运行状态。", "TUTOR_CHAT")
+            return
+        await self._chat_message(session, str(envelope.get("payload", {}).get("text", "")),
+            request.conversation_messages, stream, owner_id=request.owner.student_id,
+            client_session_id=request.session_id, follow_up=bool(verified), plugin_context=context)
+
     async def _route_send_message(
         self,
         request: MathTutorRequest,
@@ -558,6 +606,7 @@ class MathTutorController:
                     owner_id=request.owner.student_id,
                     follow_up=bool(chat_context.get("follow_up")),
                     response_request=chat_context.get("response_request"),
+                    plugin_context=chat_context.get("plugin_context"),
                     unstructured_math=bool(chat_context.get("unstructured_math")))
                 return
             context = json.loads(previous.get("continuation_context") or "{}")
@@ -1084,14 +1133,15 @@ class MathTutorController:
         client_session_id: str = "",
         agent_discussion: bool = False,
         response_request: str | None = None,
+        plugin_context: dict | None = None,
     ) -> None:
         request_text = text if response_request is None else response_request
         recovery = None
-        if not images and text.strip() != "继续" and not follow_up and not agent_discussion:
+        if plugin_context is None and not images and text.strip() != "继续" and not follow_up and not agent_discussion:
             session, recovery = await self._remember_recovery(session, owner_id, text,
                 client_session_id=client_session_id, mathematical=unstructured_math)
         from mathtutor.application.discussion_notebook import SCHEMA, model_context, starts_new_question
-        notebook = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id) if session and owner_id else None
+        notebook = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id) if plugin_context is None and session and owner_id else None
         saved_discussion = model_context(notebook)
         if unstructured_math and not follow_up and owner_id and not recovery and (images or not saved_discussion or starts_new_question(text)):
             if session is None and client_session_id:
@@ -1112,13 +1162,13 @@ class MathTutorController:
         responder = self.chat_responder
         document_context = None
         document_source = getattr(self, "chat_documents", None)
-        if document_source is not None:
+        if document_source is not None and plugin_context is None:
             try:
                 document_context = await document_source.build(owner_id, text, history)
             except Exception:
                 logger.warning("Chat document retrieval unavailable")
                 document_context = {"status": "retrieval_failed", "files": [], "chunks": []}
-        if images is None and getattr(self, "image_repository", None) is not None:
+        if plugin_context is None and images is None and getattr(self, "image_repository", None) is not None:
             if saved_discussion and notebook.get("original_image_ids"):
                 try:
                     images = await self.image_repository.resolve(owner_id, notebook["original_image_ids"])
@@ -1153,7 +1203,11 @@ class MathTutorController:
         if responder is None:
             if images:
                 raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。")
-            message = fallback_tutor_reply(text)
+            if plugin_context is not None:
+                from mathtutor.application.plugin_commands import format_plugin_receipt
+                message = format_plugin_receipt(plugin_context)
+            else:
+                message = fallback_tutor_reply(text)
         else:
             try:
                 extra = {"images": images} if images else {}
@@ -1176,6 +1230,8 @@ class MathTutorController:
                 from mathtutor.application.message_intent import is_concrete_math_input
                 import inspect
                 accepts = inspect.signature(responder.respond).parameters
+                if plugin_context is not None and "plugin_context" in accepts:
+                    extra["plugin_context"] = plugin_context
                 if "execution_context" in accepts and owner_id and client_session_id:
                     from mathtutor.extensions import ExecutionContext
                     execution_context = ExecutionContext(owner_id=owner_id, conversation_id=client_session_id)
@@ -1212,7 +1268,7 @@ class MathTutorController:
                 from mathtutor.skills.canvas_drawing import can_offer_drawing
                 drawing_relevant = can_offer_drawing(text, history)
                 math_history = any(is_concrete_math_input(str(item.get("content", ""))) for item in history[-6:])
-                if takes_tools and (unstructured_math or follow_up or drawing_relevant or math_history or is_concrete_math_input(text)):
+                if plugin_context is None and takes_tools and (unstructured_math or follow_up or drawing_relevant or math_history or is_concrete_math_input(text)):
                     # Maths questions: the model may verify its own claims first,
                     # and show a figure only through the canvas (draw_scene).
                     from mathtutor.application.math_verification import verify_math
@@ -1296,6 +1352,8 @@ class MathTutorController:
                         repair_options["personal_memory"] = personal_memory
                     if execution_context is not None and "execution_context" in repair_parameters:
                         repair_options["execution_context"] = execution_context
+                    if plugin_context is not None and "plugin_context" in repair_parameters:
+                        repair_options["plugin_context"] = plugin_context
                     return sanitize_figures(project_assistant_message(await responder.respond(
                         feedback, history=retry_history, problem_context=problem_context,
                         unstructured_math=unstructured_math, **repair_options)) or "")[0]
@@ -1334,6 +1392,7 @@ class MathTutorController:
             turn.continuation_context = json.dumps({"kind": "chat", "unstructured_math": unstructured_math,
                 "follow_up": follow_up, "raw_text": raw_visible,
                 "response_request": request_text,
+                "plugin_context": plugin_context,
                 "verification_notice": verification_notice,
                 "boundary_unverified": turn.error_code == "CONTINUATION_BOUNDARY_UNVERIFIED"}, ensure_ascii=False)
         await stream.emit(

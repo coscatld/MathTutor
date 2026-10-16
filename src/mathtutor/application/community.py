@@ -248,10 +248,9 @@ class CommunityService:
         if metadata["type"] == "question-pack":
             parse_pack(data, package["filename"])
         else:
-            from mathtutor.extensions.community_plugins import validate_package
-            payload = _read_json(data, limit=MAX_UPLOAD_BYTES)
+            from mathtutor.extensions.community_plugins import parse_plugin_upload
             try:
-                plugin = validate_package(payload).model_dump()
+                plugin = parse_plugin_upload(data, package["filename"])
             except ValueError as exc:
                 raise CommunityError("插件清单不符合支持的声明式格式。") from exc
             if plugin["id"] != metadata["id"] or plugin["version"] != metadata["version"]:
@@ -479,19 +478,49 @@ class CommunityService:
     async def _package(self, entry):
         content = self._local_bytes(entry["package"])
         if content is None:
-            limit = 65536 if entry["metadata"]["type"] == "plugin" else MAX_UPLOAD_BYTES
+            limit = 512 * 1024 if entry["metadata"]["type"] == "plugin" else MAX_UPLOAD_BYTES
             content = await self.fetcher(entry["package"]["download_url"], max_bytes=limit)
         self._validate_payload(entry, content)
         return content
 
     async def import_resource(self, owner, resource_id, *, version, expected_sha256, operation_id=None):
         current = self._load(owner)
+        entry, source = self._entry(current, resource_id, version)
+        return await self._import_entry(owner, current, entry, source=source,
+            expected_sha256=expected_sha256, operation_id=operation_id)
+
+    def _check_import_versions(self, current, metadata):
+        """Keep downloaded versions immutable without retaining their payloads.
+
+        Older receipts have no metadata snapshot. Their cached source, when
+        retained, supplies it; otherwise only the fields actually recorded in
+        that receipt can be checked. No legacy source or personal copy is
+        removed as part of this compatibility path.
+        """
+        self._check_conflicts(current, [{"metadata": metadata}])
+        for record in current["history"]:
+            if (record["resource_id"], record["version"]) != (metadata["id"], metadata["version"]):
+                continue
+            if any(record[key] != metadata[field] for key, field in (
+                    ("package_sha256", "package_sha256"), ("type", "type"), ("name", "name"))):
+                raise CommunityError("同一资源版本已有不同内容或元数据；发布修改须增加版本号。")
+            previous = record.get("metadata")
+            if previous is None:
+                previous = next((entry["metadata"] for source in self._sources(current)
+                    if source["id"] == record.get("source_id") for entry in source["resources"]
+                    if (entry["metadata"]["id"], entry["metadata"]["version"]) == (metadata["id"], metadata["version"])), None)
+            if previous is not None and canonical_bytes(previous) != canonical_bytes(metadata):
+                raise CommunityError("同一资源版本已有不同内容或元数据；发布修改须增加版本号。")
+
+    async def _import_entry(self, owner, current, entry, *, expected_sha256, operation_id=None, source=None):
+        """Import one authorized, validated entry and durably record its result."""
         if operation_id and any(record.get("operation_id") == operation_id for record in current.get("file_imports", [])):
             raise CommunityError("重复导入请求内容不一致，请重新选择文件。")
-        entry, source = self._entry(current, resource_id, version)
         metadata = entry["metadata"]
+        resource_id, version = metadata["id"], metadata["version"]
         if expected_sha256 != metadata["package_sha256"]:
             raise CommunityError("资源版本或包内容已变化，请重新查看详情后再导入。")
+        self._check_import_versions(current, metadata)
         if operation_id:
             replay = next((record for record in current["history"] if record.get("operation_id") == operation_id), None)
             if replay:
@@ -510,11 +539,13 @@ class CommunityService:
             service = getattr(self.state, "community_plugins", None)
             if service is None:
                 raise CommunityError("当前运行环境尚未提供社区插件服务。")
-            plugin = service.import_package(owner, _read_json(content, limit=MAX_UPLOAD_BYTES))
+            from mathtutor.extensions.community_plugins import parse_plugin_upload
+            plugin = service.import_package(owner, parse_plugin_upload(content, entry["package"]["filename"]))
             result = {"resource_id": resource_id, "version": version, "plugin": plugin, "warnings": ["插件已导入；启用和权限授权需另行确认。"]}
         current["history"].append({"id": uuid4().hex, "resource_id": resource_id, "version": version,
-            "name": metadata["name"], "type": metadata["type"], "source_name": source["name"],
-            "package_sha256": expected_sha256, "source_id": source["id"], "imported_at": _now(),
+            "name": metadata["name"], "type": metadata["type"], "source_name": source["name"] if source else "分享文件",
+            "package_sha256": expected_sha256, "source_id": source["id"] if source else "", "imported_at": _now(),
+            "metadata": metadata,
             "operation_id": operation_id, "space_id": result.get("space_id"), "result": result})
         try:
             self._save(owner, current)
@@ -531,6 +562,23 @@ class CommunityService:
             return {**result, "history_recorded": False, "warnings": [*result.get("warnings", []),
                 "插件安装成功，但社区导入历史未能保存；请以已安装插件列表为准。"]}
         return result
+
+    def validate_plugin_file(self, data, filename=""):
+        """Preflight the plugin-only upload without installing or saving it."""
+        from mathtutor.extensions.code_plugins import is_code_upload
+        from mathtutor.extensions.community_plugins import parse_plugin_upload
+        if is_code_upload(data, filename):
+            parse_plugin_upload(data, filename)
+            return
+        payload = _read_json(data, limit=MAX_SHARE_BYTES)
+        if payload.get("format") == RESOURCE_FORMAT:
+            resource = payload.get("resource")
+            metadata = resource.get("metadata") if isinstance(resource, dict) else None
+            if not isinstance(metadata, dict) or metadata.get("type") != "plugin":
+                raise CommunityError("请选择插件文件；题库和笔记请使用资料导入。")
+            self._parse_catalog(data, share=True)
+        else:
+            parse_plugin_upload(data, filename)
 
     async def import_file(self, owner, data, filename, *, operation_id=None):
         """Import a downloaded package in one explicit, owner-scoped action.
@@ -554,24 +602,27 @@ class CommunityService:
                 return replay["result"]
         archive = data.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"))
         payload = None
-        if not archive:
+        from mathtutor.extensions.code_plugins import is_code_upload
+        if is_code_upload(data, filename):
+            from mathtutor.extensions.community_plugins import parse_plugin_upload
+            try:
+                payload = parse_plugin_upload(data, filename)
+            except ValueError as exc:
+                raise CommunityError("代码插件文件不完整或不受支持；未运行任何代码。") from exc
+            archive = False
+        elif not archive:
             try:
                 payload = _read_json(data, limit=MAX_SHARE_BYTES)
             except CommunityError as exc:
                 raise CommunityError("暂不支持此文件。请选择下载的 MathTutor 插件、题库或笔记压缩包。") from exc
         format_name = payload.get("format") if payload is not None else None
         if format_name == RESOURCE_FORMAT:
-            # Finish all metadata/hash/payload validation before adding a source
-            # or consulting resource IDs. An upload cannot refer to another
-            # owner's private source or borrow its cached package bytes.
+            # A share is a direct install, not a subscribed directory. Finish
+            # offline metadata/hash/payload validation and retain only its
+            # receipt/metadata, never a hidden source or the package payload.
             _, entries = self._parse_catalog(data, share=True)
             metadata = entries[0]["metadata"]
-            previous = next((row for row in current["history"] if operation_id and row.get("operation_id") == operation_id), None)
-            if previous and (previous["resource_id"], previous["version"], previous["package_sha256"]) != (
-                    metadata["id"], metadata["version"], metadata["package_sha256"]):
-                raise CommunityError("重复导入请求内容不一致，请重新选择文件。")
-            self.import_source(owner, data)
-            result = await self.import_resource(owner, metadata["id"], version=metadata["version"],
+            result = await self._import_entry(owner, current, entries[0],
                 expected_sha256=metadata["package_sha256"], operation_id=operation_id)
             return {"kind": metadata["type"], **result}
         if operation_id and any(row.get("operation_id") == operation_id for row in current["history"]):
@@ -583,8 +634,8 @@ class CommunityService:
             result = {"kind": "source", "source": self.import_source(owner, data),
                 "warnings": ["资源来源已添加，可在高级选项中查看；其中的题库和插件尚未导入。"]}
             current = self._load(owner)
-        elif payload is not None and (payload.get("schema_version") == "mathtutor.community-plugin.v1"
-                or payload.get("kind") == "teaching-plugin" or "workflow" in payload):
+        elif payload is not None and (payload.get("schema_version") in {"mathtutor.community-plugin.v1", "mathtutor.code-plugin.v1"}
+                or payload.get("kind") in {"teaching-plugin", "code-plugin"} or "workflow" in payload):
             service = getattr(self.state, "community_plugins", None)
             if service is None:
                 raise CommunityError("当前运行环境尚未提供社区插件服务。")
@@ -624,7 +675,7 @@ class CommunityService:
         return result
 
     def history(self, owner):
-        return {"imports": [{key: value for key, value in record.items() if key not in {"operation_id", "result"}} for record in reversed(self._load(owner)["history"])]}
+        return {"imports": [{key: value for key, value in record.items() if key not in {"operation_id", "result", "metadata"}} for record in reversed(self._load(owner)["history"])]}
 
     async def export_resource(self, owner, resource_id, *, version=None, expected_sha256=None):
         current = self._load(owner)

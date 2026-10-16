@@ -129,8 +129,8 @@ async def save_note(sid: str, body: NoteInput, owner: StudentOwnerScope = Depend
         path = PurePosixPath(value or "")
         if value and (path.is_absolute() or ":" in value or any(ord(c) < 32 for c in value)
                       or any(p in {"", ".", ".."} or p.startswith(".") for p in value.split("/"))
-                      or path.suffix.lower() not in {".md", ".markdown"}):
-            raise HTTPException(422, "仅导入明确选择的 Markdown 文件；隐藏目录、插件和越界路径不会导入。")
+                      or path.suffix.lower() not in {".md", ".markdown", ".txt"}):
+            raise HTTPException(422, "仅保存明确选择的 Markdown 或 TXT 文本；隐藏目录、插件和越界路径不会保存。")
     path_intent = {}
     if "relative_path" in body.model_fields_set:
         path_intent["relative_path"] = relative_path

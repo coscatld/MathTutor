@@ -2,7 +2,7 @@
 
 MathTutor 开放一个可运行的 Python 注册接口：创作者编写工具处理器，由应用开发者在启动时注册，模型通过真实工具循环调用它。内置目录工具可浏览、读取和写入用户显式授权文件夹中的文本。
 
-普通用户可使用 [社区 JSON 教学插件](COMMUNITY_PLUGINS.md)，安装已有受控工作流的声明式组合。下面的 Python SDK 面向可信应用开发者：处理器在应用进程内运行，**不是代码沙盒**；没有终端用户上传 Python/JS、第三方 ZIP 代码安装、MCP、shell 或自动安装依赖的入口。处理器作者对自己的代码权限和副作用负责。
+普通用户可使用 [社区 JSON 教学插件](COMMUNITY_PLUGINS.md)，安装已有受控工作流的声明式组合。下面的 Python SDK 面向可信应用开发者：处理器在应用进程内运行，**不是代码沙盒**；用户导入 Python / TypeScript 文件或受限 ZIP 的机制见[代码插件](CODE_PLUGINS.md)；它需要独立的本地代码信任，不通过下面的注册接口偷偷加载。处理器作者对自己的代码权限和副作用负责。
 
 ## 工具、教学 Skill 与知识文件
 
@@ -79,7 +79,7 @@ registry = get_product_state().extension_registry
 
 ## 真实工作区文件能力
 
-在知识库工作台选择文件夹，并明确选择只读或可写。模型没有授予目录的工具，客户端不能通过聊天信封指定身份或工具权限。
+目录接口供开发者在可信集成中使用，常规知识库聚焦资料与教学技能。开发者须在自己的集成中提供目录选择、明确的只读或可写确认及撤销操作，再通过下方本地管理 API 建立授权。模型没有授予目录的工具，客户端不能通过聊天信封指定身份或工具权限。
 
 授权按认证 owner 隔离，仅在当前服务进程内有效；重启、恢复数据库后必须重新选择，授权不进入数据库或备份。API 和模型的目录回执仅提供目录名称和不透明 ID，不把绝对根路径带入模型上下文。可用文件工具的描述动态附上当前 owner 的目录 ID、名称、可写状态，模型可以实际发现目录，无需用户手抄 UUID。文件正文仅在实际调用读取工具时进入本轮模型输入，因此使用云模型时会发送选中的文本片段。
 
@@ -99,7 +99,7 @@ registry = get_product_state().extension_registry
 
 ## 本地管理 API
 
-以下接口均要求现有 owner 认证。目录选择只是打开 OS 对话框，不自动授权；用户仍须确认只读或可写。
+以下是开发者接口，均要求现有 owner 认证。目录选择只是打开 OS 对话框，不自动授权；集成方仍须取得用户明确的只读或可写选择。
 
 ```text
 GET    /api/v2/math-tutor/desktop/creator/catalog
@@ -109,7 +109,7 @@ POST   /api/v2/math-tutor/desktop/creator/workspaces
 DELETE /api/v2/math-tutor/desktop/creator/workspaces/{workspace_id}
 ```
 
-授权请求示例：`{"path":"/user/selected/folder","writable":false}`。路径只在本地管理链路中传递。目录选择通过现有 Electron loopback picker 的固定 `/native-directory` 路由完成；没有 Electron 时，界面允许用户手动输入目录。没有 HTTP 代码注册、工具任意执行或第三方插件安装接口。
+授权请求示例：`{"path":"/user/selected/folder","writable":false}`。路径只在本地管理链路中传递。目录选择通过现有 Electron loopback picker 的固定 `/native-directory` 路由完成；没有 Electron 时，可信集成可自行提供目录输入与确认流程。这些目录接口不接受任意模块路径、shell 命令或代码；社区代码插件使用独立的导入、信任和显式调用流程。
 
 ## 离线示例与验证
 

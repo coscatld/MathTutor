@@ -317,9 +317,6 @@ button.mt-brand-mark:hover { transform: scale(1.06); }
 .mt-vault-folder:hover, .mt-vault-file:hover { background: var(--accent); }
 .mt-vault-file { display: flex; align-items: start; gap: 10px; padding: 10px 14px; }
 .mt-vault-file[data-selected="true"] { background: var(--primary-soft); }
-.mt-creator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
-.mt-creator-workspaces { display: flex; flex-direction: column; gap: 8px; }
-.mt-creator-workspace { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--sidebar); }
 .mt-knowledge-alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border)); border-radius: 14px; padding: 16px; font-size: 14px; color: var(--destructive); }
 .mt-knowledge-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 24px; }
 .mt-knowledge-sidebar { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--sidebar); }

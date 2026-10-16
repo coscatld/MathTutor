@@ -32,7 +32,7 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: ./desktop/scripts/build-windows.ps1 -RuntimePath .runtime/python-win-x64
-      - name: Verify installed startup, repeated launch and migration recovery
+      - name: Verify installed startup, migration recovery and packaged code plugins
         shell: pwsh
         run: |
           $Installer = Get-ChildItem desktop/dist/MathTutor-*-win-x64.exe | Select-Object -First 1

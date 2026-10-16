@@ -489,6 +489,7 @@ class ProductState:
             self.outbox_relay.sink = ReviewDispatchSink(self.stage_review, self.outbox_relay.sink)
         from mathtutor.extensions.community_plugins import CommunityPluginService, register_community_tool
         self.community_plugins = CommunityPluginService(state=self, storage_root=Path(data_dir) / "community-plugins")
+        self.controller.community_plugins = self.community_plugins
         register_community_tool(self.extension_registry, self.community_plugins)
         from mathtutor.application.community import CommunityService
         self.community = CommunityService(self)

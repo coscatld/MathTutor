@@ -125,6 +125,21 @@ async def import_file(file: UploadFile = File(...), operation_id: str | None = F
         raise
 
 
+@router.post("/plugins/import", dependencies=[Depends(require_local_creator_origin)])
+async def import_plugin_file(file: UploadFile = File(...), operation_id: str | None = Form(default=None, min_length=1, max_length=128),
+                             owner: StudentOwnerScope = Depends(require_student_owner)):
+    data = await file.read(MAX_SHARE_BYTES + 1)
+    if len(data) > MAX_SHARE_BYTES:
+        raise HTTPException(413, "插件文件最多 32 MiB。")
+    async def action(service):
+        try:
+            service.validate_plugin_file(data, file.filename or "")
+        except (KnowledgeError, ValueError):
+            raise HTTPException(422, "请选择完整有效的 MathTutor 插件文件；题库和笔记请使用资料导入。") from None
+        return await service.import_file(owner.student_id, data, file.filename or "", operation_id=operation_id)
+    return await invoke(owner, action)
+
+
 @router.post("/sources/{source_id}/refresh", dependencies=[Depends(require_local_creator_origin)])
 async def refresh(source_id: str, owner: StudentOwnerScope = Depends(require_student_owner)):
     return await invoke(owner, lambda service: service.refresh(owner.student_id, source_id))

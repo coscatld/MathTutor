@@ -1,10 +1,14 @@
 import type { ExamData, MistakeData, RunResult, TrendData } from "./api";
 
-export const resultName = (result: RunResult) => ({"exam-builder": "练习题", "mistake-review": "错题复盘", "learning-report": "学习趋势"})[result.workflow];
+export const resultName = (result: RunResult) => ({"exam-builder": "练习题", "mistake-review": "错题复盘", "learning-report": "学习趋势", code: "插件运行结果"})[result.workflow];
 
 export function resultText(result: RunResult) {
-  const lines = [resultName(result), "", "本次结果仅供参考，不会修改成绩或学习掌握情况。", ""];
-  if (result.status === "empty") lines.push(result.workflow === "exam-builder" ? "没有符合条件的题目，可以换个年级或先补充题库。" : "还没有足够的实际记录，没有生成成绩或示例数据。");
+  const lines = [resultName(result), "", result.workflow === "code" ? "这是本机代码实际返回的内容，未据此确认数学正确或知识掌握。" : "本次结果仅供参考，不会修改成绩或学习掌握情况。", ""];
+  if (result.workflow === "code") {
+    lines.push(typeof result.data.text === "string" ? result.data.text : "插件没有返回文字。");
+    const {text: _text, ...values} = result.data;
+    if (Object.keys(values).length) lines.push("", JSON.stringify(values, null, 2));
+  } else if (result.status === "empty") lines.push(result.workflow === "exam-builder" ? "没有符合条件的题目，可以换个年级或先补充题库。" : "还没有足够的实际记录，没有生成成绩或示例数据。");
   else if (result.workflow === "exam-builder") {
     const data = result.data as unknown as ExamData;
     lines.push(data.title, `已选 ${data.actual_count} / 请求 ${data.requested_count} 道`, "");

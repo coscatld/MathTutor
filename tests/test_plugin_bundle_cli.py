@@ -46,7 +46,8 @@ async def test_documented_cli_bundles_install_through_real_community_import(tmp_
     assert state.community_plugins.list_installed("alice") == []
     result = await service.import_file("alice", raw, destination.name, operation_id="builder-test")
     assert result["kind"] == "plugin"
-    assert service.detail("alice", payload["id"])["package_sha256"] == package_hash(payload)
+    assert result["plugin"]["package_hash"] == package_hash(payload)
+    assert service._load("alice")["sources"] == []
     assert result["plugin"]["enabled"] is False
     assert result["plugin"]["consented_permissions"] == []
     assert state.community_plugins.list_installed("bob") == []

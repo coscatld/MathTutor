@@ -307,6 +307,8 @@ def create_math_tutor_app(
     app.include_router(community_plugins_router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
     from mathtutor.api.community_api import router as community_router
     app.include_router(community_router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
+    from mathtutor.api.community_documents_api import router as community_documents_router
+    app.include_router(community_documents_router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
 
     app.include_router(
         desktop_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX

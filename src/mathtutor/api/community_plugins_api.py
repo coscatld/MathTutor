@@ -9,6 +9,7 @@ from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.creator_api import require_local_creator_origin
 from mathtutor.api.product_state import get_product_state
 from mathtutor.extensions.community_plugins import Permission, builtin_plugin_packages, validate_package, package_hash
+from mathtutor.extensions.code_plugins import export_code_package
 from mathtutor.extensions.registry import ExtensionError, StrictArguments
 from mathtutor.security.scopes import StudentOwnerScope
 
@@ -43,6 +44,11 @@ class ConfigInput(StrictArguments):
     config: dict = Field(default_factory=dict)
 
 
+class RunInput(ConfigInput):
+    text: str = Field(default="", max_length=8000)
+    operation_id: str | None = Field(default=None, min_length=1, max_length=256)
+
+
 @router.get("")
 async def list_plugins(owner: StudentOwnerScope = Depends(require_student_owner)):
     return {"items": invoke(lambda: service().list_installed(owner.student_id))}
@@ -51,6 +57,11 @@ async def list_plugins(owner: StudentOwnerScope = Depends(require_student_owner)
 @router.get("/examples")
 async def examples(owner: StudentOwnerScope = Depends(require_student_owner)):
     return {"items": builtin_plugin_packages()}
+
+
+@router.get("/commands")
+async def commands(owner: StudentOwnerScope = Depends(require_student_owner)):
+    return {"items": invoke(lambda: service().commands(owner.student_id))}
 
 
 @router.post("/validate", dependencies=mutating)
@@ -91,11 +102,12 @@ async def uninstall_plugin(plugin_id: str, owner: StudentOwnerScope = Depends(re
 
 
 @router.post("/{plugin_id}/run", dependencies=mutating)
-async def run_plugin(plugin_id: str, body: ConfigInput, owner: StudentOwnerScope = Depends(require_student_owner)):
+async def run_plugin(plugin_id: str, body: RunInput, owner: StudentOwnerScope = Depends(require_student_owner)):
     state = get_product_state()
     async with state.turn_requests.owner(owner.student_id):
         try:
-            return await service().run(owner.student_id, plugin_id, body.config)
+            return await service().run(owner.student_id, plugin_id, body.config, text=body.text,
+                operation_id=body.operation_id, explicit_code=True)
         except ExtensionError as exc:
             raise HTTPException(409, str(exc)) from None
 
@@ -103,5 +115,10 @@ async def run_plugin(plugin_id: str, body: ConfigInput, owner: StudentOwnerScope
 @router.get("/{plugin_id}/export")
 async def export_plugin(plugin_id: str, owner: StudentOwnerScope = Depends(require_student_owner)):
     package = invoke(lambda: service().export_package(owner.student_id, plugin_id))
+    if package.get("kind") == "code-plugin":
+        data = invoke(lambda: export_code_package(package))
+        return Response(data, media_type="application/zip", headers={
+            "Content-Disposition": f'attachment; filename="{package["id"]}-{package["version"]}.zip"',
+            "X-Content-Type-Options": "nosniff"})
     return Response(json.dumps(package, ensure_ascii=False, indent=2), media_type="application/json",
                     headers={"Content-Disposition": f'attachment; filename="{package["id"]}-{package["version"]}.plugin.json"'})

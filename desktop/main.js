@@ -218,6 +218,8 @@ function backendEnvironment(dataLayout, extra = {}) {
   return {
     MATHTUTOR_DATA_ROOT: dataLayout.root,
     MATHTUTOR_DB_PATH: dataLayout.database,
+    // Code plugins use the app's bundled Node runtime, never the user's PATH.
+    MATHTUTOR_PLUGIN_NODE_EXECUTABLE: process.execPath,
     // A packaged backend must never inherit a checkout/editable import path.
     PYTHONPATH: IS_PACKAGED ? path.join(RESOURCES_DIR, "python-app") : process.env.PYTHONPATH,
     PYTHONNOUSERSITE: IS_PACKAGED ? "1" : process.env.PYTHONNOUSERSITE,
@@ -819,6 +821,7 @@ async function runSmokeFull() {
 
   const backendEnv = {
     MATHTUTOR_DESKTOP: "1",
+    MATHTUTOR_PLUGIN_NODE_EXECUTABLE: process.execPath,
     MATHTUTOR_ELECTRON_PICKER_URL: "",
     MATHTUTOR_API_BASE_URL: backendUrl,
     // 本地无认证模式（开发环境 loopback 身份）——仅 full smoke 使用。

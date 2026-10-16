@@ -1,13 +1,13 @@
-# 社区教学插件
+# 声明式社区教学插件
 
-普通用户可在社区一键导入插件，或选择已经下载的文件，再调整设置、启用、停用、导出和卸载。开发者编写与打包的完整步骤见[插件开发者指南](PLUGIN_DEVELOPMENT.md)。技术上，社区插件是经过严格校验的声明式数据包。插件把应用已有的安全工作流与作者的教学指导、有界默认配置组合成可分享的功能。它不携带可执行 Python、JavaScript、shell、import 路径或自动安装依赖。
+Python / TypeScript 代码包与斜杠命令见[代码插件说明](CODE_PLUGINS.md)。本页说明不执行外部代码的三类声明式教学插件。普通用户可在社区一键导入插件，或选择已经下载的文件，再调整设置、启用、停用、导出和卸载。开发者编写与打包的完整步骤见[插件开发者指南](PLUGIN_DEVELOPMENT.md)。技术上，社区插件是经过严格校验的声明式数据包。插件把应用已有的安全工作流与作者的教学指导、有界默认配置组合成可分享的功能。它不携带可执行 Python、JavaScript、shell、import 路径或自动安装依赖。
 
 这套机制与可信开发者的 [Python 扩展 SDK](CREATOR_EXTENSIONS.md) 分开：社区包是数据，实际处理器由 MathTutor 内置。作者不能通过说明文字获得新工具、目录权限或学生掌握状态的写权限。
 
 ## 安装与升级
 
-1. 查看来源、作者、版本、许可、README、更新说明及需要的数据权限。
-2. 点击资源卡片“导入”，或选择下载的 `.mathtutor` / `.mtplugin` 文件；**导入后默认停用**。
+1. 从自己选择的作者或社区下载插件文件，阅读对方提供的说明。
+2. 在社区“我的插件”点击“导入插件”，选择下载的 `.mathtutor` / `.mtplugin` 文件；**导入后默认停用**。
 3. 阅读需要的数据权限，点“同意并启用”。
 4. 调整设置后运行，点“保存结果”取得可阅读的文本。也可在对话中明确要求运行已启用插件。
 
@@ -64,7 +64,7 @@
 
 未知顶层或配置字段会被拒绝。包最多 64 KiB，README 最多 12000 字符，教学指导最多 2000 字符，当前每个 owner 最多安装 32 个包。`exam-builder` 最多 20 题，`mistake-review` 最多 30 项，`learning-report` 最多读取最近 1000 条已接受事件作统计。种子、数量、年级和窗口大小均有严格类型与范围限制。
 
-当前不支持社区自定义任意新执行算法、安装脚本、插件间代码依赖、MCP、网络请求或目录读写权限。需要新的执行能力时，应先由应用维护者增加受控工作流，或走可信开发者 SDK 的代码评审和发布流程。
+此声明式格式不执行自定义算法、安装脚本、MCP 或文件操作。需要自己的 Python / TypeScript 函数时使用独立的代码插件格式并取得代码执行同意；更深的宿主集成见可信开发者 SDK。
 
 ## 管理 API 与结果
 
@@ -73,7 +73,9 @@
 ```text
 GET    /api/v2/math-tutor/desktop/community/plugins
 GET    /api/v2/math-tutor/desktop/community/plugins/examples
-POST   /api/v2/math-tutor/desktop/community/import   # multipart 文件自动识别
+POST   /api/v2/math-tutor/desktop/community/plugins/import   # multipart file，仅插件
+POST   /api/v2/math-tutor/desktop/community/documents/import # multipart files，仅资料
+POST   /api/v2/math-tutor/desktop/community/import   # 兼容通用导入
 POST   /api/v2/math-tutor/desktop/community/plugins
 POST   /api/v2/math-tutor/desktop/community/plugins/validate
 PUT    /api/v2/math-tutor/desktop/community/plugins/{id}/enabled
@@ -83,7 +85,7 @@ POST   /api/v2/math-tutor/desktop/community/plugins/{id}/run
 GET    /api/v2/math-tutor/desktop/community/plugins/{id}/export
 ```
 
-安装和校验 body 为 `{"package": {...}}`；`/validate` 只返回规范化包与哈希，不安装、不启用、不写配置，供创作者界面下载分享包。启用为 `{"enabled": true, "consent_permissions": ["question_bank"]}`，配置与运行覆盖为 `{"config": {...}}`。结果使用 `mathtutor.community-result.v1`，带 `workflow`、`status`、实际配置、`read_only: true`、`authority: reference_only`、结构化 `data` 和边界说明，HTTP 接口保留结构化格式；普通界面的“保存结果”转换为可阅读文本。
+安装和校验 body 为 `{"package": {...}}`；`/validate` 只返回规范化包与哈希，不安装、不启用、不写配置，供开发者打包工具使用。启用为 `{"enabled": true, "consent_permissions": ["question_bank"]}`，配置与运行覆盖为 `{"config": {...}}`。结果使用 `mathtutor.community-result.v1`，带 `workflow`、`status`、实际配置、`read_only: true`、`authority: reference_only`、结构化 `data` 和边界说明，HTTP 接口保留结构化格式；普通界面的“保存结果”转换为可阅读文本。
 
 插件包、用户配置和授权单独存储为应用私有目录中的 owner JSON，采用原子替换，不新增学习数据库表。现有备份仅含 SQLite，不携带这些独立设置；换机时应先导出插件包，导出包不包含启用状态、同意记录或学习报告。删除学习记录后再次运行报告会读取当前空记录，不复用旧报告；维护者可调用 `clear_owner` 清除某用户的插件设置。
 

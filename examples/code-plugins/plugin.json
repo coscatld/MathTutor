@@ -1,0 +1,17 @@
+{
+  "schema_version": "mathtutor.code-plugin.v1",
+  "kind": "code-plugin",
+  "workflow": "code",
+  "id": "example.double",
+  "version": "1.0.0",
+  "name": "整数乘二",
+  "author": "MathTutor 示例作者",
+  "license": "Apache-2.0",
+  "description": "接收一个整数并返回它的两倍，展示真实代码插件的输入与输出。",
+  "readme": "启用后输入 /double 21。示例不联网，不读写用户文件，不产生学习判定。",
+  "changelog": "1.0.0：首次发布示例。",
+  "runtime": "python",
+  "command": "double",
+  "entrypoint": "double.py",
+  "required_permissions": ["execute_local_code"]
+}

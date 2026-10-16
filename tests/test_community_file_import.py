@@ -24,6 +24,11 @@ def upload(client, raw, filename="下载的学习工具.mathtutor", operation="o
         data={"operation_id": operation} if operation is not None else {}, **kwargs)
 
 
+def plugin_upload(client, raw, filename="下载的插件.mtplugin", operation="plugin-upload", **kwargs):
+    return client.post(PREFIX + "/plugins/import", files={"file": (filename, raw, "application/octet-stream")},
+        data={"operation_id": operation} if operation is not None else {}, **kwargs)
+
+
 def owner(name):
     return StudentOwnerScope(principal=PrincipalScope(user_id=name, username=name, role="student"), student_id=name)
 
@@ -230,3 +235,211 @@ def test_file_plugin_receipt_failure_reports_actual_install_and_same_package_ret
         assert result.json()["plugin"]["enabled"] is False
         assert upload(client, raw).status_code == 200
         assert len(client.get(PREFIX + "/plugins").json()["items"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_thirty_three_real_share_imports_work_with_all_source_slots_full_and_do_not_cache_packages(state):
+    service = CommunityService(state)
+    for index in range(32):
+        service.subscribe("alice", f"已有来源 {index}", f"https://example.org/catalog-{index}.json")
+    previous_sources = deepcopy(service._load("alice")["sources"])
+    for index in range(33):
+        pack = question_pack()
+        pack["questions"][0].update(title=f"方程 {index}", stem=f"解方程 x+{index}={index + 2}。")
+        row = resource(package=pack, resource_id=f"test.shared-file-{index:02d}")
+        raw = canonical_bytes({"format": RESOURCE_FORMAT, "resource": row})
+        imported = await service.import_file("alice", raw, f"分享题库{index}.mathtutor", operation_id=f"copy-{index}")
+        assert imported["kind"] == "question-pack" and imported["imported_count"] == 1
+    assert len(await state.knowledge.list_spaces("alice")) == 33
+    assert len(await state.documents.list_documents("alice")) == 33
+    restarted = CommunityService(state)
+    current = restarted._load("alice")
+    assert current["sources"] == previous_sources
+    assert len(current["history"]) == 33 and restarted.history("bob")["imports"] == []
+    assert all(record["source_id"] == "" and record["source_name"] == "分享文件" for record in current["history"])
+    assert all("metadata" in record and "package" not in record for record in current["history"])
+    assert all("metadata" not in record for record in restarted.history("alice")["imports"])
+    saved = restarted._path("alice").read_bytes()
+    assert b'"data_base64"' not in saved and b'"stem"' not in saved
+    assert await state.knowledge.list_spaces("bob") == []
+
+
+@pytest.mark.asyncio
+async def test_direct_share_receipts_enforce_version_hash_metadata_and_preserve_personal_edits(state):
+    service = CommunityService(state)
+    row = resource()
+    raw = canonical_bytes({"format": RESOURCE_FORMAT, "resource": row})
+    first = await service.import_file("alice", raw, "题库.mathtutor", operation_id="direct-first")
+    assert service._load("alice")["sources"] == []
+    note = (await state.knowledge.list_notes("alice", first["space_id"]))[0]
+    old = await state.knowledge.snapshot("alice", note["document_id"])
+    edited = old["body"] + "\n个人编辑必须保留。"
+    await state.knowledge.save_markdown("alice", first["space_id"], title=old["title"], body=edited,
+        operation_id="edit-personal-copy", document_id=note["document_id"], expected_version=old["version"])
+    same_version_changes = [resource(package=question_pack("x=2；代回检验成立。")),
+        {**row, "metadata": {**row["metadata"], "author": "另一位作者"}},
+        {**row, "metadata": {**row["metadata"], "tags": ["修改后的标签"]}}]
+    before = service._path("alice").read_bytes()
+    for changed in same_version_changes:
+        with pytest.raises(CommunityError, match="同一资源版本"):
+            await service.import_file("alice", canonical_bytes({"format": RESOURCE_FORMAT, "resource": changed}),
+                "同版本修改.mathtutor", operation_id="rejected-change")
+        assert service._path("alice").read_bytes() == before
+    assert await service.import_file("alice", raw, "再次下载.mathtutor", operation_id="direct-first") == first
+    updated = resource("1.1.0", package=question_pack("x=2；代回检验成立。"))
+    next_copy = await service.import_file("alice", canonical_bytes({"format": RESOURCE_FORMAT, "resource": updated}),
+        "更新版.mathtutor", operation_id="direct-upgrade")
+    assert next_copy["space_id"] != first["space_id"]
+    assert (await state.knowledge.snapshot("alice", note["document_id"]))["body"] == edited
+    assert service._load("alice")["sources"] == []
+
+
+@pytest.mark.asyncio
+async def test_preexisting_source_based_receipt_replays_without_new_source_or_library(state):
+    service = CommunityService(state)
+    row = resource()
+    raw = canonical_bytes({"format": RESOURCE_FORMAT, "resource": row})
+    source = service.import_source("alice", raw)
+    original = await service.import_resource("alice", row["metadata"]["id"], version="1.0.0",
+        expected_sha256=row["metadata"]["package_sha256"], operation_id="legacy-operation")
+    legacy = service._load("alice")
+    legacy["history"][0].pop("metadata")  # State produced before direct-file imports.
+    service._save("alice", legacy)
+    before = service._path("alice").read_bytes()
+    replay = await CommunityService(state).import_file("alice", raw, "旧分享包.mtplugin", operation_id="legacy-operation")
+    assert replay == {"kind": "question-pack", **original}
+    assert service._path("alice").read_bytes() == before
+    assert len(await state.knowledge.list_spaces("alice")) == 1
+    assert service._load("alice")["sources"][0]["id"] == source["id"]
+    # An explicitly removed legacy source must not make its durable receipt
+    # unusable; the original package supplied by the user is still validated.
+    service.remove_source("alice", source["id"])
+    replay = await service.import_file("alice", raw, "旧分享包.mathtutor", operation_id="legacy-operation")
+    assert replay["space_id"] == original["space_id"] and service._load("alice")["sources"] == []
+
+
+@pytest.mark.asyncio
+async def test_direct_resource_history_failure_rolls_back_only_new_library_without_creating_a_source(state, monkeypatch):
+    service = CommunityService(state)
+    row = resource()
+    raw = canonical_bytes({"format": RESOURCE_FORMAT, "resource": row})
+    first = await service.import_file("alice", raw, "题库.mathtutor", operation_id="first-success")
+    previous_spaces = await state.knowledge.list_spaces("alice")
+    before = service._path("alice").read_bytes()
+    def fail(*args):
+        raise OSError("fixture direct history failure")
+    monkeypatch.setattr(service, "_save", fail)
+    with pytest.raises(CommunityError, match="已撤回"):
+        await service.import_file("alice", raw, "再次导入.mathtutor", operation_id="failed-copy")
+    assert await state.knowledge.list_spaces("alice") == previous_spaces
+    assert await state.knowledge.require_space("alice", first["space_id"])
+    assert service._path("alice").read_bytes() == before
+    assert service._load("alice")["sources"] == []
+
+
+def test_direct_plugin_envelope_history_failure_reports_installed_plugin_without_source_cache(tmp_path, monkeypatch):
+    with client_at(tmp_path / "direct-plugin-history.db") as client:
+        service = get_product_state().community
+        item = service.catalog("local-admin", type="plugin")["resources"][0]
+        exported = client.get(PREFIX + f"/resources/{item['id']}/export")
+        assert exported.status_code == 200
+        def fail(*args):
+            raise OSError("fixture direct plugin history failure")
+        monkeypatch.setattr(service, "_save", fail)
+        result = upload(client, exported.content)
+        assert result.status_code == 200, result.text
+        assert result.json()["kind"] == "plugin" and result.json()["history_recorded"] is False
+        assert result.json()["plugin"]["enabled"] is False
+        assert any("安装成功" in warning for warning in result.json()["warnings"])
+        assert len(client.get(PREFIX + "/plugins").json()["items"]) == 1
+        assert len(client.get(PREFIX + "/sources").json()["sources"]) == 1
+        assert upload(client, exported.content).status_code == 200
+        assert len(client.get(PREFIX + "/plugins").json()["items"]) == 1
+
+
+@pytest.mark.parametrize("wrapped", [False, True], ids=["bare-plugin", "shared-plugin"])
+def test_plugin_only_upload_installs_disabled_retries_and_is_owner_isolated(tmp_path, wrapped):
+    with client_at(tmp_path / "plugin-only.db") as client:
+        package = builtin_plugin_packages()[0]
+        if wrapped:
+            exported = client.get(PREFIX + f"/resources/{package['id']}/export")
+            assert exported.status_code == 200
+            raw = exported.content
+        else:
+            raw = canonical_bytes(package)
+        first = plugin_upload(client, raw, headers={"Origin": "http://127.0.0.1:3199"})
+        assert first.status_code == 200, first.text
+        result = first.json()
+        assert result["kind"] == "plugin" and result["plugin"]["plugin"] == package
+        assert result["plugin"]["enabled"] is False and result["plugin"]["consented_permissions"] == []
+        assert plugin_upload(client, raw).json() == result
+        assert len(client.get(PREFIX + "/plugins").json()["items"]) == 1
+        assert client.get(BASE + "/knowledge/libraries").json() == []
+        assert get_product_state().community._load("local-admin")["sources"] == []
+        client.app.dependency_overrides[require_student_owner] = lambda: owner("bob")
+        assert client.get(PREFIX + "/plugins").json()["items"] == []
+        second = plugin_upload(client, raw)
+        assert second.status_code == 200 and second.json()["plugin"]["enabled"] is False
+        assert len(client.get(PREFIX + "/plugins").json()["items"]) == 1
+        assert get_product_state().community._load("bob")["sources"] == []
+        client.app.dependency_overrides.pop(require_student_owner)
+        assert len(client.get(PREFIX + "/plugins").json()["items"]) == 1
+
+
+def test_plugin_only_upgrade_preserves_config_disables_and_does_not_grant_new_permission(tmp_path):
+    with client_at(tmp_path / "plugin-only-upgrade.db") as client:
+        package = builtin_plugin_packages()[0]
+        raw = canonical_bytes(package)
+        assert plugin_upload(client, raw).status_code == 200
+        plugin_id = package["id"]
+        assert client.patch(PREFIX + f"/plugins/{plugin_id}/config", json={"config": {"grade": 12}}).status_code == 200
+        assert client.put(PREFIX + f"/plugins/{plugin_id}/enabled", json={"enabled": True,
+            "consent_permissions": ["question_bank"]}).status_code == 200
+        same = plugin_upload(client, raw, operation="same-package")
+        assert same.status_code == 200 and same.json()["plugin"]["enabled"] is True
+        update = {**package, "version": "1.1.0", "required_permissions": ["question_bank", "read_learning_records"]}
+        upgraded = plugin_upload(client, canonical_bytes(update), operation="new-version")
+        assert upgraded.status_code == 200, upgraded.text
+        installed = upgraded.json()["plugin"]
+        assert installed["enabled"] is False and installed["config"]["grade"] == 12
+        assert installed["consented_permissions"] == ["question_bank"]
+        assert client.post(PREFIX + f"/plugins/{plugin_id}/run", json={}).status_code == 409
+        assert plugin_upload(client, canonical_bytes(update), operation="plugin-upload").status_code == 409
+
+
+def test_plugin_only_wrong_files_or_hashes_are_rejected_before_any_writes(tmp_path):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as archive:
+        archive.writestr("笔记/函数.md", "# 定义域\n先写出定义域。")
+    wrong = [(canonical_bytes(question_pack()), "题库.mathtutor"),
+        (canonical_bytes({"format": RESOURCE_FORMAT, "resource": resource()}), "题库分享.mtplugin"),
+        (catalog(resource()), "资源目录.mathtutor"), (stream.getvalue(), "笔记.zip"),
+        ("# 普通笔记\n不能安装为插件。".encode(), "文件夹/笔记.md"),
+        (b"print('never execute')", "插件.py")]
+    with client_at(tmp_path / "plugin-only-rejection.db") as client:
+        package = builtin_plugin_packages()[0]
+        exported = client.get(PREFIX + f"/resources/{package['id']}/export")
+        import json
+        invalid_hash = json.loads(exported.content)
+        invalid_hash["resource"]["metadata"]["package_sha256"] = "0" * 64
+        wrong.append((canonical_bytes(invalid_hash), "损坏插件.mtplugin"))
+        invalid_owner = deepcopy(invalid_hash)
+        invalid_owner["resource"]["metadata"]["owner_id"] = "other"
+        wrong.append((canonical_bytes(invalid_owner), "伪造所有者.mtplugin"))
+        for raw, name in wrong:
+            result = plugin_upload(client, raw, name)
+            assert result.status_code == 422, (name, result.text)
+            assert "JSON" not in result.text and "SHA256" not in result.text
+            assert client.get(PREFIX + "/plugins").json()["items"] == []
+            assert client.get(BASE + "/knowledge/libraries").json() == []
+            assert get_product_state().community._load("local-admin")["sources"] == []
+            assert not get_product_state().community._path("local-admin").exists()
+
+
+@pytest.mark.parametrize("origin", ["https://evil.example", "null", "file:///"])
+def test_plugin_only_upload_rejects_foreign_origins_before_changes(tmp_path, origin):
+    with client_at(tmp_path / "plugin-only-origin.db") as client:
+        result = plugin_upload(client, canonical_bytes(builtin_plugin_packages()[0]), headers={"Origin": origin})
+        assert result.status_code == 403
+        assert client.get(PREFIX + "/plugins").json()["items"] == []
+        assert not get_product_state().community._path("local-admin").exists()
