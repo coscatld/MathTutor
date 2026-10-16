@@ -1,0 +1,37 @@
+{
+  "created_at": 1792127918.049074,
+  "files": {
+    "public/dev.json": "edce2c195c9b08b4290aec88d1fc1ad60d007aa366ea1123a71141b8fc43eb5d",
+    "public/test.json": "993ffede76f81ab3564a8caeddef40c415bebfe6251be23498e1faf15b10b206",
+    "private/gold.json": "b9d4c0d2168c5fea04fede3b74a8740e6d1f0f927567b84de780c39b27f69e0f",
+    "private/judge_calibration.json": "ef7b6cf5193fd4062eac0e35bb9593e15248724d0592aef9f166e4b152dcfbfa",
+    "inventory.json": "9607435ec8bacea7b11604768853afad9dc92133a67408b03c3c34377664540a",
+    "scripts/prepare.py": "483ea1f3df9a17cee5d85e184307ad9938dfef7fc75b5f624fb3ec837f980cfd",
+    "PROTOCOL.md": "6e1ca2499fa8bc26121fddce13ea7fb7579df6bb220add427dabd2d9d225659f",
+    "source_manifest.json": "6ad4e14fc33b121cea10f156cc7c776dbc713b3ce2a523a2bbe116114937604e",
+    "scripts/run_product.py": "1edcc09d4b7c7ead41f7f03fa579f5478ef5ec9ef46842e8214814cbc8b8a496",
+    "scripts/score_objective.py": "b34a5feb06cbeb9e91bb96b5bd8911e7084bbb372a7618a1db98fac84043ecb5",
+    "scripts/judge.py": "044c7a88d3150e7f08f088a0a88d75c603f334e9637cac7b673465c2c933767f",
+    "scripts/select_candidate.py": "412fef6d5827968e82e29423aa0a5fb9a2bbc55bbe5b336b95899e9b7cb32245",
+    "exclusions.json": "ab13b4a945a5b3c1ef09f80bb845bbbc686f960ea60173371f8bcac7c73560d6"
+  },
+  "group_overlap": 0,
+  "adapter_amendment": {
+    "at": 1792128107.0272052,
+    "reason": "Use actual deepseek provider ID to retain existing product thinking configuration; prior pilot invalid, preserved separately; no subject code change."
+  },
+  "scorer_amendment": {
+    "at": 1792128533.728429,
+    "old_sha256": "d79a41ab99457f00eb92e1944cc3f53cbdac8269ba57b9657a0af5be8a669419",
+    "new_sha256": "5769275639338517796cf9c9eebad4ca3e009ca13f401f24113a31667c3b9865",
+    "reason": "Match upstream exact word-list for question rate (old code used substrings and omitted six words). Add separately labelled final-marker diagnostic to distinguish formatting from numeric reasoning. Applied equally to all versions before held-out scoring; no input or gold change."
+  },
+  "diagnostic_parser_amendment": {
+    "at": 1792128633.1748722,
+    "old_sha256": "5769275639338517796cf9c9eebad4ca3e009ca13f401f24113a31667c3b9865",
+    "new_sha256": "b34a5feb06cbeb9e91bb96b5bd8911e7084bbb372a7618a1db98fac84043ecb5",
+    "reason": "Final-marker diagnostic uses the last explicit label and its next paragraph only, accepts surrounding prose/Markdown, parses only exactly one scalar. Add parse coverage. Native and strict primary metrics unchanged. Frozen before held-out scoring."
+  },
+  "selection_rule_frozen_at": 1792128947.0812008,
+  "near_duplicate_quarantine_frozen_at": 1792129434.1419709
+}

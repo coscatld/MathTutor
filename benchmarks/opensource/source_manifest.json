@@ -1,0 +1,18 @@
+{
+  "mathtutorbench": {
+    "commit": "6faed173ec2bef55cb899b2a3e0f93982f9cb176",
+    "remote": "https://github.com/eth-lre/mathtutorbench.git"
+  },
+  "mathdial": {
+    "commit": "b06c020a0a1f57a87577fec33e657b63e7eb476e",
+    "remote": "https://github.com/eth-nlped/mathdial.git"
+  },
+  "TutorBench": {
+    "commit": "c70d2311cdca7129cab9376ba22eaa97c3cff3d7",
+    "remote": "https://huggingface.co/datasets/ScaleAI/TutorBench"
+  },
+  "UnifyingAITutorEvaluation": {
+    "commit": "bbef521ddb875f2cc8a5ee798f4066965a7cfd8a",
+    "remote": "https://github.com/kaushal0494/UnifyingAITutorEvaluation.git"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "frozen_at": 1792130281.730786,
+  "decision_rule": "Development quality and TutorBench weighted rubric each at least 5 percentage points above baseline; judged math correctness and final-marker numeric accuracy do not decline. Highest quality among eligible candidates. Rule frozen before complete dev judge aggregation and held-out scoring.",
+  "development": {
+    "baseline": {
+      "quality": 0.8,
+      "math_correct": 0.825,
+      "rubric": 0.5492508875495995,
+      "tagged_numeric": 0.875
+    },
+    "candidate_r1": {
+      "quality": 0.8125,
+      "math_correct": 0.8,
+      "rubric": 0.5105404120707324,
+      "tagged_numeric": 0.8125
+    },
+    "candidate_r2": {
+      "quality": 0.8958333333333334,
+      "math_correct": 0.875,
+      "rubric": 0.552707674329116,
+      "tagged_numeric": 0.875
+    },
+    "candidate_r3b": {
+      "quality": 0.875,
+      "math_correct": 0.85,
+      "rubric": 0.5411917202556777,
+      "tagged_numeric": 0.875
+    }
+  },
+  "eligible": [],
+  "requires_more_development": true
+}

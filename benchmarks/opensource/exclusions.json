@@ -1,0 +1,13 @@
+{
+  "frozen_at": 1792129434.1419709,
+  "reason": "Pre-score near-duplicate audit, not outcome-dependent filtering. Original 312 inputs and all outputs retained; primary held-out analysis excludes this one paraphrased development question with identical numbers and target. No replacement.",
+  "excluded_test_ids": [
+    "TutorBench-Statistics-887"
+  ],
+  "matched_dev_ids": [
+    "TutorBench-Statistics-965"
+  ],
+  "primary_test_n": 311,
+  "original_test_n": 312,
+  "audit": "results/near_duplicate_audit.json"
+}

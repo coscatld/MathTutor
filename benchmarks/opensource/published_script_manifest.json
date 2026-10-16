@@ -1,0 +1,73 @@
+{
+  "note": "Local final harness and published copies with configurable paths and one trailing whitespace cleanup. Invocation-time hashes remain in original run/judge manifests.",
+  "scripts": {
+    "analyze_capabilities.py": {
+      "local_final_script_sha256": "7cdeca1edb3d79968d40dbe5aa25cdf71465499fe5ae31d6e7f5478898188dfb",
+      "published_sha256": "32de51d158d20e7909d895f9d6dcb0cd27ef4dfda712264258e12f7642bffd46"
+    },
+    "check_integrity.py": {
+      "local_final_script_sha256": "411504254b273bc3993866e0b5ea59ccf26ed551d868d7e0907a09344f05b88f",
+      "published_sha256": "ffb44dc346fba100e0233513e38ad9bb6e82af0e6857d1703f23ba5c9efec990"
+    },
+    "fetch_data.py": {
+      "local_final_script_sha256": "047e4934f2ed38141a5721181c47a1e3e9e51d75e089d635a7e3dc1c6040d188",
+      "published_sha256": "ca00a25b6fd49c32d9a4d77cf0b18d5e2bcddd2f3deeb4f3f3518611bdce29a6"
+    },
+    "final_pipeline.py": {
+      "local_final_script_sha256": "b033aea2434af402e27f4f067acace51c99e5654d793982c8c5f0f660f7fb3e8",
+      "published_sha256": "ee3f9868ea0f8184a61b9dba9facea095701aefe010a20db9893ff2c70ae341f"
+    },
+    "judge.py": {
+      "local_final_script_sha256": "e0d3c4c831228e47a960ed513444c3d2fbac9f05d4033f38c27e769081b5238a",
+      "published_sha256": "2f60b5719a0234193b16591d2fdebbf22f9d3006da2696b40592da7aea53e7a9"
+    },
+    "normalize_judge.py": {
+      "local_final_script_sha256": "237dc1af174b2daa5708d8d288b7eabcc8e7513ce819080a89b1df7aaaee2d43",
+      "published_sha256": "65c298a1ea7f11d935c1a7f3076cbe990d51cb37c3eab9f0480f934bc1651fb0"
+    },
+    "parse_judge.py": {
+      "local_final_script_sha256": "54739dab04f05461ba44a07af99917e2de8db9a95626ab5f2eee6dfc555c28d1",
+      "published_sha256": "4db42197afc7669a09cc69e16f7a44bcbf0971c85d02714dac8bf2583fc3cdec"
+    },
+    "prepare.py": {
+      "local_final_script_sha256": "483ea1f3df9a17cee5d85e184307ad9938dfef7fc75b5f624fb3ec837f980cfd",
+      "published_sha256": "7fa77e76e08d3158a4a9e75fb6165f5c847de16d73c5a02db6432f9a007ffcae"
+    },
+    "publish_summary.py": {
+      "local_final_script_sha256": "11e3394531ff8ef0cb964f985aab9381ac60f536f8f6af4e31866d1f12e6af7d",
+      "published_sha256": "d291a0c043c7dc91b8ce92600372cab5f7e0f30449181029acffd3c499080a1f"
+    },
+    "report.py": {
+      "local_final_script_sha256": "604e5486a7aa8cd6e67e87c91a4a2f0dd76f932b48c10ffc05d2aef3f54cb1e6",
+      "published_sha256": "1308931725b125e6cf2a26676f750579612dc180511825fc9ce44a4a067da291"
+    },
+    "run_product.py": {
+      "local_final_script_sha256": "1edcc09d4b7c7ead41f7f03fa579f5478ef5ec9ef46842e8214814cbc8b8a496",
+      "published_sha256": "09d32e32e0f2ab8b8900766d6834e10564b3168815a3f7b9141f0ff910ecc109"
+    },
+    "score_objective.py": {
+      "local_final_script_sha256": "b34a5feb06cbeb9e91bb96b5bd8911e7084bbb372a7618a1db98fac84043ecb5",
+      "published_sha256": "2df1e96cedab69e49c387648e114c13c2e369296524847462ac9d45c6a1c0b3b"
+    },
+    "select_candidate.py": {
+      "local_final_script_sha256": "4cabf07c95d4595919a09bb0ad687c584b148882cbb3d6e373c7df07956a0d34",
+      "published_sha256": "2256f9788a1d7e1039dc5f5880cb591e6504cc8502ea20411347296c6faa0d89"
+    },
+    "serve_proxy.py": {
+      "local_final_script_sha256": "8b622a04d910d6f42cc48590ab53526ad6a6f2550ed3b572c54963d43ce66a3b",
+      "published_sha256": "8b622a04d910d6f42cc48590ab53526ad6a6f2550ed3b572c54963d43ce66a3b"
+    },
+    "snapshot.py": {
+      "local_final_script_sha256": "24d31014266c6e5d79ca39d745851e9eea9c0578db619c408a7a3ecbfaefa55a",
+      "published_sha256": "777533a22228cc9b8fd0cd75caffd1f5434bdefa404c3ef19d8853d014bad46f"
+    },
+    "verify_delivery.py": {
+      "local_final_script_sha256": "c1604806d17d15c0dade99b3ef3a2d13100ae60ca5079c937208680f4ad7ce72",
+      "published_sha256": "ee5551315b8887384beb472a8cd571966e2216a5140e3db8b083e433e99eaae5"
+    },
+    "write_report.py": {
+      "local_final_script_sha256": "a94fd2027d76c551fb8b9df92c3a9055bfa772eb129e9106c3965f8fad7f9a59",
+      "published_sha256": "8e7dc47adb18e718a70a8a15fd4d355193207a78e1b78e8e0615490ba47ca7e9"
+    }
+  }
+}

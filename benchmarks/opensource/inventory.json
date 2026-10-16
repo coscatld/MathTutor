@@ -1,0 +1,238 @@
+{
+  "seed": "MathTutor-open-20261016-v1",
+  "sampling": "fixed SHA-256 ranking, task-stratified; sampled adapted evaluation, not official leaderboard",
+  "counts": [
+    {
+      "source": "MRBench",
+      "task": "next_turn",
+      "split": "dev",
+      "eligible_records": 0,
+      "eligible_groups": 0,
+      "selected": 0
+    },
+    {
+      "source": "MRBench",
+      "task": "next_turn",
+      "split": "test",
+      "eligible_records": 194,
+      "eligible_groups": 151,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "mistake_correction",
+      "split": "dev",
+      "eligible_records": 124,
+      "eligible_groups": 88,
+      "selected": 8
+    },
+    {
+      "source": "MTB",
+      "task": "mistake_correction",
+      "split": "test",
+      "eligible_records": 878,
+      "eligible_groups": 524,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "mistake_location",
+      "split": "dev",
+      "eligible_records": 248,
+      "eligible_groups": 88,
+      "selected": 8
+    },
+    {
+      "source": "MTB",
+      "task": "mistake_location",
+      "split": "test",
+      "eligible_records": 1756,
+      "eligible_groups": 524,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "pedagogy_following",
+      "split": "dev",
+      "eligible_records": 124,
+      "eligible_groups": 88,
+      "selected": 8
+    },
+    {
+      "source": "MTB",
+      "task": "pedagogy_following",
+      "split": "test",
+      "eligible_records": 1026,
+      "eligible_groups": 525,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "pedagogy_following_hard",
+      "split": "dev",
+      "eligible_records": 0,
+      "eligible_groups": 0,
+      "selected": 0
+    },
+    {
+      "source": "MTB",
+      "task": "pedagogy_following_hard",
+      "split": "test",
+      "eligible_records": 327,
+      "eligible_groups": 195,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "problem_solving",
+      "split": "dev",
+      "eligible_records": 1743,
+      "eligible_groups": 1743,
+      "selected": 8
+    },
+    {
+      "source": "MTB",
+      "task": "problem_solving",
+      "split": "test",
+      "eligible_records": 1319,
+      "eligible_groups": 1319,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "scaffolding_generation",
+      "split": "dev",
+      "eligible_records": 124,
+      "eligible_groups": 88,
+      "selected": 8
+    },
+    {
+      "source": "MTB",
+      "task": "scaffolding_generation",
+      "split": "test",
+      "eligible_records": 1026,
+      "eligible_groups": 525,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "scaffolding_generation_hard",
+      "split": "dev",
+      "eligible_records": 0,
+      "eligible_groups": 0,
+      "selected": 0
+    },
+    {
+      "source": "MTB",
+      "task": "scaffolding_generation_hard",
+      "split": "test",
+      "eligible_records": 327,
+      "eligible_groups": 195,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "socratic_questioning",
+      "split": "dev",
+      "eligible_records": 1743,
+      "eligible_groups": 1743,
+      "selected": 8
+    },
+    {
+      "source": "MTB",
+      "task": "socratic_questioning",
+      "split": "test",
+      "eligible_records": 1319,
+      "eligible_groups": 1319,
+      "selected": 24
+    },
+    {
+      "source": "MTB",
+      "task": "solution_correctness",
+      "split": "dev",
+      "eligible_records": 248,
+      "eligible_groups": 88,
+      "selected": 8
+    },
+    {
+      "source": "MTB",
+      "task": "solution_correctness",
+      "split": "test",
+      "eligible_records": 1756,
+      "eligible_groups": 524,
+      "selected": 24
+    },
+    {
+      "source": "MathDial",
+      "task": "next_turn",
+      "split": "dev",
+      "eligible_records": 387,
+      "eligible_groups": 172,
+      "selected": 8
+    },
+    {
+      "source": "MathDial",
+      "task": "next_turn",
+      "split": "test",
+      "eligible_records": 560,
+      "eligible_groups": 375,
+      "selected": 24
+    },
+    {
+      "source": "TutorBench",
+      "task": "Calculus",
+      "split": "dev",
+      "eligible_records": 40,
+      "eligible_groups": 22,
+      "selected": 8
+    },
+    {
+      "source": "TutorBench",
+      "task": "Calculus",
+      "split": "test",
+      "eligible_records": 78,
+      "eligible_groups": 45,
+      "selected": 24
+    },
+    {
+      "source": "TutorBench",
+      "task": "Statistics",
+      "split": "dev",
+      "eligible_records": 24,
+      "eligible_groups": 16,
+      "selected": 8
+    },
+    {
+      "source": "TutorBench",
+      "task": "Statistics",
+      "split": "test",
+      "eligible_records": 90,
+      "eligible_groups": 42,
+      "selected": 24
+    }
+  ],
+  "TutorBench_total": 1473,
+  "TutorBench_math_text": 232,
+  "TutorBench_excluded_images_or_nonmath": 1241,
+  "TutorBench_subjects": {
+    "Chemistry": 250,
+    "Calculus": 258,
+    "Biology": 247,
+    "Physics": 250,
+    "Computer Science": 218,
+    "Statistics": 250
+  },
+  "TutorBench_batches": {
+    "USE_CASE_1_MULTIMODAL": 146,
+    "USE_CASE_1_TEXT": 327,
+    "USE_CASE_2_MULTIMODAL": 342,
+    "USE_CASE_2_TEXT": 165,
+    "USE_CASE_3_MULTIMODAL": 329,
+    "USE_CASE_3_TEXT": 164
+  },
+  "calibration_contexts": 6,
+  "totals": {
+    "test": 312,
+    "dev": 80
+  }
+}
