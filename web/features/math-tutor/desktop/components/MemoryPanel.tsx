@@ -48,7 +48,6 @@ export default function MemoryPanel({
   // Add-form state
   const [adding, setAdding] = useState(false);
   const [addType, setAddType] = useState("learning_preference");
-  const [addPredicate, setAddPredicate] = useState("");
   const [addValue, setAddValue] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -72,7 +71,7 @@ export default function MemoryPanel({
 
   const visible = useMemo(() => {
     if (filter === "all") return memories;
-    return memories.filter((m) => m.memory_type === filter);
+    return memories.filter((m) => filter === "ai_inference" ? m.source_type === "MODEL_INFERRED" : m.memory_type === filter);
   }, [memories, filter]);
 
   const inferredCount = useMemo(
@@ -82,17 +81,16 @@ export default function MemoryPanel({
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addPredicate.trim() && !addValue.trim()) return;
+    if (!addValue.trim()) return;
     setSaving(true);
     try {
       const created = await createMemoryFn({
         memory_type: addType,
         subject: "我",
-        predicate: addPredicate.trim() || "偏好",
+        predicate: "内容",
         object_json: { value: addValue.trim() },
       });
       setMemories((list) => [...list, created]);
-      setAddPredicate("");
       setAddValue("");
       setAdding(false);
       setFilter(created.memory_type);
@@ -142,8 +140,8 @@ export default function MemoryPanel({
     try {
       const updated = await confirmMemoryFn(memory.memory_id);
       setMemories((list) => list.map((m) => (m.memory_id === updated.memory_id ? updated : m)));
-      setMessage({ kind: "ok", text: "已确认这条 AI 推测，将参与个性化回忆。" });
-      toast({ title: "AI 推测已确认", description: "这条记忆将参与个性化回忆。", tone: "success" });
+      setMessage({ kind: "ok", text: updated.retrieval_enabled ? "已确认这条记忆，后续辅导可在相关时参考。" : "已确认这条记忆。启用后，后续辅导可在相关时参考。" });
+      toast({ title: "AI 推测已确认", tone: "success" });
     } catch (err) {
       const text = err instanceof DesktopApiError ? err.message : "确认失败，请稍后再试。";
       setMessage({ kind: "error", text });
@@ -164,13 +162,15 @@ export default function MemoryPanel({
           <p className="mt-eyebrow flex items-center gap-1.5"><BrainCircuit className="h-3.5 w-3.5" aria-hidden="true" />让辅导更懂你的节奏</p>
           <h1 className="mt-2">我的记忆</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">
-            记录你的学习偏好、目标与兴趣，辅导会据此调整节奏。
+            记录你的学习偏好、目标与兴趣，让讲解更适合自己。
             {inferredCount > 0 && ` 当前有 ${inferredCount} 条 AI 推测记忆待你确认。`}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setAdding((v) => !v)}
+          aria-expanded={adding}
+          aria-controls={adding ? "memory-add-form" : undefined}
           className="mt-btn mt-btn-primary"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -178,16 +178,15 @@ export default function MemoryPanel({
         </button>
       </header>
 
-      {/* Category tabs */}
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="记忆类别">
+      <section className="mt-tool-message" aria-label="记忆如何生效"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold">由你决定，哪些记忆可以参考</h2><span className="mt-tool-badge" data-tone="active">{memories.filter(m => m.retrieval_enabled && m.source_type !== "MODEL_INFERRED").length} 条允许用于辅导</span></div><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">启用后，Tutor 会在使用已配置模型辅导、且内容与当前问题相关时参考记忆；这不代表每轮都使用。AI 推测先经你确认，停用的记忆保留但不参与回答。离线基础辅导暂不按文字偏好调整。</p></section>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="记忆类别">
         {FILTER_TABS.map((tab) => {
           const active = filter === tab.key;
           return (
             <button
               key={tab.key}
               type="button"
-              role="tab"
-              aria-selected={active}
+              aria-pressed={active}
               onClick={() => setFilter(tab.key)}
               className={`inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
                 active
@@ -205,6 +204,7 @@ export default function MemoryPanel({
       {/* Add form */}
       {adding && (
         <form
+          id="memory-add-form"
           onSubmit={handleAdd}
           className="mt-card flex flex-col gap-3 p-4"
           aria-label="添加记忆"
@@ -228,11 +228,12 @@ export default function MemoryPanel({
             </label>
             <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm font-medium text-[var(--foreground)]">
               内容
-              <input
-                value={addPredicate}
-                onChange={(e) => setAddPredicate(e.target.value)}
+              <textarea
+                value={addValue}
+                onChange={(e) => setAddValue(e.target.value)}
                 placeholder="例如：喜欢举一反三的讲解方式"
-                className="mt-input h-11"
+                className="mt-input min-h-24 py-3 leading-6"
+                required
               />
             </label>
           </div>
@@ -246,7 +247,7 @@ export default function MemoryPanel({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !addValue.trim()}
               className="mt-btn mt-btn-primary"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
@@ -261,8 +262,8 @@ export default function MemoryPanel({
           role="status"
           className={`rounded-xl px-3 py-2 text-sm ${
             message.kind === "ok"
-              ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
-              : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
+              ? "bg-[var(--success-soft)] text-[var(--success)]"
+              : "bg-[var(--card)] text-[var(--destructive)]"
           }`}
         >
           {message.text}
@@ -288,7 +289,7 @@ export default function MemoryPanel({
             <MemoryRow
               key={memory.memory_id}
               memory={memory}
-              busy={busyId === memory.memory_id}
+              busy={busyId !== null}
               onToggleRetrieval={(enabled) => handleToggle(memory, enabled)}
               onDelete={() => handleDelete(memory)}
               onConfirm={() => handleConfirm(memory)}

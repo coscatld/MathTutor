@@ -4,6 +4,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   PointDetail,
+  GradeFilter,
   QuestionBankTree,
   StageFirstRun,
   StageSwitcher,
@@ -12,12 +13,13 @@ import { LearnerStageForm } from "../features/math-tutor/desktop/components/Lear
 import {
   buildDemoLaunch,
   buildPracticeLaunch,
+  buildReferenceLaunch,
   difficultyStars,
   filterBankTerms,
   parseTutorLaunch,
   tutorLaunchHref,
 } from "../features/math-tutor/desktop/lib/question-bank";
-import type { BankPointDetail, QuestionBank } from "../features/math-tutor/lib/question-bank-types";
+import type { BankPointDetail, BankReferenceProblem, QuestionBank } from "../features/math-tutor/lib/question-bank-types";
 
 const noop = () => {};
 
@@ -127,4 +129,51 @@ test("parseTutorLaunch: rejects empty and over-long text", () => {
   assert.equal(parseTutorLaunch(new URLSearchParams({ ask: "x".repeat(301) })), null);
   assert.equal(parseTutorLaunch(new URLSearchParams({ ask: "x".repeat(300) }))?.payload.text.length, 300);
   assert.equal(parseTutorLaunch(null), null);
+});
+
+const REFERENCE: BankReferenceProblem = { id: "reference-1", text: "证明等腰三角形的两个底角相等。", reference_answer: "两个底角相等", explanation: "作顶角平分线，利用全等三角形证明。", difficulty: 2, category: "推理与证明", verification: { mode: "reference", answer_check: null, student_steps_auto_verified: false } };
+
+test("reference-only points are available and counted separately from step verification", () => {
+  const bank: QuestionBank = { ...BANK, terms: [{ ...BANK.terms[0], units: [{ code: "u", title: "证明", points: [{ code: "p", title: "等腰三角形", problem_count: 0, reference_count: 2, total_count: 2, demo_count: 0 }] }] }] };
+  const html = renderToStaticMarkup(<QuestionBankTree bank={bank} onSelect={noop} />);
+  assert.ok(html.includes("2 题 · 参考"));
+  assert.ok(!html.includes("暂无可核验题目"));
+  assert.ok(!html.includes("题 · 可核验"));
+});
+
+test("reference answers are closed by default with an explicit grading boundary", () => {
+  const html = renderToStaticMarkup(<PointDetail detail={{ ...DETAIL, problems: [], demos: [], reference_problems: [REFERENCE] }} onLaunch={noop} />);
+  const details = html.match(/<details\b[^>]*>/g) || [];
+  assert.equal(details.length, 1);
+  assert.ok(details.every(tag => !/\sopen(?:\s|=|>)/.test(tag)));
+  assert.ok(html.includes("查看参考答案与解析"));
+  assert.ok(html.includes("参考答案，作答过程未自动核验"));
+  assert.ok(html.includes("请 Tutor 讲解"));
+  assert.ok(!html.includes("开始练习"));
+  assert.ok(html.includes(REFERENCE.explanation));
+});
+
+test("reference launch only sends the complete question through ordinary chat", () => {
+  const launch = buildReferenceLaunch(REFERENCE)!;
+  assert.deepEqual(launch, { command: "send_message", payload: { text: REFERENCE.text } });
+  assert.deepEqual(Object.keys(launch.payload), ["text"]);
+  const params = new URLSearchParams(tutorLaunchHref(launch, "reference-session").split("?")[1]);
+  assert.equal(params.get("ask"), REFERENCE.text);
+  assert.equal(params.get("start"), null);
+  assert.deepEqual(parseTutorLaunch(params), launch);
+  assert.deepEqual([...params.keys()], ["session", "ask"]);
+  assert.equal(buildReferenceLaunch({ text: "x".repeat(301) }), null);
+  assert.equal(buildReferenceLaunch({ text: " " }), null);
+  assert.equal(buildReferenceLaunch({ text: "x".repeat(300) })?.payload.text.length, 300);
+});
+
+test("grade filtering respects cross-grade recommended courses and legacy grade metadata", () => {
+  const terms = [{ ...BANK.terms[0], code: "h2a", grade: 11, recommended_grades: [11] }, { ...BANK.terms[1], code: "h3a", grade: 12, recommended_grades: [11, 12] }];
+  assert.deepEqual(filterBankTerms(terms, "", 11).map(t => t.code).sort(), ["h2a", "h3a"]);
+  assert.deepEqual(filterBankTerms(terms, "", 12).map(t => t.code), ["h3a"]);
+  assert.equal(filterBankTerms(BANK.terms, "", 7).length, 2);
+  assert.equal(filterBankTerms(terms, "移项", 11).length, 1);
+  const html = renderToStaticMarkup(<GradeFilter stage="high" value={11} onChange={noop} />);
+  for (const label of ["全部年级", "高一", "高二", "高三"]) assert.ok(html.includes(label));
+  assert.match(html, /<option value="11" selected="">高二<\/option>/);
 });

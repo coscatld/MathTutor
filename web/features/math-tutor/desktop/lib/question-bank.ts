@@ -8,7 +8,7 @@
  */
 
 import type { MathTutorCommand } from "../../types";
-import type { BankDemo, BankProblem, BankTerm, LearnerStage } from "../../lib/question-bank-types";
+import type { BankDemo, BankProblem, BankReferenceProblem, BankTerm, LearnerStage } from "../../lib/question-bank-types";
 
 export const STAGES: { stage: LearnerStage; label: string; grades: number[] }[] = [
   { stage: "primary", label: "小学", grades: [1, 2, 3, 4, 5, 6] },
@@ -33,8 +33,8 @@ export function difficultyStars(difficulty: number): string {
 }
 
 /** Terms sorted by `order`, keeping only points whose title matches `query`. */
-export function filterBankTerms(terms: BankTerm[], query: string): BankTerm[] {
-  const sorted = [...terms].sort((a, b) => a.order - b.order);
+export function filterBankTerms(terms: BankTerm[], query: string, grade: number | null = null): BankTerm[] {
+  const sorted = terms.filter(term => grade === null || (term.recommended_grades ?? [term.grade]).includes(grade)).sort((a, b) => a.order - b.order);
   const q = query.trim().toLowerCase();
   if (!q) return sorted;
   return sorted
@@ -57,6 +57,12 @@ export function buildPracticeLaunch(problem: Pick<BankProblem, "text">): TutorLa
 
 export function buildDemoLaunch(demo: Pick<BankDemo, "request">): TutorLaunch {
   return { command: "send_message", payload: { text: demo.request } };
+}
+
+/** Send only the complete question to ordinary tutoring; never its reference answer. */
+export function buildReferenceLaunch(problem: Pick<BankReferenceProblem, "text">): TutorLaunch | null {
+  if (!problem.text.trim() || problem.text.length > LAUNCH_TEXT_MAX) return null;
+  return { command: "send_message", payload: { text: problem.text } };
 }
 
 /** URL that opens a fresh conversation and asks the tutor page to send `launch` once. */

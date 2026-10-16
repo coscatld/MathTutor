@@ -1,9 +1,8 @@
 """K-12 question bank: catalog tree by stage and verified practice per point.
 
-Problems come from the deterministic generators and are kept only when the
-local solver and verifier accept them as the intended family, so every
-problem shown can be tutored step by step. Demos are scene requests that the
-deterministic scene reader parses.
+Step-verifiable problems keep the existing local solver contract. Original
+curriculum questions have separate reference answers and worked explanations;
+they do not imply automatic verification of a student's free-form proof.
 """
 from __future__ import annotations
 
@@ -15,6 +14,7 @@ from typing import Any
 from mathtutor.question_bank.generators import GENERATORS, generate
 
 CATALOG = Path(__file__).with_name("catalog_k12_v1.json")
+REFERENCES = Path(__file__).with_name("curriculum_questions_v2.json")
 STAGES = {"primary": ("小学", range(1, 7)), "middle": ("初中", range(7, 10)), "high": ("高中", range(10, 13))}
 EMPTY_NOTE = "这个知识点暂无可核验题目，可以把题目发给 Tutor 讲解。"
 
@@ -52,6 +52,14 @@ class QuestionBankService:
     def __init__(self, backend=None, path: Path = CATALOG) -> None:
         from mathtutor.application.verification_backend import InProcessVerificationBackend
         self.catalog = load_catalog(path)
+        payload = json.loads(REFERENCES.read_text(encoding="utf-8"))
+        self.references = payload["questions"]
+        for term in self.catalog["terms"]:
+            for unit in term["units"]:
+                for point in unit["points"]:
+                    questions = self.references.get(point["code"], [])
+                    if point.get("reference_ids", []) != [q["id"] for q in questions]:
+                        raise CatalogError(f"{point['code']} 的课程题索引与题目文件不一致")
         self.backend = backend or InProcessVerificationBackend()
         self._problems: dict[str, list[dict[str, Any]]] = {}
         self._index = {p["code"]: (t, u, p) for t in self.catalog["terms"] for u in t["units"] for p in u["points"]}
@@ -70,10 +78,13 @@ class QuestionBankService:
         terms = [t for t in self.catalog["terms"] if stage is None or t["stage"] == stage]
         return {"version": self.catalog["version"], "stage": stage, "source_note": self.catalog["source_note"],
                 "terms": [{**{k: t[k] for k in ("code", "stage", "grade", "order", "label", "book")},
+                           "recommended_grades": t.get("recommended_grades", [t["grade"]]),
                            "units": [{"code": u["code"], "title": u["title"],
                                       "points": [{"code": p["code"], "title": p["title"],
                                                   "problem_count": len(self._problems.get(p["code"], ())) if p["code"] in self._problems
                                                   else self._counts.get(p["code"], 0),
+                                                  "reference_count": len(self.references.get(p["code"], ())),
+                                                  "total_count": self._counts.get(p["code"], 0) + len(self.references.get(p["code"], ())),
                                                   "demo_count": len(p.get("demos", ()))} for p in u["points"]]}
                                      for u in t["units"]]} for t in terms]}
 
@@ -109,7 +120,8 @@ class QuestionBankService:
         problems = await self.problems(code)
         demos = [dict(d) for d in point.get("demos", ())]
         return {"point": {"code": code, "title": point["title"], "term": term["label"], "unit": unit["title"]},
-                "problems": problems, "demos": demos, "note": "" if problems or demos else EMPTY_NOTE}
+                "problems": problems, "reference_problems": [dict(q) for q in self.references.get(code, ())],
+                "demos": demos, "note": "" if problems or demos or self.references.get(code) else EMPTY_NOTE}
 
 
 __all__ = ["CATALOG", "CatalogError", "EMPTY_NOTE", "QuestionBankService", "STAGES", "load_catalog"]

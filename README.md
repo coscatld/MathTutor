@@ -4,7 +4,7 @@
 
 MathTutor 不是把大模型套进聊天框。它把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**0.6.3 Windows x64** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.3) · [下载安装包](https://github.com/coscatld/MathTutor/releases/download/v0.6.3/MathTutor-0.6.3-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.6.3/SHA256SUMS-windows.txt) · [更新说明](docs/RELEASE_0.6.3.md)
+**0.6.5** [发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.5) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-win-x64.exe) · [更新说明](docs/RELEASE_0.6.5.md)
 
 [项目定位](#项目定位) · [核心功能](#核心功能) · [差异化亮点](#差异化亮点) · [Benchmark](#benchmark-与当前结果) · [快速开始](#快速开始) · [能力说明](#资料问答与能力说明)
 
@@ -33,7 +33,8 @@ flowchart LR
 |---|---|
 | 数学辅导 | 对受支持的算术、整式、一元一次/二次方程、二元一次方程组、一元一次不等式和根为有理数的一元二次不等式解析、求解和验证，结合学生作答提供分级提示与反馈；未解决的题目先看过一次提示才能查看完整答案 |
 | 函数图像与数形结合 | 说「画出 y = x^2 - 2x - 3 的图像」或在题目下点「看图像」；也能画隐式曲线（椭圆、双曲线、圆等）、参数与极坐标曲线、不等式区域、点、线段、多边形、切线，参数带滑块和播放，动点留轨迹，距离 / 角度 / 面积等读数实时更新（如「演示椭圆 x^2/4+y^2/3=1 上的动点 P(2cos t, √3 sin t) 到焦点 F(1,0) 的距离」）。表达式由白名单解析器编译，坐标由应用计算；配置模型后，复杂描述可由模型提出定义，标注为未核验的示意图 |
-| 题库 | 按人教版教材顺序整理一年级上册到高三下的知识点（高中为人教A版 2019 必修与选择性必修），在设置里选好学段后只显示该学段的册目；知识点下有经本地验证器核验的练习题（一键开始辅导）和数形结合演示 |
+| 题库 | 小学一年级至高三共 383 个知识点、801 道原创课程题（附默认隐藏的参考答案与解题说明），另有 353 道支持本地步骤核验的练习与数形结合演示；可按学段和年级查看，跨年课程同时可查 |
+| 学习记忆 | 主动保存或确认的偏好、目标和备注可供普通聊天与结构化模型辅导参考；支持修改、停用、确认和删除，当前请求优先，记忆不计作掌握度。离线模板暂不按任意文字偏好调整 |
 | 初次使用 | 配置模型服务；通过可跳过的 10 道选择题初评获得暂定练习起点 |
 | 练习与学习记录 | 保存会话、作答与可信学习事件，提供练习邀请、学习画像（含诊断出的错误概念）和阶段复盘 |
 | 自有资料问答 | 导入文本、Markdown 和可提取文字的 PDF，检索相关片段并查看引用原文 |
@@ -119,7 +120,13 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前源码版本为 **0.6.4**，可用的 Windows x64 安装包、macOS Apple Silicon DMG 与 SHA-256 校验文件见 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+当前源码版本为 **0.6.5**，可用的 Windows x64 安装包、macOS Apple Silicon DMG 与 SHA-256 校验文件见 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)。数据库 migration head 为 **024**（新增逐轮诊断记录表，从 0.5.0 升级时先做备份，再自动迁移）。
+
+### 0.6.5：学习支持界面、记忆与完整课程题库
+
+教学提示、对话资料和知识库范围重新分层展示，删除顶栏重复的“收起”按钮，保留工具切换、关闭与键盘操作。学习记忆修复了普通聊天未读取、结构化辅导丢弃和只取最早 20 条的问题；可用模型的回答现在实际接收最近修改的有效记忆。详见[记忆链路检查](docs/LEARNING_MEMORY_AUDIT_20261016.md)。
+
+题库为全部 383 个知识点配齐原创课程题，合计 1,154 道题。课程参考题与本地步骤核验练习分开标记，证明题提供参考推导和条件，不将其标成学生步骤已自动验证。逐知识点数量、核验边界和复现方法见[课程覆盖报告](docs/QUESTION_BANK_COVERAGE.md)。本次未调用付费模型或重评历史基准；Windows 和 Mac 安装包的更新内容及验收边界见 [0.6.5 发布说明](docs/RELEASE_0.6.5.md)。
 
 ### 0.6.4
 

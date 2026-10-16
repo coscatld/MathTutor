@@ -41,6 +41,8 @@ test("package allowlist retains each production entrypoint and runtime asset", (
     "infrastructure/migrations/versions/008_document_chunk_fts.py",
     "infrastructure/migrations/versions/009_conversation_workspace.py",
     "application/practice_release.py",
+    "question_bank/catalog_k12_v1.json",
+    "question_bank/curriculum_questions_v2.json",
   ];
   for (const relative of required) {
     assert.equal(sourceSelected(relative), true, `required source excluded: ${relative}`);

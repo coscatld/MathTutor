@@ -56,9 +56,11 @@ def test_every_demo_is_a_drawable_request():
                 assert graph_for_function(extract_function_text(request)), request
 
 
-def test_points_without_content_say_so_honestly():
+def test_formerly_empty_points_now_have_honest_reference_content():
     detail = asyncio.run(BANK.point("g1a-u1-p1"))
-    assert detail["problems"] == [] and detail["demos"] == [] and detail["note"] == EMPTY_NOTE
+    assert detail["problems"] == [] and detail["demos"] == [] and detail["note"] == ""
+    assert len(detail["reference_problems"]) >= 2
+    assert all(not q["verification"]["student_steps_auto_verified"] for q in detail["reference_problems"])
     assert asyncio.run(BANK.point("nope")) is None
 
 

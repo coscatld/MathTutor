@@ -38,15 +38,15 @@ const COMMAND_ICONS: Partial<Record<MathTutorCommand, LucideIcon>> = {
 
 const VARIANT_CLASSES: Record<ActionVariant, string> = {
   primary:
-    "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] border-transparent shadow-sm",
+    "bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] border-transparent shadow-sm",
   secondary:
     "border-[var(--border)] bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--muted)]",
   solution:
-    "bg-[#BE123C] text-white hover:bg-[#9F1239] border-transparent shadow-sm",
+    "bg-[var(--card)] text-[var(--primary-text)] hover:bg-[var(--primary-soft)] border-[var(--primary-border)]",
   quiet:
     "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:bg-[var(--muted)]",
   offer:
-    "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] border-transparent shadow-sm",
+    "bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] border-transparent shadow-sm",
 };
 
 interface ActionBarProps {

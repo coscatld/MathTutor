@@ -96,9 +96,10 @@ test("authoritative null snapshot can still clear a consumed offer and finished 
 
 test("icon-only Tutor tools have persistent accessible names without relying on tooltip hover", () => {
   const source = fs.readFileSync(path.resolve(process.cwd(), "features/math-tutor/components/MathTutorPage.tsx"), "utf8");
-  for (const label of ["当前教学支持与可用操作", "当前对话的学习资料", "查看 Tutor 使用的学习记忆", "收起右侧工具"]) {
+  for (const label of ["当前教学支持与可用操作", "当前对话的学习资料", "查看 Tutor 使用的学习记忆"]) {
     assert.ok(source.includes(`<button type="button" aria-label="${label}"`));
   }
+  assert.ok(!source.includes("收起右侧工具"));
 });
 
 test("support panel describes assistance without a level ladder, ability score, or forced sequence", () => {

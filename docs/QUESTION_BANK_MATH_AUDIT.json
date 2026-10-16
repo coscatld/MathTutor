@@ -1,0 +1,1135 @@
+{
+  "source": "src/mathtutor/question_bank/curriculum_content.py",
+  "source_sha256": "a4082be0cfd65e7b9d582c843bda5ba17a34c200ff5e1fd4d0d0292196815f5b",
+  "table_rows": {
+    "PRIMARY": 192,
+    "MIDDLE": 86,
+    "HIGH": 81,
+    "ADDITIONAL": 24,
+    "HIGHER_TASKS": 35
+  },
+  "method": "Independent SymPy/Fraction derivations plus reading of all high-school stems, reference answers and conditions. Author assertion/check functions are not called.",
+  "scope_boundary": "Finite authored coverage; not evidence that every possible textbook exercise or student proof is automatically verified. Counts of evidence checks do not equal distinct question counts.",
+  "checks": 162,
+  "passed": true,
+  "evidence": [
+    {
+      "point": "h1a-u2-p2",
+      "claim": "n=1: stationary derivative",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h1a-u2-p2",
+      "claim": "n=1: exact minimum identity",
+      "computed": "x - 6 + 9/x",
+      "expected": "(x - 3)**2/x",
+      "passed": true
+    },
+    {
+      "point": "h1a-u3-p2",
+      "claim": "n=1: oddness",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h1a-u3-p2",
+      "claim": "n=1: derivative positive on R",
+      "passed": true
+    },
+    {
+      "point": "h1a-u4-p1",
+      "claim": "n=1: real exponential product",
+      "computed": "4",
+      "expected": "4",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p1",
+      "claim": "n=1: degrees to radians",
+      "computed": "2/3",
+      "expected": "2/3",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p2",
+      "claim": "n=1: terminal-side radius",
+      "computed": "5",
+      "expected": "5",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p4",
+      "claim": "n=1: sine period",
+      "computed": "pi",
+      "expected": "pi",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p5",
+      "claim": "n=1: phase translation",
+      "computed": "pi/12",
+      "expected": "pi/12",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p1",
+      "claim": "n=1: vector coordinate",
+      "computed": "3",
+      "expected": "3",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p3",
+      "claim": "n=1: cosine law",
+      "computed": "13",
+      "expected": "13",
+      "passed": true
+    },
+    {
+      "point": "h1b-u2-p1",
+      "claim": "n=1: squared complex modulus",
+      "computed": "18",
+      "expected": "18",
+      "passed": true
+    },
+    {
+      "point": "h1b-u2-p2",
+      "claim": "n=1: complex division",
+      "computed": "(1 + I)**2/2",
+      "expected": "I",
+      "passed": true
+    },
+    {
+      "point": "h1b-u4-p1",
+      "claim": "n=1: stratification share",
+      "computed": "500/11",
+      "expected": "500/11",
+      "passed": true
+    },
+    {
+      "point": "h1b-u4-p2",
+      "claim": "n=1: population proportion estimate",
+      "computed": "1200",
+      "expected": "1200",
+      "passed": true
+    },
+    {
+      "point": "h1b-u5-p2",
+      "claim": "n=1: independent intersection",
+      "computed": "1/4",
+      "expected": "1/4",
+      "passed": true
+    },
+    {
+      "point": "h1b-u5-p2",
+      "claim": "n=1: independent union",
+      "computed": "3/4",
+      "expected": "3/4",
+      "passed": true
+    },
+    {
+      "point": "h2a-u1-p1",
+      "claim": "n=1: 3d dot product",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h2a-u1-p3",
+      "claim": "n=1: displacement norm squared",
+      "computed": "14",
+      "expected": "14",
+      "passed": true
+    },
+    {
+      "point": "h2a-u1-p4",
+      "claim": "n=1: point/plane distance",
+      "computed": "3",
+      "expected": "3",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p1",
+      "claim": "n=1: slope",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p2",
+      "claim": "n=1: point on line",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p3",
+      "claim": "n=1: intersection sum",
+      "computed": "5",
+      "expected": "5",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p3",
+      "claim": "n=1: intersection difference",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p5",
+      "claim": "n=1: both circle intersections",
+      "computed": "25",
+      "expected": "25",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p1",
+      "claim": "n=1: ellipse focal parameter",
+      "computed": "9",
+      "expected": "9",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p2",
+      "claim": "n=1: hyperbola asymptote substitution",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h2b-u1-p1",
+      "claim": "n=1: sequence summation",
+      "computed": "35",
+      "expected": "35",
+      "passed": true
+    },
+    {
+      "point": "h2b-u1-p2",
+      "claim": "n=1: arithmetic sum",
+      "computed": "155",
+      "expected": "155",
+      "passed": true
+    },
+    {
+      "point": "h2b-u1-p3",
+      "claim": "n=1: geometric sum",
+      "computed": "62",
+      "expected": "62",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p1",
+      "claim": "n=1: tangent derivative",
+      "computed": "6",
+      "expected": "6",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p2",
+      "claim": "n=1: polynomial/log derivative",
+      "computed": "3*x**2 + 6*x - 1/x",
+      "expected": "3*x**2 + 6*x - 1/x",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p3",
+      "claim": "n=1: local maximum value",
+      "computed": "16",
+      "expected": "16",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p3",
+      "claim": "n=1: local minimum value",
+      "computed": "-16",
+      "expected": "-16",
+      "passed": true
+    },
+    {
+      "point": "h3a-u1-p2",
+      "claim": "n=1: unordered pairs",
+      "computed": "10",
+      "expected": "10",
+      "passed": true
+    },
+    {
+      "point": "h3a-u1-p3",
+      "claim": "n=1: binomial coefficient",
+      "computed": "24",
+      "expected": "24",
+      "passed": true
+    },
+    {
+      "point": "h3b-u1-p1",
+      "claim": "n=1: inner absolute-value constant",
+      "computed": "6",
+      "expected": "6",
+      "passed": true
+    },
+    {
+      "point": "h3b-u1-p2",
+      "claim": "n=1: inverse extremum parameter",
+      "computed": "16",
+      "expected": "16",
+      "passed": true
+    },
+    {
+      "point": "h3b-u2-p2",
+      "claim": "n=1: obtuse cosine law",
+      "computed": "37",
+      "expected": "37",
+      "passed": true
+    },
+    {
+      "point": "h3b-u2-p2",
+      "claim": "n=1: triangle area",
+      "computed": "3*sqrt(3)",
+      "expected": "3*sqrt(3)",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p2",
+      "claim": "n=1: finite telescoping sum",
+      "computed": "5/6",
+      "expected": "5/6",
+      "passed": true
+    },
+    {
+      "point": "h3b-u4-p2",
+      "claim": "n=1: product upper bound identity",
+      "computed": "-4*x*(6 - x) + 36",
+      "expected": "(2*x - 6)**2",
+      "passed": true
+    },
+    {
+      "point": "h3b-u5-p2",
+      "claim": "n=1: line/plane angle sine",
+      "computed": "sqrt(3)/3",
+      "expected": "sqrt(3)/3",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p1",
+      "claim": "n=1: tangent length squared",
+      "computed": "7",
+      "expected": "7",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p2",
+      "claim": "n=1: focal sums",
+      "computed": "20",
+      "expected": "20",
+      "passed": true
+    },
+    {
+      "point": "h3b-u7-p1",
+      "claim": "n=1: binomial mean",
+      "computed": "3/4",
+      "expected": "3/4",
+      "passed": true
+    },
+    {
+      "point": "h3b-u7-p1",
+      "claim": "n=1: binomial variance",
+      "computed": "9/16",
+      "expected": "9/16",
+      "passed": true
+    },
+    {
+      "point": "h3b-u7-p2",
+      "claim": "n=1: weighted success proportion",
+      "computed": "71/100",
+      "expected": "71/100",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p4",
+      "claim": "n=1: perpendicular nonzero vectors",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p4",
+      "claim": "n=1: vertical ellipse chord length squared",
+      "computed": "864/25",
+      "expected": "864/25",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p3",
+      "claim": "n=1: recurrence relation",
+      "computed": "2*2**k - 4*2**(k - 1)",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p3",
+      "claim": "n=1: recurrence initial value",
+      "computed": "1",
+      "expected": "1",
+      "passed": true
+    },
+    {
+      "point": "h3b-u8-p1",
+      "claim": "n=1: absolute equation substituted",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h3b-u8-p2",
+      "claim": "n=1: circle/line distance",
+      "computed": "3",
+      "expected": "3",
+      "passed": true
+    },
+    {
+      "point": "h3b-u8-p4",
+      "claim": "n=1: transformed minimum identity",
+      "computed": "x**2 - 18 + 81/x**2",
+      "expected": "(x**2 - 9)**2/x**2",
+      "passed": true
+    },
+    {
+      "point": "h1a-u2-p2",
+      "claim": "n=2: stationary derivative",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h1a-u2-p2",
+      "claim": "n=2: exact minimum identity",
+      "computed": "x - 8 + 16/x",
+      "expected": "(x - 4)**2/x",
+      "passed": true
+    },
+    {
+      "point": "h1a-u3-p2",
+      "claim": "n=2: oddness",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h1a-u3-p2",
+      "claim": "n=2: derivative positive on R",
+      "passed": true
+    },
+    {
+      "point": "h1a-u4-p1",
+      "claim": "n=2: real exponential product",
+      "computed": "8",
+      "expected": "8",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p1",
+      "claim": "n=2: degrees to radians",
+      "computed": "5/6",
+      "expected": "5/6",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p2",
+      "claim": "n=2: terminal-side radius",
+      "computed": "10",
+      "expected": "10",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p4",
+      "claim": "n=2: sine period",
+      "computed": "2*pi/3",
+      "expected": "2*pi/3",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p5",
+      "claim": "n=2: phase translation",
+      "computed": "pi/18",
+      "expected": "pi/18",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p1",
+      "claim": "n=2: vector coordinate",
+      "computed": "5",
+      "expected": "5",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p3",
+      "claim": "n=2: cosine law",
+      "computed": "19",
+      "expected": "19",
+      "passed": true
+    },
+    {
+      "point": "h1b-u2-p1",
+      "claim": "n=2: squared complex modulus",
+      "computed": "25",
+      "expected": "25",
+      "passed": true
+    },
+    {
+      "point": "h1b-u2-p2",
+      "claim": "n=2: complex division",
+      "computed": "(1 + I)*(2 + I)/2",
+      "expected": "1/2 + 3*I/2",
+      "passed": true
+    },
+    {
+      "point": "h1b-u4-p1",
+      "claim": "n=2: stratification share",
+      "computed": "50",
+      "expected": "50",
+      "passed": true
+    },
+    {
+      "point": "h1b-u4-p2",
+      "claim": "n=2: population proportion estimate",
+      "computed": "1400",
+      "expected": "1400",
+      "passed": true
+    },
+    {
+      "point": "h1b-u5-p2",
+      "claim": "n=2: independent intersection",
+      "computed": "3/8",
+      "expected": "3/8",
+      "passed": true
+    },
+    {
+      "point": "h1b-u5-p2",
+      "claim": "n=2: independent union",
+      "computed": "7/8",
+      "expected": "7/8",
+      "passed": true
+    },
+    {
+      "point": "h2a-u1-p1",
+      "claim": "n=2: 3d dot product",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h2a-u1-p3",
+      "claim": "n=2: displacement norm squared",
+      "computed": "21",
+      "expected": "21",
+      "passed": true
+    },
+    {
+      "point": "h2a-u1-p4",
+      "claim": "n=2: point/plane distance",
+      "computed": "4",
+      "expected": "4",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p1",
+      "claim": "n=2: slope",
+      "computed": "5/2",
+      "expected": "5/2",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p2",
+      "claim": "n=2: point on line",
+      "computed": "3",
+      "expected": "3",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p3",
+      "claim": "n=2: intersection sum",
+      "computed": "6",
+      "expected": "6",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p3",
+      "claim": "n=2: intersection difference",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p5",
+      "claim": "n=2: both circle intersections",
+      "computed": "25",
+      "expected": "25",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p1",
+      "claim": "n=2: ellipse focal parameter",
+      "computed": "9",
+      "expected": "9",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p2",
+      "claim": "n=2: hyperbola asymptote substitution",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h2b-u1-p1",
+      "claim": "n=2: sequence summation",
+      "computed": "40",
+      "expected": "40",
+      "passed": true
+    },
+    {
+      "point": "h2b-u1-p2",
+      "claim": "n=2: arithmetic sum",
+      "computed": "165",
+      "expected": "165",
+      "passed": true
+    },
+    {
+      "point": "h2b-u1-p3",
+      "claim": "n=2: geometric sum",
+      "computed": "93",
+      "expected": "93",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p1",
+      "claim": "n=2: tangent derivative",
+      "computed": "8",
+      "expected": "8",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p2",
+      "claim": "n=2: polynomial/log derivative",
+      "computed": "3*x**2 + 8*x - 1/x",
+      "expected": "3*x**2 + 8*x - 1/x",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p3",
+      "claim": "n=2: local maximum value",
+      "computed": "54",
+      "expected": "54",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p3",
+      "claim": "n=2: local minimum value",
+      "computed": "-54",
+      "expected": "-54",
+      "passed": true
+    },
+    {
+      "point": "h3a-u1-p2",
+      "claim": "n=2: unordered pairs",
+      "computed": "15",
+      "expected": "15",
+      "passed": true
+    },
+    {
+      "point": "h3a-u1-p3",
+      "claim": "n=2: binomial coefficient",
+      "computed": "40",
+      "expected": "40",
+      "passed": true
+    },
+    {
+      "point": "h3b-u1-p1",
+      "claim": "n=2: inner absolute-value constant",
+      "computed": "8",
+      "expected": "8",
+      "passed": true
+    },
+    {
+      "point": "h3b-u1-p2",
+      "claim": "n=2: inverse extremum parameter",
+      "computed": "54",
+      "expected": "54",
+      "passed": true
+    },
+    {
+      "point": "h3b-u2-p2",
+      "claim": "n=2: obtuse cosine law",
+      "computed": "49",
+      "expected": "49",
+      "passed": true
+    },
+    {
+      "point": "h3b-u2-p2",
+      "claim": "n=2: triangle area",
+      "computed": "15*sqrt(3)/4",
+      "expected": "15*sqrt(3)/4",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p2",
+      "claim": "n=2: finite telescoping sum",
+      "computed": "6/7",
+      "expected": "6/7",
+      "passed": true
+    },
+    {
+      "point": "h3b-u4-p2",
+      "claim": "n=2: product upper bound identity",
+      "computed": "-4*x*(8 - x) + 64",
+      "expected": "(2*x - 8)**2",
+      "passed": true
+    },
+    {
+      "point": "h3b-u5-p2",
+      "claim": "n=2: line/plane angle sine",
+      "computed": "sqrt(3)/3",
+      "expected": "sqrt(3)/3",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p1",
+      "claim": "n=2: tangent length squared",
+      "computed": "16",
+      "expected": "16",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p2",
+      "claim": "n=2: focal sums",
+      "computed": "24",
+      "expected": "24",
+      "passed": true
+    },
+    {
+      "point": "h3b-u7-p1",
+      "claim": "n=2: binomial mean",
+      "computed": "1",
+      "expected": "1",
+      "passed": true
+    },
+    {
+      "point": "h3b-u7-p1",
+      "claim": "n=2: binomial variance",
+      "computed": "3/4",
+      "expected": "3/4",
+      "passed": true
+    },
+    {
+      "point": "h3b-u7-p2",
+      "claim": "n=2: weighted success proportion",
+      "computed": "18/25",
+      "expected": "18/25",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p4",
+      "claim": "n=2: perpendicular nonzero vectors",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p4",
+      "claim": "n=2: vertical ellipse chord length squared",
+      "computed": "756/25",
+      "expected": "756/25",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p3",
+      "claim": "n=2: recurrence relation",
+      "computed": "3*2**k - 6*2**(k - 1)",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p3",
+      "claim": "n=2: recurrence initial value",
+      "computed": "1",
+      "expected": "1",
+      "passed": true
+    },
+    {
+      "point": "h3b-u8-p1",
+      "claim": "n=2: absolute equation substituted",
+      "computed": "5/2",
+      "expected": "5/2",
+      "passed": true
+    },
+    {
+      "point": "h3b-u8-p2",
+      "claim": "n=2: circle/line distance",
+      "computed": "3",
+      "expected": "3",
+      "passed": true
+    },
+    {
+      "point": "h3b-u8-p4",
+      "claim": "n=2: transformed minimum identity",
+      "computed": "x**2 - 32 + 256/x**2",
+      "expected": "(x**2 - 16)**2/x**2",
+      "passed": true
+    },
+    {
+      "point": "h1a-u1-p4",
+      "claim": "universal quadratic inequality certificate",
+      "computed": "x**2 - 2*x + 1",
+      "expected": "(x - 1)**2",
+      "passed": true
+    },
+    {
+      "point": "h1a-u2-p2",
+      "claim": "no interior minimum: infimum certificate",
+      "computed": "x - 1 + 1/(x + 1)",
+      "expected": "x**2/(x + 1)",
+      "passed": true
+    },
+    {
+      "point": "h1a-u3-p2",
+      "claim": "odd extension",
+      "computed": "-x**2 - 1",
+      "expected": "-x**2 - 1",
+      "passed": true
+    },
+    {
+      "point": "h1a-u5-p5",
+      "claim": "sine wave amplitude",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p3",
+      "claim": "SSA sine value",
+      "computed": "sqrt(3)/2",
+      "expected": "sqrt(3)/2",
+      "passed": true
+    },
+    {
+      "point": "h1b-u1-p4",
+      "claim": "norm equality coefficient",
+      "computed": "-(a - b)**2 + (a + b)**2",
+      "expected": "4*a*b",
+      "passed": true
+    },
+    {
+      "point": "h2a-u1-p4",
+      "claim": "non-axis-aligned point/plane distance",
+      "computed": "sqrt(3)",
+      "expected": "sqrt(3)",
+      "passed": true
+    },
+    {
+      "point": "h2a-u2-p5",
+      "claim": "externally tangent circles",
+      "computed": "1",
+      "expected": "1",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p1",
+      "claim": "focal triangle perimeter",
+      "computed": "18",
+      "expected": "18",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p2",
+      "claim": "asymptote has no hyperbola intersection",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h2a-u3-p3",
+      "claim": "latus rectum endpoints",
+      "computed": "4",
+      "expected": "4",
+      "passed": true
+    },
+    {
+      "point": "h2b-u1-p3",
+      "claim": "negative-ratio geometric sum",
+      "computed": "-10",
+      "expected": "-10",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p2",
+      "claim": "product derivative",
+      "computed": "x*exp(x) + exp(x)",
+      "expected": "(x + 1)*exp(x)",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p2",
+      "claim": "chain derivative",
+      "computed": "2*x/(x**2 + 1)",
+      "expected": "2*x/(x**2 + 1)",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p3",
+      "claim": "all boundary/stationary extrema candidates",
+      "passed": true
+    },
+    {
+      "point": "h2b-u2-p4",
+      "claim": "cubic discriminant",
+      "computed": "108 - 27*a**2",
+      "expected": "108 - 27*a**2",
+      "passed": true
+    },
+    {
+      "point": "h3a-u1-p2",
+      "claim": "nonadjacent permutation count",
+      "computed": "72",
+      "expected": "72",
+      "passed": true
+    },
+    {
+      "point": "h3a-u2-p1",
+      "claim": "Bayes exact ratio",
+      "computed": "2/13",
+      "expected": "2/13",
+      "passed": true
+    },
+    {
+      "point": "h3a-u2-p2",
+      "claim": "affine dice expectation",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h3a-u2-p2",
+      "claim": "affine dice variance",
+      "computed": "35/3",
+      "expected": "35/3",
+      "passed": true
+    },
+    {
+      "point": "h3a-u2-p3",
+      "claim": "hypergeometric expectation",
+      "computed": "9/10",
+      "expected": "9/10",
+      "passed": true
+    },
+    {
+      "point": "h3a-u2-p3",
+      "claim": "hypergeometric mass",
+      "computed": "7/40",
+      "expected": "7/40",
+      "passed": true
+    },
+    {
+      "point": "h3a-u3-p3",
+      "claim": "chi-square statistic",
+      "computed": "4",
+      "expected": "4",
+      "passed": true
+    },
+    {
+      "point": "h3b-u1-p2",
+      "claim": "log-linear maximum point derivative",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p2",
+      "claim": "odd telescoping identity",
+      "computed": "1/((2*k - 1)*(2*k + 1))",
+      "expected": "-1/(2*(2*k + 1)) + 1/(2*(2*k - 1))",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p4",
+      "claim": "power-two weighted sum",
+      "computed": "2**m*m - 2**m + 1",
+      "expected": "2**m*(m - 1) + 1",
+      "passed": true
+    },
+    {
+      "point": "h3b-u3-p4",
+      "claim": "power-three weighted sum",
+      "computed": "(2*3**m*m - 3**m + 1)/4",
+      "expected": "3**m*(2*m - 1)/4 + 1/4",
+      "passed": true
+    },
+    {
+      "point": "h3b-u5-p2",
+      "claim": "regular tetrahedron height",
+      "computed": "2*sqrt(6)/3",
+      "expected": "2*sqrt(6)/3",
+      "passed": true
+    },
+    {
+      "point": "h3b-u5-p2",
+      "claim": "regular tetrahedron dihedral cosine",
+      "computed": "1/3",
+      "expected": "1/3",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p2",
+      "claim": "ellipse opposite focal radii reciprocals",
+      "computed": "4/3",
+      "expected": "4/3",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "secant discriminant",
+      "computed": "16 - 32*k",
+      "expected": "16 - 32*k",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "midpoint y via Vieta",
+      "computed": "2 + (2 - 2*k)/k",
+      "expected": "2/k",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "midpoint locus eliminated",
+      "computed": "(2 + (2 - 2*k)/k)**2 - 4 - 2*(2 - 2*k)/k - 2*(2 - 2*k)/k**2",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "negative branch corresponds to k<0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "positive k<1/2 implies y>4",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "origin-to-parabola midpoint locus",
+      "computed": "-8*u + 4*v**2",
+      "expected": "-8*u + 4*v**2",
+      "passed": true
+    },
+    {
+      "point": "h3b-u4-p2",
+      "claim": "three-variable reciprocal inequality expansion",
+      "computed": "(a + b + c)*(1/c + 1/b + 1/a)",
+      "expected": "a/c + a/b + b/c + 3 + c/b + b/a + c/a",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "new fixed point candidate from OA perpendicular OB",
+      "computed": "u**2*v**2 + 4*u*v",
+      "expected": "u*v*(u*v + 4)",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "new fixed point chord incidence",
+      "computed": "u**2 + u*v - u*(u + v)",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u6-p3",
+      "claim": "new fixed point coordinates after perpendicular condition",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h1a-u1-p2",
+      "claim": "new actual subset task",
+      "passed": true
+    },
+    {
+      "point": "h1a-u1-p2",
+      "claim": "new complement within specified universe",
+      "passed": true
+    },
+    {
+      "point": "h1a-u3-p1",
+      "claim": "bounded quadratic minimum",
+      "computed": "2",
+      "expected": "2",
+      "passed": true
+    },
+    {
+      "point": "h1a-u3-p1",
+      "claim": "bounded quadratic right endpoint maximum",
+      "computed": "6",
+      "expected": "6",
+      "passed": true
+    },
+    {
+      "point": "h1b-u3-p2",
+      "claim": "new sphere surface area coefficient",
+      "computed": "36",
+      "expected": "36",
+      "passed": true
+    },
+    {
+      "point": "h1b-u3-p2",
+      "claim": "new sphere volume coefficient",
+      "computed": "36",
+      "expected": "36",
+      "passed": true
+    },
+    {
+      "point": "g6b-u4-p2",
+      "claim": "new proportional price task",
+      "computed": "24",
+      "expected": "24",
+      "passed": true
+    },
+    {
+      "point": "h3b-u5-p1",
+      "claim": "cube diagonal perpendicular to in-plane diagonal",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u5-p1",
+      "claim": "cube diagonal perpendicular to in-plane vertical direction",
+      "computed": "0",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "h3b-u5-p1",
+      "claim": "plane directions independent",
+      "passed": true
+    },
+    {
+      "point": "g8a-u2-p4",
+      "claim": "isosceles equal inset distances",
+      "computed": "(-b + c)**2 - (b - c)**2",
+      "expected": "0",
+      "passed": true
+    },
+    {
+      "point": "g9a-u4-p5",
+      "claim": "diameter-circle perpendicularity certificate",
+      "computed": "a**2 + x*(-b + x)",
+      "expected": "a**2 - b*x + x**2",
+      "passed": true
+    }
+  ]
+}

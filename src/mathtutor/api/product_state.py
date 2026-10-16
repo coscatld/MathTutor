@@ -424,6 +424,7 @@ class ProductState:
             expander=ContextExpander(self.document_repository),
             metrics=self.metrics,
         )
+        self.personal_memory_source = PersonalMemorySourceProvider(self.memory_repository)
         self.context_assembler = self._build_context_assembler(engine)
         # Phase 5 (§7.4/§7.5): bank > template > LLM generator chain — the
         # gateway's PRACTICE_GENERATOR role when configured, deterministic
@@ -451,6 +452,7 @@ class ProductState:
         self.controller.semantic_interpreter = SemanticTeachingInterpreter(self.gateway)
         self.controller.scene_gateway = self.gateway
         self.controller.learner_settings = self.learner_settings
+        self.controller.personal_memory_source = self.personal_memory_source
         self.controller.image_repository = self.images
         from mathtutor.application.chat_documents import ChatDocumentContext
         self.controller.chat_documents = ChatDocumentContext(
@@ -715,9 +717,7 @@ class ProductState:
                     load_observations
                 ),
                 RetrievalSource.RECENT_ATTEMPTS: RecentAttemptsSourceProvider(load_evidence),
-                RetrievalSource.PERSONAL_MEMORY: PersonalMemorySourceProvider(
-                    self.memory_repository
-                ),
+                RetrievalSource.PERSONAL_MEMORY: self.personal_memory_source,
                 # F1: the structured path uses the SAME orchestrator as the
                 # chat and knowledge paths. The provider is now only a
                 # projection from the resulting EvidencePack and holds no

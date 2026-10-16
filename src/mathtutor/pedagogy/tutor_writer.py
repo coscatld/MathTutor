@@ -21,6 +21,8 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from mathtutor.domain.problem import MathProblem
+from mathtutor.domain.assembled_context import PersonalMemoryContext
+from mathtutor.application.memory_context import MEMORY_INSTRUCTION, memory_prompt_block
 from mathtutor.domain.tutoring import TutorAction
 from mathtutor.pedagogy.disclosure import DisclosedSolutionContext
 from mathtutor.pedagogy.stage_policy import StagePolicy
@@ -52,6 +54,7 @@ class PublicProblemView(BaseModel):
     verified_progress: tuple[dict[str, Any], ...] = ()
     recent_assessments: tuple[dict[str, Any], ...] = ()
     approved_example: dict[str, Any] | None = None
+    personal_memory: PersonalMemoryContext | None = None
 
     @classmethod
     def of(cls, problem: MathProblem) -> "PublicProblemView":
@@ -226,6 +229,7 @@ def _build_system_prompt(policy: StagePolicy, personality_instruction: str = "")
         f"- 优先用具体数字和例子表达：{'是' if policy.prefer_concrete_representation else '否'}\n"
         "请用中文回复，直接输出要对学生说的话，不要包含任何前言、解释或标注。"
         + personality
+        + MEMORY_INSTRUCTION
     )
 
 
@@ -349,6 +353,9 @@ def _build_user_prompt(
     notes = _document_prompt_block(document_context)
     if notes:
         parts.extend(["", notes])
+    memory = memory_prompt_block(problem_view.personal_memory)
+    if memory:
+        parts.extend(["", MEMORY_INSTRUCTION, memory])
     return "\n".join(parts)
 
 

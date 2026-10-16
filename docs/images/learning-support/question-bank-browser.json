@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "actual_bank_fixture": true,
+  "paid_model_calls": 0,
+  "launch": {
+    "command": "send_message",
+    "payload": {
+      "text": "f(x)=x³-3ax，讨论不同实数a时不同实零点个数。"
+    }
+  },
+  "page_errors": []
+}

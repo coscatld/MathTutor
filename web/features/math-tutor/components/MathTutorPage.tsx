@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, BrainCircuit, FolderOpen, Library, Lightbulb, PanelRightClose } from "lucide-react";
+import { ArrowDown, BrainCircuit, FolderOpen, Library, Lightbulb } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversationScroll } from "../hooks/useConversationScroll";
@@ -35,6 +35,7 @@ export default function MathTutorPage() {
 function TutorConversation({ sessionId, launch = null, onLaunched }: { sessionId: string; launch?: TutorLaunch | null; onLaunched?: () => void }) {
   const { state, send, sendMessage, sendAttempt, reconnect, recover } = useMathTutorSession(sessionId);
   const [tool, setTool] = useState<ToolView | null>(null);
+  const toolOpener = useRef<HTMLElement | null>(null);
   const [composeFocus, setComposeFocus] = useState(0);
   const [attemptBinding, setAttemptBinding] = useState<AttemptBinding | null>(null);
   const choices = useRef<HTMLElement>(null);
@@ -54,18 +55,21 @@ function TutorConversation({ sessionId, launch = null, onLaunched }: { sessionId
     if (empty) send(launchCommand, { text: launchText });
     onLaunched?.();
   }, [launchCommand, launchText, connected, busy, empty, send, onLaunched]);
-  const toggleTool = (next: ToolView) => setTool((current) => current === next ? null : next);
+  const closeTool = (restoreFocus = true) => { setTool(null); if (restoreFocus) toolOpener.current?.focus({ preventScroll: true }); };
+  const toggleTool = (next: ToolView, opener: HTMLElement) => {
+    toolOpener.current = opener;
+    setTool((current) => current === next ? null : next);
+  };
   return <div className="mt-conversation">
     <section className="mt-chat-column" data-empty={state.messages.length === 0 ? "true" : undefined}>
       <header className="mt-chat-header">
         <div className="mt-header-context"><CurrentProblem context={state.problemContext} /></div>
         <div className="mt-header-title"><h1 className="text-[15px] font-semibold text-[var(--foreground)]">数学辅导</h1></div>
         <div className="mt-header-actions"><ConnectionStatus status={state.connectionStatus} note={state.connectionNote} onReconnect={reconnect} />
-          <Tooltip label="教学提示" disabled={tool === "hints"}><button type="button" aria-label="当前教学支持与可用操作" onClick={() => toggleTool("hints")} aria-pressed={tool === "hints"} className="mt-icon-button"><Lightbulb className="h-4 w-4" aria-hidden="true" /></button></Tooltip>
-          <Tooltip label="对话资料" disabled={tool === "documents"}><button type="button" aria-label="当前对话的学习资料" onClick={() => toggleTool("documents")} aria-pressed={tool === "documents"} className="mt-icon-button"><FolderOpen className="h-4 w-4" aria-hidden="true" /></button></Tooltip>
-          <Tooltip label="学习记忆" disabled={tool === "memory"}><button type="button" aria-label="查看 Tutor 使用的学习记忆" onClick={() => toggleTool("memory")} aria-pressed={tool === "memory"} className="mt-icon-button"><BrainCircuit className="h-4 w-4" aria-hidden="true" /></button></Tooltip>
+          <Tooltip label="教学提示" disabled={tool === "hints"}><button type="button" aria-label="当前教学支持与可用操作" aria-controls={tool === "hints" ? "tutor-tools" : undefined} onClick={event => toggleTool("hints", event.currentTarget)} aria-pressed={tool === "hints"} className="mt-icon-button"><Lightbulb className="h-4 w-4" aria-hidden="true" /></button></Tooltip>
+          <Tooltip label="对话资料" disabled={tool === "documents"}><button type="button" aria-label="当前对话的学习资料" aria-controls={tool === "documents" ? "tutor-tools" : undefined} onClick={event => toggleTool("documents", event.currentTarget)} aria-pressed={tool === "documents"} className="mt-icon-button"><FolderOpen className="h-4 w-4" aria-hidden="true" /></button></Tooltip>
+          <Tooltip label="学习记忆" disabled={tool === "memory"}><button type="button" aria-label="查看 Tutor 使用的学习记忆" aria-controls={tool === "memory" ? "tutor-tools" : undefined} onClick={event => toggleTool("memory", event.currentTarget)} aria-pressed={tool === "memory"} className="mt-icon-button"><BrainCircuit className="h-4 w-4" aria-hidden="true" /></button></Tooltip>
           <Tooltip label="知识库与问答范围"><Link href={`/math-tutor/knowledge?conversation=${encodeURIComponent(sessionId)}`} aria-label="知识库与问答范围" className="mt-icon-button"><Library className="h-4 w-4" aria-hidden="true" /></Link></Tooltip>
-          {tool ? <Tooltip label="收起"><button type="button" aria-label="收起右侧工具" onClick={() => setTool(null)} className="mt-icon-button"><PanelRightClose className="h-4 w-4" aria-hidden="true" /></button></Tooltip> : null}
         </div>
       </header>
       <div className="mt-reading-region">
@@ -80,8 +84,8 @@ function TutorConversation({ sessionId, launch = null, onLaunched }: { sessionId
       </div>
       {scroll.away ? <button type="button" onClick={scroll.toLatest} className="mt-jump-latest"><ArrowDown className="h-4 w-4" aria-hidden="true" />回到最新</button> : null}
       </div>
-      <ChatComposer attemptMode={attemptMode} onExitAttempt={() => setAttemptBinding(null)} onSendAttempt={text => attemptBinding ? sendAttempt(text, attemptBinding) : Promise.resolve(false)} focusRequest={composeFocus} placeholder={state.problemContext?.lifecycle.toUpperCase() === "ACTIVE" ? "写下这一步，或告诉我哪里卡住了…" : undefined} onCancel={() => send("cancel_turn")} busy={busy} disabled={!connected} onSend={sendMessage} onAddMaterial={() => setTool("documents")} />
+      <ChatComposer attemptMode={attemptMode} onExitAttempt={() => setAttemptBinding(null)} onSendAttempt={text => attemptBinding ? sendAttempt(text, attemptBinding) : Promise.resolve(false)} focusRequest={composeFocus} placeholder={state.problemContext?.lifecycle.toUpperCase() === "ACTIVE" ? "写下这一步，或告诉我哪里卡住了…" : undefined} onCancel={() => send("cancel_turn")} busy={busy} disabled={!connected} onSend={sendMessage} onAddMaterial={() => { toolOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setTool("documents"); }} />
     </section>
-    {tool ? <TutorToolsPanel view={tool} onClose={() => setTool(null)} sessionId={sessionId} level={state.assistanceLevel} plan={state.teachingPlan} evidence={state.evidenceSummary} diagnosis={state.diagnosis} offer={state.activeOffer} actions={state.allowedActions} allowed={state.allowedNextInputs} busy={busy} disabled={!connected} onCommand={(command, payload) => send(command, payload)} /> : null}
+    {tool ? <TutorToolsPanel view={tool} onClose={closeTool} sessionId={sessionId} level={state.assistanceLevel} plan={state.teachingPlan} evidence={state.evidenceSummary} diagnosis={state.diagnosis} offer={state.activeOffer} actions={state.allowedActions} allowed={state.allowedNextInputs} busy={busy} disabled={!connected} onCommand={(command, payload) => send(command, payload)} /> : null}
   </div>;
 }

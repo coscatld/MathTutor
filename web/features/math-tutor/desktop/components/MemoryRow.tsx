@@ -19,8 +19,8 @@ export function memoryObjectText(memory: DesktopMemory): string {
 
 const SOURCE_STYLES: Record<string, string> = {
   USER_EXPLICIT: "border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]",
-  MODEL_INFERRED: "border-amber-300 bg-amber-50 text-[var(--warning)] dark:border-amber-800 dark:bg-amber-950/40",
-  USER_CONFIRMED: "border-emerald-300 bg-emerald-50 text-[var(--success)] dark:border-emerald-800 dark:bg-emerald-950/40",
+  MODEL_INFERRED: "border-[var(--border)] bg-[var(--warning-soft)] text-[var(--warning)]",
+  USER_CONFIRMED: "border-[var(--border)] bg-[var(--success-soft)] text-[var(--success)]",
 };
 
 export default function MemoryRow({
@@ -39,22 +39,25 @@ export default function MemoryRow({
   onUpdated: (memory: DesktopMemory) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [predicate, setPredicate] = useState(memory.predicate);
-  const [value, setValue] = useState(memoryObjectText(memory));
+  const [value, setValue] = useState(memoryObjectText(memory) || memory.predicate);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState("");
 
   const inferred = memory.source_type === "MODEL_INFERRED";
 
   const handleSave = async () => {
     setSaving(true);
+    setError("");
     try {
       const updated = await updateMemory(memory.memory_id, {
-        predicate: predicate.trim() || undefined,
+        predicate: memoryObjectText(memory) ? memory.predicate : "内容",
         object_json: { value: value.trim() },
       });
       onUpdated(updated);
       setEditing(false);
+    } catch {
+      setError("保存未完成，修改内容已保留，请重试。");
     } finally {
       setSaving(false);
     }
@@ -79,23 +82,17 @@ export default function MemoryRow({
 
           {editing ? (
             <div className="mt-2 flex flex-col gap-2">
-              <input
-                aria-label="记忆内容（谓词）"
-                value={predicate}
-                onChange={(e) => setPredicate(e.target.value)}
-                className="mt-input h-11"
-              />
-              <input
-                aria-label="记忆内容（值）"
+              <textarea
+                aria-label="记忆内容"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="mt-input h-11"
+                className="mt-input min-h-24 py-3 leading-6"
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || !value.trim()}
                   className="mt-btn mt-btn-primary"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -113,9 +110,8 @@ export default function MemoryRow({
             </div>
           ) : (
             <>
-              <p className="text-sm leading-relaxed text-[var(--foreground)]">
-                {memory.predicate}
-                {memoryObjectText(memory) ? `：${memoryObjectText(memory)}` : ""}
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground)]">
+                {memoryObjectText(memory) ? (["内容", "偏好"].includes(memory.predicate) ? memoryObjectText(memory) : `${memory.predicate}：${memoryObjectText(memory)}`) : memory.predicate}
               </p>
               <p className="text-xs text-[var(--muted-foreground)]">记录于 {formatDateTime(memory.created_at)}</p>
             </>
@@ -143,7 +139,7 @@ export default function MemoryRow({
           )}
           <button
             type="button"
-            onClick={() => setEditing(true)}
+              onClick={() => { setValue(memoryObjectText(memory) || memory.predicate); setError(""); setEditing(true); }}
             disabled={busy}
             className="mt-btn"
             aria-label="编辑这条记忆"
@@ -164,16 +160,17 @@ export default function MemoryRow({
         </div>
       </div>
 
+      {error ? <p role="alert" className="text-sm text-[var(--destructive)]">{error}</p> : null}
       {!editing && (
         <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 text-sm text-[var(--foreground)]">
           <input
             type="checkbox"
             checked={memory.retrieval_enabled}
             onChange={(e) => onToggleRetrieval(e.target.checked)}
-            disabled={busy}
+            disabled={busy || inferred}
             className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:cursor-not-allowed"
           />
-          参与个性化回忆
+          {inferred ? "确认后可允许用于辅导" : "允许用于辅导"}
         </label>
       )}
     </li>

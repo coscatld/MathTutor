@@ -1148,6 +1148,7 @@ class MathTutorController:
         draw_offered = False
         verification_notice = ""
         learner_context = None
+        personal_memory = None
         if responder is None:
             if images:
                 raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。")
@@ -1174,6 +1175,9 @@ class MathTutorController:
                 from mathtutor.application.message_intent import is_concrete_math_input
                 import inspect
                 accepts = inspect.signature(responder.respond).parameters
+                personal_memory = await self._personal_memory_context(owner_id)
+                if personal_memory is not None and "personal_memory" in accepts:
+                    extra["personal_memory"] = personal_memory
                 if response_request is not None and "response_request" in accepts:
                     extra["response_request"] = request_text
                 if "learner_context" in accepts:
@@ -1256,7 +1260,8 @@ class MathTutorController:
                 and provider_result == "success" and not recovery):
             visible = await self._redraw_on_canvas(responder, turn, text, history, visible, problem_context=problem_context,
                 unstructured_math=unstructured_math, images=images, math_verify=math_verify,
-                response_request=request_text, learner_context=learner_context, document_context=document_context)
+                response_request=request_text, learner_context=learner_context, document_context=document_context,
+                personal_memory=personal_memory)
         raw_visible = visible
         from mathtutor.application.problem_recovery import simple_greeting
         from mathtutor.application.math_claims import strip_notice
@@ -1282,6 +1287,8 @@ class MathTutorController:
                         repair_options["math_verify"] = math_verify
                     if learner_context is not None:
                         repair_options["learner_context"] = learner_context
+                    if personal_memory is not None and "personal_memory" in repair_parameters:
+                        repair_options["personal_memory"] = personal_memory
                     return sanitize_figures(project_assistant_message(await responder.respond(
                         feedback, history=retry_history, problem_context=problem_context,
                         unstructured_math=unstructured_math, **repair_options)) or "")[0]
@@ -1340,7 +1347,7 @@ class MathTutorController:
 
     async def _redraw_on_canvas(self, responder, turn, text, history, first_answer, *, problem_context,
                                 unstructured_math, images, math_verify, response_request=None,
-                                learner_context=None, document_context=None) -> str:
+                                learner_context=None, document_context=None, personal_memory=None) -> str:
         """One bounded repair: the answer drew a figure by itself; ask for draw_scene.
 
         Like the formula repair, the turn gets a fixed extra budget (one
@@ -1360,7 +1367,8 @@ class MathTutorController:
             supported = inspect.signature(responder.respond).parameters
             context_options = {key: value for key, value in {
                 "response_request": response_request, "learner_context": learner_context,
-                "document_context": document_context}.items() if key in supported and value is not None}
+                "document_context": document_context, "personal_memory": personal_memory
+            }.items() if key in supported and value is not None}
             again = project_assistant_message(await responder.respond(
                 feedback, history=retry_history, problem_context=problem_context, unstructured_math=unstructured_math,
                 math_verify=math_verify, draw_figures=True, **context_options,
@@ -2389,7 +2397,8 @@ class MathTutorController:
         )
         if problem_view is not None:
             problem_view = problem_view.model_copy(update={"student_request": student_request,
-                                                           "skill_id": skill_for_problem(problem)})
+                "skill_id": skill_for_problem(problem),
+                "personal_memory": await self._personal_memory_context(owner_id)})
             review_service = getattr(getattr(self, "knowledge", None), "state", None)
             review_service = getattr(review_service, "stage_review", None)
             if review_service and owner_id:
@@ -2795,6 +2804,31 @@ class MathTutorController:
         else:
             parent = await self.sessions.focus_cycle(owner_id, context["client_session_id"], parent_id)
             await self._dialogue(stream, parent, "这组诊断已完成。已记录诊断作答，回到原题继续。", "DIAGNOSTIC_COMPLETE")
+
+    async def _personal_memory_context(self, owner_id):
+        """Fresh per-answer projection; management changes affect the next turn.
+
+        Only the shared source provider touches persistence. This output
+        context cannot append evidence or change the student model.
+        """
+        source = getattr(self, "personal_memory_source", None)
+        if source is None or not owner_id:
+            return None
+        from mathtutor.application.tutor_runtime import note_turn
+        try:
+            result = await source.load_for_tutor(student_id=str(owner_id))
+        except Exception:
+            logger.warning("Personal memory retrieval unavailable")
+            note_turn(memory={"status": "unavailable", "included_count": 0})
+            return None
+        context = result.payload
+        note_turn(memory={
+            "status": "disabled_by_user" if result.disabled_by_user else "loaded" if context and context.entries else "empty",
+            "included_count": len(context.entries) if context else 0,
+            "memory_ids": [str(entry.memory_id) for entry in context.entries] if context else [],
+            "detail": result.detail,
+        })
+        return context
 
     async def _document_context_for_action(self, session, action, problem):
         """Assemble USER_DOCUMENTS for hint/explain when the policy allows it.

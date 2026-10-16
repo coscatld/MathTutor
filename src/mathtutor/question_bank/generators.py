@@ -251,3 +251,94 @@ def generate(code: str, family: str, template: str, count: int) -> list[tuple[st
 
 
 __all__ = ["GENERATORS", "generate"]
+
+# Narrow templates prevent addition/subtraction or multiplication/division from
+# being mixed into a point that explicitly asks for just one operation.
+def add_five(r):
+    a = r.randint(1, 3); b = r.randint(1, 5 - a)
+    return f"{a}+{b}", 1
+
+
+def subtract_five(r):
+    a = r.randint(2, 5); b = r.randint(1, a)
+    return f"{a}-{b}", 1
+
+
+def add_two_digit(r):
+    a = r.randint(11, 60); b = r.randint(11, 99 - a)
+    return f"{a}+{b}", 1
+
+
+def subtract_two_digit(r):
+    a = r.randint(30, 99); b = r.randint(11, a - 1)
+    return f"{a}-{b}", 2
+
+
+def add_three_digit(r):
+    return f"{r.randint(100, 499)}+{r.randint(100, 499)}", 2
+
+
+def subtract_three_digit(r):
+    a = r.randint(300, 999); b = r.randint(100, a - 1)
+    return f"{a}-{b}", 2
+
+
+def multiply_low_table(r):
+    return f"{r.randint(2, 6)}*{r.randint(2, 6)}", 1
+
+
+def multiply_high_table(r):
+    return f"{r.randint(7, 9)}*{r.randint(2, 9)}", 1
+
+
+def divide_low_table(r):
+    a, b = r.randint(2, 6), r.randint(2, 6)
+    return f"{a*b}/{a}", 1
+
+
+def divide_high_table(r):
+    a, b = r.randint(7, 9), r.randint(2, 9)
+    return f"{a*b}/{a}", 1
+
+
+GENERATORS.update({("arithmetic", fn.__name__): fn for fn in (
+    add_five, subtract_five, add_two_digit, subtract_two_digit,
+    add_three_digit, subtract_three_digit, multiply_low_table,
+    multiply_high_table, divide_low_table, divide_high_table,
+)})
+
+
+def add_sub_chain(r):
+    a,b,c=r.randint(20,50),r.randint(10,30),r.randint(1,9)
+    return f"{a}+{b}-{c}",2
+
+
+def same_level_operations(r):
+    a,b,c=r.randint(2,9),r.randint(2,9),r.randint(2,9)
+    return (f"{a+b+c}-{b}+{c}",2) if r.random()<.5 else (f"{a*b}*{c}/{b}",2)
+
+
+def bracket_operations(r):
+    a,b,c=r.randint(2,9),r.randint(2,9),r.randint(2,9)
+    return f"({a}+{b})*{c}",2
+
+
+def distributive_calculation(r):
+    a,b=r.randint(11,49),r.randint(2,9)
+    return f"{a}*{b}+{100-a}*{b}",2
+
+
+def decimal_mixed(r):
+    a,b,c=r.randint(200,999),r.randint(10,199),r.randint(10,99)
+    return f"{a/100:.2f}-{b/100:.2f}+{c/100:.2f}",2
+
+
+def fraction_mixed(r):
+    a,b=r.sample([2,3,4,5,6,8,10,12],2)
+    return f"1/{a}+1/{b}-1/{2*a}",3
+
+
+GENERATORS.update({("arithmetic", fn.__name__): fn for fn in (
+    add_sub_chain,same_level_operations,bracket_operations,
+    distributive_calculation,decimal_mixed,fraction_mixed,
+)})

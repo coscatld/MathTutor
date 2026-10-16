@@ -1,13 +1,17 @@
-"""Build src/mathtutor/question_bank/catalog_k12_v1.json from a compact outline.
+"""Build the K-12 catalog and original reference-question JSON files.
 
     PYTHONPATH=src python scripts/build_question_bank_catalog.py
 
 Chapter structure follows the People's Education Press (人教版) mathematics
 textbooks; high school uses 人教A版 (2019). Practice is attached only where an
 existing verifiable family fits; demos only where the scene reader parses them.
+Every curriculum point also has separate original reference questions; these
+do not claim automatic verification of arbitrary student proofs.
 """
 import json
 from pathlib import Path
+
+from mathtutor.question_bank.curriculum_content import ADDITIONAL_POINTS, ADDITIONAL_UNITS, build_reference_questions
 
 A, P, L, LI, Q, QI, S = "arithmetic", "polynomial", "linear", "linear_inequality", "quadratic", "quadratic_inequality", "linear_system"
 
@@ -222,6 +226,27 @@ TERMS = [
 BOOKS = {"primary": "人教版义务教育教科书 数学", "middle": "人教版义务教育教科书 数学", "high": "人教A版 普通高中教科书 数学（2019）"}
 
 
+PRACTICE_OVERRIDES = {
+    "g1a-u3-p2": "add_five", "g1a-u3-p3": "subtract_five",
+    "g2a-u2-p1": "add_two_digit", "g2a-u2-p2": "subtract_two_digit",
+    "g2a-u4-p2": "multiply_low_table", "g2a-u6-p1": "multiply_high_table",
+    "g2b-u2-p2": "divide_low_table", "g2b-u4-p1": "divide_high_table",
+    "g3a-u4-p1": "add_three_digit", "g3a-u4-p2": "subtract_three_digit",
+    "g2a-u2-p3": "add_sub_chain", "g2b-u5-p1": "same_level_operations",
+    "g2b-u5-p2": "bracket_operations", "g4b-u1-p3": "bracket_operations",
+    "g4b-u3-p3": "distributive_calculation", "g4b-u6-p2": "decimal_mixed",
+    "g5b-u6-p3": "fraction_mixed",
+}
+# These old mappings generated unrelated naked calculations instead of the
+# promised word problem, restricted operation or rational algebra expression.
+REFERENCE_ONLY = {
+    "g1a-u6-p2", "g1a-u8-p1", "g1a-u8-p2", "g1a-u8-p3",
+    "g1b-u2-p1", "g1b-u2-p2", "g1b-u2-p3",
+    "g1b-u6-p1", "g1b-u6-p2", "g1b-u6-p3", "g4b-u9-p1",
+    "g5a-u5-p4", "g7a-u3-p4", "g7b-u4-p4", "g8a-u5-p2", "g9a-u1-p5",
+}
+
+
 def build():
     terms = []
     for order, (code, stage, grade, label, units) in enumerate(TERMS, 1):
@@ -230,13 +255,37 @@ def build():
                       "units": [{"code": f"{code}-u{u}", "title": title,
                                  "points": [{"code": f"{code}-u{u}-p{i}", **point} for i, point in enumerate(points, 1)]}
                                 for u, (title, points) in enumerate(units, 1)]})
-    return {"version": "k12-pep-v1", "source_note": "参照人教版（高中为人教A版 2019）教材目录整理；各校进度可能不同，高三下按专题复习组织。",
+    references = build_reference_questions()
+    for term in terms:
+        term["recommended_grades"] = [11, 12] if term["code"] == "h3a" else [term["grade"]]
+        for title, titles in ADDITIONAL_UNITS.get(term["code"], ()):
+            unit_code = f"{term['code']}-u{len(term['units']) + 1}"
+            term["units"].append({"code": unit_code, "title": title,
+                                  "points": [{"code": f"{unit_code}-p{i}", **pt(label)} for i, label in enumerate(titles, 1)]})
+        for unit in term["units"]:
+            for title in ADDITIONAL_POINTS.get(unit["code"], ()):
+                unit["points"].append({"code": f"{unit['code']}-p{len(unit['points']) + 1}", **pt(title)})
+            for point in unit["points"]:
+                if point["code"] in PRACTICE_OVERRIDES:
+                    point["practice"] = [{"family": A, "template": PRACTICE_OVERRIDES[point["code"]], "count": 6}]
+                if point["code"] in REFERENCE_ONLY:
+                    point["practice"] = []
+                point["reference_ids"] = [q["id"] for q in references[point["code"]]]
+    codes = {p["code"] for t in terms for u in t["units"] for p in u["points"]}
+    if codes != set(references):
+        raise ValueError(f"Missing/extra reference mappings: {codes ^ set(references)}")
+    return {"version": "k12-pep-v2", "source_note": "参照人教版（高中为人教A版 2019）教材目录整理；各校进度可能不同；选择性必修第三册适用于高二至高三，高三下按专题复习组织。课程题附参考答案，作答过程未自动核验。",
             "terms": terms}
 
 
 if __name__ == "__main__":
     out = Path("src/mathtutor/question_bank/catalog_k12_v1.json")
     out.write_text(json.dumps(build(), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    references = build_reference_questions()
+    question_out = out.with_name("curriculum_questions_v2.json")
+    question_out.write_text(json.dumps({"version": "k12-original-v2", "license": "Apache-2.0",
+                                      "authorship": "MathTutor original deterministic curriculum exercises",
+                                      "questions": references}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     catalog = json.loads(out.read_text(encoding="utf-8"))
     points = [p for t in catalog["terms"] for u in t["units"] for p in u["points"]]
     print(f"terms {len(catalog['terms'])}, units {sum(len(t['units']) for t in catalog['terms'])}, points {len(points)}, "

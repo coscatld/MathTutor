@@ -1,0 +1,163 @@
+{
+  "status": "PASS",
+  "mocked_traffic": true,
+  "paid_model_calls": 0,
+  "mutations": [
+    {
+      "kind": "memory-retrieval",
+      "id": "memory-0",
+      "enabled": false
+    },
+    {
+      "kind": "memory-confirm",
+      "id": "memory-21"
+    },
+    {
+      "kind": "mount",
+      "space_ids": [
+        "lib-functions",
+        "lib-personal"
+      ],
+      "document_ids": [],
+      "only_selected": false,
+      "mode": "tutor",
+      "hints_only": false
+    },
+    {
+      "kind": "mount",
+      "space_ids": [
+        "lib-functions",
+        "lib-personal"
+      ],
+      "document_ids": [
+        "note-domain"
+      ],
+      "only_selected": true,
+      "mode": "tutor",
+      "hints_only": false
+    }
+  ],
+  "layouts": [
+    {
+      "name": "teaching-desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "document": [
+        1440,
+        900
+      ],
+      "content": [
+        900,
+        900
+      ]
+    },
+    {
+      "name": "documents-desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "document": [
+        1440,
+        900
+      ],
+      "content": [
+        900,
+        900
+      ]
+    },
+    {
+      "name": "memory-desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "document": [
+        1440,
+        900
+      ],
+      "content": [
+        900,
+        900
+      ]
+    },
+    {
+      "name": "documents-mobile",
+      "viewport": [
+        375,
+        812
+      ],
+      "document": [
+        375,
+        812
+      ],
+      "content": [
+        812,
+        812
+      ]
+    },
+    {
+      "name": "teaching-landscape",
+      "viewport": [
+        812,
+        375
+      ],
+      "document": [
+        812,
+        375
+      ],
+      "content": [
+        375,
+        375
+      ]
+    },
+    {
+      "name": "knowledge-desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "document": [
+        1440,
+        900
+      ],
+      "content": [
+        900,
+        1895
+      ]
+    },
+    {
+      "name": "knowledge-mobile",
+      "viewport": [
+        375,
+        812
+      ],
+      "document": [
+        375,
+        812
+      ],
+      "content": [
+        812,
+        3176
+      ]
+    },
+    {
+      "name": "knowledge-dark-mobile",
+      "viewport": [
+        375,
+        812
+      ],
+      "document": [
+        375,
+        812
+      ],
+      "content": [
+        812,
+        3176
+      ]
+    }
+  ],
+  "page_errors": []
+}

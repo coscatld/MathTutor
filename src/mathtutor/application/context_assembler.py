@@ -40,7 +40,6 @@ from mathtutor.domain.assembled_context import (
     DocumentChunkRef,
     DocumentContextSelection,
     MasteryEntry,
-    MemoryContextEntry,
     MisconceptionContext,
     MisconceptionEntry,
     PersonalMemoryContext,
@@ -55,10 +54,14 @@ from mathtutor.domain.retrieval_policy import (
 )
 from mathtutor.repositories.memory_repository import MemoryRepository
 from mathtutor.security.scopes import student_uuid
+from mathtutor.application.memory_context import (
+    MAX_MEMORY_ENTRIES,
+    TRUSTED_MEMORY_SOURCES,
+    select_memory_context,
+)
 
 DEFAULT_TOKEN_BUDGET = 4000
 OPTIONAL_FLOOR_TOKENS = 150  # below this remaining budget, optional sources are trimmed
-MAX_MEMORY_ENTRIES = 20
 MAX_ATTEMPT_ENTRIES = 10
 MAX_DOCUMENT_CHUNKS = 8
 MAX_PROJECTED_CHUNK_CHARS = 600  # per-chunk projection cap for LLM consumers
@@ -375,27 +378,27 @@ class PersonalMemorySourceProvider(BaseContextSourceProvider):
         node_ids: Sequence[str] | None = None,
         query_hint: str = "",
     ) -> LoadOutcome:
+        return await self.load_for_tutor(student_id=student_id)
+
+    async def load_for_tutor(self, *, student_id: str) -> LoadOutcome:
+        """Read the shared projection without resolving a retrieval matrix.
+
+        Chat/teaching outputs use this directly. ContextAssembler enters
+        through ``load`` only after its own source-policy decision.
+        """
         nodes = await self._repo.list_retrievable(
-            student_id, limit=MAX_MEMORY_ENTRIES
+            student_id, source_types=TRUSTED_MEMORY_SOURCES
         )
         if not nodes:
-            live = await self._repo.list_nodes(student_id, limit=1)
-            if live:
+            live = await self._repo.list_nodes(student_id)
+            if live and not any(node.retrieval_enabled for node in live):
                 return LoadOutcome(disabled_by_user=True, detail="retrieval disabled by user")
+            if live:
+                return LoadOutcome(empty_data=True, detail="no user-authored or confirmed memories")
             return LoadOutcome(empty_data=True, detail="no personal memories")
-        entries = tuple(
-            MemoryContextEntry(
-                memory_id=node.memory_id,
-                memory_type=node.memory_type,
-                subject=node.subject,
-                predicate=node.predicate,
-                object_json=node.object_json,
-                source_type=node.source_type,
-                confidence=node.confidence,
-            )
-            for node in nodes
-        )
-        return LoadOutcome(payload=PersonalMemoryContext(entries=entries))
+        context = select_memory_context(nodes)
+        detail = f"selected {len(context.entries)} of {len(nodes)} eligible memories; recent edits first, whole-record budget"
+        return LoadOutcome(payload=context, detail=detail)
 
 
 class UserDocumentsSourceProvider(BaseContextSourceProvider):
@@ -675,6 +678,7 @@ class ContextAssembler:
                     status="loaded" if _item_count(outcome.payload) > 0 else "empty",
                     item_count=_item_count(outcome.payload),
                     schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
+                    detail=outcome.detail,
                 )
             )
 
@@ -749,6 +753,7 @@ class ContextAssembler:
                     status="loaded" if _item_count(outcome.payload) > 0 else "empty",
                     item_count=_item_count(outcome.payload),
                     schema_version=PracticeRetrievalPolicy.POLICY_VERSION,
+                    detail=outcome.detail,
                 )
             )
 
