@@ -1,28 +1,28 @@
 ---
 title: Installation
-description: Windows and macOS 0.7.0 r2 installers, checksums, and first-launch limits.
+description: Windows and macOS 0.7.0 r3 installers and first-launch guidance.
 ---
 
-Current release **0.7.0**. Use the r2 installers.
+Current release **0.7.0**. Use the r3 installers.
 
-| OS | File | SHA-256 |
-|---|---|---|
-| Windows 10/11 x64 | `MathTutor-0.7.0-win-x64-r2.exe` | `5f8246456f26069b81b2bc0265ee71a75ce9550d4b312420345a05d5a9e2a4ec` |
-| macOS Apple Silicon | `MathTutor-0.7.0-mac-arm64-r2.dmg` | `b12cc6983eb45f52ca9d7f0ccf167f4764b1fbec8ad11af0108362c9b408642f` |
+| OS | File |
+|---|---|
+| Windows 10/11 x64 | `MathTutor-0.7.0-win-x64-r3.exe` |
+| macOS Apple Silicon | `MathTutor-0.7.0-mac-arm64-r3.dmg` |
 
 Release page: [v0.7.0 Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)
 
 ## Windows
 
-1. Download the EXE and check `SHA256SUMS-0.7.0-win-r2.txt`.
+1. Download the Windows EXE installer.
 2. Run the installer. SmartScreen may appear because the file is not Authenticode-signed.
 3. You do not install Python or Node separately.
 
 ## macOS
 
-The original Mac build was withdrawn for incomplete resource signatures. Use r2. r2 is fully ad-hoc signed locally, **without Developer ID and without notarization**. Gatekeeper rejects it by default.
+The original Mac build was withdrawn for incomplete resource signatures. Use r3. r3 is fully ad-hoc signed locally, **without Developer ID and without notarization**. Gatekeeper rejects it by default.
 
-Follow [docs/MACOS_INSTALLATION.md](https://github.com/coscatld/MathTutor/blob/main/docs/MACOS_INSTALLATION.md): verify SHA-256, drag the app into Applications, and allow it under Privacy & Security if asked.
+Follow [docs/MACOS_INSTALLATION.md](https://github.com/coscatld/MathTutor/blob/main/docs/MACOS_INSTALLATION.md): drag the app into Applications, and allow it under Privacy & Security if asked.
 
 ## Linux
 

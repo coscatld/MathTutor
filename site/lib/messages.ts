@@ -46,7 +46,7 @@ export const messages = {
     ],
     screenshotCaption: '真实 0.7.x 产品界面截图，不是示意稿。',
     ctaTitle: '从安装包或源码开始',
-    ctaBody: 'Windows x64 与 macOS Apple Silicon 提供 0.7.0 r2 安装包。开发者可按文档在本地运行 Python 服务与 Next.js 工作台。',
+    ctaBody: 'Windows x64 与 macOS Apple Silicon 提供 0.7.0 r3 安装包。开发者可按文档在本地运行 Python 服务与 Next.js 工作台。',
     footer: {
       license: 'Apache-2.0',
       deeptutor: '在 DeepTutor 基础上二次开发，保留上游 Apache-2.0 与 HKU Data Intelligence Lab 版权声明。',
@@ -58,15 +58,14 @@ export const messages = {
     },
     downloadPage: {
       title: '下载 MathTutor',
-      intro: '当前正式版本 0.7.0。请使用 r2 安装包，并用发布页提供的 SHA-256 核对文件。',
-      checksum: 'SHA-256',
+      intro: '当前正式版本 0.7.0。请使用修复普通数学提问报错的 r3 安装包。',
       notes: '安装说明',
       releases: 'GitHub Releases',
       macGuide: 'macOS 安装说明',
       linuxTitle: 'Linux',
       unsignedTitle: '签名与公证状态',
       unsignedBody:
-        '两个当前安装包都没有发行证书签名。Mac r2 为本地 ad-hoc 签名且未公证；Windows 可能出现 SmartScreen。这不代表安装包未构建或未做启动验收。',
+        '两个当前安装包都没有发行证书签名。Mac r3 为本地 ad-hoc 签名且未公证；Windows 可能出现 SmartScreen。这不代表安装包未构建或未做启动验收。',
     },
     architecturePage: {
       title: '系统架构',
@@ -132,7 +131,7 @@ export const messages = {
     ],
     screenshotCaption: 'Screenshots from the real 0.7.x app, not mockups.',
     ctaTitle: 'Start from an installer or from source',
-    ctaBody: '0.7.0 r2 installers are published for Windows x64 and macOS Apple Silicon. Developers can run the Python service and Next.js workbench locally.',
+    ctaBody: '0.7.0 r3 installers are published for Windows x64 and macOS Apple Silicon. Developers can run the Python service and Next.js workbench locally.',
     footer: {
       license: 'Apache-2.0',
       deeptutor: 'Derived from DeepTutor. Upstream Apache-2.0 and the HKU Data Intelligence Lab copyright notice are preserved.',
@@ -144,15 +143,14 @@ export const messages = {
     },
     downloadPage: {
       title: 'Download MathTutor',
-      intro: 'Current release: 0.7.0. Use the r2 installers and verify SHA-256 against the published checksum files.',
-      checksum: 'SHA-256',
+      intro: 'Current release: 0.7.0. Use the r3 installers, which fix failures on ordinary math questions.',
       notes: 'Install notes',
       releases: 'GitHub Releases',
       macGuide: 'macOS install guide',
       linuxTitle: 'Linux',
       unsignedTitle: 'Signing status',
       unsignedBody:
-        'Neither current installer uses a release certificate. The Mac r2 build is locally ad-hoc signed and not notarized; Windows may show SmartScreen. That is separate from build and launch verification.',
+        'Neither current installer uses a release certificate. The Mac r3 build is locally ad-hoc signed and not notarized; Windows may show SmartScreen. That is separate from build and launch verification.',
     },
     architecturePage: {
       title: 'Architecture',

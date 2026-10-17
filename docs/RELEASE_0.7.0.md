@@ -2,6 +2,20 @@
 
 正式名称：**MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统**。
 
+## 2026-10-17 r3：普通数学提问与失败提示修复
+
+两个平台的当前下载为 [Mac Apple Silicon DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg)和 [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe)，应用版本仍为 **0.7.0**。均来自修复提交 `d4ad9a08362c1d23f14240669c669bd455d755b0`；原 v0.7.0 标签保持不变。
+
+普通数学问题曾被无关的作图说明和工具定义占满内部预算，请求在模型调用前就失败，随后却显示“结构化求解器不支持”的兜底文案。r3 按当前问题决定是否提供作图工具，精简与原生 schema 重复的说明，保留调用、长度、数学核验和插件授权限制；模型、超时和长度失败会明确提示，不伪装成已完成回答。
+
+- 本地相关回归测试 250 项通过，涵盖原始集合题、图形、会话资料、记忆、图片、工具预算、失败状态与重放；使用本地传输桩，没有付费模型调用。
+- Mac 使用安装包内 Python 与源代码，在独立临时数据目录复现集合题、真实画布工具、请求重放、服务失败提示和新请求重试，5 项通过；应用和只读 DMG 业务流程分别 17/17，无模型配置 9/9，可写中文目录启动及运行后验签通过。
+- [Windows 构建与实际安装验收](https://github.com/coscatld/MathTutor/actions/runs/39044624636)覆盖中文路径全新安装、重启、023 + 024 迁移恢复、未知迁移拒绝，以及随附 Python/TypeScript 插件执行与幂等重放。[三平台源码 CI](https://github.com/coscatld/MathTutor/actions/runs/39044625096)对应同一修复提交，发布前核对其最终结果。
+- Mac 仍无 Developer ID、未公证，Gatekeeper 默认拒绝；按 [Mac 安装说明](MACOS_INSTALLATION.md)核验并明确允许。Windows 仍无 Authenticode 发行证书签名。
+- 无新增数据库迁移、无历史基准重评、无模型质量得分变更。r2 文件保留作历史追溯，下方早期记录对应各自当时的产物。
+
+发布页提供 [Mac 分项验收](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/macos-r3-verification.json)与 [Windows 分项验收](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/windows-r3-verification.json)。官网的下载卡片与中英文安装文档均使用 r3，简化了文件摘要展示。
+
 ## 2026-10-17 Windows r2 安装包
 
 Windows 请下载 [`MathTutor-0.7.0-win-x64-r2.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r2.exe)，应用版本仍为 0.7.0。来自源码 `90d8a04` 的新构建，包含知识库“社区资源”快捷入口与导入说明的删除、左右空态卡片对齐，以及随包运行时缓存写入修复。

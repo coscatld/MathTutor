@@ -1,24 +1,24 @@
 # macOS 安装与首次打开
 
-适用于 Apple Silicon（M 系列芯片）Mac。请从 [0.7.0 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)下载 `MathTutor-0.7.0-mac-arm64-r2.dmg`。r2 是 Mac 打包修订，应用版本仍为 0.7.0。
+适用于 Apple Silicon（M 系列芯片）Mac。请从 [0.7.0 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)下载 `MathTutor-0.7.0-mac-arm64-r3.dmg`。r3 是 Mac 打包修订，应用版本仍为 0.7.0。
 
 ## 为什么旧包显示“已损坏”
 
-原始 `MathTutor-0.7.0-mac-arm64.dmg` 的磁盘镜像 CRC 和 SHA-256 正确，但应用只有 Electron 可执行文件遗留的 linker ad-hoc 签名，没有完整资源封印。实际检查报 `code has no resources but signature indicates they must be present`。此前直接执行应用的业务测试没有发现这一分发缺陷。原始包已标记为撤回使用，请重新下载 r2。
+原始 `MathTutor-0.7.0-mac-arm64.dmg` 的磁盘镜像 CRC 和 SHA-256 正确，但应用只有 Electron 可执行文件遗留的 linker ad-hoc 签名，没有完整资源封印。实际检查报 `code has no resources but signature indicates they must be present`。此前直接执行应用的业务测试没有发现这一分发缺陷。原始包已标记为撤回使用，请重新下载 r3。
 
-r2 对随附 Python、原生模块及 Electron 应用由内向外签名，并检查最终只读 DMG 内的应用与原生文件。签名完整性通过不等于苹果认证：目前没有 Developer ID 证书和公证凭据，Gatekeeper 的默认分发评估仍拒绝此本地 ad-hoc 签名包。
+r3 延续完整签名并修复普通数学提问失败的问题，对随附 Python、原生模块及 Electron 应用由内向外签名，并检查最终只读 DMG 内的应用与原生文件。签名完整性通过不等于苹果认证：目前没有 Developer ID 证书和公证凭据，Gatekeeper 的默认分发评估仍拒绝此本地 ad-hoc 签名包。
 
 ## 安装
 
-1. 下载 r2 DMG，按发布页 `SHA256SUMS-0.7.0-mac-r2.txt` 核对文件。
+1. 下载 r3 DMG，按发布页 `SHA256SUMS-0.7.0-mac-r3.txt` 核对文件。
 2. 打开 DMG，把 `MathTutor.app` 拖入“应用程序”。替换旧应用前退出它；不用删除学习数据。
 3. 双击应用。如果系统阻止，在“系统设置 → 隐私与安全性”查看是否提供“仍要打开”，由你确认允许。
 
 系统未提供允许按钮时，只有在你核对了下载摘要、信任本项目代码的前提下，才使用下面的单应用处理。它移除 **MathTutor 这一个应用**的下载隔离属性，不关闭系统 Gatekeeper，不修复其他来源的损坏软件：
 
 ```sh
-# 先核对 DMG，结果必须与发布页 r2 校验文件一致。
-shasum -a 256 "$HOME/Downloads/MathTutor-0.7.0-mac-arm64-r2.dmg"
+# 先核对 DMG，结果必须与发布页 r3 校验文件一致。
+shasum -a 256 "$HOME/Downloads/MathTutor-0.7.0-mac-arm64-r3.dmg"
 # 安装后验证资源签名；此命令失败时停止，不执行后面的命令。
 codesign --verify --deep --strict --verbose=2 /Applications/MathTutor.app
 ```

@@ -43,12 +43,6 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
                 {locale === 'zh' ? '下载' : 'Download'}
               </a>
               <p className="mt-4 text-sm leading-7">{locale === 'zh' ? asset.notes : asset.notesEn}</p>
-              <p className="mt-3 break-all font-mono text-xs text-[var(--mt-muted)]">
-                {copy.checksum}: {asset.sha256}
-              </p>
-              <a href={asset.sha256File} className="mt-2 inline-block text-sm underline">
-                {locale === 'zh' ? '校验文件' : 'Checksum file'}
-              </a>
             </article>
           );
         })}
