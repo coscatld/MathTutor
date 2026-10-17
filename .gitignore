@@ -24,6 +24,8 @@ data/
 node_modules/
 .next/
 .next-mathtutor/
+site/out/
+site/.source/
 coverage/
 test-results/
 *.tsbuildinfo

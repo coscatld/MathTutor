@@ -1,6 +1,10 @@
 # MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统
 
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/badge/Release-v0.7.0-blue.svg)](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Benchmarks-yellow.svg)](https://huggingface.co/datasets/coscatld/mathtutor)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/coscatld/MathTutor)](https://github.com/coscatld/MathTutor/releases) [![CI](https://img.shields.io/github/actions/workflow/status/coscatld/MathTutor/cross-platform.yml?branch=main&label=CI)](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml) [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Benchmarks-yellow.svg)](https://huggingface.co/datasets/coscatld/mathtutor)
+
+**官网（GitHub Pages，需维护者启用后才会上线）：** [https://coscatld.github.io/MathTutor/](https://coscatld.github.io/MathTutor/) · [中文](https://coscatld.github.io/MathTutor/zh/) · [English](https://coscatld.github.io/MathTutor/en/) · [Docs](https://coscatld.github.io/MathTutor/zh/docs/) · [Download](https://coscatld.github.io/MathTutor/zh/download/)
+
+站点源码在 [`site/`](site/)。在 Pages 工作流完成首次发布前，请以本 README 和 [Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) 为准，不要把上述 URL 当成已经可访问。
 
 **面向小学至高中的本地数学辅导系统，连接学习过程、可追溯资料与有明确边界的解题核验。**
 
@@ -23,6 +27,10 @@ MathTutor 把题目解析、受限求解与验证、分级提示、作答证据�
 ## 项目定位
 
 MathTutor 面向希望“学会过程”而不只是“拿到答案”的学生，也面向需要检查资料来源、教学行为和学习依据的家长、教师与开发者。它由 Electron 桌面壳、Next.js 前端和 Python 产品服务组成，运行与打包不依赖 DeepTutor 源码仓库。
+
+## 与 DeepTutor 的关系
+
+MathTutor 是在 [DeepTutor](https://github.com/HKUDS/DeepTutor) 数学辅导能力上的二次开发与独立抽取：教学闭环、学习证据、本地核验和桌面分发在本仓库继续演进，运行时不再导入 `deeptutor` 包。许可证仍为 Apache-2.0，版权页保留 **Copyright 2025 Data Intelligence Lab, The University of Hong Kong**。第三方概念与 DKT 权重说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ```mermaid
 flowchart LR

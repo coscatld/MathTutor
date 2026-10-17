@@ -1,0 +1,17 @@
+---
+title: Learning Evidence
+description: How independent, assisted, and after-reveal attempts are stored, and what DKT actually does.
+---
+
+The learning profile is built from server-recorded attempts.
+
+- **Independent**: verified results before hints, the full solution, or that item’s graph help.
+- **Assisted**: attempts after a hint, explanation, example, or that item’s graph.
+- **After-reveal**: attempts after the full solution is shown.
+- **Self-report**: reading, bookmarking, or “I get it” is not mastery.
+
+`LearningEvidence` is append-only and idempotent. UNDETERMINED results yield no evidence. Deleting evidence updates the projection.
+
+## DKT
+
+The product profile uses `evidence_tracker_v2`. DKT is a separate predictor trained on ASSISTments 2009 skill-builder weights, not MathTutor student logs. It may shift the next step or practice difficulty by at most one notch, and only with a skill mapping plus independent history. Set `MATHTUTOR_DKT_TEACHING=off` to disable it. This is not a classroom-effect claim.

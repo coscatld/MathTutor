@@ -1,0 +1,15 @@
+{
+  "title": "Developer guide",
+  "pages": [
+    "architecture",
+    "development-setup",
+    "api-websocket",
+    "math-solver",
+    "teaching-state-machine",
+    "evidence-dkt",
+    "retrieval-rag",
+    "testing-evaluation",
+    "desktop-packaging",
+    "contributing"
+  ]
+}

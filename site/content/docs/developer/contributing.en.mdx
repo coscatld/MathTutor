@@ -1,0 +1,24 @@
+---
+title: Contributing
+description: Branch names, tests, docs translation, and question-pack / plugin contributions.
+---
+
+The canonical guide is [CONTRIBUTING.md](https://github.com/coscatld/MathTutor/blob/main/CONTRIBUTING.md).
+
+## Minimum path
+
+1. Read the README plus plugin and question-pack docs.
+2. Branch from `feat/`, `fix/`, `docs/`, or `test/`.
+3. Run commands that already exist in the repo.
+4. Open a Pull Request with `.github/PULL_REQUEST_TEMPLATE.md`.
+
+## Docs and this site
+
+- Product engineering notes stay in `docs/`.
+- Website and published Docs sources live in `site/`.
+- Translations: add `*.en.mdx` next to the default Chinese page (or update the English page). Keep the slug. Do not ship empty English pages.
+- Build: `cd site && npm ci && npm run build && npm run verify:export`
+
+## Packs and plugins
+
+Question packs use `mathtutor.question-pack.v1`. Plugins use `mathtutor.community-plugin.v1` / `mathtutor.code-plugin.v1`. Author answers are not automatic verification. Code plugins are not an OS sandbox.

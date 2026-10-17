@@ -1,0 +1,33 @@
+---
+title: 架构概览
+description: 进程边界、教学闭环和模块职责。
+---
+
+```text
+Student UI (Next.js)
+  → Controller / Teaching State
+  → Math Solver & Verifier
+  → Learning Evidence
+  → Student Model
+  → Practice Recommendation
+  → Next Learning Cycle
+```
+
+## 进程
+
+| 进程 | 职责 |
+|---|---|
+| Electron | 启动 loopback 服务、原生文件选择、沙箱渲染器。不保存 API Key。 |
+| Next.js `web/` | 学生工作台。本官网 `site/` 与它隔离。 |
+| FastAPI `src/mathtutor` | 教学、核验、检索、证据、桌面 API。 |
+| Verifier Worker | 独立进程做确定性核验。 |
+
+## 职责分离
+
+- **LLM**：语言表达。
+- **Verifier**：支持范围内的数学核验。
+- **State Machine**：教学状态与披露许可。
+- **evidence_tracker_v2**：学习证据与画像。
+- **DKT**：独立预测管道，默认不接管策略。
+
+权威说明见 `docs/standalone/STANDALONE_ARCHITECTURE.md` 与 `docs/OPEN_SOURCE_REPOSITORY_MAP.md`。

@@ -1,0 +1,16 @@
+---
+title: 测试与评测
+description: 仓库已有的检查入口和评测口径，避免把回归分数写成课堂效果。
+---
+
+## 工程检查
+
+- `python scripts/check.py`：后端测试、Web 测试、前端生产构建、桌面源码契约
+- `.github/workflows/cross-platform.yml`：Ubuntu / macOS / Windows
+- 多轮辅导评测：`scripts/tutor_multiturn_eval.py`，说明见 `docs/eval/TUTOR_MULTITURN_EVAL.md`
+
+## 评测如何读
+
+README 中的检索指标、K12 内部基准和四套开源基准，都写明了样本、版本和限制。它们比较的是本项目链路或固定样本上的回归，**不是**与 ChatGPT / Khanmigo 的同题公开对比，也不是真实课堂实验。
+
+`PROVISIONAL_AI` 表示 AI 初审。`learning_effect_verified=false` 出现在 DKT 评估报告中时，必须原样保留。

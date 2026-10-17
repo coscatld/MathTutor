@@ -1,0 +1,41 @@
+name: Documentation improvement
+description: 文档、官网或翻译问题（不要上传用户个人数据）
+title: '[Docs] '
+labels: ['documentation']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        说明文档哪里不准确或缺失。请引用仓库路径或官网路径，不要粘贴学生作答、密钥或私人资料。
+  - type: dropdown
+    id: area
+    attributes:
+      label: 文档位置
+      options:
+        - 用户指南
+        - 开发者指南
+        - README / 发布说明
+        - 官网页面
+        - 翻译（中/英）
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: path
+    attributes:
+      label: 路径或 URL
+      placeholder: 'site/content/docs/user/installation.mdx 或 /zh/docs/user/installation/'
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: 现在怎么写 / 缺了什么
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 建议改成什么（需能指向代码或现有报告）
+    validations:
+      required: true

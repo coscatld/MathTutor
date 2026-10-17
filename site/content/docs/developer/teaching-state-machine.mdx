@@ -1,0 +1,23 @@
+---
+title: 教学状态机
+description: CycleState、命令与 L0–L5 披露。
+---
+
+`application/state_machine.py` 定义一个主问题对应一个辅导循环。每次转移 `new_version == prior_version + 1`，并记录触发命令。
+
+主要状态包括：`problem_received`、`grounding`、`awaiting_attempt`、`hinted`、`explaining`、`diagnosing`、`solved`、`solution_shown`、`practice_offered`、`unsupported`、`closed`。
+
+用户命令包括 `submit_problem`、`submit_attempt`、`request_hint`、`request_explanation`、`accept_practice_offer` 等。
+
+`pedagogy/disclosure.py`：
+
+| 等级 | 写作者可见 |
+|---|---|
+| L0 | 无解相关内容 |
+| L1 | 概念提示 |
+| L2 | 策略方向 |
+| L3 | 经批准的下一步 |
+| L4 | 步骤前缀 |
+| L5 | 完整核验解 |
+
+这是数据边界，不是提示词里的“请不要泄露答案”。

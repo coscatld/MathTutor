@@ -1,0 +1,15 @@
+{
+  "title": "开发者指南",
+  "pages": [
+    "architecture",
+    "development-setup",
+    "api-websocket",
+    "math-solver",
+    "teaching-state-machine",
+    "evidence-dkt",
+    "retrieval-rag",
+    "testing-evaluation",
+    "desktop-packaging",
+    "contributing"
+  ]
+}

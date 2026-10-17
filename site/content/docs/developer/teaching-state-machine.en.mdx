@@ -1,0 +1,23 @@
+---
+title: Teaching State Machine
+description: CycleState, commands, and L0–L5 disclosure.
+---
+
+`application/state_machine.py` owns one tutoring cycle per main problem. Each transition requires `new_version == prior_version + 1` and records the trigger command.
+
+States include `problem_received`, `grounding`, `awaiting_attempt`, `hinted`, `explaining`, `diagnosing`, `solved`, `solution_shown`, `practice_offered`, `unsupported`, and `closed`.
+
+User commands include `submit_problem`, `submit_attempt`, `request_hint`, `request_explanation`, and `accept_practice_offer`.
+
+`pedagogy/disclosure.py`:
+
+| Level | Writer sees |
+|---|---|
+| L0 | nothing solution-related |
+| L1 | concept hint |
+| L2 | strategy |
+| L3 | one approved next step |
+| L4 | approved prefix |
+| L5 | full verified solution |
+
+This is a data boundary, not a “please do not leak” prompt.

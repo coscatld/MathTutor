@@ -1,0 +1,15 @@
+---
+title: Model Configuration
+description: OpenAI-compatible endpoints or local Ollama, and where keys are stored.
+---
+
+In Settings, set **API Base URL, model name, and API key**. Keys go to `SecretStore`: Keychain on macOS, Credential Manager on Windows. Do not paste keys into the repo, chat logs, or issues.
+
+## Boundaries
+
+- No model: local solve, verify, template tutoring, imports, and learning records still work.
+- Configured model: explanations, synthesis, and tool calls go through `GenerativeModelGateway` (OpenAI-compatible HTTP or Ollama).
+- Vision: images are sent only when the current model is classified as vision-capable. Listed OpenAI models and Ollama models whose `/api/show` includes `vision` qualify. DeepSeek, Moonshot, and Custom currently return false.
+- Budget: optional daily cost or token caps, using prices you enter. After the cap, the day falls back to local templates.
+
+Providers are replaceable. The product does not hard-require one vendor.

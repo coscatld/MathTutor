@@ -1,0 +1,21 @@
+---
+title: 检索与 RAG
+description: 生产检索核、embedding 默认关闭，以及未接线的实验模块。
+---
+
+生产检索核（`docs/CURRENT_STATE_RAG_AUDIT.md`）：
+
+```text
+DocumentIndexManager.search
+  → repo.search_chunks
+    → FTS5 bm25
+    → optional cosine fusion
+```
+
+权限与 owner 过滤发生在评分之前。引用绑定资料版本、字符区间、正文哈希和读取凭证。
+
+默认 **没有** 随安装包分发的 embedding 模型。用户可在设置中从 ModelScope 下载 `bge-small-zh-v1.5`，或配置 OpenAI 兼容向量接口。sqlite-vec 是可选适配器。
+
+审计结论：名为 `MetadataFirstRetriever` / `LexicalScoreReranker` 的部分模块在生产 `src/mathtutor/api` 与服务层零引用，只出现在评测脚本和测试中。不要把它们写成默认生产路径。
+
+没有 OCR 引擎。

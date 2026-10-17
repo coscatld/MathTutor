@@ -1,0 +1,15 @@
+---
+title: 模型配置
+description: 如何配置 OpenAI 兼容接口或本机 Ollama，以及密钥存放位置。
+---
+
+在设置中填写 **API Base URL、模型名、API Key**。应用通过 `SecretStore` 保存密钥：macOS 使用 Keychain，Windows 使用 Credential Manager。不要把密钥写入仓库、聊天记录或 Issue。
+
+## 能力边界
+
+- 未配置模型：本地求解、验证、模板教学、资料导入与学习记录可用。
+- 已配置模型：讲解、综合与工具调用走 `GenerativeModelGateway` 的 OpenAI 兼容 HTTP 或 Ollama。
+- 视觉：仅当当前模型被判定具备 vision 时发送图片。OpenAI 清单内模型与 Ollama `/api/show` 含 `vision` 的模型可用；DeepSeek、Moonshot、Custom 当前返回 false。
+- 预算：可按自填单价设置每日费用或 token 上限，超出后当天改用本地模板。
+
+模型可以替换。产品不把某一家模型写成唯一后端。

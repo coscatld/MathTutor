@@ -1,0 +1,21 @@
+---
+title: API 与 WebSocket
+description: 产品 HTTP API 与辅导 WebSocket 的实际入口，不编造未读到的接口。
+---
+
+学生工作台通过本机 HTTP 与 WebSocket 与 FastAPI 通信。入口在 `src/mathtutor/api/`。
+
+| 模块 | 作用 |
+|---|---|
+| `product_app.py` | 组装独立产品应用 |
+| `math_tutor_ws.py` | 辅导 WebSocket |
+| `math_tutor_read.py` | 读路径 |
+| `event_stream.py` | 事件流 |
+| `desktop_api.py` | 桌面资料、备份、设置 |
+| `knowledge_api.py` / `learning_profile_api.py` | 知识库与学情 |
+| `image_api.py` | 本机图片附件 |
+| `community_plugins_api.py` | 社区插件 |
+
+前端 `web/lib/api.ts` 与会话 hook 把用户操作变成 WS 命令。客户端命令带 `expected_cycle_version`（CAS），过期版本会被拒绝。
+
+本站点是静态导出，**没有**把这些 API 暴露到 GitHub Pages。

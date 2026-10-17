@@ -1,0 +1,18 @@
+---
+title: EvidenceTracker 与 DKT
+description: 生产画像策略、DKT 影子/一档调节，以及不可宣传的内容。
+---
+
+仓库里没有名为 `class EvidenceTracker` 的类型。生产策略字符串是 **`evidence_tracker_v2`**，实现分布在：
+
+- `learning/evidence.py` — 证据工厂
+- `learning/knowledge_tracing/service.py` — `StudentStateService`
+- `learning/knowledge_tracing/events.py` — 事件与基线预测
+
+DKT：
+
+- 运行时 `LSTMTracker` 与可选 SourceModel 包
+- `pedagogy/dkt_policy.py`：仅当 `controls_teaching`、技能可映射、存在目标技能上的独立作答，且概率落在 [0,1] 时，最多调节一档
+- 随包权重：ASSISTments 2009–2010 skill builder 派生数值，不含原始学生行。`THIRD_PARTY_NOTICES.md` 写明派生权重的再分发许可**尚未确认**，按研究用途处理
+
+不要把合成训练、shadow 预测或 ASSISTments 拟合写成 MathTutor 真实教学效果。

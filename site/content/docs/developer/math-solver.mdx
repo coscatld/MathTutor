@@ -1,0 +1,22 @@
+---
+title: 求解器与验证器
+description: 确定性策略覆盖范围、verify_math 与练习发布门。
+---
+
+`src/mathtutor/solving/solver.py` 按 `problem_type` 分发：
+
+- `arithmetic`
+- `polynomial`
+- `linear`
+- `quadratic`
+- `linear_system`
+- `linear_inequality`
+- `quadratic_inequality`
+
+没有策略时返回 `unsupported`，不调用 LLM 补一个“看起来像”的证明。
+
+例如一元二次方程 $ax^2 + bx + c = 0$ 在可解析且根可核验时走确定性策略，而不是模型自述。
+
+`application/math_verification.py` 的 `verify_math` 把可解析表达式送入同一求解/验证链。有理系数一元多项式求导走 `bounded_calculus`。核验不写学习事实，也不给散文证明背书。
+
+练习发布见 `application/practice_release.py`：候选练习必须过解析、求解、验证和哈希绑定，才能变成不可变 `ExerciseRelease`。LLM 不参与核验权威。

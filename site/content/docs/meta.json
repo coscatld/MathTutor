@@ -1,0 +1,10 @@
+{
+  "title": "MathTutor",
+  "pages": [
+    "index",
+    "---用户指南---",
+    "user",
+    "---开发者指南---",
+    "developer"
+  ]
+}

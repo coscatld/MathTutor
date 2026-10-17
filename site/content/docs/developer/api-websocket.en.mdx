@@ -1,0 +1,21 @@
+---
+title: API and WebSocket
+description: Real HTTP and tutoring WebSocket entry points. Undocumented handlers are not invented here.
+---
+
+The workbench talks to FastAPI over loopback HTTP and WebSocket. Code lives in `src/mathtutor/api/`.
+
+| Module | Role |
+|---|---|
+| `product_app.py` | Standalone app factory |
+| `math_tutor_ws.py` | Tutoring WebSocket |
+| `math_tutor_read.py` | Read path |
+| `event_stream.py` | Event stream |
+| `desktop_api.py` | Desktop documents, backup, settings |
+| `knowledge_api.py` / `learning_profile_api.py` | Library and profile |
+| `image_api.py` | Local image attachments |
+| `community_plugins_api.py` | Community plugins |
+
+`web/lib/api.ts` and the session hook turn UI actions into WS commands. Client commands carry `expected_cycle_version` (CAS); stale versions are rejected.
+
+This website is a static export and **does not** expose those APIs on GitHub Pages.

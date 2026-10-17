@@ -1,0 +1,21 @@
+---
+title: Retrieval and RAG
+description: The production retrieval kernel, embedding off-by-default, and unwired experiment modules.
+---
+
+Production kernel (`docs/CURRENT_STATE_RAG_AUDIT.md`):
+
+```text
+DocumentIndexManager.search
+  → repo.search_chunks
+    → FTS5 bm25
+    → optional cosine fusion
+```
+
+Owner and permission filters run before scoring. Citations bind version, character range, body hash, and a read receipt.
+
+No embedding model ships in the installer by default. Users may download `bge-small-zh-v1.5` from ModelScope or configure an OpenAI-compatible embedding endpoint. sqlite-vec is an optional adapter.
+
+The audit found `MetadataFirstRetriever` / `LexicalScoreReranker` unwired from production `src/mathtutor/api` and the application service layer; they appear in benchmark scripts and tests. Do not document them as the default path.
+
+There is no OCR engine.

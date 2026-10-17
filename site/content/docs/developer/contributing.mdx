@@ -1,0 +1,24 @@
+---
+title: 贡献指南
+description: 分支约定、测试、文档翻译和题库/插件贡献。
+---
+
+完整说明见仓库根目录 [CONTRIBUTING.md](https://github.com/coscatld/MathTutor/blob/main/CONTRIBUTING.md)。
+
+## 最小流程
+
+1. 阅读 README、插件与题库文档。
+2. 从 `feat/`、`fix/`、`docs/` 或 `test/` 开分支。
+3. 用仓库已有命令测试。
+4. 打开 Pull Request，使用 `.github/PULL_REQUEST_TEMPLATE.md`。
+
+## 文档与本站点
+
+- 产品技术文档仍在 `docs/`。
+- 官网与 Docs 源文件在 `site/`。
+- 翻译：为默认中文页添加 `*.en.mdx`（或更新已有英文页），保持 slug 相同，不要留空白英文页。
+- 构建：`cd site && npm ci && npm run build && npm run verify:export`
+
+## 题库与插件
+
+共享题库 `mathtutor.question-pack.v1`，插件 `mathtutor.community-plugin.v1` / `mathtutor.code-plugin.v1`。参考答案不是自动核验；代码插件不是 OS 沙盒。

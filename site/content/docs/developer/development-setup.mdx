@@ -1,0 +1,40 @@
+---
+title: 开发环境
+description: Python、Node、测试入口，以及不要改动的边界。
+---
+
+## 要求
+
+- Python 建议 3.12，声明 `>=3.11,<3.14`
+- Node.js：源码 CI 使用 20；Windows 打包曾验证 Node 24.19.0
+- 使用仓库锁文件和 `npm ci`
+
+## 安装
+
+```bash
+python -m pip install -e ".[dev]"
+cd web && npm ci
+cd ../desktop && npm ci
+```
+
+可选：`.[embedding]`、`.[pdf-rich]`。
+
+## 检查命令（仓库已有）
+
+```bash
+python scripts/check.py
+python -m pytest tests/test_community_plugins.py tests/test_community_plugins_api.py tests/test_code_plugins.py -q
+cd web && npm run test && npm run build
+```
+
+不要发明不存在的测试命令。官网开发：
+
+```bash
+cd site
+npm ci
+npm run dev   # http://127.0.0.1:3000/MathTutor/
+```
+
+## 硬性边界
+
+不要为了改官网去动 `web/` 路由、Electron 启动逻辑或 Python 求解/教学业务。

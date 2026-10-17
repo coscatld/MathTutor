@@ -1,0 +1,41 @@
+---
+title: Quick Start
+description: Configure a model after install, optional placement items, and what still works offline.
+---
+
+## Installed app
+
+1. Install and open MathTutor.
+2. Configure a provider, model, and API key, or skip.
+3. You may skip the 10-item placement quiz. It is a provisional practice start, not proof of mastery.
+4. Paste or pick a problem, attempt it, then request hints if needed.
+
+Without a cloud model, in-scope local solving, verification, learning records, and template tutoring still run. Generative explanations degrade.
+
+## Browser development mode
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+python -m mathtutor
+```
+
+Second terminal:
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+Backend `http://127.0.0.1:8001`, frontend `http://127.0.0.1:3000`. The loopback single-user flow does not require signup.
+
+## Desktop from source
+
+```bash
+cd web && npm ci && npm run build
+cd ../desktop && npm ci && npm start
+```
+
+The shell uses the repo `.venv` and starts the Python service, verifier worker, and UI.

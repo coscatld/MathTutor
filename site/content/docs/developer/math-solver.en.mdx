@@ -1,0 +1,22 @@
+---
+title: Math Solver and Verifier
+description: Deterministic strategy coverage, verify_math, and the practice release gate.
+---
+
+`src/mathtutor/solving/solver.py` dispatches on `problem_type`:
+
+- `arithmetic`
+- `polynomial`
+- `linear`
+- `quadratic`
+- `linear_system`
+- `linear_inequality`
+- `quadratic_inequality`
+
+Missing strategies return `unsupported`. The LLM is not asked to fake a proof.
+
+A parseable quadratic $ax^2 + bx + c = 0$ uses the deterministic strategy when roots can be checked.
+
+`verify_math` in `application/math_verification.py` sends parseable expressions through the same chain. Rational-coefficient univariate derivatives use `bounded_calculus`. Verification writes no learning facts and does not certify prose.
+
+Practice release (`application/practice_release.py`) requires parse, solve, verify, and hash binding before an immutable `ExerciseRelease`. The LLM is not the verifier of record.

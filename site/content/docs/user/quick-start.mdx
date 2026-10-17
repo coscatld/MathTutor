@@ -1,0 +1,41 @@
+---
+title: 快速开始
+description: 安装后配置模型、可选初评，以及不配置模型时仍能使用的能力。
+---
+
+## 使用安装包
+
+1. 安装并打开 MathTutor。
+2. 首次进入可配置模型服务商、模型名与 API Key，也可以跳过。
+3. 可跳过 10 道选择题初评；初评给出暂定练习起点，不是掌握证明。
+4. 在工作台粘贴或选择题目，先自己作答，再按需请求提示。
+
+未配置云端模型时，受支持的本地求解、验证、学习记录和模板辅导仍可使用；生成式讲解会降级。
+
+## 开发模式（浏览器）
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+python -m mathtutor
+```
+
+另开终端：
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+默认后端 `http://127.0.0.1:8001`，前端 `http://127.0.0.1:3000`。本机 loopback 单用户流程无需注册。
+
+## 源码桌面应用
+
+```bash
+cd web && npm ci && npm run build
+cd ../desktop && npm ci && npm start
+```
+
+桌面壳使用项目根目录 `.venv`，自动启动 Python 服务、Verifier Worker 和前端。

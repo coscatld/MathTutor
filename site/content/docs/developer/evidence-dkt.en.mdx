@@ -1,0 +1,18 @@
+---
+title: EvidenceTracker and DKT
+description: Production profile policy, DKT’s one-notch rule, and claims you must not make.
+---
+
+There is no `class EvidenceTracker`. The production policy string is **`evidence_tracker_v2`**, implemented across:
+
+- `learning/evidence.py` — evidence factory
+- `learning/knowledge_tracing/service.py` — `StudentStateService`
+- `learning/knowledge_tracing/events.py` — events and baseline prediction
+
+DKT:
+
+- Runtime `LSTMTracker` plus an optional source-model package
+- `pedagogy/dkt_policy.py`: at most one notch, and only when `controls_teaching` is set, the skill maps, independent target history exists, and the probability is in [0, 1]
+- Bundled weights: numeric derivatives of ASSISTments 2009–2010 skill builder, with no raw student rows. `THIRD_PARTY_NOTICES.md` records that redistribution terms for derived weights are **not yet confirmed**
+
+Do not describe synthetic training, shadow forecasts, or ASSISTments fit as MathTutor classroom outcomes.

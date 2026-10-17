@@ -1,0 +1,24 @@
+---
+title: Privacy and Data
+description: Where data lives, cloud-model boundaries, backup encryption, and deletion.
+---
+
+## Where data lives
+
+- Desktop: the OS userData directory (on macOS, typically `~/Library/Application Support/MathTutor/`).
+- Source backend: `data/` under the project, overridable with `MATHTUTOR_DATA_ROOT` or `MATHTUTOR_DB_PATH`.
+- API keys: OS credential store, not browser `localStorage`.
+
+## What leaves the machine
+
+If you configure an external model, **the problem, context, and related note spans are sent to that provider**. Local templates or local Ollama keep data on-device.
+
+Community sources do not receive learning records. When you invoke a plugin in the current chat, bounded results are given to the configured model.
+
+## Encryption and backup
+
+SQLCipher whole-database encryption is optional and off by default. Backups are encrypted when the OS secret store is available. Keep the recovery key. Uninstalling the app keeps user data by default.
+
+## Images
+
+Chat images are stored as local SQLite BLOBs. Image discussion is not a verified attempt.

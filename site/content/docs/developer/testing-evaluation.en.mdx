@@ -1,0 +1,16 @@
+---
+title: Testing and Evaluation
+description: Existing check entry points and how to read benchmarks without turning them into classroom claims.
+---
+
+## Engineering checks
+
+- `python scripts/check.py`: backend tests, web tests, production frontend build, desktop source contracts
+- `.github/workflows/cross-platform.yml`: Ubuntu / macOS / Windows
+- Multi-turn tutoring eval: `scripts/tutor_multiturn_eval.py`, see `docs/eval/TUTOR_MULTITURN_EVAL.md`
+
+## How to read scores
+
+Retrieval numbers, the internal K12 set, and the four open benchmarks in the README name their samples, versions, and limits. They compare this project’s pipelines or frozen items. They are **not** a public head-to-head with ChatGPT / Khanmigo, and not a classroom trial.
+
+Keep `PROVISIONAL_AI` as AI-first-pass. If a DKT report says `learning_effect_verified=false`, quote it as-is.

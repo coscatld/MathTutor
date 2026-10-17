@@ -1,0 +1,14 @@
+{
+  "title": "用户指南",
+  "pages": [
+    "introduction",
+    "installation",
+    "quick-start",
+    "model-configuration",
+    "tutoring-workflow",
+    "learning-evidence",
+    "knowledge-base",
+    "privacy",
+    "faq"
+  ]
+}

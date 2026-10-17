@@ -1,0 +1,33 @@
+---
+title: Architecture Overview
+description: Process boundaries, the tutoring loop, and module roles.
+---
+
+```text
+Student UI (Next.js)
+  → Controller / Teaching State
+  → Math Solver & Verifier
+  → Learning Evidence
+  → Student Model
+  → Practice Recommendation
+  → Next Learning Cycle
+```
+
+## Processes
+
+| Process | Role |
+|---|---|
+| Electron | Loopback launch, native file picker, sandboxed renderer. It does not store API keys. |
+| Next.js `web/` | Student workbench. This website `site/` is isolated from it. |
+| FastAPI `src/mathtutor` | Tutoring, verification, retrieval, evidence, desktop APIs. |
+| Verifier Worker | Deterministic checks in a separate process. |
+
+## Separation of duties
+
+- **LLM**: language.
+- **Verifier**: in-scope math checks.
+- **State Machine**: teaching state and disclosure permission.
+- **evidence_tracker_v2**: evidence and profile.
+- **DKT**: a separate predictor; it does not own policy by default.
+
+See `docs/standalone/STANDALONE_ARCHITECTURE.md` and `docs/OPEN_SOURCE_REPOSITORY_MAP.md`.

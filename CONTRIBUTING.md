@@ -44,6 +44,23 @@ npm run build
 
 完整项目回归使用 `python scripts/check.py`，并由 `.github/workflows/cross-platform.yml` 执行跨平台检查。它包含后端和桌面 Python 测试、前端测试、生产构建与桌面源码契约；只有配置了目标 `MATHTUTOR_PYTHON_RUNTIME` 时才检查分发运行时，实际安装包另做目标平台验收。若某条本地测试命令不存在，请在 PR 中说明，并优先遵循仓库现有 CI 和文档，不要修改 CI 以掩盖问题。
 
+## 官网与文档翻译
+
+官网和 Docs 在独立目录 `site/`，不修改 `web/` 教学应用路由。
+
+```bash
+cd site
+npm ci
+npm run dev          # http://127.0.0.1:3000/MathTutor/
+npm run build
+npm run verify:export
+```
+
+- 默认文档是简体中文 `*.mdx`，英文为同 slug 的 `*.en.mdx`。
+- 不要提交空白英文页或指向不存在翻译的链接。
+- 只根据仓库代码和已有报告写文档，不要按模块名补不存在的接口。
+- 部署说明见 [site/DEPLOYMENT.md](site/DEPLOYMENT.md)。GitHub Pages 的正式发布需要维护者确认后再运行 `deploy-site.yml` 的手动部署。
+
 ## 题库贡献
 
 - 共享题库使用 `mathtutor.question-pack.v1`，参考 [题库贡献指引](docs/QUESTION_PACK_CONTRIBUTION.md)。

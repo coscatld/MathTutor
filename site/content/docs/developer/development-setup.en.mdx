@@ -1,0 +1,40 @@
+---
+title: Development Setup
+description: Python, Node, existing test entry points, and boundaries you should not cross.
+---
+
+## Requirements
+
+- Python 3.12 recommended; declared `>=3.11,<3.14`
+- Node.js 20 in source CI; Windows packaging has been verified with Node 24.19.0
+- Use lockfiles and `npm ci`
+
+## Install
+
+```bash
+python -m pip install -e ".[dev]"
+cd web && npm ci
+cd ../desktop && npm ci
+```
+
+Optional extras: `.[embedding]`, `.[pdf-rich]`.
+
+## Existing checks
+
+```bash
+python scripts/check.py
+python -m pytest tests/test_community_plugins.py tests/test_community_plugins_api.py tests/test_code_plugins.py -q
+cd web && npm run test && npm run build
+```
+
+Do not invent commands that are not in the repo. Website:
+
+```bash
+cd site
+npm ci
+npm run dev   # http://127.0.0.1:3000/MathTutor/
+```
+
+## Hard boundary
+
+Do not change `web/` routes, Electron startup, or Python solving/teaching code to ship this website.
