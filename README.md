@@ -2,9 +2,9 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/coscatld/MathTutor)](https://github.com/coscatld/MathTutor/releases) [![CI](https://img.shields.io/github/actions/workflow/status/coscatld/MathTutor/cross-platform.yml?branch=main&label=CI)](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml) [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Benchmarks-yellow.svg)](https://huggingface.co/datasets/coscatld/mathtutor)
 
-**官网（GitHub Pages，需维护者启用后才会上线）：** [https://coscatld.github.io/MathTutor/](https://coscatld.github.io/MathTutor/) · [中文](https://coscatld.github.io/MathTutor/zh/) · [English](https://coscatld.github.io/MathTutor/en/) · [Docs](https://coscatld.github.io/MathTutor/zh/docs/) · [Download](https://coscatld.github.io/MathTutor/zh/download/)
+**官网：** [https://coscatld.github.io/MathTutor/](https://coscatld.github.io/MathTutor/) · [中文](https://coscatld.github.io/MathTutor/zh/) · [English](https://coscatld.github.io/MathTutor/en/) · [Docs](https://coscatld.github.io/MathTutor/zh/docs/) · [Download](https://coscatld.github.io/MathTutor/zh/download/)
 
-站点源码在 [`site/`](site/)。在 Pages 工作流完成首次发布前，请以本 README 和 [Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) 为准，不要把上述 URL 当成已经可访问。
+站点源码在 [`site/`](site/)，由 GitHub Actions 静态发布到 GitHub Pages。
 
 **面向小学至高中的本地数学辅导系统，连接学习过程、可追溯资料与有明确边界的解题核验。**
 

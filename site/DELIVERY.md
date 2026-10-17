@@ -125,9 +125,11 @@ cd site && npm ci && npm run build && npm run typecheck && npm run verify:export
 
 ## 10. 实际部署状态
 
-**NOT DEPLOYED**
+**DEPLOYED**（2026-10-17）
 
-未运行 `workflow_dispatch` 的 `deploy=true`，未改仓库 Pages 设置为 GitHub Actions，未覆盖任何现有站点。
+- 提交 `d9427b0` 已推送到 `main`
+- 工作流 https://github.com/coscatld/MathTutor/actions/runs/39043343749 成功
+- 线上抽查 https://coscatld.github.io/MathTutor/zh/ 及 Docs、下载、CSS/JS 返回 200
 
 ## 11. 已知问题与限制
 

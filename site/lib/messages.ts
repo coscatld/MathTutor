@@ -50,7 +50,7 @@ export const messages = {
     footer: {
       license: 'Apache-2.0',
       deeptutor: '在 DeepTutor 基础上二次开发，保留上游 Apache-2.0 与 HKU Data Intelligence Lab 版权声明。',
-      notLive: 'GitHub Pages 站点在仓库启用 Pages 并完成首次发布前尚未上线。',
+      notLive: '官网托管在 GitHub Pages。',
     },
     featuresPage: {
       title: '功能与边界',
@@ -136,7 +136,7 @@ export const messages = {
     footer: {
       license: 'Apache-2.0',
       deeptutor: 'Derived from DeepTutor. Upstream Apache-2.0 and the HKU Data Intelligence Lab copyright notice are preserved.',
-      notLive: 'The GitHub Pages site is not live until Pages is enabled and the first release is approved.',
+      notLive: 'The website is hosted on GitHub Pages.',
     },
     featuresPage: {
       title: 'Features and limits',

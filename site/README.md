@@ -11,4 +11,4 @@ npm run build    # 输出 site/out/
 npm run verify:export
 ```
 
-配置说明见 [DEPLOYMENT.md](DEPLOYMENT.md)。在维护者启用 GitHub Pages 并批准首次发布前，站点未上线。
+配置说明见 [DEPLOYMENT.md](DEPLOYMENT.md)。当前发布地址：https://coscatld.github.io/MathTutor/
