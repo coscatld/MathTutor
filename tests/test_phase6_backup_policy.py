@@ -398,7 +398,8 @@ async def test_restore_verified_rejects_active_wal_target(migrated_db, tmp_path)
 # ------------------------------------------- concurrent WAL workload
 
 
-async def test_backup_during_wal_workload_no_tear(tmp_path):
+@pytest.mark.parametrize("writer_delay", [0.0, 0.2])
+async def test_backup_during_wal_workload_no_tear(tmp_path, writer_delay):
     """VACUUM INTO 时并发写不撕裂（spec 5.9）：线程持续写入 + 备份 +
     integrity_check ok；快照是某个时刻的 committed 前缀。"""
     from mathtutor.infrastructure import create_db_engine
@@ -408,22 +409,30 @@ async def test_backup_during_wal_workload_no_tear(tmp_path):
     upgrade_db(str(db_file))
     engine = create_db_engine(db_file)
 
+    first_commit = threading.Event()
+
     def _writer(db_path, stop, counter):
+        # Exercise scheduling slower than the former 50 ms startup guess.
+        stop.wait(writer_delay)
         conn = sqlite3.connect(str(db_path), timeout=5.0)
-        conn.execute("PRAGMA journal_mode=WAL")
         i = 0
         try:
+            conn.execute("PRAGMA journal_mode=WAL")
             while not stop.is_set():
-                i += 1
+                next_row = i + 1
                 conn.execute(
                     "INSERT INTO users (user_id, username, role, created_at) "
                     "VALUES (?, ?, ?, '2026-08-20T00:00:00+00:00')",
-                    (f"w-{i}", f"writer-{i}", "student"),
+                    (f"w-{next_row}", f"writer-{next_row}", "student"),
                 )
                 conn.commit()
+                i = next_row  # Count committed rows only.
+                first_commit.set()
+        except Exception as exc:
+            counter["error"] = repr(exc)
         finally:
             conn.close()
-        counter["rows"] = i
+            counter["rows"] = i
 
     stop = threading.Event()
     counter: dict = {}
@@ -431,27 +440,37 @@ async def test_backup_during_wal_workload_no_tear(tmp_path):
         target=_writer, args=(db_file, stop, counter), daemon=True
     )
     thread.start()
-    await asyncio.sleep(0.05)  # 让写入跑起来
-
-    service = BackupService(engine)
-    backup = tmp_path / "workload-backup.db"
-    manifest = await service.create_backup(backup)  # 并发写期间的快照
-    stop.set()
-    thread.join(timeout=5.0)
-    assert not thread.is_alive()
-    assert counter.get("rows", 0) > 0
-
-    ok, detail = BackupService.verify_backup(backup, manifest)
-    assert ok, detail
-    from mathtutor.infrastructure import db_crypto
-    conn = db_crypto.connect(backup, key=db_crypto.key_for_file(backup))  # backups are encrypted
     try:
-        rows = conn.execute("select count(*) from users").fetchone()[0]
+        try:
+            assert await asyncio.to_thread(first_commit.wait, 10.0), (
+                f"writer did not commit its first row: {counter}"
+            )
+            assert thread.is_alive(), "writer stopped before the concurrent snapshot"
+            service = BackupService(engine)
+            backup = tmp_path / "workload-backup.db"
+            manifest = await service.create_backup(backup)
+        finally:
+            stop.set()
+            await asyncio.to_thread(thread.join, 5.0)
+        assert not thread.is_alive()
+        assert "error" not in counter, counter.get("error")
+        assert counter.get("rows", 0) > 0
+
+        ok, detail = BackupService.verify_backup(backup, manifest)
+        assert ok, detail
+        from mathtutor.infrastructure import db_crypto
+        conn = db_crypto.connect(backup, key=db_crypto.key_for_file(backup))
+        try:
+            records = conn.execute("select user_id, username from users").fetchall()
+        finally:
+            conn.close()
+        rows = len(records)
+        # Keep the original nonempty/committed upper bound, and verify the
+        # entire committed prefix rather than only the number of rows.
+        assert 1 <= rows <= counter["rows"]
+        assert set(records) == {(f"w-{i}", f"writer-{i}") for i in range(1, rows + 1)}
     finally:
-        conn.close()
-    # 一致快照：包含已提交行，且不超过总写入数（无撕裂/无重复）。
-    assert 1 <= rows <= counter["rows"]
-    await engine.dispose()
+        await engine.dispose()
 
 
 # --------------------------------------------------- assert_engine_idle
