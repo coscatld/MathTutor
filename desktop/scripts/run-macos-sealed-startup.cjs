@@ -2,7 +2,7 @@
 
 // Exercise a writable installed copy, without inherited Python flags. A
 // readonly DMG alone cannot reveal caches that corrupt a resource seal.
-const { execFileSync, spawn } = require("node:child_process");
+const { execFileSync, spawn, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
@@ -84,6 +84,10 @@ async function main() {
       paid_model_calls: 0,
     }, null, 2) + "\n");
     process.stdout.write(`SEALED_STARTUP=PASS; report=${reportFile}\n`);
+  } catch (error) {
+    const diagnosis = spawnSync("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app], { encoding: "utf8" });
+    fs.writeFileSync(`${reportFile}.failure.log`, JSON.stringify(checks) + "\n" + diagnosis.stderr);
+    throw error;
   } finally {
     if (server && server.exitCode === null) {
       await new Promise(resolve => {

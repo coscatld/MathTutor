@@ -594,7 +594,7 @@ async function waitForProcessesGone(pids, timeoutMs = 10000) {
 function releaseJsonProbe(python, smokeDir, backendEnv, operation, args = []) {
   const result = spawnSync(
     python.python,
-    ["-m", "mathtutor.release_probe", operation, ...args],
+    ["-B", "-m", "mathtutor.release_probe", operation, ...args],
     {
     cwd: IS_PACKAGED ? smokeDir : path.resolve(DESKTOP_DIR, ".."),
     env: { ...process.env, ...backendEnv },
@@ -834,6 +834,7 @@ async function runSmokeFull() {
     MATHTUTOR_ENVIRONMENT: "test",
     PYTHONPATH: IS_PACKAGED ? path.join(RESOURCES_DIR, "python-app") : process.env.PYTHONPATH,
     PYTHONNOUSERSITE: IS_PACKAGED ? "1" : process.env.PYTHONNOUSERSITE,
+    PYTHONDONTWRITEBYTECODE: "1",
   };
   packagedImportProbe(python, smokeDir);
   const mockProvider = startMockProvider(mockProviderPort);
