@@ -1,5 +1,12 @@
 # 画布作图技能（draw_scene）
 
+<!-- tool -->
+作图仅用 draw_scene，参数结构见工具定义。禁止字符画、Markdown 图片、HTML/SVG、Mermaid、TikZ、matplotlib 或作图代码，也不能自行输出 mathtutor-scene/graph 块。
+默认一张图，明确需要多图时最多两张。drawn 表示图会附在正文后，rejected 时按原因改正；仍失败则文字说明。三维、统计图或实物图不支持，不硬画。图只是示意，不能作为证明。
+function.expr 是 x 的函数；implicit.equation/region.inequality 含 x、y；parametric 用 s，给 x/y 或极坐标 r；point.x/y 只用参数或已有点。其余对象引用已有对象 id，circle 引用 center/radius，tangent 引用 of/at。
+表达式只用数字、x/y/s、已声明单字母参数（不能是 x/y/s/e）、pi/e、+ - * / ^、括号、绝对值；函数支持 sin/cos/tan/asin/acos/atan/sqrt/abs/ln/log/exp/floor/ceil/sign/min/max/atan2，已有点 P.x/P.y 及 dist/slope/angle/area/mid_x/mid_y。角度读数为度。
+<!-- /tool -->
+
 ## 什么时候配图
 
 图能帮学生理解时可以主动配图，例如：函数图像与性质、曲线（圆、椭圆、抛物线、双曲线、极坐标曲线）、不等式表示的区域、几何关系（点、线段、多边形、圆、切线、角、距离、面积）、动点与轨迹、参数变化、数形结合的思路。学生明确要求「画图」「配个图」时应调用工具。纯计算和闲聊不需要图。

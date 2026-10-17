@@ -9,7 +9,7 @@ from mathtutor.application import scene as scene_module
 from mathtutor.infrastructure.generative_gateway import ModelRole, OpenAICompatibleProvider
 from mathtutor.infrastructure.tutor_chat import TutorChatResponder
 from mathtutor.skills import canvas_drawing
-from mathtutor.skills.canvas_drawing import DRAW_SCENE_TOOL, SKILL_TEXT, wants_figure
+from mathtutor.skills.canvas_drawing import DRAW_SCENE_TOOL, SKILL_TEXT, TOOL_INSTRUCTION, wants_figure
 from mathtutor.skills.canvas_drawing.enforce import FIGURE_NOTE, sanitize_figures
 from test_tutor_p0 import client_at, send
 
@@ -93,7 +93,7 @@ def test_drawn_scene_is_appended_and_delivered_as_a_figure_message(tmp_path):
         traces = client.get("/api/v2/math-tutor/desktop/diagnostics/turns").json()["turns"]
     first = requests[0]
     assert [t["function"]["name"] for t in first["tools"]] == ["verify_math", "draw_scene"]
-    assert SKILL_TEXT in first["messages"][0]["content"]
+    assert TOOL_INSTRUCTION in first["messages"][0]["content"]
     assert tool_receipts(requests) == [{"status": "drawn", "title": "椭圆与焦点"}]
     payload = message_frame(frames)
     assert payload["action"] == "TUTOR_CHAT_FIGURE"

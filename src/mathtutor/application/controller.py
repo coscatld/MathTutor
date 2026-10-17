@@ -1209,6 +1209,7 @@ class MathTutorController:
             else:
                 message = fallback_tutor_reply(text)
         else:
+            from mathtutor.application.tutor_runtime import TutorResponseUnavailable
             try:
                 extra = {"images": images} if images else {}
                 if document_context is not None:
@@ -1276,7 +1277,7 @@ class MathTutorController:
                     async def math_verify(expression, answer):
                         return await verify_math(self.service.verification_backend, expression, answer)
                     extra = {**extra, "math_verify": math_verify}
-                    if takes_figures:
+                    if takes_figures and drawing_relevant:
                         draw_offered = True
                         extra["draw_figures"] = True
                 try:
@@ -1290,6 +1291,10 @@ class MathTutorController:
                 finally:
                     stream_preview.reset(preview_token)
                 provider_result = "success"
+            except TutorResponseUnavailable as exc:
+                await stream.error(str(exc), source=self.manifest.name,
+                                   metadata={"error_code": exc.code})
+                return
             except TypeError:
                 if images:
                     raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。") from None

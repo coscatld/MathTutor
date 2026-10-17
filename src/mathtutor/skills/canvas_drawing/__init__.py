@@ -45,6 +45,9 @@ def skill_text() -> str:
 SKILL_TEXT = skill_text()
 DEFINITION_FORMAT = section("format")
 DRAWING_RULES = section("rules")
+# Native calls already carry the full object schema. Keep runtime guidance and
+# safety rules, without repeating the human-readable schema and examples.
+TOOL_INSTRUCTION = section("tool") + "\n\n" + DRAWING_RULES
 
 _EXPR = {"type": "string", "maxLength": 300}
 _NUMBER = {"type": ["number", "string"]}
@@ -124,5 +127,5 @@ def can_offer_drawing(text: str, history: tuple[dict, ...] = ()) -> bool:
     return False
 
 
-__all__ = ["DEFINITION_FORMAT", "DRAWING_RULES", "DRAW_SCENE_TOOL", "MAX_DRAWN", "MAX_DRAW_ATTEMPTS", "SKILL_PATH",
+__all__ = ["DEFINITION_FORMAT", "DRAWING_RULES", "TOOL_INSTRUCTION", "DRAW_SCENE_TOOL", "MAX_DRAWN", "MAX_DRAW_ATTEMPTS", "SKILL_PATH",
            "SKILL_TEXT", "section", "skill_text", "wants_figure", "can_offer_drawing"]

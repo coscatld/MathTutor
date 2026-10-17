@@ -249,14 +249,31 @@ class TutorChatResponder:
                 **({"extension_executor": extension_executor} if extension_executor is not None else {}),
             )
             return result.text.strip()
-        except Exception:
-            if images:
-                raise ValueError("图片请求未完成，请检查模型连接后重试。图片和文字已保留。") from None
-            logger.warning("TutorChatResponder: provider unavailable — local fallback")
+        except Exception as exc:
+            from mathtutor.application.tutor_runtime import current_turn, TutorResponseUnavailable, note_turn
+            from mathtutor.domain.turn_result import FinishReason
+            import httpx
+            turn = current_turn.get()
+            reason = turn.finish_reason if turn is not None else None
+            if reason in {None, FinishReason.FINAL_ANSWER, FinishReason.NATURAL_STOP}:
+                reason = (FinishReason.TIMEOUT if isinstance(exc, (TimeoutError, httpx.TimeoutException))
+                          else FinishReason.PROVIDER_ERROR)
+                if turn is not None:
+                    turn.stop(reason)
+            code, notice = {
+                FinishReason.TOKEN_LIMIT: ("TUTOR_TOKEN_LIMIT", "本轮处理长度达到上限，回答未能完成。请减少附带资料或新建对话后重试。"),
+                FinishReason.STEP_CAP: ("TUTOR_STEP_LIMIT", "本轮处理次数达到上限，回答未能完成，请重试。"),
+                FinishReason.TIMEOUT: ("MODEL_TIMEOUT", "模型响应超时，请稍后重试。"),
+            }.get(reason, ("MODEL_UNAVAILABLE", "模型服务暂时不可用，请检查设置中的模型连接后重试。"))
+            # Never log provider response bodies, keys, or the student's text.
+            logger.warning("TutorChatResponder failed code=%s exception_type=%s", code, type(exc).__name__)
+            note_turn(response_failure={"code": code, "exception_type": type(exc).__name__})
             if plugin_context is not None:
                 from mathtutor.application.plugin_commands import format_plugin_receipt
                 return format_plugin_receipt(plugin_context)
-            return fallback_tutor_reply(text)
+            if turn is not None:
+                turn.error_code = code
+            raise TutorResponseUnavailable(code, notice) from None
 
 
 __all__ = ["TutorChatResponder"]

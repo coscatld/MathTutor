@@ -388,7 +388,9 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                     if error_text:
                         continue
                     error_text = payload["error"]
-                    turn.stop(FinishReason.INTERNAL_ERROR, "\n\n".join(texts))
+                    reason = (turn.finish_reason if turn.error_code and turn.error_code == payload.get("error_code")
+                              else FinishReason.INTERNAL_ERROR)
+                    turn.stop(reason, "\n\n".join(texts))
                     payload["message_id"] = message_id_for(owner.student_id, session_id, f"tutor:{event_key}:result")
                     await state.conversations.save_turn_message(*key,
                         role="tutor" if texts else "error", content="\n\n".join([*texts, error_text]),
@@ -428,7 +430,7 @@ async def _process_request(state, owner, session_id, user_message, event_key,
                 status=turn.status, finish_reason=turn.finish_reason.value)
         turn.final_text = "\n\n".join(texts)
         if error_text:
-            turn.stop(FinishReason.INTERNAL_ERROR, turn.final_text)
+            turn.stop(turn.finish_reason, turn.final_text)
             turn.final_text = "\n\n".join([*texts, error_text])
         if turn.partial and not turn.final_text:
             turn.status = "FAILED"
