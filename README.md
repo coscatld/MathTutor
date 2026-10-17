@@ -10,7 +10,7 @@
 
 MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**当前正式版本：0.7.0**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) · [macOS Apple Silicon DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) · [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe)。r3 修复普通数学提问被内部作图内容占满预算、未调用模型就失败的问题，并显示真实失败原因。Mac 使用完整本地 ad-hoc 签名，仍无 Developer ID、未公证，首次使用见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
+**当前正式版本：0.7.0**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) · [macOS Apple Silicon DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) · [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe)。r3 修复普通数学提问被内部作图内容占满预算、未调用模型就失败的问题，并显示真实失败原因；更新构建还开放已保存讨论题的提示、讲解、示例和完整解答按钮。Mac 使用完整本地 ad-hoc 签名，仍无 Developer ID、未公证，首次使用见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
 
 **此前已发布的 0.6.5**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.5) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-win-x64.exe) · [更新说明](docs/RELEASE_0.6.5.md)
 
@@ -146,7 +146,7 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前正式版本为 **0.7.0**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG（均为 **r3**）。两个安装包来自修复提交 `d4ad9a0`，修复普通数学提问失败，并保留题目、作图和可重试错误信息。[三平台源码 CI](https://github.com/coscatld/MathTutor/actions/runs/39044625096)与[Windows 安装启动验收](https://github.com/coscatld/MathTutor/actions/runs/39044624636)记录对应本次构建。Mac 使用本地 ad-hoc 签名，仍无 Developer ID、未公证，首次使用需明确允许；见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。Windows 包未使用 Authenticode 发行证书签名。数据库 migration head 保持 **024**。
+当前正式版本为 **0.7.0**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG（均为 **r3**）。两个安装包来自修复提交 `060847e`，修复普通数学提问失败，并保留题目、作图和可重试错误信息。[三平台源码 CI](https://github.com/coscatld/MathTutor/actions/runs/39047530788)与[Windows 安装启动验收](https://github.com/coscatld/MathTutor/actions/runs/39045989345)记录对应本次构建。Mac 使用本地 ad-hoc 签名，仍无 Developer ID、未公证，首次使用需明确允许；见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。Windows 包未使用 Authenticode 发行证书签名。数据库 migration head 保持 **024**。
 
 ### 0.7.0：资料库、社区与创作者接口
 
@@ -205,7 +205,7 @@ DKT 的当前技能预测与独立作答证据现在共同影响普通聊天的�
 
 | 版本 | 内容 | 安装包 | SHA-256 |
 |---|---|---|---|
-| [`v0.7.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) | 对话资料、可编辑知识库、社区导入与插件斜杠命令；r3 修复普通数学提问失败与错误提示 | [macOS arm64 DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) / [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe) | [Mac 校验](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-mac-r3.txt) / [Windows 校验](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-win-r3.txt) |
+| [`v0.7.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) | 对话资料、可编辑知识库、社区导入与插件斜杠命令；r3 修复普通提问与讨论题教学按钮 | [macOS arm64 DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) / [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe) | [Mac 校验](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-mac-r3.txt) / [Windows 校验](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-win-r3.txt) |
 | [`v0.6.2`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.2) | 标准曲线示例、作图上下文续接与主动配图 | [`MathTutor-0.6.2-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/MathTutor-0.6.2-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/SHA256SUMS-windows.txt) |
 | [`v0.6.1`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.1) | 修复并发启动、迁移异常恢复与启动日志 | [`MathTutor-0.6.1-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/MathTutor-0.6.1-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/SHA256SUMS-windows.txt) |
 | [`v0.6.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.0) | 讲解公式核验、交互式数形结合、K-12 题库 | [`MathTutor-0.6.0-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/MathTutor-0.6.0-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.0/SHA256SUMS-windows.txt) |

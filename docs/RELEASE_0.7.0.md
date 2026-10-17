@@ -2,9 +2,19 @@
 
 正式名称：**MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统**。
 
-## 2026-10-17 r3：普通数学提问与失败提示修复
+## 2026-10-18 r3 更新构建：讨论题教学帮助
 
-两个平台的当前下载为 [Mac Apple Silicon DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg)和 [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe)，应用版本仍为 **0.7.0**。均来自修复提交 `d4ad9a08362c1d23f14240669c669bd455d755b0`；原 v0.7.0 标签保持不变。
+按用户要求继续保留 **0.7.0 r3**，文件名不变：[Mac Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) · [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe)。**此前已经下载首轮 r3 的用户需重新下载，退出应用后替换安装。** 最新构建来源为 `060847eadfa89978da921ed64423fb3986031a94`，原 v0.7.0 标签保持不变。
+
+已保存的集合、函数等讨论题，在缺少本地整题核验时也可点击“请求提示、请求讲解、请求示例、查看完整答案”。四个操作通过原题上下文进入对话讲解，不把原题替换为示例、不自动判题、不生成独立作答或 DKT 掌握证据。界面明确说明讲解参考范围，已验证标准练习的提示门槛保持原规则。
+
+本轮相关后端测试 **89 项**、前端测试 **245 项**与生产构建通过。Mac 安装包内的九项对话回归包含四个按钮逐项调用、原题保留、作答证据不变、作图、重放与失败恢复；应用与只读 DMG 业务流程分别 17/17，无模型配置检查 9/9，中文目录可写副本启动及运行后验签通过。Windows 首轮完整 CI 的并发备份测试误用固定 50 毫秒作为启动条件，可能在首次提交前取得合法空快照；后续测试改为等待首个提交，保留非空、完整性和已提交前缀断言，并覆盖延迟写入。测试资格提交 `cb8ee89` 只修改测试与 CI，包内应用文件与 `060847e` 逐项相同。Windows 实际验收和完整源码 CI 见[本次安装包构建](https://github.com/coscatld/MathTutor/actions/runs/39045989345)与[三平台源码 CI](https://github.com/coscatld/MathTutor/actions/runs/39047530788)。
+
+Mac 仍为完整 ad-hoc 签名、无 Developer ID、未公证，首次使用需明确允许；Windows 仍无 Authenticode 发行证书签名。没有付费模型调用、数据库结构迁移或基准重新评分。首轮 r3 资产以 `PREVIOUS-d4ad9a0` 名称保留追溯；官网仍指向当前 r3 文件，并按用户要求去掉下载页和中英文安装文档的 SHA-256 展示。
+
+## 2026-10-17 r3 首轮构建（历史）
+
+首轮构建的历史下载为 [Mac Apple Silicon DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/PREVIOUS-d4ad9a0-MathTutor-0.7.0-mac-arm64-r3.dmg)和 [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/PREVIOUS-d4ad9a0-MathTutor-0.7.0-win-x64-r3.exe)，应用版本仍为 **0.7.0**。均来自修复提交 `d4ad9a08362c1d23f14240669c669bd455d755b0`；原 v0.7.0 标签保持不变。
 
 普通数学问题曾被无关的作图说明和工具定义占满内部预算，请求在模型调用前就失败，随后却显示“结构化求解器不支持”的兜底文案。r3 按当前问题决定是否提供作图工具，精简与原生 schema 重复的说明，保留调用、长度、数学核验和插件授权限制；模型、超时和长度失败会明确提示，不伪装成已完成回答。
 
@@ -14,7 +24,7 @@
 - Mac 仍无 Developer ID、未公证，Gatekeeper 默认拒绝；按 [Mac 安装说明](MACOS_INSTALLATION.md)核验并明确允许。Windows 仍无 Authenticode 发行证书签名。
 - 无新增数据库迁移、无历史基准重评、无模型质量得分变更。r2 文件保留作历史追溯，下方早期记录对应各自当时的产物。
 
-发布页提供 [Mac 分项验收](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/macos-r3-verification.json)与 [Windows 分项验收](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/windows-r3-verification.json)。官网的下载卡片与中英文安装文档均使用 r3，简化了文件摘要展示。
+发布页提供 [Mac 分项验收](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/PREVIOUS-d4ad9a0-macos-r3-verification.json)与 [Windows 分项验收](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/PREVIOUS-d4ad9a0-windows-r3-verification.json)。官网的下载卡片与中英文安装文档均使用 r3，简化了文件摘要展示。
 
 ## 2026-10-17 Windows r2 安装包
 

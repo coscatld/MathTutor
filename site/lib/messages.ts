@@ -58,7 +58,7 @@ export const messages = {
     },
     downloadPage: {
       title: '下载 MathTutor',
-      intro: '当前正式版本 0.7.0。请使用修复普通数学提问报错的 r3 安装包。',
+      intro: '当前正式版本 0.7.0。请使用修复普通数学提问与讨论题教学按钮的 r3 安装包。',
       notes: '安装说明',
       releases: 'GitHub Releases',
       macGuide: 'macOS 安装说明',
@@ -143,7 +143,7 @@ export const messages = {
     },
     downloadPage: {
       title: 'Download MathTutor',
-      intro: 'Current release: 0.7.0. Use the r3 installers, which fix failures on ordinary math questions.',
+      intro: 'Current release: 0.7.0. Use the r3 installers, which fix ordinary math questions and enable teaching help for saved discussions.',
       notes: 'Install notes',
       releases: 'GitHub Releases',
       macGuide: 'macOS install guide',
