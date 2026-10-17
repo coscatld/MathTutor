@@ -2,9 +2,24 @@
 
 正式名称：**MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统**。
 
+## 2026-10-17 Windows r2 安装包
+
+Windows 请下载 [`MathTutor-0.7.0-win-x64-r2.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r2.exe)，应用版本仍为 0.7.0。来自源码 `90d8a04` 的新构建，包含知识库“社区资源”快捷入口与导入说明的删除、左右空态卡片对齐，以及随包运行时缓存写入修复。
+
+[Windows 构建与实际安装启动验收](https://github.com/coscatld/MathTutor/actions/runs/39033272713)通过，覆盖全新中文路径、重启、`023 + 024` 迁移恢复、未知迁移拒绝，以及包内 Python/TypeScript 插件真实执行和幂等重放；测试 GUI 只使用系统 PATH，不依赖用户另装 Python 或 Node。对应[三平台完整源码 CI](https://github.com/coscatld/MathTutor/actions/runs/39009508363)也已通过。
+
+新 EXE 在下载后仅改名增加 r2 标记，字节保持 Windows runner 的原产物；没有发行证书签名。原 Windows 安装包标为 `PREVIOUS`，保留历史追溯，不再作为当前入口。Mac r2 继续使用已发布文件，没有重新打包或改变其校验值。
+
+| 当前安装包 | SHA-256 |
+|---|---|
+| `MathTutor-0.7.0-win-x64-r2.exe` | `5f8246456f26069b81b2bc0265ee71a75ce9550d4b312420345a05d5a9e2a4ec` |
+| `MathTutor-0.7.0-mac-arm64-r2.dmg` | `b12cc6983eb45f52ca9d7f0ccf167f4764b1fbec8ad11af0108362c9b408642f` |
+
+发布页同时提供 [Windows r2 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-win-r2.txt)和[脱敏验收记录](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/windows-r2-verification.json)。本次只有应用构建和验收，没有新模型调用、基准重评或数据库迁移。Mac 构建来源为 `a8b8d45`，Windows 为 `90d8a04`；v0.7.0 原标签保持不变，后续文档提交不冒充安装包构建来源。
+
 ## 2026-10-17 Mac r2 修复
 
-Mac 请改用 [`MathTutor-0.7.0-mac-arm64-r2.dmg`](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r2.dmg)。原始 Mac 包的 DMG 校验正确，但应用资源签名不完整，已撤回使用；下方原始摘要仅保留作问题追溯。r2 应用版本仍为 0.7.0，包含本次知识库界面精简与卡片对齐。Windows 安装包保持原文件。
+Mac 请改用 [`MathTutor-0.7.0-mac-arm64-r2.dmg`](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r2.dmg)。原始 Mac 包的 DMG 校验正确，但应用资源签名不完整，已撤回使用；下方原始摘要仅保留作问题追溯。r2 应用版本仍为 0.7.0，包含本次知识库界面精简与卡片对齐。Windows 当前下载见上方 r2 安装包。
 
 r2 为应用、Python 与原生模块完成本地 ad-hoc 签名，打包新增应用签名检查与最终只读 DMG 检查。它仍无 Developer ID、未公证，Gatekeeper 默认评估仍为拒绝，不能将业务启动通过当作默认下载放行。具体核验与首次打开见 [Mac 安装说明](MACOS_INSTALLATION.md)；最新摘要和分项结果随附 [`SHA256SUMS-0.7.0-mac-r2.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-mac-r2.txt) 与 `macos-r2-verification.json`。
 
@@ -60,7 +75,9 @@ SDK 处理器运行于可信应用进程，**不是代码沙盒**。SDK 处理�
 
 下一阶段建设 GitHub 开源资源索引、插件版本管理与社区贡献审核，详见[路线图](COMMUNITY_ROADMAP.md)。这些是后续建设目标；当前用户仍主动导入文件，代码插件仍需明确授权，审核不等于安全沙盒或教学效果认证。
 
-## 安装包与验收
+## 原始安装包与验收（历史记录）
+
+下面保留首次发布的文件摘要与来源，当前安装请使用上方 r2 入口。
 
 - Windows x64：`MathTutor-0.7.0-win-x64.exe`。
 - macOS Apple Silicon（M 系列）：`MathTutor-0.7.0-mac-arm64.dmg`；本轮不承诺 Intel Mac 包。
