@@ -90,6 +90,20 @@ const exportCurrent = async name => {
   assert.deepEqual(await readFile(filename), lastExport); return lastExport;
 };
 try {
+  libraries = [];
+  await page.goto(`${base}/math-tutor/knowledge`);
+  await page.getByRole("textbox", { name: "名称", exact: true }).waitFor();
+  assert.equal(await page.getByRole("link", { name: "社区资源", exact: true }).count(), 0);
+  assert.equal(await page.getByText(/导入 JSON 题库或 Markdown 资料库 ZIP/).count(), 0);
+  const sidebar = await page.locator(".mt-knowledge-sidebar").boundingBox();
+  const welcome = await page.locator(".mt-knowledge-welcome").boundingBox();
+  assert.ok(Math.abs(sidebar.y - welcome.y) <= 1, "empty panels align at the top");
+  assert.ok(Math.abs(sidebar.y + sidebar.height - welcome.y - welcome.height) <= 1, "empty panels align at the bottom");
+  await capture("empty-desktop-aligned");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await capture("empty-mobile");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  libraries = [library];
   await page.goto(`${base}/math-tutor/knowledge?conversation=vault-fixture`);
   assert.equal(await page.getByRole("link", {name: /返回对话/}).count(), 0, "knowledge has no explicit return-to-chat link");
   assert.equal(await page.getByRole("button", {name: /返回对话|能力扩展/}).count(), 0, "developer extensions and return buttons are absent");

@@ -2,6 +2,14 @@
 
 正式名称：**MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统**。
 
+## 2026-10-17 Mac r2 修复
+
+Mac 请改用 [`MathTutor-0.7.0-mac-arm64-r2.dmg`](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r2.dmg)。原始 Mac 包的 DMG 校验正确，但应用资源签名不完整，已撤回使用；下方原始摘要仅保留作问题追溯。r2 应用版本仍为 0.7.0，包含本次知识库界面精简与卡片对齐。Windows 安装包保持原文件。
+
+r2 为应用、Python 与原生模块完成本地 ad-hoc 签名，打包新增应用签名检查与最终只读 DMG 检查。它仍无 Developer ID、未公证，Gatekeeper 默认评估仍为拒绝，不能将业务启动通过当作默认下载放行。具体核验与首次打开见 [Mac 安装说明](MACOS_INSTALLATION.md)；最新摘要和分项结果随附 [`SHA256SUMS-0.7.0-mac-r2.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-mac-r2.txt) 与 `macos-r2-verification.json`。
+
+Windows 源码 CI 上一轮有 3122 项通过、1 项失败：恢复备份并发测试等待总流程的 10 秒期限超时。此次修正测试暂停释放与总等待预算，保留原全部功能断言，并在超时时输出生命周期阶段。新的 [CI 运行](https://github.com/coscatld/MathTutor/actions)结果单独记录，不用上一轮或旧版本绿灯代替。
+
 0.7.0 以非预发布的 GitHub Release 发行，提供 Windows x64 EXE 与 macOS Apple Silicon DMG。[正式发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)包含安装包、校验文件和可直接导入的社区示例。两个安装包未使用发行证书签名，Mac 未公证；正式版标记不代表签名、公证或 Gatekeeper 门禁通过，原签名发布构建门仍保留。
 
 ## 对话资料与知识库

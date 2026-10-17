@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 Mac r2 — Distribution repair
+
+- Replace the incomplete Electron linker signature with full ad-hoc application and bundled-runtime signatures. Fail packaging on a missing resource seal, tampered resource or invalid native signature; inspect the final readonly DMG independently. Developer ID/notarization remain required for default Gatekeeper approval.
+- Document the withdrawn original Mac artifact and explicit per-app first-open trust steps. Keep the application version at 0.7.0 and the original Windows installer unchanged.
+- Remove the knowledge page's community shortcut and import explanation banner; align the empty library and welcome panels.
+- Make the restore concurrency test release its pause explicitly, allow the aggregate lifecycle budget, and report lifecycle stages on timeout. Preserve concurrent-request rejection, successful restore and SQLite sidecar assertions.
+
 ## 0.7.0 — Knowledge vault and creator community
 
 - Use the formal product name “MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统”; keep `MathTutor` as the navigation, bundle and executable name. Publish v0.7.0 as a non-prerelease GitHub Release with verified Windows x64 EXE and macOS Apple Silicon DMG assets and SHA-256 checksums. The binaries have no publisher certificate; macOS notarization remains incomplete.

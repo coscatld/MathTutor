@@ -11,7 +11,7 @@
     "test:distribution": "node scripts/verify-distribution-runtime.cjs && npm run test:contracts",
     "smoke:packaged:mac": "node scripts/run-packaged-smoke.js",
     "manifest:mac": "node scripts/generate-macos-release-manifest.js",
-    "package:mac:unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
+    "package:mac:unsigned": "MATHTUTOR_ADHOC_SIGN=1 CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
     "package:mac:release": "MATHTUTOR_PUBLIC_RELEASE=1 electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
     "package:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1",
     "package:linux": "electron-builder --config electron-builder.config.cjs --linux AppImage --x64",

@@ -319,6 +319,8 @@ button.mt-brand-mark:hover { transform: scale(1.06); }
 .mt-vault-file[data-selected="true"] { background: var(--primary-soft); }
 .mt-knowledge-alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border)); border-radius: 14px; padding: 16px; font-size: 14px; color: var(--destructive); }
 .mt-knowledge-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 24px; }
+.mt-knowledge-layout-empty { align-items: stretch; }
+.mt-knowledge-main { display: flex; min-width: 0; flex-direction: column; gap: 20px; }
 .mt-knowledge-sidebar { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--sidebar); }
 .mt-library-choice { display: flex; width: 100%; min-height: 68px; align-items: start; gap: 10px; padding: 12px; border: 1px solid transparent; border-radius: 12px; text-align: left; font-size: 14px; transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease; }
 .mt-library-choice:hover { background: var(--accent); }
@@ -353,7 +355,7 @@ button.mt-brand-mark:hover { transform: scale(1.06); }
 .mt-note-open { min-width: 0; flex: 1; padding: 2px; text-align: left; border-radius: 6px; }
 .mt-note-open:hover { color: var(--primary-text); }
 .mt-note-preview { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--paper); font-size: 14px; line-height: 1.8; }
-.mt-knowledge-welcome { display: flex; min-height: 330px; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 36px 24px; }
+.mt-knowledge-welcome { display: flex; flex: 1; min-height: 330px; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 36px 24px; }
 .mt-knowledge-welcome h2 { margin-top: 20px; font-size: 20px; font-weight: 650; text-wrap: balance; }
 .mt-knowledge-welcome > p { max-width: 40ch; margin-top: 12px; font-size: 14px; line-height: 1.9; color: var(--muted-foreground); }
 .mt-knowledge-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 20px; margin-top: 28px; font-size: 12px; color: var(--muted-foreground); }

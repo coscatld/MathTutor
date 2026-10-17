@@ -5,6 +5,12 @@ const path = require("node:path");
 
 const projectDir = __dirname;
 const repoDir = path.resolve(projectDir, "..");
+// Ad-hoc integrity signatures do not establish a publisher identity. Never
+// enable hardened library validation without an Apple-issued signing team.
+const adHoc = process.env.MATHTUTOR_ADHOC_SIGN === "1";
+if (adHoc && process.env.MATHTUTOR_PUBLIC_RELEASE === "1") {
+  throw new Error("Public signed releases cannot use ad-hoc signing");
+}
 const packageAllowlist = JSON.parse(
   fs.readFileSync(path.join(projectDir, "package_allowlist.json"), "utf8"),
 );
@@ -37,6 +43,8 @@ module.exports = {
   artifactName: "${productName}-${version}-${os}-${arch}.${ext}",
   beforePack: "scripts/before-pack.cjs",
   afterPack: "scripts/after-pack-macos.cjs",
+  afterSign: "scripts/after-sign-macos.cjs",
+  artifactBuildCompleted: "scripts/verify-macos-dmg.cjs",
   asar: true,
   files: ["main.js", "preload.js", "runtime/**/*", "package.json"],
   extraResources: [
@@ -97,7 +105,8 @@ module.exports = {
     icon: "build/icon.icns",
     target: [{ target: "dmg", arch: ["arm64"] }],
     category: "public.app-category.education",
-    hardenedRuntime: true,
+    ...(adHoc ? { identity: "-" } : {}),
+    hardenedRuntime: !adHoc,
     gatekeeperAssess: false,
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.plist",

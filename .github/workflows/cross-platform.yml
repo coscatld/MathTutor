@@ -35,6 +35,9 @@ jobs:
         working-directory: desktop
       - name: Verify memory ordering with tied and backward-moving clocks
         run: python -m pytest tests/test_memory_write_order.py -q
+      - name: Verify Windows restore concurrency before the full suite
+        if: runner.os == 'Windows'
+        run: python -m pytest tests/test_phase6_main_integration.py -k "restore or maintenance" -q --durations=10
       # setup-python supplies build/test Python only, never the distributable runtime.
       # check.py reports distribution as SKIPPED when no target runtime is provisioned.
       - name: Verify backend, frontend, build, and desktop contracts

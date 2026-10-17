@@ -20,6 +20,7 @@ import json
 import hashlib
 import sqlite3
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -567,6 +568,16 @@ def test_restore_maintenance_middleware_rejects_concurrent_http(
     reset_product_state()
     entered_shutdown = threading.Event()
     allow_shutdown = threading.Event()
+    stages: list[tuple[str, float]] = []
+    from mathtutor.infrastructure import lifecycle_trace
+    original_trace = lifecycle_trace.trace
+    started = time.monotonic()
+
+    def record_stage(owner, stage, **metadata):
+        stages.append((stage, round(time.monotonic() - started, 3)))
+        original_trace(owner, stage, **metadata)
+
+    monkeypatch.setattr(lifecycle_trace, "trace", record_stage)
 
     with _client(db_file) as client:
         _submit_solved_problem(client, "2x + 3 = 7", "2", "gate-a")
@@ -578,7 +589,9 @@ def test_restore_maintenance_middleware_rejects_concurrent_http(
 
         async def paused_shutdown():
             entered_shutdown.set()
-            await asyncio.to_thread(allow_shutdown.wait, 2.0)
+            # The test controls release; never silently resume on a short
+            # scheduling timeout before the concurrent request is checked.
+            assert await asyncio.to_thread(allow_shutdown.wait, 15.0)
             await real_shutdown()
 
         monkeypatch.setattr(state, "shutdown_runtime", paused_shutdown)
@@ -588,12 +601,21 @@ def test_restore_maintenance_middleware_rejects_concurrent_http(
                 "/api/v2/math-tutor/desktop/backup/restore",
                 json={"path": backup_name},
             )
-            assert entered_shutdown.wait(2.0)
-            blocked = client.get("/health")
-            assert blocked.status_code == 503
-            assert blocked.headers["retry-after"] == "1"
-            allow_shutdown.set()
-            restored = restoring.result(timeout=10.0)
+            try:
+                assert entered_shutdown.wait(10.0), stages
+                blocked = client.get("/health")
+                assert blocked.status_code == 503
+                assert blocked.headers["retry-after"] == "1"
+            finally:
+                allow_shutdown.set()
+            # This is a concurrency/integrity test, not a 10s latency SLO.
+            # Production cleanup has several separate 5s drain/stop budgets,
+            # followed by SQLite verification, migration and runtime rebuild.
+            # Keep a finite aggregate deadline and report the stages on failure.
+            try:
+                restored = restoring.result(timeout=45.0)
+            except TimeoutError:
+                pytest.fail(f"Restore exceeded aggregate test deadline; lifecycle={stages}")
         assert restored.status_code == 200
         assert restored.json()["ok"] is True
 

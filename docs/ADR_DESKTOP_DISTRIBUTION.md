@@ -1,3 +1,9 @@
+# 0.7.0 Mac r2 修正记录 — 2026-10-17
+
+用户反馈浏览器下载后显示“已损坏”。实际检查原始 DMG 校验正确，但应用缺少完整资源签名，`codesign --verify --deep --strict` 失败。此前直接执行应用的验收未覆盖分发签名检查，这一遗漏不能由业务测试绿灯替代。
+
+r2 改为完整 ad-hoc 签名，增加签名后应用检查、最终只读 DMG 中应用及原生资源检查；仍缺少 Developer ID 与公证，Gatekeeper 结果明确记录为拒绝，不再用“未测试”代替已经观察到的结果。下载与临时用户信任步骤见 [Mac 安装说明](MACOS_INSTALLATION.md)。下面保留原发布时记录。
+
 # 0.7.0 公开发行记录 — 2026-10-17
 
 本次按维护者要求发布正式 GitHub Release，公开已经验收的未发行签名安装包。GitHub 的非预发布状态与发行证书、Mac 公证及 Gatekeeper 验证分别记录；本次没有宣称签名发布门通过，也没有放宽 `release-packaging.yml` 或 `package:mac:release` 的证书检查。

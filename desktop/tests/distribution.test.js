@@ -76,6 +76,48 @@ test("public macOS build signs bundled native Resources before the app", () => {
   assert.match(hook, /codesign[\s\S]*--verify/);
 });
 
+test("ad-hoc packaging is explicit and cannot weaken the signed release configuration", () => {
+  const { execFileSync, spawnSync } = require("node:child_process");
+  const configPath = path.join(desktop, "electron-builder.config.cjs");
+  const env = { ...process.env, MATHTUTOR_ADHOC_SIGN: "1", MATHTUTOR_PUBLIC_RELEASE: "0" };
+  const mac = JSON.parse(execFileSync(process.execPath, ["-e", `process.stdout.write(JSON.stringify(require(${JSON.stringify(configPath)}).mac))`], { env, encoding: "utf8" }));
+  assert.equal(mac.identity, "-");
+  assert.equal(mac.hardenedRuntime, false);
+  const invalid = spawnSync(process.execPath, ["-e", `require(${JSON.stringify(configPath)})`], {
+    env: { ...env, MATHTUTOR_PUBLIC_RELEASE: "1" }, encoding: "utf8",
+  });
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /cannot use ad-hoc signing/);
+  assert.equal(config.afterSign, "scripts/after-sign-macos.cjs");
+  assert.equal(config.artifactBuildCompleted, "scripts/verify-macos-dmg.cjs");
+});
+
+test("real macOS signature verifier rejects unsealed and modified applications", { skip: process.platform !== "darwin" }, () => {
+  const { execFileSync } = require("node:child_process");
+  const os = require("node:os");
+  const { verifyApplication } = require("../scripts/verify-macos-signature.cjs");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "mathtutor-signature-test-"));
+  const app = path.join(root, "Probe.app");
+  const contents = path.join(app, "Contents");
+  try {
+    fs.mkdirSync(path.join(contents, "MacOS"), { recursive: true });
+    fs.mkdirSync(path.join(contents, "Resources"));
+    fs.copyFileSync("/usr/bin/true", path.join(contents, "MacOS", "Probe"));
+    fs.writeFileSync(path.join(contents, "Info.plist"), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>Probe</string><key>CFBundleIdentifier</key><string>com.mathtutor.signature-probe</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>`);
+    const resource = path.join(contents, "Resources", "lesson.txt");
+    fs.writeFileSync(resource, "original lesson");
+    assert.throws(() => verifyApplication(app));
+    execFileSync("codesign", ["--force", "--sign", "-", "--timestamp=none", app], { stdio: "pipe" });
+    assert.equal(verifyApplication(app).status, "PASS");
+    assert.equal(verifyApplication(app).identity, "AD_HOC");
+    assert.throws(() => verifyApplication(app, { requireDeveloperId: true }), /Developer ID Application/);
+    fs.writeFileSync(resource, "changed after signing");
+    assert.throws(() => verifyApplication(app));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("API keys and embedding weights are not package resources", () => {
   const packageInputs = config.extraResources.map((resource) => ({
     from: resource.from,

@@ -6,7 +6,7 @@
 
 MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**当前正式版本：0.7.0**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64.dmg) · [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64.exe) · [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0.txt)。安装包未使用发行证书签名，Mac 未公证。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
+**当前正式版本：0.7.0**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) · [macOS Apple Silicon DMG（r2 修复包）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r2.dmg) · [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64.exe)。Mac 原始包存在签名完整性缺陷，请改用 r2，并按 [Mac 安装说明](docs/MACOS_INSTALLATION.md)核验和首次打开。r2 使用完整的本地 ad-hoc 签名，仍无 Developer ID、未公证，不能默认通过 Gatekeeper。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
 
 **此前已发布的 0.6.5**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.5) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-win-x64.exe) · [更新说明](docs/RELEASE_0.6.5.md)
 
@@ -138,7 +138,7 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前正式版本为 **0.7.0**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG。正式版表示 GitHub Release 的发行状态；两个安装包未使用发行证书签名，macOS 包未公证。三平台源码 CI、Windows 实际安装启动和 Mac 应用及只读 DMG 验收均已通过；下载后按随附 SHA-256 核对具体文件。数据库 migration head 保持 **024**，此次没有新增结构迁移。
+当前正式版本为 **0.7.0**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG。Mac 请下载 **r2**：修复原始包的资源签名缺失，完整应用及随附原生运行时均验证签名完整性。它仍无 Developer ID、未公证，Gatekeeper 评估结果为拒绝，首次使用需要用户明确允许；见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。Windows 安装包保持原文件。源码 CI 的历史通过记录与最新运行分别以 [Actions](https://github.com/coscatld/MathTutor/actions) 为准；不能用历史绿灯代表当前提交。数据库 migration head 保持 **024**，此次没有新增结构迁移。
 
 ### 0.7.0：资料库、社区与创作者接口
 
