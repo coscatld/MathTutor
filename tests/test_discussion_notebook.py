@@ -40,6 +40,47 @@ class DiscussionTeacher:
         return '把参数单独放一边，是为了把参数范围和函数值域联系起来。卡住时可以从这个联系继续看原题。'
 
 
+@pytest.mark.parametrize('command, request_phrase', [
+    ('request_hint', '起步提示'), ('request_explanation', '关键概念'),
+    ('request_example', '同类示例'), ('request_solution', '完整解答'),
+])
+def test_saved_discussion_support_buttons_answer_same_question_without_grading(tmp_path, command, request_phrase):
+    from test_tutor_p0 import count
+    db = tmp_path / 'discussion-buttons.db'
+    teacher = DiscussionTeacher()
+    with client_at(db) as client, client.websocket_connect('/api/v2/math-tutor/ws') as ws:
+        state = get_product_state()
+        state.learner_settings.update('high', 10)
+        state.controller.chat_responder = teacher
+        send(ws, 'send_message', 'question', {'text': QUESTION})
+        before = summary(client)
+        available = {a['command']: a for a in before['allowed_actions']}
+        assert all(available[c]['enabled'] for c in (
+            'request_hint', 'request_explanation', 'request_example', 'request_solution'))
+        events = count(db, 'learning_events')
+        frames = send(ws, command, 'help', {}, cycle_id=before['cycle_id'],
+                      problem_revision=before['problem_revision'], expected_state_version=before['state_version'])
+        assert any(f['event_type'] == 'assistant_complete' for f in frames)
+        assert not any(f['event_type'] == 'turn_error' for f in frames)
+        text, options = teacher.seen[-1]
+        assert request_phrase in text and options['unstructured_math']
+        assert json.loads(options['problem_context'])['original_question'] == QUESTION
+        after = summary(client)
+        assert after['problem_context']['display_text'] == QUESTION
+        assert after['problem_context']['lifecycle'] == 'discussion'
+        assert (after['cycle_id'], after['state'], after['state_version']) == (
+            before['cycle_id'], before['state'], before['state_version'])
+        assert count(db, 'learning_events') == events
+        assert count(db, 'attempt_assessments') == 0
+        calls = len(teacher.seen)
+        assert send(ws, command, 'help', {}, cycle_id=before['cycle_id'],
+                    problem_revision=before['problem_revision'], expected_state_version=before['state_version']) == frames
+        assert len(teacher.seen) == calls
+        stale = send(ws, command, 'stale', {}, cycle_id='another-question')
+        assert any(f['payload'].get('error_code') == 'PROBLEM_BINDING_STALE' for f in stale)
+        assert len(teacher.seen) == calls
+
+
 def test_pasted_question_and_focus_survive_followups_replay_and_restart(tmp_path):
     db=tmp_path/'discussion.db'
     teacher=DiscussionTeacher()

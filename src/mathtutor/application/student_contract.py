@@ -1,7 +1,8 @@
 """Server-owned public capabilities and immutable problem binding.
 
 Neither a UI command nor a classifier proposal grants solution access.
-The stored verified chain is checked before advertising or executing actions.
+Verified exercises require their stored chain. Saved discussions may request
+model explanations, which grant neither grading nor verified-solution access.
 """
 from mathtutor.application.state_machine import CycleState
 from mathtutor.application.message_intent import _variables
@@ -63,6 +64,10 @@ async def session_contract(store, owner_id, session, *, processing=False):
             active_offer = {"offer_id": str(offer.offer_id), "title": PURPOSE_LABELS[purpose], "purpose": purpose, "status": "ACTIVE"}
             allowed.extend(["accept_practice_offer", "decline_practice_offer"])
     context = await store.teaching.load(owner_id, session.cycle.cycle_id) if session else None
+    from mathtutor.application.discussion_notebook import public_discussion
+    discussion = verified is None and bool(public_discussion(context)) and session.state != CycleState.CLOSED
+    if discussion and not valid:
+        allowed.extend(TEACHING_COMMANDS)
     if context and valid and session.state != CycleState.CLOSED:
         allowed.extend(["request_practice", "end_problem"])
         from mathtutor.application.evidence_projection import prerequisite_gap, review_due
@@ -87,11 +92,11 @@ async def session_contract(store, owner_id, session, *, processing=False):
     assistance = await store.load_assistance(owner_id, session.cycle.cycle_id) if session else None
     from mathtutor.pedagogy.planner import solution_needs_hint
     from mathtutor.pedagogy.stage_policy import ADAPTIVE_POLICY
-    needs_hint = bool(session) and solution_needs_hint(session.state, ADAPTIVE_POLICY, assistance)
+    needs_hint = bool(session) and not discussion and solution_needs_hint(session.state, ADAPTIVE_POLICY, assistance)
     actions = []
     for command in dict.fromkeys([*TEACHING_COMMANDS, *allowed]):
         gated = command == "request_solution" and needs_hint
-        enabled = not processing and command in allowed and (valid or command not in TEACHING_COMMANDS) and not gated
+        enabled = not processing and command in allowed and (valid or discussion or command not in TEACHING_COMMANDS) and not gated
         reason = "AVAILABLE" if enabled else "REQUEST_IN_PROGRESS" if processing else "NO_CURRENT_PROBLEM" if not session else "NO_VERIFIED_SOLUTION" if not valid else "HINT_REQUIRED" if gated and command in allowed else "ACTION_NOT_APPLICABLE"
         actions.append({"command": command, "enabled": enabled, "reason_code": reason,
                         "description": {"AVAILABLE": "", "NO_CURRENT_PROBLEM": "请先发来要辅导的题目。",
@@ -102,8 +107,7 @@ async def session_contract(store, owner_id, session, *, processing=False):
                         "label": "重新查看答案" if command == "request_solution" and assistance and assistance.max_level_issued == 5 else ""})
     from mathtutor.pedagogy.teaching_plan import public_context
     from mathtutor.application.function_graph import GRAPHABLE_TYPES
-    from mathtutor.application.discussion_notebook import public_discussion
-    if public_discussion(context):
+    if discussion:
         for action in actions:
             if action["reason_code"] == "NO_VERIFIED_SOLUTION":
                 action["description"] = "本题已保存，可以直接在对话中追问；尚未启用本地自动判题。"

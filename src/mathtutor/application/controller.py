@@ -481,6 +481,23 @@ class MathTutorController:
             await self._route_send_message(request, session, payload, envelope, stream)
             return
         from mathtutor.application.student_contract import REVIEW_STATES, TEACHING_COMMANDS
+        if session is not None and bound_verified is None and session.state != CycleState.CLOSED and command in TEACHING_COMMANDS:
+            from mathtutor.application.discussion_notebook import public_discussion
+            notebook = await self.sessions.teaching.load(owner.student_id, session.cycle.cycle_id)
+            if public_discussion(notebook):
+                # Explicit teaching requests for a saved discussion use the same
+                # chat/verification path as typed questions. They do not enter
+                # the verified exercise state machine or create learning evidence.
+                prompts = {
+                    "request_hint": "请围绕原题给我一个起步提示，暂不公布最终答案。",
+                    "request_explanation": "请讲解原题涉及的关键概念和解题思路，暂不公布最终答案。",
+                    "request_example": "请给一道同类示例并讲解它的解法，保留原题，不要公布原题的最终答案。",
+                    "request_solution": "请给出原题的完整解答，写清推导与最终答案。",
+                }
+                await self._chat_message(session, prompts[command], request.conversation_messages, stream,
+                    owner_id=owner.student_id, client_session_id=request.session_id,
+                    unstructured_math=True, follow_up=True, agent_discussion=True)
+                return
         if session is not None and session.state in REVIEW_STATES and command in TEACHING_COMMANDS:
             await self._run_explicit(request, session, command, payload, envelope, stream)
             return

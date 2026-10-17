@@ -109,6 +109,13 @@ test("support panel describes assistance without a level ladder, ability score, 
   assert.ok(!html.includes("width:80%") && !html.includes("第 4 级"));
 });
 
+test("saved discussion offers teaching help without claiming a verified answer or a hint gate", () => {
+  const html = renderToStaticMarkup(<HintLadder level={0} discussion />);
+  assert.ok(html.includes("本题已保存") && html.includes("同类示例或完整解答"));
+  assert.ok(html.includes("整题尚未自动核验") && html.includes("不计为独立作答或掌握证据"));
+  assert.ok(!html.includes("看过一次提示后") && !html.includes("提交题目后"));
+});
+
 test("current problem displays a verified subgoal without claiming the whole problem complete", () => {
   const html = renderToStaticMarkup(<CurrentProblem context={{...context, current_subgoal: {...context.current_subgoal!, status: "verified"}}} />);
   assert.ok(html.includes(context.display_text));
