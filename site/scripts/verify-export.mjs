@@ -70,6 +70,12 @@ if (sample && !sample.includes('/MathTutor/')) {
 if (sample.includes('href="/_next/') || sample.includes('src="/_next/')) {
   fail('zh/index.html has root-relative _next URLs without /MathTutor');
 }
+if (sample.includes('src="/screenshots/') || sample.includes("src='/screenshots/")) {
+  fail('zh/index.html screenshot src is missing the /MathTutor basePath');
+}
+if (!sample.includes('src="/MathTutor/screenshots/')) {
+  fail('zh/index.html does not reference /MathTutor/screenshots/');
+}
 
 if (existsSync(join(outDir, 'sitemap.xml'))) {
   const sitemap = readFileSync(join(outDir, 'sitemap.xml'), 'utf8');

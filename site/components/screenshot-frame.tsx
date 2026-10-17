@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { withBase } from '@/lib/site';
 
 export function ScreenshotFrame({
   src,
@@ -11,12 +11,15 @@ export function ScreenshotFrame({
 }) {
   return (
     <figure className="overflow-hidden rounded-2xl border border-[var(--mt-border)] bg-[var(--mt-card)] shadow-sm">
-      <Image
-        src={src}
+      {/* Native img: next/image unoptimized static export does not prefix basePath. */}
+      <img
+        src={withBase(src)}
         alt={alt}
         width={1600}
         height={1000}
-        priority={priority}
+        decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
+        loading={priority ? 'eager' : 'lazy'}
         className="h-auto w-full"
       />
     </figure>
