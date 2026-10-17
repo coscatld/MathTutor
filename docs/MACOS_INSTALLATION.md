@@ -37,6 +37,9 @@ open /Applications/MathTutor.app
 ```sh
 npm --prefix desktop run package:mac:unsigned
 node desktop/scripts/verify-macos-dmg.cjs desktop/dist/MathTutor-0.7.0-mac-arm64.dmg
+node desktop/scripts/run-macos-sealed-startup.cjs desktop/dist/mac-arm64/MathTutor.app desktop/dist/sealed-startup-macos.json
 ```
 
 `package:mac:unsigned` 保留旧命令名，表示无发行证书；现在明确启用完整 ad-hoc 签名，不再跳过签名。签名完整性失败会使打包失败；旁边的 `.signature.json` 分别记录镜像完整性、应用签名和 Gatekeeper 的真实结果。`package:mac:release` 仍要求发行证书，拒绝 ad-hoc 替代，并要求最终 DMG 通过 Gatekeeper。
+
+可写副本验收在临时中文目录中启动应用、经 LaunchServices 打开并访问页面，每个阶段后重新验签，防止 Python 字节码或前端缓存破坏资源封印；不会操作用户已安装的应用。该检查已加入签名发行工作流。它对临时副本执行的手动信任步骤单独记录，不能替代默认 Gatekeeper 放行。

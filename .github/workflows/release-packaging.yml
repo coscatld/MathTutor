@@ -70,6 +70,9 @@ jobs:
       - name: Verify macOS artifact launch and readonly DMG
         if: matrix.platform == 'macos'
         run: npm run smoke:packaged:mac --prefix desktop
+      - name: Verify writable macOS startup preserves the application signature
+        if: matrix.platform == 'macos'
+        run: node desktop/scripts/run-macos-sealed-startup.cjs desktop/dist/mac-arm64/MathTutor.app desktop/dist/sealed-startup-macos.json
       - name: Package Windows
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -87,3 +90,5 @@ jobs:
           path: |
             desktop/dist/*.dmg
             desktop/dist/*.exe
+            desktop/dist/*.signature.json
+            desktop/dist/sealed-startup-macos.json
