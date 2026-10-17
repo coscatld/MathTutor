@@ -160,7 +160,7 @@ function resolvePython() {
 }
 
 function backendCommand(python, port) {
-  const args = ["-m", "uvicorn", "--factory",
+  const args = [...(IS_PACKAGED ? ["-B"] : []), "-m", "uvicorn", "--factory",
     BACKEND_ENTRY,
     "--host", HOST, "--port", String(port), "--log-level", "warning"];
   return { cmd: python.python, args };
@@ -223,6 +223,7 @@ function backendEnvironment(dataLayout, extra = {}) {
     // A packaged backend must never inherit a checkout/editable import path.
     PYTHONPATH: IS_PACKAGED ? path.join(RESOURCES_DIR, "python-app") : process.env.PYTHONPATH,
     PYTHONNOUSERSITE: IS_PACKAGED ? "1" : process.env.PYTHONNOUSERSITE,
+    PYTHONDONTWRITEBYTECODE: "1",
     PYTHONUTF8: "1",
     PYTHONIOENCODING: "utf-8",
     ...extra,
@@ -254,8 +255,9 @@ function packagedImportProbe(python, cwd) {
     LANG: process.env.LANG || "C.UTF-8",
     PYTHONPATH: appRoot,
     PYTHONNOUSERSITE: "1",
+    PYTHONDONTWRITEBYTECODE: "1",
   };
-  const result = spawnSync(python.python, ["-c", code], {
+  const result = spawnSync(python.python, ["-B", "-c", code], {
     cwd,
     env,
     encoding: "utf8",

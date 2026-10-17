@@ -3,6 +3,7 @@
 ## 0.7.0 Mac r2 — Distribution repair
 
 - Replace the incomplete Electron linker signature with full ad-hoc application and bundled-runtime signatures. Fail packaging on a missing resource seal, tampered resource or invalid native signature; inspect the final readonly DMG independently. Developer ID/notarization remain required for default Gatekeeper approval.
+- Prevent packaged Python imports and Next.js ISR from writing caches into the sealed application; verify the signature again after writable-copy startup and page requests.
 - Document the withdrawn original Mac artifact and explicit per-app first-open trust steps. Keep the application version at 0.7.0 and the original Windows installer unchanged.
 - Remove the knowledge page's community shortcut and import explanation banner; align the empty library and welcome panels.
 - Make the restore concurrency test release its pause explicitly, allow the aggregate lifecycle budget, and report lifecycle stages on timeout. Preserve concurrent-request rejection, successful restore and SQLite sidecar assertions.

@@ -28,6 +28,9 @@ module.exports = {
     NEXT_PUBLIC_AUTH_ENABLED,
   },
   experimental: {
+    // The installed app is a sealed code bundle. ISR cache writes would add
+    // files under Resources and invalidate its signature after first use.
+    isrFlushToDisk: false,
     proxyClientMaxBodySize: 210 * 1024 * 1024,
   },
 };
