@@ -20,11 +20,14 @@ jobs:
           cache: pip
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: |
             web/package-lock.json
             desktop/package-lock.json
+      # This is the CI test interpreter, not a packaged desktop runtime.
+      - name: Require native TypeScript execution for plugin tests
+        run: python scripts/verify_plugin_node.py
       - name: Install backend
         run: python -m pip install -e ".[dev]"
       - name: Install frontend
