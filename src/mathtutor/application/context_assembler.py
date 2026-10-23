@@ -46,6 +46,7 @@ from mathtutor.domain.assembled_context import (
     RecentAttemptsContext,
     StudentModelContext,
 )
+from mathtutor.domain.evidence import MAX_PER_ITEM_CHARS
 from mathtutor.domain.retrieval_policy import (
     RetrievalIntent,
     RetrievalPlan,
@@ -476,6 +477,7 @@ class UserDocumentsSourceProvider(BaseContextSourceProvider):
         selections: dict = {}
         filenames: dict = {}
         for item in pack.evidences:
+            text, insufficient, delivered = project_evidence_text(item)
             selections.setdefault(item.document_id, []).append(
                 DocumentChunkRef(
                     chunk_id=item.chunk_id,
@@ -483,9 +485,11 @@ class UserDocumentsSourceProvider(BaseContextSourceProvider):
                     sequence=item.sequence,
                     page=item.page,
                     filename=item.filename,
-                    text=item.text[:MAX_PROJECTED_CHUNK_CHARS],
+                    text=text,
                     score=max(0.0, float(item.rerank_score or item.score)),
                     retriever=item.retriever,
+                    insufficient_context=insufficient,
+                    delivered_chars=delivered,
                 )
             )
             filenames[item.document_id] = item.filename
@@ -772,6 +776,35 @@ class ContextAssembler:
         )
 
 
+def project_evidence_text(item, *, cap: int = MAX_PROJECTED_CHUNK_CHARS) -> tuple[str, bool, int]:
+    """Allocate the final consumer budget. Keep a stem+solution group intact.
+
+    Unexpanded slices still honour ``cap``. A parent+matched group is atomic:
+    neighbours are dropped first, and a group that cannot fit ``MAX_PER_ITEM_CHARS``
+    is marked insufficient rather than sliced through a formula or negation.
+    """
+    parent = getattr(item, "parent_text", "") or ""
+    matched = getattr(item, "matched_text", "") or ""
+    neighbours = tuple(getattr(item, "neighbour_texts", ()) or ())
+    if parent:
+        group = "\n".join(part for part in (parent, matched or item.text) if part)
+        if len(group) > MAX_PER_ITEM_CHARS:
+            return "", True, 0
+        parts = [group]
+        used = len(group)
+        for neighbour in neighbours:
+            extra = 1 + len(neighbour)
+            if used + extra > max(cap, len(group)):
+                continue
+            parts.append(neighbour)
+            used += extra
+        text = "\n".join(parts)
+        return text, False, len(text)
+    raw = item.text or matched or ""
+    text = raw[:cap]
+    return text, False, len(text)
+
+
 __all__ = [
     "BaseContextSourceProvider",
     "ContextAssembler",
@@ -786,6 +819,7 @@ __all__ = [
     "MAX_PROJECTED_CHUNK_CHARS",
     "MisconceptionSourceProvider",
     "PersonalMemorySourceProvider",
+    "project_evidence_text",
     "RecentAttemptsSourceProvider",
     "RequiredSourceUnavailableError",
     "StaticCurriculumProvider",

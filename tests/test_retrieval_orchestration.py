@@ -590,3 +590,71 @@ async def test_expansion_still_fires_within_one_section():
 
     assert expanded[0].expanded is True
     assert first.chunk_id in expanded[0].expanded_from
+
+
+async def test_final_projection_keeps_parent_stem_and_long_solution():
+    from mathtutor.application.adaptive_practice import _merged_document_context
+    from mathtutor.application.context_assembler import UserDocumentsSourceProvider, project_evidence_text
+    from mathtutor.application.retrieval_orchestrator import ConversationRetrievalOrchestrator
+    from mathtutor.domain.evidence import build_evidence_pack
+
+    document_id, parent, child = _child_and_parent()
+    condition = "必要条件：未知数不等于零。"
+    parent = parent.model_copy(update={"text": f"例：解方程 2x+3=7。{condition}"})
+    child = child.model_copy(update={
+        "parent_chunk_id": parent.chunk_id,
+        "text": "解：" + ("两边同时减 3，得 2x=4。两边再除以 2，得 x=2。" * 30),
+    })
+    assert len(child.text) >= 700
+    expander = ContextExpander(_ParentRepo([parent, child]))
+    expanded = await expander.expand(_OWNER, [_hit(child)])
+    assert parent.chunk_id in expanded[0].expanded_from
+    assert expanded[0].parent_text
+    assert condition in expanded[0].parent_text
+    assert condition in expanded[0].text
+
+    class _Kernel:
+        async def search(self, *args, **kwargs):
+            return DocumentQueryResult(query="2x+3=7", hits=(_hit(child),), degraded=True)
+
+    orch = ConversationRetrievalOrchestrator(kernel=_Kernel(), expander=expander)
+    pack = await orch.retrieve_for_turn(_OWNER, [document_id], "解方程")
+    assert pack.evidences
+    item = pack.evidences[0]
+    assert item.parent_text
+    assert condition in item.parent_text
+    text, insufficient, delivered = project_evidence_text(item)
+    assert not insufficient
+    assert condition in text
+    assert "2x=4" in text
+    assert delivered >= len(item.parent_text) + 100
+    assert len(text) > 600
+
+    selections = UserDocumentsSourceProvider._project_pack(pack)
+    merged = _merged_document_context(selections)
+    assert merged is not None
+    joined = "\n".join(chunk.text for chunk in merged.chunks)
+    assert condition in joined
+    assert "2x=4" in joined
+    assert all(chunk.delivered_chars > 0 for chunk in merged.chunks)
+    assert not any(chunk.insufficient_context for chunk in merged.chunks)
+
+
+async def test_projection_caps_unexpanded_long_slice():
+    from mathtutor.application.context_assembler import project_evidence_text
+    from mathtutor.domain.evidence import Evidence, make_source_id
+
+    document_id = uuid4()
+    item = Evidence(
+        source_id=make_source_id(document_id, uuid4()),
+        document_id=document_id,
+        filename="a.md",
+        chunk_id=uuid4(),
+        sequence=0,
+        text="A0" * 400,
+        score=0.7,
+    )
+    text, insufficient, delivered = project_evidence_text(item)
+    assert not insufficient
+    assert len(text) == 600
+    assert delivered == 600

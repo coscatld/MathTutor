@@ -19,6 +19,7 @@ import asyncio
 import json
 import re
 import tempfile
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -103,10 +104,46 @@ def _register_live_model(state, live: dict) -> None:
     state.controller.writer = _build_writer(state.gateway)
 
 
+TURN_END_TIMEOUT_S = 20.0
+
+
+def _receive_json(ws, timeout: float):
+    """Bounded receive so a missing turn_end cannot hang the suite."""
+    portal = getattr(ws, "portal", None)
+    send_rx = getattr(ws, "_send_rx", None)
+    if portal is None or send_rx is None:
+        return ws.receive_json()
+    import anyio
+
+    async def _recv():
+        with anyio.fail_after(timeout):
+            return await send_rx.receive()
+
+    try:
+        message = portal.call(_recv)
+    except BaseException as exc:
+        if type(exc).__name__ in {"TimeoutError", "Timeout"} or isinstance(exc, TimeoutError):
+            raise TimeoutError("turn_end") from exc
+        raise
+    if message.get("type") == "websocket.close":
+        raise TimeoutError("websocket closed")
+    raw = message.get("text")
+    if raw is None:
+        raw = (message.get("bytes") or b"").decode("utf-8")
+    return json.loads(raw)
+
+
 def _collect(ws) -> list[dict]:
     frames = []
+    deadline = time.monotonic() + TURN_END_TIMEOUT_S
     while True:
-        frame = ws.receive_json()
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return frames
+        try:
+            frame = _receive_json(ws, remaining)
+        except TimeoutError:
+            return frames
         frames.append(frame)
         if frame["event_type"] == "turn_end":
             return frames
@@ -118,6 +155,43 @@ def _send(ws, session: str, command: str, key: str, payload: dict | None = None)
     return _collect(ws)
 
 
+def _delivery_gate(view: dict, expect: dict, label: str) -> list[Check]:
+    """Hard-fail unexpected FAILED/CANCELLED/missing terminals.
+
+    Expected reject/cancel cases declare ``error_code`` and/or ``status``.
+    """
+    expected_error = expect.get("error_code")
+    expected_status = expect.get("status")
+    legal_complete = (
+        view.get("turn_end")
+        and view.get("terminal_type") == "assistant_complete"
+        and view.get("status") == "COMPLETED"
+    )
+    checks = [
+        Check(
+            "coherence",
+            view.get("errors") == ([expected_error] if expected_error else []),
+            f"{label}：错误码 {view.get('errors') or '无'}（预期 {expected_error or '无'}）",
+            critical=not expected_error and bool(view.get("errors")),
+        )
+    ]
+    if expected_status:
+        checks.append(Check(
+            "coherence", view.get("status") == expected_status,
+            f"{label}：终态 {view.get('status')}（预期 {expected_status}）",
+            critical=True,
+        ))
+    elif not expected_error:
+        checks.append(Check(
+            "coherence", bool(legal_complete),
+            f"{label}：终态 {view.get('terminal_type') or '缺失'}/{view.get('status') or '无'}/{view.get('finish_reason') or '无'}",
+            critical=not legal_complete,
+        ))
+    if view.get("status") == "PARTIAL" and not expected_error and expected_status != "PARTIAL":
+        checks.append(Check("coherence", False, f"{label}：回答未完成（PARTIAL）"))
+    return checks
+
+
 def _turn_view(frames: list[dict]) -> dict:
     terminal = next((f for f in reversed(frames) if f["event_type"] in
                      {"assistant_complete", "assistant_partial", "assistant_error"}), None)
@@ -126,8 +200,12 @@ def _turn_view(frames: list[dict]) -> dict:
         "actions": [f["payload"]["action"] for f in frames if f["payload"].get("action")],
         "errors": [f["payload"].get("error_code") for f in frames if f["event_type"] == "turn_error"],
         "status": payload.get("status", ""),
+        "finish_reason": payload.get("finish_reason", ""),
+        "error_code": payload.get("error_code") or "",
+        "terminal_type": (terminal or {}).get("event_type", ""),
         "text": payload.get("final_text") or payload.get("error") or "",
         "deliveries": [f["delivery_id"] for f in frames if f.get("delivery_id")],
+        "turn_end": any(f["event_type"] == "turn_end" for f in frames),
     }
 
 
@@ -167,16 +245,20 @@ def run_scenario(scenario: dict, workdir: Path, live: dict | None = None, prepar
             expect = step.get("expect", {})
             label = f"第 {index + 1} 轮 {step['send']}"
             result.transcript.append({"step": index + 1, "send": step["send"], "payload": step.get("payload", {}),
-                                      **{k: view[k] for k in ("actions", "errors", "status", "text")},
+                                      **{k: view[k] for k in ("actions", "errors", "status", "text",
+                                                              "terminal_type", "finish_reason")},
                                       "state": state.get("state", "")})
 
-            # Coherence: only expected errors, no unfinished output.
+            # Coherence: only expected errors, a legal completed terminal, no unfinished output.
             expected_error = expect.get("error_code")
-            result.add("coherence", view["errors"] == ([expected_error] if expected_error else []),
-                       f"{label}：错误码 {view['errors'] or '无'}（预期 {expected_error or '无'}）",
-                       critical=not expected_error and bool(view["errors"]))
-            if view["status"] == "PARTIAL" and not expected_error:
-                result.add("coherence", False, f"{label}：回答未完成（PARTIAL）")
+            expected_status = expect.get("status")
+            legal_complete = (
+                view["turn_end"]
+                and view["terminal_type"] == "assistant_complete"
+                and view["status"] == "COMPLETED"
+            )
+            for check in _delivery_gate(view, expect, label):
+                result.checks.append(check)
             if "state" in expect:
                 result.add("coherence", state.get("state") == expect["state"],
                            f"{label}：状态 {state.get('state')}（预期 {expect['state']}）")
@@ -195,7 +277,9 @@ def run_scenario(scenario: dict, workdir: Path, live: dict | None = None, prepar
                 result.add("relevance", fragment in view["text"], f"{label}：包含「{fragment}」")
 
             # Math: every formula the tutor wrote passes verify_math.
-            if view["text"]:
+            # Delivery failures are N/A — an error notice with no formula is not math success.
+            delivered = legal_complete or bool(expected_error) or bool(expected_status)
+            if view["text"] and delivered:
                 wrong = asyncio.run(_refuted_formulas(view["text"], anchor))
                 result.add("math", not wrong, f"{label}：算式核验" + (f"未通过 {wrong}" if wrong else "通过"),
                            critical=bool(wrong))
@@ -288,4 +372,5 @@ def render_markdown(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-__all__ = ["DIMENSIONS", "GATE_MIN", "render_markdown", "run", "run_scenario", "score"]
+__all__ = ["DIMENSIONS", "GATE_MIN", "render_markdown", "run", "run_scenario", "score",
+           "_delivery_gate", "_turn_view"]

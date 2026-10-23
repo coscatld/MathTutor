@@ -172,6 +172,8 @@ class DocumentChunkRef(BaseModel):
     text: str
     score: float = Field(ge=0.0)
     retriever: str = "lexical"  # lexical / lexical+vector
+    insufficient_context: bool = False
+    delivered_chars: int = 0
 
 
 class DocumentContextSelection(BaseModel):

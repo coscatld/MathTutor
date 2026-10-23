@@ -53,7 +53,10 @@ from mathtutor.infrastructure.document_storage import (
 )
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
 from mathtutor.infrastructure.lexical import tokenize_lexical
-from mathtutor.repositories.document_repository import DocumentRepository
+from mathtutor.repositories.document_repository import (
+    DocumentRepository,
+    StaleIndexGenerationError,
+)
 from mathtutor.security.scopes import student_uuid
 
 
@@ -443,9 +446,13 @@ class DocumentIndexManager:
         build = await self._repo.get_index_build(student_id, document_id)
         if doc is None or build is None:
             return False
-        return build.matches_signature(
+        if not build.matches_signature(
             status.descriptor, CHUNKER_VERSION, doc.parser_version
-        )
+        ):
+            return False
+        chunks = await self._repo.list_chunks(student_id, document_id)
+        vectors = await self._repo.get_vectors(student_id, document_id)
+        return bool(chunks) and set(vectors) == {chunk.chunk_id for chunk in chunks}
 
     async def build_index(
         self, student_id: str, document_id: UUID, *, force: bool = False
@@ -464,14 +471,19 @@ class DocumentIndexManager:
             return None
 
         existing = await self._repo.get_index_build(student_id, document_id)
+        stored_vectors = await self._repo.get_vectors(student_id, document_id)
+        live_ids = {chunk.chunk_id for chunk in chunks}
         descriptor = status.descriptor
         if (
             not force
             and existing is not None
             and existing.matches_signature(descriptor, CHUNKER_VERSION, doc.parser_version)
+            and set(stored_vectors) == live_ids
         ):
             return existing  # idempotent — nothing changed
 
+        # Embedding is the slow part: keep it outside any write transaction.
+        generation_ids = tuple(chunk.chunk_id for chunk in chunks)
         vectors = await self._runtime.embed_texts([chunk.text for chunk in chunks])
         # A remote OpenAI-compatible model may discover its dimension on the
         # first response. Re-read the descriptor before validation/persist so
@@ -482,14 +494,6 @@ class DocumentIndexManager:
         descriptor = refreshed.descriptor
         for vector in vectors:
             validate_vector(descriptor, vector)  # fail closed on mismatches
-        await self._repo.replace_vectors(
-            student_id,
-            document_id,
-            [
-                (chunk.chunk_id, descriptor, vector)
-                for chunk, vector in zip(chunks, vectors)
-            ],
-        )
         record = IndexBuildRecord(
             student_id=student_uuid(student_id),
             document_id=document_id,
@@ -503,7 +507,16 @@ class DocumentIndexManager:
             embedding_normalization=descriptor.normalization,
             embedding_runtime_version=descriptor.runtime_version or "",
         )
-        await self._repo.record_index_build(student_id, document_id, record)
+        await self._repo.publish_index(
+            student_id,
+            document_id,
+            [
+                (chunk.chunk_id, descriptor, vector)
+                for chunk, vector in zip(chunks, vectors)
+            ],
+            record,
+            expected_chunk_ids=generation_ids,
+        )
         return record
 
     async def search(
@@ -572,6 +585,7 @@ __all__ = [
     "DocumentIngestionService",
     "DocumentSearchable",
     "DocumentValidationError",
+    "StaleIndexGenerationError",
     "ingest_outcome_from_parse",
     "validate_import",
 ]

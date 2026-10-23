@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 
 from mathtutor.infrastructure.schema import turn_traces
 from mathtutor.repositories.uow import MathTutorUow
@@ -38,6 +38,33 @@ class TurnTraceRepository:
         async with self.uow.transaction() as conn:
             rows = (await conn.execute(query.order_by(turn_traces.c.created_at.desc()).limit(limit))).mappings().all()
         return [dict(r) for r in rows]
+
+    async def usage_for_day(self, student_id: str, *, start: str, end: str) -> dict:
+        """Sum tokens and cost for ``[start, end)`` without a diagnostic window.
+
+        Returns structure only: no conversation text. ``start``/``end`` are
+        ISO date or datetime prefixes compared against stored UTC ``created_at``.
+        """
+        if self.uow is None:
+            rows = [
+                row for row in self._rows
+                if row["student_id"] == student_id and start <= str(row.get("created_at", "")) < end
+            ]
+            tokens = sum(int(row.get("input_tokens") or 0) + int(row.get("output_tokens") or 0) for row in rows)
+            cost = sum(float((row.get("details") or {}).get("cost") or 0) for row in rows)
+            return {"tokens": tokens, "cost": cost, "turns": len(rows)}
+        token_sum = func.coalesce(func.sum(turn_traces.c.input_tokens), 0) + func.coalesce(
+            func.sum(turn_traces.c.output_tokens), 0
+        )
+        cost_sum = func.coalesce(func.sum(func.coalesce(func.json_extract(turn_traces.c.details, "$.cost"), 0)), 0)
+        query = select(token_sum, cost_sum, func.count()).where(
+            turn_traces.c.student_id == student_id,
+            turn_traces.c.created_at >= start,
+            turn_traces.c.created_at < end,
+        )
+        async with self.uow.transaction() as conn:
+            tokens, cost, turns = (await conn.execute(query)).one()
+        return {"tokens": int(tokens or 0), "cost": float(cost or 0), "turns": int(turns or 0)}
 
     async def forget(self, student_id: str, conversation_id: str) -> None:
         if self.uow is None:

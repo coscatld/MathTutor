@@ -167,6 +167,9 @@ class Evidence(BaseModel):
     #: single-chunk projection.
     expanded_from: tuple[UUID, ...] = ()
     retriever: str = "lexical"
+    matched_text: str = ""
+    parent_text: str = ""
+    neighbour_texts: tuple[str, ...] = ()
 
     @property
     def expanded(self) -> bool:
@@ -271,12 +274,31 @@ def build_evidence_pack(
         if len(kept) >= MAX_EVIDENCE_ITEMS or budget <= 0:
             truncated = True
             continue
-        text = item.text[:MAX_PER_ITEM_CHARS]
-        if not text.strip():
-            continue  # empty evidence is dropped, not shipped as noise
-        if len(text) < len(item.text):
-            truncated = True  # per-item truncation is also a budget cut
-        budget -= len(text)
+        if item.parent_text:
+            group = "\n".join(part for part in (item.parent_text, item.matched_text) if part)
+            if not group.strip():
+                continue
+            if len(group) > MAX_PER_ITEM_CHARS or len(group) > budget:
+                truncated = True
+                continue
+            parts = [group]
+            used = len(group)
+            for neighbour in item.neighbour_texts:
+                extra = 1 + len(neighbour)
+                if used + extra > min(MAX_PER_ITEM_CHARS, budget):
+                    truncated = True
+                    continue
+                parts.append(neighbour)
+                used += extra
+            text = "\n".join(parts)
+        else:
+            text = item.text[:MAX_PER_ITEM_CHARS]
+            if not text.strip():
+                continue  # empty evidence is dropped, not shipped as noise
+            if len(text) < len(item.text):
+                truncated = True  # per-item truncation is also a budget cut
+            used = len(text)
+        budget -= used
         kept.append(item.model_copy(update={"text": text}))
 
     base = execution or RetrievalExecution()

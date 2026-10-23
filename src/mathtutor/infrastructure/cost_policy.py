@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
@@ -75,6 +75,21 @@ class CostPolicyService:
         tokens = sum(r["input_tokens"] + r["output_tokens"] for r in rows)
         cost = sum((r.get("details") or {}).get("cost") or 0 for r in rows)
         return {"date": today, "tokens": tokens, "cost": round(cost, 6), "currency": self._current.currency}
+
+    @staticmethod
+    def utc_day_bounds(now: datetime | None = None) -> tuple[str, str]:
+        """Inclusive start / exclusive end of the UTC budget day, as ISO prefixes."""
+        day = (now or datetime.now(timezone.utc)).date()
+        return day.isoformat(), (day + timedelta(days=1)).isoformat()
+
+    def usage_from_aggregate(self, aggregate: dict, *, date: str) -> dict:
+        """Shape a repository day SUM into the usage dict ``over_budget`` reads."""
+        return {
+            "date": date,
+            "tokens": int(aggregate.get("tokens") or 0),
+            "cost": round(float(aggregate.get("cost") or 0), 6),
+            "currency": self._current.currency,
+        }
 
     def over_budget(self, usage: dict) -> bool:
         settings = self._current

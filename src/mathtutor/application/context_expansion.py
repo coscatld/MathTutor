@@ -74,6 +74,9 @@ class ExpandedHit:
     text: str
     expanded_from: tuple[UUID, ...] = ()
     window: tuple[int, int] | None = None
+    matched_text: str = ""
+    parent_text: str = ""
+    neighbour_texts: tuple[str, ...] = ()
 
     @property
     def expanded(self) -> bool:
@@ -136,7 +139,7 @@ class ContextExpander:
             should = needs_expansion(text) or chunk.parent_chunk_id is not None
 
             if not should or expanded_count >= self.max_items or budget <= 0:
-                results.append(ExpandedHit(hit=hit, text=text))
+                results.append(ExpandedHit(hit=hit, text=text, matched_text=text))
                 continue
 
             start = max(0, chunk.sequence - self.radius)
@@ -163,12 +166,14 @@ class ContextExpander:
                     error,
                 )
                 self.read_failures += 1
-                results.append(ExpandedHit(hit=hit, text=text))
+                results.append(ExpandedHit(hit=hit, text=text, matched_text=text))
                 continue
 
-            merged, extra = self._merge(chunk, window, budget)
+            merged, extra, matched_text, parent_text, neighbour_texts = self._merge(
+                chunk, window, budget
+            )
             if not extra:
-                results.append(ExpandedHit(hit=hit, text=text))
+                results.append(ExpandedHit(hit=hit, text=text, matched_text=text))
                 continue
 
             added = len(merged) - len(text)
@@ -180,6 +185,9 @@ class ContextExpander:
                     text=merged,
                     expanded_from=tuple(extra),
                     window=(start, end),
+                    matched_text=matched_text,
+                    parent_text=parent_text,
+                    neighbour_texts=neighbour_texts,
                 )
             )
 
@@ -187,7 +195,7 @@ class ContextExpander:
 
     def _merge(
         self, chunk: DocumentChunk, window: Sequence[DocumentChunk], budget: int
-    ) -> tuple[str, list[UUID]]:
+    ) -> tuple[str, list[UUID], str, str, tuple[str, ...]]:
         """Assemble parent first, then in-section neighbours, within budget.
 
         Priority is frozen and each item is charged as it is added:
@@ -221,21 +229,30 @@ class ContextExpander:
             key=lambda item: item.sequence,
         )
 
-        parts: list[str] = [chunk.text or ""]
+        matched_text = chunk.text or ""
+        parent_text = ""
+        neighbour_texts: list[str] = []
         extra: list[UUID] = []
         spent = 0
-        for item in ([parent] if parent is not None else []) + neighbours:
+        if parent is not None:
+            piece = parent.text or ""
+            if piece.strip() and spent + len(piece) <= budget:
+                spent += len(piece)
+                extra.append(parent.chunk_id)
+                parent_text = piece
+        for item in neighbours:
             piece = item.text or ""
             if not piece.strip():
                 continue
             if spent + len(piece) > budget:
-                continue  # a large parent must not block a small neighbour
+                continue
             spent += len(piece)
             extra.append(item.chunk_id)
-            parts.append(piece)
+            neighbour_texts.append(piece)
         if not extra:
-            return chunk.text or "", []
-        return "\n".join(part for part in parts if part), extra
+            return matched_text, [], matched_text, "", ()
+        parts = [part for part in (parent_text, matched_text, *neighbour_texts) if part]
+        return "\n".join(parts), extra, matched_text, parent_text, tuple(neighbour_texts)
 
     @staticmethod
     def _same_section(chunk: DocumentChunk, other: DocumentChunk) -> bool:

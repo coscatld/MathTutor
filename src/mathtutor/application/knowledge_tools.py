@@ -379,11 +379,12 @@ class KnowledgeTools:
         # Lexical similarity is never treated as entailment. A separate bounded
         # model check must explicitly support each synthesis; otherwise abstain.
         if summaries:
-            if self.support_checker is None or not await self.support_checker(summaries):
+            flags = await self._support_flags(summaries)
+            if flags is None or not all(flags):
                 raise KnowledgeError("总结的证据覆盖不足；请删除推断或改用逐字摘录。")
 
-    async def source_state(self, claim) -> SourceState:
-        """Source channel for ONE claim, non-raising (same checks as validate_claims)."""
+    async def _citation_state(self, claim) -> SourceState:
+        """Local quote/version/verbatim checks; no model call."""
         for evidence in claim.evidence:
             source = self.reads.get(evidence.source_id)
             if not source or evidence.quote not in source["text"]:
@@ -398,8 +399,34 @@ class KnowledgeTools:
         if claim.kind == "quote":
             ok = len(claim.evidence) == 1 and claim.text == claim.evidence[0].quote
             return SourceState.QUOTE_OK if ok else SourceState.REJECTED
-        summary = [{"claim": claim.text, "evidence": [e.quote for e in claim.evidence]}]
-        if self.support_checker is None or not await self.support_checker(summary):
+        return SourceState.SUMMARY_OK
+
+    async def _support_flags(self, summaries) -> list[bool] | None:
+        """One batch entailment check. None means fail-closed (malformed or missing)."""
+        if self.support_checker is None:
+            return None
+        result = await self.support_checker(summaries)
+        if result is True:
+            return [True] * len(summaries)
+        if result is False:
+            return [False] * len(summaries)
+        if (
+            isinstance(result, list)
+            and len(result) == len(summaries)
+            and all(value is True or value is False for value in result)
+        ):
+            return result
+        return None
+
+    async def source_state(self, claim) -> SourceState:
+        """Source channel for ONE claim, non-raising (same checks as validate_claims)."""
+        local = await self._citation_state(claim)
+        if local is not SourceState.SUMMARY_OK or claim.kind != "summary":
+            return local
+        flags = await self._support_flags(
+            [{"claim": claim.text, "evidence": [e.quote for e in claim.evidence]}]
+        )
+        if flags is None or not flags[0]:
             return SourceState.REJECTED
         return SourceState.SUMMARY_OK
 
@@ -473,14 +500,33 @@ class KnowledgeTools:
                     per_claim[index] = state
             else:
                 standalone.append((assertion, state))
+        citation_states = [await self._citation_state(claim) for claim in final.claims]
+        pending = [
+            (index, {"claim": claim.text, "evidence": [e.quote for e in claim.evidence]})
+            for index, claim in enumerate(final.claims)
+            if claim.kind == "summary" and citation_states[index] is not SourceState.REJECTED
+        ]
+        flags_by_index: dict[int, bool] = {}
+        if pending:
+            flags = await self._support_flags([payload for _, payload in pending])
+            if flags is None:
+                raise KnowledgeError("总结的证据覆盖不足；请删除推断或改用逐字摘录。")
+            flags_by_index = {index: flag for (index, _), flag in zip(pending, flags)}
         shown, notes, notices, lines = [], {}, [], []
+        dropped_summaries = 0
         for index, claim in enumerate(final.claims):
-            source = await self.source_state(claim)
+            source = citation_states[index]
+            if claim.kind == "summary" and source is not SourceState.REJECTED:
+                source = SourceState.SUMMARY_OK if flags_by_index.get(index) else SourceState.REJECTED
             math = per_claim.get(index, MathState.NONE)
             decision = decide(source, math)
             self.gate_log.append({"claim_index": index, "source": source.value, "math": math.value,
                                   "treatment": decision.treatment.value})
             if decision.treatment is Treatment.WITHHOLD:
+                if claim.kind == "summary" and citation_states[index] is not SourceState.REJECTED:
+                    dropped_summaries += 1
+                    notices.append("已移除 1 条证据不足的总结。")
+                    continue
                 raise KnowledgeError("引用未读取、版本不一致、原文摘录不匹配或总结证据覆盖不足。")
             if decision.treatment is Treatment.DROP_MATH:
                 notices.append("已移除 1 条未通过数学验证的结论。")
@@ -499,6 +545,8 @@ class KnowledgeTools:
                 notices.append("已移除 1 条未通过数学验证的结论。")
             else:
                 lines.append(f"- {assertion.expression}：{assertion.answer}（{decision.math_label}）")
+        if pending and dropped_summaries == len(pending) and not shown:
+            raise KnowledgeError("总结的证据覆盖不足；请删除推断或改用逐字摘录。")
         return shown, notes, lines, notices
 
     async def finalize(self, text):

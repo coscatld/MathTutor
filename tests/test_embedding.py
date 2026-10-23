@@ -232,3 +232,65 @@ async def test_build_index_no_chunks_returns_none(seeded):
         repository=repo, embedding_runtime=build_fake_embedding_runtime()
     )
     assert await manager.build_index(_STUDENT, empty.document_id) is None
+
+
+async def test_reparse_invalidates_vectors_and_rebuilds(tmp_path):
+    from mathtutor.application.desktop_files import PickedFile
+    from mathtutor.application.document_ingestion import DocumentIngestionService
+    from mathtutor.infrastructure.document_storage import DocumentStorage
+    from mathtutor.repositories.document_repository import StaleIndexGenerationError
+
+    repo = InMemoryDocumentRepository()
+    runtime = build_fake_embedding_runtime()
+    manager = DocumentIndexManager(repository=repo, embedding_runtime=runtime)
+    service = DocumentIngestionService(
+        repository=repo,
+        storage=DocumentStorage(tmp_path / "data"),
+        index_manager=manager,
+    )
+    picked = PickedFile(
+        filename="方程.txt", mime_type="text/plain",
+        data="一元二次方程的求根公式。判别式决定根的数量。".encode("utf-8"),
+    )
+    doc = await service.ingest(_STUDENT, picked)
+    assert await manager.is_current(_STUDENT, doc.document_id)
+    old_ids = {chunk.chunk_id for chunk in await repo.list_chunks(_STUDENT, doc.document_id)}
+    old_version = (await repo.get_index_build(_STUDENT, doc.document_id)).index_version
+    await service.reparse(_STUDENT, doc.document_id)
+    new_ids = {chunk.chunk_id for chunk in await repo.list_chunks(_STUDENT, doc.document_id)}
+    assert new_ids and new_ids != old_ids
+    vectors = await repo.get_vectors(_STUDENT, doc.document_id)
+    assert set(vectors) == new_ids
+    assert await manager.is_current(_STUDENT, doc.document_id)
+    rebuilt = await repo.get_index_build(_STUDENT, doc.document_id)
+    assert rebuilt.index_version == old_version + 1
+    result = await manager.search(_STUDENT, query="求根公式", document_ids=[doc.document_id])
+    assert result.vector_used is True
+    assert all(hit.vector_score is not None for hit in result.hits)
+
+    service._index = DocumentIndexManager(repository=repo, embedding_runtime=EmbeddingRuntime())
+    await service.reparse(_STUDENT, doc.document_id)
+    assert not await service._index.is_current(_STUDENT, doc.document_id)
+    lexical = await service._index.search(_STUDENT, query="求根公式", document_ids=[doc.document_id])
+    assert lexical.vector_used is False and lexical.hits
+
+    restored = DocumentIndexManager(repository=repo, embedding_runtime=build_fake_embedding_runtime())
+    record = await restored.build_index(_STUDENT, doc.document_id)
+    assert record is not None and await restored.is_current(_STUDENT, doc.document_id)
+
+    original_embed = runtime.embed_texts
+
+    async def expire(texts):
+        chunks = [
+            chunk.model_copy(update={"chunk_id": uuid4()})
+            for chunk in await repo.list_chunks(_STUDENT, doc.document_id)
+        ]
+        await repo.replace_chunks(_STUDENT, doc.document_id, chunks)
+        return await original_embed(texts)
+
+    runtime.embed_texts = expire
+    expiring = DocumentIndexManager(repository=repo, embedding_runtime=runtime)
+    with pytest.raises(StaleIndexGenerationError):
+        await expiring.build_index(_STUDENT, doc.document_id, force=True)
+    live_ids = {chunk.chunk_id for chunk in await repo.list_chunks(_STUDENT, doc.document_id)}
+    assert set(await repo.get_vectors(_STUDENT, doc.document_id)) != live_ids or not await repo.get_vectors(_STUDENT, doc.document_id)

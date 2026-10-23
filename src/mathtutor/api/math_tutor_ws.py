@@ -527,7 +527,12 @@ async def _budget_exhausted(state, student_id) -> bool:
     policy, traces = getattr(state, "cost_policy", None), getattr(state, "turn_traces", None)
     if policy is None or traces is None or not state.gateway.configured_roles():
         return False
-    return policy.over_budget(policy.usage_today(await traces.recent(str(student_id), limit=1000)))
+    start, end = policy.utc_day_bounds()
+    usage = policy.usage_from_aggregate(
+        await traces.usage_for_day(str(student_id), start=start, end=end),
+        date=start,
+    )
+    return policy.over_budget(usage)
 
 
 def _message_projection(user_message: str) -> tuple[str, str]:

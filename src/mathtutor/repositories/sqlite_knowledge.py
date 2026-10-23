@@ -259,6 +259,25 @@ class SQLiteDocumentRepository:
                 conn, student_id=student_id, document_id=document_id, record=record
             )
 
+    async def publish_index(
+        self,
+        student_id: str,
+        document_id: UUID,
+        vectors: Sequence[tuple[UUID, EmbeddingDescriptor, EmbeddingVector]],
+        record: IndexBuildRecord,
+        *,
+        expected_chunk_ids: Sequence[UUID],
+    ) -> None:
+        async with self.uow.transaction() as conn:
+            await sd.publish_chunk_index(
+                conn,
+                student_id=student_id,
+                document_id=document_id,
+                vectors=vectors,
+                record=record,
+                expected_chunk_ids=expected_chunk_ids,
+            )
+
     async def search_chunks(
         self,
         student_id: str,

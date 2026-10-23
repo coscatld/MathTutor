@@ -58,6 +58,7 @@ from mathtutor.infrastructure.schema import (
 )
 from mathtutor.repositories.document_repository import (
     FTS_FUSION_WEIGHT,
+    StaleIndexGenerationError,
     cosine_similarity,
     fuse_retrieval_scores,
 )
@@ -322,6 +323,16 @@ async def replace_document_chunks(
     # Scope the FTS sync to THIS document: a full rebuild would rewrite every
     # other document's FTS rows on the interactive import path.
     await sync_document_chunks_fts(conn, document_id=str(document_id))
+    # Chunk IDs are regenerated on reparse. Drop the derived vectors in this
+    # same short transaction so search cannot keep scoring vanished keys, and
+    # so is_current cannot treat the leftover build signature as live. The
+    # build row stays so the next publish increments index_version.
+    await conn.execute(
+        document_chunk_vectors.delete().where(
+            document_chunk_vectors.c.document_id == str(document_id),
+            document_chunk_vectors.c.student_id == student_id,
+        )
+    )
 
 
 async def list_document_chunks(
@@ -524,6 +535,29 @@ async def record_index_build(
     await conn.execute(document_index_builds.insert().values(**values))
 
 
+async def publish_chunk_index(
+    conn: AsyncConnection,
+    *,
+    student_id: str,
+    document_id: UUID,
+    vectors: Sequence[tuple[UUID, EmbeddingDescriptor, EmbeddingVector]],
+    record: IndexBuildRecord,
+    expected_chunk_ids: Sequence[UUID],
+) -> None:
+    """Write vectors + build row only when live chunk IDs still match."""
+    chunks = await list_document_chunks(
+        conn, student_id=student_id, document_id=document_id
+    )
+    if {chunk.chunk_id for chunk in chunks} != set(expected_chunk_ids):
+        raise StaleIndexGenerationError("index generation expired")
+    await replace_chunk_vectors(
+        conn, student_id=student_id, document_id=document_id, vectors=vectors
+    )
+    await record_index_build(
+        conn, student_id=student_id, document_id=document_id, record=record
+    )
+
+
 # -------------------------------------------------------------- retrieval
 
 async def search_document_chunks(
@@ -708,6 +742,7 @@ __all__ = [
     "list_document_chunks",
     "list_retrievable_chunks",
     "list_user_documents",
+    "publish_chunk_index",
     "record_index_build",
     "replace_chunk_vectors",
     "replace_document_chunks",

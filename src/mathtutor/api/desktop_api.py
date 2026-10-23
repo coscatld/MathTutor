@@ -1274,8 +1274,12 @@ async def get_cost_settings(owner: StudentOwnerScope = Depends(require_student_o
     policy = getattr(state, "cost_policy", None)
     if policy is None:
         raise HTTPException(status_code=503, detail="成本设置不可用")
-    rows = await state.turn_traces.recent(str(owner.student_id), limit=1000) if getattr(state, "turn_traces", None) else []
-    usage = policy.usage_today(rows)
+    start, end = policy.utc_day_bounds()
+    if getattr(state, "turn_traces", None) is None:
+        aggregate = {"tokens": 0, "cost": 0, "turns": 0}
+    else:
+        aggregate = await state.turn_traces.usage_for_day(str(owner.student_id), start=start, end=end)
+    usage = policy.usage_from_aggregate(aggregate, date=start)
     return {**policy.current().model_dump(), "today": usage, "over_budget": policy.over_budget(usage)}
 
 

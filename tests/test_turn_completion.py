@@ -1,4 +1,5 @@
 import asyncio
+import json
 import pytest
 from mathtutor.application.tutor_runtime import (
     TutorTurnResult, FinishReason, current_turn, complete_tutor, record_turn, loop_health,
@@ -233,6 +234,73 @@ async def test_provider_stop_reason_preserved(reason):
     completion = await provider.complete([{'role': 'user', 'content': '题目'}])
     assert completion.finish_reason == reason
     assert completion.input_tokens == 30 and completion.output_tokens == 10
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["calls", "calls_and_text"])
+async def test_math_tools_off_rejects_calls_without_executing(kind):
+    from mathtutor.application.tutor_runtime import complete_math_tools, current_turn
+    from mathtutor.infrastructure.generative_gateway import CompletionResult, GenerativeProviderError
+
+    executed = []
+
+    class P:
+        provider_id = "fake"
+        model = "test"
+
+        async def complete(self, messages, **kwargs):
+            assert kwargs.get("tools") is None
+            calls = ({"id": "1", "type": "function",
+                      "function": {"name": "verify_math", "arguments": json.dumps({"expression": "1+1", "answer": "2"})}},)
+            text = "" if kind == "calls" else "计算结果是 2。"
+            return CompletionResult(text=text, finish_reason="stop", tool_calls=calls,
+                                    provider_id="fake", model="test", input_tokens=1, output_tokens=1)
+
+    async def verify(expression, answer):
+        executed.append((expression, answer))
+        raise AssertionError("must not run")
+
+    turn = TutorTurnResult(max_steps=1)
+    turn.math_tools_entered = True
+    token = current_turn.set(turn)
+    try:
+        if kind == "calls":
+            with pytest.raises(GenerativeProviderError):
+                await complete_math_tools(P(), [{"role": "user", "content": "1+1=?"}], verify=verify)
+            assert turn.status == "FAILED"
+        else:
+            result = await complete_math_tools(P(), [{"role": "user", "content": "1+1=?"}], verify=verify)
+            assert result.turn_result["status"] == "PARTIAL"
+            assert "计算结果是 2。" in result.text
+        assert executed == []
+        assert turn.finish_reason == FinishReason.INVALID_TOOL_SEQUENCE
+        assert turn.tool_calls_count == 0
+    finally:
+        current_turn.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_math_tools_off_pure_text_completes():
+    from mathtutor.application.tutor_runtime import complete_math_tools, current_turn
+
+    class P:
+        provider_id = "fake"
+        model = "test"
+
+        async def complete(self, messages, **kwargs):
+            assert kwargs.get("tools") is None
+            return result("stop", "加法交换律说交换加数位置和不变。")
+
+    turn = TutorTurnResult(max_steps=1)
+    turn.math_tools_entered = True
+    token = current_turn.set(turn)
+    try:
+        out = await complete_math_tools(P(), [{"role": "user", "content": "交换律"}], verify=None)
+        assert turn.status == "COMPLETED"
+        assert turn.finish_reason == FinishReason.NATURAL_STOP
+        assert "交换" in out.text
+    finally:
+        current_turn.reset(token)
 
 
 @pytest.mark.asyncio

@@ -43,6 +43,10 @@ from mathtutor.domain.embedding import (
 from mathtutor.infrastructure.lexical import lexical_score
 from mathtutor.security.scopes import student_uuid
 
+class StaleIndexGenerationError(ValueError):
+    """Vectors were computed against chunks that have since been replaced."""
+
+
 # Weight of the vector score inside the fused score (lexical weight = 1.0).
 # Lexical always participates; the vector term only adds signal when a
 # backend exists. Tuned so a strong lexical match still wins over a weak
@@ -162,6 +166,23 @@ class DocumentRepository(Protocol):
         self, student_id: str, document_id: UUID, record: IndexBuildRecord
     ) -> None: ...
 
+    async def publish_index(
+        self,
+        student_id: str,
+        document_id: UUID,
+        vectors: Sequence[tuple[UUID, EmbeddingDescriptor, EmbeddingVector]],
+        record: IndexBuildRecord,
+        *,
+        expected_chunk_ids: Sequence[UUID],
+    ) -> None:
+        """Atomically publish vectors + build row if live chunks still match.
+
+        Embedding stays outside the transaction. A reparse that lands while
+        vectors were computing must not commit the expired generation, and
+        must not reset ``index_version`` back to 1.
+        """
+        ...
+
     # retrieval -----------------------------------------------------------
 
     async def search_chunks(
@@ -269,6 +290,12 @@ class InMemoryDocumentRepository:
         stored = [chunk.model_copy(update={"student_id": owner}) for chunk in chunks]
         stored.sort(key=lambda chunk: chunk.sequence)
         self._chunks[document_id] = stored
+        # New chunk UUIDs cannot address the previous vector rows. Drop the
+        # derived projection in the same write; keep the build row so the
+        # next successful publish increments index_version.
+        doc = self._documents.get(document_id)
+        if doc is None or doc.student_id == owner:
+            self._vectors.pop(document_id, None)
 
     async def list_chunks(
         self, student_id: str, document_id: UUID
@@ -337,6 +364,21 @@ class InMemoryDocumentRepository:
         self, student_id: str, document_id: UUID, record: IndexBuildRecord
     ) -> None:
         self._builds[(student_uuid(student_id), document_id)] = record
+
+    async def publish_index(
+        self,
+        student_id: str,
+        document_id: UUID,
+        vectors: Sequence[tuple[UUID, EmbeddingDescriptor, EmbeddingVector]],
+        record: IndexBuildRecord,
+        *,
+        expected_chunk_ids: Sequence[UUID],
+    ) -> None:
+        live = {chunk.chunk_id for chunk in await self.list_chunks(student_id, document_id)}
+        if live != set(expected_chunk_ids):
+            raise StaleIndexGenerationError("index generation expired")
+        await self.replace_vectors(student_id, document_id, vectors)
+        await self.record_index_build(student_id, document_id, record)
 
     # ---------------------------------------------------------- retrieval
 
@@ -413,6 +455,7 @@ __all__ = [
     "DocumentRepository",
     "InMemoryDocumentRepository",
     "FTS_FUSION_WEIGHT",
+    "StaleIndexGenerationError",
     "VECTOR_FUSION_WEIGHT",
     "cosine_similarity",
     "fuse_retrieval_scores",
