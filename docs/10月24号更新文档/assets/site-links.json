@@ -1,0 +1,5 @@
+{
+  "targets": 80,
+  "broken": [],
+  "scope": "all exported HTML anchors within /MathTutor/; fragment existence and external URLs excluded"
+}

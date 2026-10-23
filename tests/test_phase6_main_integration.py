@@ -341,6 +341,46 @@ def test_backup_create_list_verify_flow(tmp_path: Path) -> None:
     reset_product_state()
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("created_at", None), ("created_at", []), ("created_at", 123), ("sha256", None)],
+)
+def test_backup_listing_survives_malformed_manifest_fields(
+    tmp_path: Path, field: str, value: object,
+) -> None:
+    """One damaged sidecar must not hide the other recoverable snapshots."""
+    reset_product_state()
+    try:
+        with _client(tmp_path / "math_tutor.db") as client:
+            names = []
+            for _ in range(2):
+                response = client.post("/api/v2/math-tutor/desktop/backup", json={})
+                assert response.status_code == 200
+                assert response.json()["ok"] is True
+                names.append(response.json()["backup"]["path"])
+            sidecar = tmp_path / "backups" / f"{names[0]}.manifest.json"
+            payload = json.loads(sidecar.read_text(encoding="utf-8"))
+            payload[field] = value
+            sidecar.write_text(json.dumps(payload), encoding="utf-8")
+
+            listing = client.get("/api/v2/math-tutor/desktop/backups")
+            assert listing.status_code == 200
+            records = {item["path"]: item for item in listing.json()["backups"]}
+            assert set(records) == set(names)
+            assert records[names[0]]["integrity"] == "unknown"
+            assert records[names[0]]["sha256_prefix"] == ""
+            assert isinstance(records[names[0]]["created_at"], str)
+            assert records[names[1]]["integrity"] == "ok"
+            assert str(tmp_path) not in listing.text
+            verified = client.post(
+                "/api/v2/math-tutor/desktop/backup/verify", json={"path": names[1]},
+            )
+            assert verified.status_code == 200
+            assert verified.json()["ok"] is True
+    finally:
+        reset_product_state()
+
+
 def test_backup_client_path_validation_refuses_traversal(tmp_path: Path) -> None:
     """A client can never address a file outside the backup directory:
     path separators, non-backup names, and unknown names are all refused."""

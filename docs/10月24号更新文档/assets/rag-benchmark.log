@@ -1,0 +1,40 @@
+
+wrote <PROJECT_ROOT>/docs/10月24号更新文档/assets/rag-evaluation-001.json
+selfcheck: OK
+Q01 [C1] CP=0.222 CR=1.000 expansion_used=True selected=['disc#1', 'disc#0', 'boundary#1', 'boundary#0', 'inequality#0', 'neighbour#2', 'weida#0', 'example#1'] expanded_from=[['disc#0'], ['disc#1'], [], ['boundary#1'], [], [], [], ['example#0']]
+    intended C1, observed C1 (matched disc#1, added disc#0)
+Q02 [C3] CP=0.250 CR=1.000 expansion_used=True selected=['example#0', 'example#1', 'disc#1', 'boundary#1', 'boundary#0', 'disc#0', 'linear#1', 'fraction#0'] expanded_from=[[], ['example#0'], ['disc#0'], ['boundary#0'], ['boundary#1'], [], [], []]
+Q03 [C5] CP=0.500 CR=1.000 expansion_used=True selected=['neighbour#1', 'neighbour#0', 'boundary#1', 'neighbour#2', 'boundary#0', 'boundary#2', 'disc#1', 'disc#0'] expanded_from=[['neighbour#0', 'neighbour#2'], ['neighbour#1'], ['boundary#0'], [], [], [], [], []]
+    FORBIDDEN PRESENT (retrieval noise, priced into CP): ['boundary#2']
+    C5 guard exercised=True holds=True leaks=[] windows=['boundary#1->[boundary#2]']
+Q04 [C4] CP=0.500 CR=1.000 expansion_used=True selected=['neighbour#2', 'neighbour#1', 'neighbour#0', 'boundary#1', 'boundary#0', 'boundary#2', 'fraction#1', 'linear#1'] expanded_from=[[], ['neighbour#0', 'neighbour#2'], ['neighbour#1'], ['boundary#0'], [], [], [], []]
+    DISTRACTOR PULLED BY EXPANSION (expected for C4, priced into CP): ['neighbour#2']
+Q05 [C2] CP=0.250 CR=1.000 expansion_used=True selected=['disc#0', 'disc#1', 'weida#0', 'boundary#1', 'boundary#0', 'example#1', 'inequality#1', 'example#0'] expanded_from=[['disc#1'], ['disc#0'], [], [], ['boundary#1'], ['example#0'], [], []]
+    intended C2, observed C2 (matched disc#0, added disc#1)
+
+macro  CP=0.344 CR=1.000 NR=0.656 RR=0.913
+expansion-required subset ['Q01', 'Q02', 'Q04', 'Q05'] CP=0.306 CR=1.000
+expansion leaks (C5): none
+distractor pulled by expansion (C4): ['Q04:neighbour#2']
+intent/observation mismatches: none
+isolation ok=True
+
+easy   9 queries / 12 chunks  R@5=1.000 MRR@5=1.000 nDCG@5=1.000 Hit@1=1.000
+hard   5 queries  R@5=1.000 MRR@5=0.900 nDCG@5=0.949 Hit@1=0.800
+
+ablations (identical corpus / queries / budgets)
+  production     CP=0.3444 CR=1.0000
+  no_reranker    CP=0.3389 CR=1.0000
+  no_expansion   CP=0.3500 CR=1.0000
+  no_reranker    dCP=-0.0055 dCR=+0.0000
+  no_expansion   dCP=+0.0056 dCR=+0.0000
+  no_reranker reading:  DECLINE_ON_THIS_SET
+  no_expansion reading: GAIN_ON_THIS_SET
+
+citation attribution (valid+incorrect) P=0.875 R=1.000  cases=4 links=5
+  operational probes: cases=1 links=1 rejection=1.0
+  receipt validation=1.000  unauthorized rejection=1.000
+  citation_mutations: OK — every injected corruption was rejected and every expectation matched
+  fixture_mutations: OK — every injected fixture defect was caught by the check that exists for it
+  semantic: BLOCKED_PROVIDER
+  faithfulness: NOT_MEASURED

@@ -1,0 +1,17 @@
+{
+  "schema_version": "mathtutor.code-plugin.v1",
+  "kind": "code-plugin",
+  "workflow": "code",
+  "id": "example.harness-double",
+  "version": "1.0.0",
+  "name": "Harness 风格乘二工具",
+  "author": "MathTutor 示例作者",
+  "license": "Apache-2.0",
+  "description": "通过 apply 与 tools.register 接入的 TypeScript 工具子集示例。",
+  "readme": "使用 adapt-harness 打包，导入并明确授权后输入 /harness-double {\"value\":21}。输出仅作参考。",
+  "changelog": "1.0.0：工具子集适配示例。",
+  "runtime": "typescript",
+  "command": "harness-double",
+  "entrypoint": "tool.ts",
+  "required_permissions": ["execute_local_code"]
+}

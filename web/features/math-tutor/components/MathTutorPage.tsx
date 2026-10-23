@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversationScroll } from "../hooks/useConversationScroll";
 import { useMathTutorSession } from "../hooks/useMathTutorSession";
 import { makeSessionId } from "../lib/protocol";
+import { withTutorSession } from "../lib/workspace-navigation";
 import { attemptBindingIsCurrent, currentAttemptBinding, type AttemptBinding } from "../lib/attempt";
 import Tooltip from "../desktop/components/Tooltip";
 import ChatComposer from "./ChatComposer";
@@ -25,7 +26,7 @@ export default function MathTutorPage() {
   const router = useRouter();
   const generated = useMemo(() => makeSessionId(), []);
   const sessionId = search.get("session")?.trim() || generated;
-  useEffect(() => { if (!search.get("session")) router.replace(`/math-tutor?session=${encodeURIComponent(sessionId)}`); }, [router, search, sessionId]);
+  useEffect(() => { if (!search.get("session")?.trim()) router.replace(withTutorSession(search, sessionId)); }, [router, search, sessionId]);
   // One-shot launch from the question bank (?start= / ?ask=): text only, ≤300 chars.
   const launch = parseTutorLaunch(search);
   const clearLaunch = useCallback(() => router.replace(`/math-tutor?session=${encodeURIComponent(sessionId)}`), [router, sessionId]);

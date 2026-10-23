@@ -196,7 +196,7 @@ async def test_baseline_parser_identity_is_recorded(tmp_path):
     except ImportError:
         expected = "pypdf"
     assert doc.parser_id == expected
-    assert PARSER_VERSION == "mt-local-parser-v3"
+    assert PARSER_VERSION == "mt-local-parser-v4"
 
 
 async def test_pypdf_baseline_extracts_a_text_layer(tmp_path, monkeypatch):
@@ -228,9 +228,13 @@ async def test_per_page_profile_records_extractable_text_chars(tmp_path):
     assert doc.pages[1].extractable_text_chars == 0
 
 
-async def test_page_profile_does_not_fabricate_measurements(tmp_path):
+async def test_page_profile_does_not_fabricate_measurements(tmp_path, monkeypatch):
     """B2: a baseline parser must not invent image/layout measurements."""
+    import mathtutor.infrastructure.document_parser as parser_module
+
+    monkeypatch.setattr(parser_module, "_pymupdf", lambda: None)
     doc = await _parse(_pdf_with_pages([_MATH]), tmp_path)
+    assert doc.parser_id == "pypdf"
     page = doc.pages[0]
     # None means "not measured", never "zero images".
     assert page.image_count is None
@@ -479,8 +483,11 @@ async def test_optional_rich_parser_emits_heading_blocks(tmp_path):
 
     document = fitz.open()
     page = document.new_page()
-    page.insert_text((72, 72), "一元二次方程", fontsize=24)
-    page.insert_text((72, 140), "正文" * 40, fontsize=10)
+    page.insert_text((72, 72), "一元二次方程", fontsize=24, fontname="china-s")
+    body = "正文用于解释一元二次方程的基本解法。" * 4
+    assert page.insert_textbox(
+        fitz.Rect(72, 140, 520, 300), body, fontsize=10, fontname="china-s"
+    ) >= 0
     payload = document.tobytes()
     document.close()
 
@@ -488,6 +495,87 @@ async def test_optional_rich_parser_emits_heading_blocks(tmp_path):
 
     assert doc.parser_id == "pymupdf"
     assert any(block.type == "heading" for block in doc.blocks)
+    heading = next(block for block in doc.blocks if block.type == "heading")
+    assert heading.text == "一元二次方程"
+    assert body in doc.full_text().replace("\n", "")
+    assert all(block.heading_path == (heading.text,) for block in doc.blocks)
+
+
+@requires_pymupdf
+@pytest.mark.parametrize(
+    "heading,heading_size,body,body_size,expected_heading",
+    [
+        ("函数", 24, "正文解释函数性质。" * 6, 10, True),
+        ("一元二次方程的根与系数之间的关系", 18, "理解根与系数的关系需要结合具体例题。" * 4, 12, True),
+        ("配方法", 16, "通过配方求解方程。" * 3, 11, True),
+        ("同字号短句", 12, "正文和短句采用相同字号。" * 4, 12, False),
+        ("略大字号短句", 13, "不足以形成明确字号层级。" * 4, 12, False),
+        ("图注", 8, "这段正文使用普通字号。" * 5, 12, False),
+        # A title-dominated sparse page has no reliable body-font baseline.
+        ("一段占据页面大部分文字的较长短句", 24, "短文", 10, False),
+    ],
+)
+async def test_rich_heading_uses_text_weighted_font_evidence(
+    tmp_path, heading, heading_size, body, body_size, expected_heading
+):
+    import fitz
+
+    with fitz.open() as document:
+        page = document.new_page()
+        page.insert_text((72, 72), heading, fontsize=heading_size, fontname="china-s")
+        assert page.insert_textbox(
+            fitz.Rect(72, 140, 520, 450), body, fontsize=body_size, fontname="china-s"
+        ) >= 0
+        payload = document.tobytes()
+
+    doc = await _parse(payload, tmp_path)
+    assert heading in doc.full_text()
+    assert body in doc.full_text().replace("\n", "")
+    assert [block.text for block in doc.blocks if block.type == "heading"] == (
+        [heading] if expected_heading else []
+    )
+    assert all(block.type == "paragraph" for block in doc.blocks if block.text != heading)
+
+
+@requires_pymupdf
+async def test_rich_many_short_headings_do_not_outvote_long_body(tmp_path):
+    import fitz
+
+    headings = ["函数定义", "基本性质", "应用方法"]
+    body = "正文需要结合实际例题说明函数的基本性质。" * 5
+    with fitz.open() as document:
+        page = document.new_page()
+        for index, heading in enumerate(headings):
+            page.insert_text((72, 72 + index * 70), heading, fontsize=24, fontname="china-s")
+        assert page.insert_textbox(
+            fitz.Rect(72, 300, 520, 500), body, fontsize=10, fontname="china-s"
+        ) >= 0
+        payload = document.tobytes()
+
+    doc = await _parse(payload, tmp_path)
+    assert [block.text for block in doc.blocks if block.type == "heading"] == headings
+    assert body in doc.full_text().replace("\n", "")
+    assert doc.blocks[-1].type == "paragraph"
+    assert doc.blocks[-1].heading_path == (headings[-1],)
+    drafts = TextChunker().chunk(doc.blocks)
+    assert any(draft["heading_path"] == [headings[-1]] for draft in drafts)
+
+
+@requires_pymupdf
+async def test_rich_large_initial_does_not_turn_body_into_heading(tmp_path):
+    import fitz
+
+    with fitz.open() as document:
+        page = document.new_page()
+        page.insert_text((72, 72), "A", fontsize=24)
+        page.insert_text((90, 72), " short paragraph with a large initial.", fontsize=10)
+        page.insert_text((72, 140), "Ordinary body text provides the normal page font.", fontsize=10)
+        payload = document.tobytes()
+
+    doc = await _parse(payload, tmp_path)
+    assert "A short paragraph with a large initial." in doc.full_text()
+    assert all(block.type == "paragraph" for block in doc.blocks)
+    assert all(block.heading_path == () for block in doc.blocks)
 
 
 @requires_pymupdf

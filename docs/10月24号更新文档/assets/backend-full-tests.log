@@ -1,0 +1,171 @@
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+..........................F............................................. [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+......................................................F...............F. [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+ssss.................................................................... [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+................................F....................................... [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+................................................                         [100%]
+=================================== FAILURES ===================================
+________ test_tls_uses_the_original_hostname_with_public_pinned_socket _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12bd010d0>
+
+    def test_tls_uses_the_original_hostname_with_public_pinned_socket(monkeypatch):
+        recorded = {}
+        class Socket:
+            def close(self):
+                recorded["closed"] = True
+        raw = Socket()
+        def connect(address, timeout):
+            recorded.update(address=address, timeout=timeout)
+            return raw
+        class Context:
+            def wrap_socket(self, sock, *, server_hostname):
+                recorded.update(server_hostname=server_hostname, wrapped=sock)
+                return raw
+        monkeypatch.setattr(socket, "create_connection", connect)
+        context = ssl.create_default_context()
+        assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
+        monkeypatch.setattr(ssl, "create_default_context", lambda: Context())
+>       connection = fetch._PinnedHTTPSConnection("raw.example.org", 443, address="8.8.8.8", timeout=2)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_community_fetch.py:133:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/mathtutor/application/community_fetch.py:110: in __init__
+    super().__init__(host, port=port, timeout=timeout, context=ssl.create_default_context())
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <mathtutor.application.community_fetch._PinnedHTTPSConnection object at 0x12bd00ad0>
+host = 'raw.example.org', port = 443, key_file = None, cert_file = None
+timeout = 2, source_address = None
+context = <test_community_fetch.test_tls_uses_the_original_hostname_with_public_pinned_socket.<locals>.Context object at 0x12bd00f90>
+check_hostname = None, blocksize = 8192
+
+    def __init__(self, host, port=None, key_file=None, cert_file=None,
+                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+                 source_address=None, *, context=None,
+                 check_hostname=None, blocksize=8192):
+        super(HTTPSConnection, self).__init__(host, port, timeout,
+                                              source_address,
+                                              blocksize=blocksize)
+        if (key_file is not None or cert_file is not None or
+                    check_hostname is not None):
+            import warnings
+            warnings.warn("key_file, cert_file and check_hostname are "
+                          "deprecated, use a custom context instead.",
+                          DeprecationWarning, 2)
+        self.key_file = key_file
+        self.cert_file = cert_file
+        if context is None:
+            context = ssl._create_default_https_context()
+            # send ALPN extension to indicate HTTP/1.1 protocol
+            if self._http_vsn == 11:
+                context.set_alpn_protocols(['http/1.1'])
+            # enable PHA for TLS 1.3 connections if available
+            if context.post_handshake_auth is not None:
+                context.post_handshake_auth = True
+>       will_verify = context.verify_mode != ssl.CERT_NONE
+                      ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'Context' object has no attribute 'verify_mode'
+
+../../../miniconda3/envs/deeptutor/lib/python3.11/http/client.py:1469: AttributeError
+______________ test_page_profile_does_not_fabricate_measurements _______________
+
+tmp_path = PosixPath('<TEST_TMP>/pytest-of-mingze/pytest-164/test_page_profile_does_not_fab0')
+
+    async def test_page_profile_does_not_fabricate_measurements(tmp_path):
+        """B2: a baseline parser must not invent image/layout measurements."""
+        doc = await _parse(_pdf_with_pages([_MATH]), tmp_path)
+        page = doc.pages[0]
+        # None means "not measured", never "zero images".
+>       assert page.image_count is None
+E       AssertionError: assert 0 is None
+E        +  where 0 = PdfPageProfile(page_number=1, extractable_text_chars=49, text_layer='TEXT_LAYER', image_count=0).image_count
+
+tests/test_pdf_classification.py:236: AssertionError
+________________ test_optional_rich_parser_emits_heading_blocks ________________
+
+tmp_path = PosixPath('<TEST_TMP>/pytest-of-mingze/pytest-164/test_optional_rich_parser_emit0')
+
+    @requires_pymupdf
+    async def test_optional_rich_parser_emits_heading_blocks(tmp_path):
+        import fitz
+
+        document = fitz.open()
+        page = document.new_page()
+        page.insert_text((72, 72), "一元二次方程", fontsize=24)
+        page.insert_text((72, 140), "正文" * 40, fontsize=10)
+        payload = document.tobytes()
+        document.close()
+
+        doc = await _parse(payload, tmp_path)
+
+        assert doc.parser_id == "pymupdf"
+>       assert any(block.type == "heading" for block in doc.blocks)
+E       assert False
+E        +  where False = any(<generator object test_optional_rich_parser_emits_heading_blocks.<locals>.<genexpr> at 0x16f909700>)
+
+tests/test_pdf_classification.py:490: AssertionError
+_____________________ test_e2e5_no_embedding_real_baseline _____________________
+
+state = <mathtutor.api.product_state.ProductState object at 0x16f7f2290>
+
+    @pytest.mark.asyncio
+    async def test_e2e5_no_embedding_real_baseline(state):
+>       assert importlib.util.find_spec('sentence_transformers') is None
+E       AssertionError: assert ModuleSpec(name='sentence_transformers', loader=<_frozen_importlib_external.SourceFileLoader object at 0x16f3fe110>, o...module_search_locations=['<USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/sentence_transformers']) is None
+E        +  where ModuleSpec(name='sentence_transformers', loader=<_frozen_importlib_external.SourceFileLoader object at 0x16f3fe110>, o...module_search_locations=['<USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/sentence_transformers']) = <function find_spec at 0x10521dee0>('sentence_transformers')
+E        +    where <function find_spec at 0x10521dee0> = <module 'importlib.util' (frozen)>.find_spec
+E        +      where <module 'importlib.util' (frozen)> = importlib.util
+
+tests/test_rag_acceptance_e2e.py:97: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_phase6_retrieval_metadata_first.py:247: sqlite-vec 探测 dylib 不在 /tmp/sqlite_vec_probe（本轮实测环境专用）
+SKIPPED [1] tests/test_phase6_retrieval_metadata_first.py:261: sqlite-vec 探测 dylib 不在 /tmp/sqlite_vec_probe（本轮实测环境专用）
+SKIPPED [1] tests/test_phase6_retrieval_metadata_first.py:271: sqlite-vec 探测 dylib 不在 /tmp/sqlite_vec_probe（本轮实测环境专用）
+SKIPPED [1] tests/test_phase6_retrieval_metadata_first.py:302: sqlite-vec 探测 dylib 不在 /tmp/sqlite_vec_probe（本轮实测环境专用）
+FAILED tests/test_community_fetch.py::test_tls_uses_the_original_hostname_with_public_pinned_socket
+FAILED tests/test_pdf_classification.py::test_page_profile_does_not_fabricate_measurements
+FAILED tests/test_pdf_classification.py::test_optional_rich_parser_emits_heading_blocks
+FAILED tests/test_rag_acceptance_e2e.py::test_e2e5_no_embedding_real_baseline
+4 failed, 3208 passed, 4 skipped, 6697 warnings in 235.69s (0:03:55)
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

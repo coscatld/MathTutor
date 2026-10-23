@@ -156,7 +156,7 @@ export default function ConversationReferenceScope({controller, busy}: {controll
   const documents = draft?.available_documents || [];
   return <section aria-label="回答参考资料" className="space-y-4 rounded-2xl border border-[var(--primary-border)] bg-[var(--card)] p-4">
     <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="mt-eyebrow">当前对话</p><h3 className="mt-1 text-sm font-semibold">回答可以参考哪些资料？</h3></div><span className="mt-tool-badge" data-tone={dirty || error || previewError ? "warning" : "active"}>{status === "loading" ? "读取中" : status === "failed" ? "尚未读取" : saving ? "正在应用" : unconfirmed ? "等待确认" : error ? "读取待重试" : previewError ? "预览失败" : dirty ? "尚未应用" : "已应用"}</span></div>
-    <p className="text-xs leading-6 text-[var(--muted-foreground)]">在这里选择这次对话的资料。添加资料与开放整个知识库分别由你决定。</p>
+    <p className="text-xs leading-6 text-[var(--muted-foreground)]">{status === "ready" ? "选择这次讲解可参考的资料，再点击“应用到当前对话”。" : "参考范围读取成功后，你可以选择这次讲解使用的资料。"}回答引用资料时，可按引用查看原文；阅读资料不会计入独立作答证据。</p>
     {status === "loading" ? <p role="status" className="mt-tool-loading"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />正在读取已保存的参考范围…</p> : null}
     {error ? <div role="alert" className="mt-tool-message text-[var(--destructive)]"><p className="text-xs leading-6">{error}</p><button type="button" className="mt-btn mt-btn-sm mt-2" disabled={saving} onClick={() => void refresh()}><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />重新读取范围</button></div> : null}
     {draft && status === "ready" ? <>

@@ -1,23 +1,39 @@
 ---
-title: Documentation
-description: User and developer guides for MathTutor, grounded in the repository and published notes.
+title: Make MathTutor yours
+description: Start with a first problem, understand your learning records, or contribute to the project. Choose a guide for the task at hand.
 ---
 
-MathTutor is an open-source math tutoring system built around learning-process evidence and verifiable solving. The current release is **0.7.0**.
+## What would you like to do?
 
-## Start here
-
-- Students and operators: [Introduction](user/introduction) and [Installation](user/installation).
-- Developers: [Architecture](developer/architecture) and [Development setup](developer/development-setup).
-- Downloads: the [Download](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) page or [GitHub Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0).
-
-## Status labels
-
-| Label | Meaning |
+| Your goal | Start here |
 |---|---|
-| Implemented | Code exists, with tests or release notes |
-| Partial | The main path works, with documented limits |
-| Experimental | Runnable, not a classroom-effect claim |
-| Planned | Roadmap only |
+| Install and try a first problem | [Installation](user/installation) → [Quick start](user/quick-start) |
+| Configure a model and API key | [Model configuration](user/model-configuration) |
+| Bring your notes into a conversation | [Knowledge and documents](user/knowledge-base) |
+| Understand independent and assisted attempts | [Learning evidence](user/learning-evidence) |
+| Back up or delete personal data | [Privacy and data](user/privacy) |
+| Run the source and build extensions | [Development setup](developer/development-setup) → [Contributing](developer/contributing) |
 
-DKT training on ASSISTments and synthetic evaluations is not a MathTutor classroom outcome. Benchmark numbers apply only to the sample and version named in the source report.
+## Three places, three purposes
+
+**Math conversation: work through a problem.** Make an attempt, ask for a hint when needed, then check your understanding on a new problem. See the [tutoring workflow](user/tutoring-workflow).
+
+**Knowledge library: organize reference material.** Store notes and question packs, choose the sources in a conversation, and follow citations back to the text. Importing a document does not establish learning evidence.
+
+**Learning profile: review evidence from actual attempts.** Independent work, assisted work, and attempts after seeing a solution are recorded separately. Use those records to choose your next practice. Model predictions and self-reports cannot replace independent checks.
+
+## A reading route for developers
+
+First [run the project](developer/development-setup), then explore:
+
+- [Architecture](developer/architecture): frontend, desktop shell, and Python service boundaries.
+- [Teaching state machine](developer/teaching-state-machine) and [math solver](developer/math-solver): how teaching connects to verification.
+- [Retrieval and RAG](developer/retrieval-rag): source selection, retrieval, and citations.
+- [Evidence and DKT](developer/evidence-dkt): facts, projections, and predictions.
+- [Testing and evaluation](developer/testing-evaluation): engineering checks and product evaluations.
+
+## Versions and evidence
+
+The public installer is **0.7.0 r3**. Local source changes reach installers through a future release. See [installation](user/installation).
+
+Implemented features have corresponding repository code; partial and experimental features state their limits. Engineering tests, fixture evaluations, and real student learning outcomes are assessed separately. DKT training and synthetic evaluations are not classroom evidence.

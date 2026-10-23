@@ -31,6 +31,7 @@ The parser version is part of the index-lifecycle signature.
 
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from typing import Protocol, Sequence
@@ -47,7 +48,7 @@ from mathtutor.domain.documents import (
 )
 from mathtutor.infrastructure.parse_adapters import try_mineru_parse
 
-PARSER_VERSION = "mt-local-parser-v3"
+PARSER_VERSION = "mt-local-parser-v4"
 
 # Empty-page fraction at or above this value sets parse_warning (mixed PDFs).
 EMPTY_PAGE_WARNING_RATIO = 0.3
@@ -275,12 +276,12 @@ class LocalDocumentParser:
                 bbox = raw_block.get("bbox")
                 if bbox and _bbox_in_tables(bbox, table_rects):
                     continue
-                text, max_size, _block_median = _block_text_and_size(raw_block)
+                text, _max_size, block_median = _block_text_and_size(raw_block)
                 if not text:
                     continue
                 page_chars += len(text)
                 kind, latex = _classify_text_block(
-                    text, max_size=max_size, median=page_median
+                    text, font_size=block_median, median=page_median
                 )
                 if kind == "heading":
                     heading_path = [text.splitlines()[0][:80]]
@@ -556,50 +557,79 @@ def _parse_stats(
 
 
 def _page_median_size(page_dict: dict) -> float:
-    sizes: list[float] = []
+    sizes: list[tuple[float, int]] = []
     for raw_block in page_dict.get("blocks") or []:
         if raw_block.get("type") != 0:
             continue
         for line in raw_block.get("lines") or []:
             for span in line.get("spans") or []:
-                try:
-                    sizes.append(float(span.get("size") or 0.0))
-                except (TypeError, ValueError):
-                    continue
-    if not sizes:
+                if sample := _span_font_sample(span):
+                    sizes.append(sample)
+    return _text_weighted_median_size(sizes)
+
+
+def _span_font_sample(span: dict) -> tuple[float, int] | None:
+    """Ignore whitespace and unusable font metadata when estimating text size."""
+    weight = sum(not char.isspace() for char in (span.get("text") or ""))
+    try:
+        size = float(span.get("size") or 0.0)
+    except (TypeError, ValueError):
+        return None
+    if not weight or not math.isfinite(size) or size <= 0:
+        return None
+    return size, weight
+
+
+def _text_weighted_median_size(samples: Sequence[tuple[float, int]]) -> float:
+    """Median over visible characters, without allocating an entry per character.
+
+    A font/style change can split a paragraph into many spans; a whole body
+    paragraph can also be one span. Weight by text rather than these arbitrary
+    boundaries so short headings cannot outvote most of a page's body text.
+    As with an ordinary median, average the two central values for even totals.
+    """
+    total = sum(weight for _, weight in samples)
+    if not total:
         return 0.0
-    return sorted(sizes)[len(sizes) // 2]
+    lower_rank, upper_rank = (total - 1) // 2, total // 2
+    seen = 0
+    lower = None
+    for size, weight in sorted(samples):
+        seen += weight
+        if lower is None and seen > lower_rank:
+            lower = size
+        if seen > upper_rank:
+            return (lower + size) / 2
+    return 0.0
 
 
 def _block_text_and_size(raw_block: dict) -> tuple[str, float, float]:
     lines: list[str] = []
-    sizes: list[float] = []
+    sizes: list[tuple[float, int]] = []
     for line in raw_block.get("lines") or []:
         pieces: list[str] = []
         for span in line.get("spans") or []:
             piece = (span.get("text") or "").strip()
             if piece:
                 pieces.append(piece)
-            try:
-                sizes.append(float(span.get("size") or 0.0))
-            except (TypeError, ValueError):
-                pass
+            if sample := _span_font_sample(span):
+                sizes.append(sample)
         if pieces:
             lines.append(" ".join(pieces))
     text = "\n".join(lines).strip()
-    max_size = max(sizes) if sizes else 0.0
-    median = sorted(sizes)[len(sizes) // 2] if sizes else 0.0
+    max_size = max((size for size, _ in sizes), default=0.0)
+    median = _text_weighted_median_size(sizes)
     return text, max_size, median
 
 
 def _classify_text_block(
-    text: str, *, max_size: float, median: float
+    text: str, *, font_size: float, median: float
 ) -> tuple[ParsedElementType, str | None]:
     stripped = text.strip()
     if _DISPLAY_FORMULA.match(stripped) or _inline_formula_only(stripped):
         return "formula", stripped
     short = len(stripped) <= 80 and "\n" not in stripped
-    larger = median > 0 and max_size >= median * 1.35
+    larger = median > 0 and font_size >= median * 1.35
     if short and (larger or stripped.endswith(("：", ":"))):
         return "heading", None
     return "paragraph", None

@@ -18,10 +18,23 @@ python examples/community-plugins/build_bundle.py \
 
 ## 方式 B：Python / TypeScript 代码插件
 
-参考 `examples/code-plugins/quadratic-vertex/`，其中包含 `vertex.py` 和 `plugin.json`（格式 `mathtutor.code-plugin.v1`）。使用现有打包脚本：
+从新的独立目录开始，不需要复制仓库示例：
 
 ```bash
-python examples/code-plugins/build_bundle.py \
+python -m mathtutor.extensions.developer init my-plugin \
+  --id community.echo --name "社区回显" --author "你的名字" \
+  --license MIT --command echo
+python -m mathtutor.extensions.developer build my-plugin \
+  --include README.md --output my-plugin-1.0.0.zip
+python -m mathtutor.extensions.developer check my-plugin-1.0.0.zip
+```
+
+创建 TypeScript 模板时在 `init` 后追加 `--runtime typescript`。三条命令只创建或检查本地包，不执行代码或自动启用插件；已有目录和输出文件不会被覆盖。将 ZIP 导入“我的插件”，确认本地代码信任并启用后，发送 `/echo 你好` 查看真实结果。`check` 的成功表示包格式与校验值通过，代码功能仍需实际调用验证。
+
+也可参考 `examples/code-plugins/quadratic-vertex/`，其中包含 `vertex.py` 和 `plugin.json`（格式 `mathtutor.code-plugin.v1`）：
+
+```bash
+python -m mathtutor.extensions.developer build \
   examples/code-plugins/quadratic-vertex \
   --include README.md \
   --output /tmp/mathtutor-plugin-dist/quadratic-vertex-1.0.0.zip

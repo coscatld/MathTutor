@@ -1,23 +1,39 @@
 ---
-title: 文档首页
-description: MathTutor 用户指南与开发者指南。内容以仓库实现和已发布说明为准。
+title: 把 MathTutor 用起来
+description: 从第一道题，到读懂学习记录，再到参与开源开发。按你要完成的事情选择阅读路径。
 ---
 
-MathTutor（数迹）是基于学习过程追踪与可验证解题的开源数学智能辅导系统。当前正式版本是 **0.7.0**。
+## 我现在想做什么？
 
-## 先读这里
-
-- 学生与使用者从 [简介](user/introduction) 和 [安装](user/installation) 开始。
-- 开发者从 [架构概览](developer/architecture) 和 [开发环境](developer/development-setup) 开始。
-- 下载入口见官网 [Download](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) 或 [GitHub Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)。
-
-## 阅读约定
-
-| 标记 | 含义 |
+| 你的目标 | 从这里开始 |
 |---|---|
-| 已实现 | 仓库有对应代码，并有测试或发布说明 |
-| 部分实现 | 主路径可用，但有明确限制 |
-| 实验性 | 可运行，但不能当成真实教学效果 |
-| 规划中 | 路线图，尚未作为产品能力宣传 |
+| 安装应用，完成第一次练习 | [安装](user/installation) → [快速开始](user/quick-start) |
+| 配置自己的模型和 API Key | [模型配置](user/model-configuration) |
+| 导入讲义，让回答引用资料 | [知识库与资料](user/knowledge-base) |
+| 看懂独立、受助和再次作答的区别 | [学习证据](user/learning-evidence) |
+| 保护、备份或删除自己的数据 | [隐私与数据](user/privacy) |
+| 运行源码，开发社区组件 | [开发环境](developer/development-setup) → [贡献指南](developer/contributing) |
 
-DKT 的 ASSISTments 训练与合成评估不是 MathTutor 课堂效果。评测分数只对应文档里写明的样本与版本。
+## 先分清三个地方
+
+**数学对话：完成一次学习。** 提交题目和自己的尝试，需要时获取提示，再用新题检验理解。见[教学流程](user/tutoring-workflow)。
+
+**知识库：整理回答的参考资料。** 保存讲义、笔记和题库；在对话的“对话资料”中选择本轮参考范围，再从回答的引用查看原文。导入资料不等于已经学会其中的知识。
+
+**学习画像：查看实际作答留下的证据。** 独立完成、提示后完成和看答案后的作答分开记录，结合记录选择下一次练习。模型预测与自我报告不能替代独立验证。
+
+## 开发者阅读路线
+
+先[运行项目](developer/development-setup)，再按模块查阅：
+
+- [架构概览](developer/architecture)：前端、桌面壳和 Python 服务的边界。
+- [教学状态机](developer/teaching-state-machine)与[数学求解](developer/math-solver)：教学和验证如何衔接。
+- [检索与 RAG](developer/retrieval-rag)：资料范围、检索和引用追踪。
+- [学习证据与 DKT](developer/evidence-dkt)：事实、投影和预测的区别。
+- [测试与评测](developer/testing-evaluation)：如何验证代码、检索和教学行为。
+
+## 版本与验证范围
+
+公开安装包为 **0.7.0 r3**；本地源码改进需经后续发布才能进入安装包。安装方式见[安装指南](user/installation)。
+
+文档中的“已实现”表示仓库存在对应能力；“部分实现”和“实验性”会列明适用范围。工程测试、固定样本评测和真实学生学习效果分别验收。DKT 训练与合成评估不代表 MathTutor 的课堂效果。

@@ -1,0 +1,3435 @@
+{
+ "schema": "mathtutor.rag-evaluation/2",
+ "generated_by": "scripts/rag_hard_set_probe.py",
+ "run_provenance": {
+  "git_head": "415b913de666ce5740dc76b8e8b89d25d647f2f5",
+  "git_branch": "main",
+  "working_tree_dirty": true,
+  "production_source_digest": "1417a18e4ca525e2",
+  "probe_script_digest": "f1eda9fdfb3aff22",
+  "official_benchmark_digest": "71ae62aefb3fed71",
+  "chunker_version": "mt-chunker-v2",
+  "corpus_version": "hard-corpus/2",
+  "annotation_version": "hard-annotations/3",
+  "scorer_version": "hard-scorer/2"
+ },
+ "budgets": {
+  "candidate_limit": 20,
+  "evidence_limit": 8,
+  "max_evidence_items": 8,
+  "max_evidence_chars": 12000,
+  "max_per_item_chars": 2000,
+  "max_expanded_items": 4,
+  "max_expansion_chars": 2400,
+  "expansion_neighbour_radius": 1,
+  "chunker_max_chunk_chars": 1000,
+  "chunker_min_chunk_chars": 80,
+  "chunker_overlap_chars": 100,
+  "counting_unit": "chunk identity (document_key, sequence)",
+  "note": "Metrics here are CHUNK-weighted, never token-weighted. A 988-char chunk and an 18-char chunk each count as one. Nothing in this artefact may be re-read as a per-token or per-character rate."
+ },
+ "corpus": {
+  "documents": [
+   {
+    "key": "neighbour",
+    "filename": "乘法公式.md",
+    "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+    "chunk_count": 3
+   },
+   {
+    "key": "disc",
+    "filename": "判别式.md",
+    "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+    "chunk_count": 2
+   },
+   {
+    "key": "example",
+    "filename": "例题.md",
+    "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+    "chunk_count": 2
+   },
+   {
+    "key": "boundary",
+    "filename": "完全平方公式.md",
+    "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+    "chunk_count": 3
+   },
+   {
+    "key": "weida",
+    "filename": "韦达定理.md",
+    "document_id": "9663f4d6-765b-47d1-bbf5-7e93729eb5fa",
+    "chunk_count": 1
+   },
+   {
+    "key": "linear",
+    "filename": "一元一次方程.md",
+    "document_id": "3b10f4ce-595f-4ee1-bedd-f024babc3225",
+    "chunk_count": 2
+   },
+   {
+    "key": "fraction",
+    "filename": "分式方程.md",
+    "document_id": "34da559b-2be5-4d7f-9e6d-3f1e8ed7a811",
+    "chunk_count": 2
+   },
+   {
+    "key": "inequality",
+    "filename": "一元一次不等式.md",
+    "document_id": "38ae9ee1-be6e-4c8f-9594-9b7363d2a31b",
+    "chunk_count": 2
+   }
+  ],
+  "chunk_manifest": [
+   {
+    "doc": "neighbour",
+    "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+    "chunk_id": "08966349-b3e9-4d9e-805a-271a4a34b82c",
+    "sequence": 0,
+    "chunk_type": "paragraph",
+    "section": "乘法公式",
+    "heading_path": [
+     "乘法公式"
+    ],
+    "parent_chunk_id": null,
+    "chars": 988,
+    "ends_terminal": false,
+    "preview": "完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开"
+   },
+   {
+    "doc": "neighbour",
+    "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+    "chunk_id": "8e85a716-6aa6-4ca8-8632-60855e5c0510",
+    "sequence": 1,
+    "chunk_type": "paragraph",
+    "section": "乘法公式",
+    "heading_path": [
+     "乘法公式"
+    ],
+    "parent_chunk_id": null,
+    "chars": 119,
+    "ends_terminal": false,
+    "preview": "分解中反复出现 当两个数符号相反时，中间项应当取负号 展开结果里第一项是第一个数的平方，最后一项是第二个数的平方 中间的"
+   },
+   {
+    "doc": "neighbour",
+    "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+    "chunk_id": "ee7d375d-ae8d-434d-87e4-f5f561746c99",
+    "sequence": 2,
+    "chunk_type": "definition",
+    "section": "乘法公式",
+    "heading_path": [
+     "乘法公式"
+    ],
+    "parent_chunk_id": null,
+    "chars": 105,
+    "ends_terminal": true,
+    "preview": "定义： 平方差公式描述的是两数之和与两数之差的乘积。平方差公式的展开结果只有两项，并不存在中间的那一项。使用平方差公式之"
+   },
+   {
+    "doc": "disc",
+    "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+    "chunk_id": "d53d8fb8-333b-40bd-b4d7-931ac98094e2",
+    "sequence": 0,
+    "chunk_type": "paragraph",
+    "section": "判别式",
+    "heading_path": [
+     "判别式"
+    ],
+    "parent_chunk_id": null,
+    "chars": 984,
+    "ends_terminal": false,
+    "preview": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于"
+   },
+   {
+    "doc": "disc",
+    "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+    "chunk_id": "3d42940c-bb37-4096-994f-6b496bf4af45",
+    "sequence": 1,
+    "chunk_type": "paragraph",
+    "section": "判别式",
+    "heading_path": [
+     "判别式"
+    ],
+    "parent_chunk_id": null,
+    "chars": 450,
+    "ends_terminal": false,
+    "preview": "现符号错误 因式分解法适用于能够直接看出因式的情形 使用公式法之前应当先把方程化为一般形式 在解一元二次方程的过程中，先"
+   },
+   {
+    "doc": "example",
+    "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+    "chunk_id": "79506d2d-67fd-42d2-8470-16ca8cc8f2af",
+    "sequence": 0,
+    "chunk_type": "example",
+    "section": "例1：解方程 2x + 3 = 7。",
+    "heading_path": [
+     "例题",
+     "例1：解方程 2x + 3 = 7。"
+    ],
+    "parent_chunk_id": null,
+    "chars": 18,
+    "ends_terminal": true,
+    "preview": "例1：解方程 2x + 3 = 7。"
+   },
+   {
+    "doc": "example",
+    "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+    "chunk_id": "cc91099a-f848-425d-9b17-390c6756ba41",
+    "sequence": 1,
+    "chunk_type": "solution",
+    "section": "例1：解方程 2x + 3 = 7。",
+    "heading_path": [
+     "例题",
+     "例1：解方程 2x + 3 = 7。"
+    ],
+    "parent_chunk_id": "79506d2d-67fd-42d2-8470-16ca8cc8f2af",
+    "chars": 94,
+    "ends_terminal": true,
+    "preview": "解：两边同时减去 3，得到 2x = 4，这一步依据等式的基本性质中两边同时减去同一个数等式仍成立；再同时除以 2，得到"
+   },
+   {
+    "doc": "boundary",
+    "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+    "chunk_id": "62b40f93-4a9a-429e-8f42-29895ed9aa1b",
+    "sequence": 0,
+    "chunk_type": "paragraph",
+    "section": "完全平方公式",
+    "heading_path": [
+     "完全平方公式"
+    ],
+    "parent_chunk_id": null,
+    "chars": 979,
+    "ends_terminal": false,
+    "preview": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个"
+   },
+   {
+    "doc": "boundary",
+    "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+    "chunk_id": "3120e02e-817c-429a-acfe-9829111acf86",
+    "sequence": 1,
+    "chunk_type": "paragraph",
+    "section": "完全平方公式",
+    "heading_path": [
+     "完全平方公式"
+    ],
+    "parent_chunk_id": null,
+    "chars": 360,
+    "ends_terminal": false,
+    "preview": "式随之改变 配方时需要保持等式两边同时变化，这一步最容易出现符号错误 因式分解法适用于能够直接看出因式的情形 使用公式法"
+   },
+   {
+    "doc": "boundary",
+    "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+    "chunk_id": "fe3769d7-0589-4910-9bda-a003a5380eb3",
+    "sequence": 2,
+    "chunk_type": "paragraph",
+    "section": "分母有理化",
+    "heading_path": [
+     "完全平方公式",
+     "分母有理化"
+    ],
+    "parent_chunk_id": null,
+    "chars": 38,
+    "ends_terminal": true,
+    "preview": "分母有理化指把分母中的根号去掉，通常通过分子分母同乘分母的有理化因式来完成。"
+   },
+   {
+    "doc": "weida",
+    "document_id": "9663f4d6-765b-47d1-bbf5-7e93729eb5fa",
+    "chunk_id": "5b2ef519-e0af-448d-8630-fcdbfffecdfe",
+    "sequence": 0,
+    "chunk_type": "paragraph",
+    "section": "韦达定理",
+    "heading_path": [
+     "韦达定理"
+    ],
+    "parent_chunk_id": null,
+    "chars": 49,
+    "ends_terminal": true,
+    "preview": "韦达定理描述一元二次方程根与系数的关系：x1 + x2 = -b/a，x1 * x2 = c/a。"
+   },
+   {
+    "doc": "linear",
+    "document_id": "3b10f4ce-595f-4ee1-bedd-f024babc3225",
+    "chunk_id": "18bda8e8-9cb5-48f7-9ad5-8680f91050ce",
+    "sequence": 0,
+    "chunk_type": "paragraph",
+    "section": "等式的基本性质",
+    "heading_path": [
+     "等式的基本性质"
+    ],
+    "parent_chunk_id": null,
+    "chars": 23,
+    "ends_terminal": true,
+    "preview": "等式两边同时加上或减去同一个数，等式仍然成立。"
+   },
+   {
+    "doc": "linear",
+    "document_id": "3b10f4ce-595f-4ee1-bedd-f024babc3225",
+    "chunk_id": "aed386ca-4b05-4cf9-a9e9-296943da6508",
+    "sequence": 1,
+    "chunk_type": "paragraph",
+    "section": "移项",
+    "heading_path": [
+     "等式的基本性质",
+     "移项"
+    ],
+    "parent_chunk_id": null,
+    "chars": 37,
+    "ends_terminal": true,
+    "preview": "移项的依据是等式的基本性质，把某一项从等式的一边移到另一边时需要改变符号。"
+   },
+   {
+    "doc": "fraction",
+    "document_id": "34da559b-2be5-4d7f-9e6d-3f1e8ed7a811",
+    "chunk_id": "b2e6dcf9-b54c-4a69-b705-be8a8bd2063a",
+    "sequence": 0,
+    "chunk_type": "paragraph",
+    "section": "去分母",
+    "heading_path": [
+     "去分母"
+    ],
+    "parent_chunk_id": null,
+    "chars": 30,
+    "ends_terminal": true,
+    "preview": "解分式方程的第一步通常是去分母，两边同乘各分母的最简公分母。"
+   },
+   {
+    "doc": "fraction",
+    "document_id": "34da559b-2be5-4d7f-9e6d-3f1e8ed7a811",
+    "chunk_id": "8541a46e-652c-4050-94f1-e468a514dea0",
+    "sequence": 1,
+    "chunk_type": "paragraph",
+    "section": "增根",
+    "heading_path": [
+     "去分母",
+     "增根"
+    ],
+    "parent_chunk_id": null,
+    "chars": 32,
+    "ends_terminal": true,
+    "preview": "去分母可能引入使最简公分母为零的根，因此解分式方程之后必须验根。"
+   },
+   {
+    "doc": "inequality",
+    "document_id": "38ae9ee1-be6e-4c8f-9594-9b7363d2a31b",
+    "chunk_id": "dc4f7fd9-7e1a-4544-ae59-192a9961cf4e",
+    "sequence": 0,
+    "chunk_type": "paragraph",
+    "section": "不等式的基本性质",
+    "heading_path": [
+     "不等式的基本性质"
+    ],
+    "parent_chunk_id": null,
+    "chars": 30,
+    "ends_terminal": true,
+    "preview": "不等式两边同时乘以或除以同一个负数时，不等号的方向必须改变。"
+   },
+   {
+    "doc": "inequality",
+    "document_id": "38ae9ee1-be6e-4c8f-9594-9b7363d2a31b",
+    "chunk_id": "6206b230-f615-4fb3-b337-9b2ef749d3e8",
+    "sequence": 1,
+    "chunk_type": "paragraph",
+    "section": "解集",
+    "heading_path": [
+     "不等式的基本性质",
+     "解集"
+    ],
+    "parent_chunk_id": null,
+    "chars": 36,
+    "ends_terminal": true,
+    "preview": "一元一次不等式的解集通常在数轴上用区间表示，端点是否包含要用空心点区分。"
+   }
+  ],
+  "note": "Synthetic fixtures only. No student data, no user PDF text."
+ },
+ "annotation_policy": {
+  "required": "A chunk is REQUIRED when the answer cannot be correct without its content: a definition, a stem the solution refers to, or the half of the answer that sits across a chunk boundary.",
+  "relevant": "A chunk is RELEVANT when it materially supports the answer. Required chunks are always relevant (enforced by self-check), so required is a subset of relevant by construction.",
+  "forbidden": "A chunk is FORBIDDEN when the CONTEXT EXPANDER must never pull it in — a section-adjacent chunk reached on sequence adjacency alone. Forbidden chunks are never in `relevant`.",
+  "distractor": "A chunk that is lexically similar to the query, is NOT relevant, and IS expected to be swept in — the same-section neighbour C4 exists to expose. Its presence is priced into context precision and is NOT an expansion leak; the expander is behaving as specified. This is the mirror of `forbidden`, where the guard must refuse.",
+  "forbidden_scoring": "A forbidden chunk that appears in `expanded_from` is an EXPANSION LEAK (the C5 guard failed). A forbidden chunk that the kernel matched on its own is RETRIEVAL NOISE, which is a different defect and is priced into context precision rather than into the C5 guard. Conflating the two would either hide a real expansion bug or libel a working guard.",
+  "redundant_coverage": "`required` names the chunks of the query's primary document that carry the answer. When another document repeats the same fact — which a corpus that revisits a topic does naturally — those chunks are added to `relevant` but not to `required`: they can satisfy the answer, and counting one of them as missing would be wrong. `required` is therefore a floor for recall, not a partition.",
+  "authored_before_retrieval": "Every label above was written from the fixture text and the manifest, before any query ran. Retrieval results never feed back into labels."
+ },
+ "selfcheck": {
+  "status": "OK",
+  "checks": [
+   {
+    "check": "documents_have_chunks[neighbour]",
+    "ok": true,
+    "detail": "3 chunks"
+   },
+   {
+    "check": "documents_have_chunks[disc]",
+    "ok": true,
+    "detail": "2 chunks"
+   },
+   {
+    "check": "documents_have_chunks[example]",
+    "ok": true,
+    "detail": "2 chunks"
+   },
+   {
+    "check": "documents_have_chunks[boundary]",
+    "ok": true,
+    "detail": "3 chunks"
+   },
+   {
+    "check": "documents_have_chunks[weida]",
+    "ok": true,
+    "detail": "1 chunks"
+   },
+   {
+    "check": "documents_have_chunks[linear]",
+    "ok": true,
+    "detail": "2 chunks"
+   },
+   {
+    "check": "documents_have_chunks[fraction]",
+    "ok": true,
+    "detail": "2 chunks"
+   },
+   {
+    "check": "documents_have_chunks[inequality]",
+    "ok": true,
+    "detail": "2 chunks"
+   },
+   {
+    "check": "anchor_exists[disc.applicable_object]",
+    "ok": true,
+    "detail": "disc seq=0 chunk_id=d53d8fb8-333b-40bd-b4d7-931ac98094e2"
+   },
+   {
+    "check": "anchor_text_present[disc.applicable_object]",
+    "ok": true,
+    "detail": "'对于一元二次方程 ax^2+bx+c=0，其中 ' in 984 chars"
+   },
+   {
+    "check": "anchor_exists[disc.definition]",
+    "ok": true,
+    "detail": "disc seq=1 chunk_id=3d42940c-bb37-4096-994f-6b496bf4af45"
+   },
+   {
+    "check": "anchor_text_present[disc.definition]",
+    "ok": true,
+    "detail": "'判别式定义为 Δ = b^2 - 4ac' in 450 chars"
+   },
+   {
+    "check": "anchor_exists[example.stem]",
+    "ok": true,
+    "detail": "example seq=0 chunk_id=79506d2d-67fd-42d2-8470-16ca8cc8f2af"
+   },
+   {
+    "check": "anchor_text_present[example.stem]",
+    "ok": true,
+    "detail": "'例1：解方程 2x + 3 = 7' in 18 chars"
+   },
+   {
+    "check": "anchor_exists[example.solution]",
+    "ok": true,
+    "detail": "example seq=1 chunk_id=cc91099a-f848-425d-9b17-390c6756ba41"
+   },
+   {
+    "check": "anchor_text_present[example.solution]",
+    "ok": true,
+    "detail": "'两边同时减去 3，得到 2x = 4' in 94 chars"
+   },
+   {
+    "check": "anchor_exists[example.solution_final]",
+    "ok": true,
+    "detail": "example seq=1 chunk_id=cc91099a-f848-425d-9b17-390c6756ba41"
+   },
+   {
+    "check": "anchor_text_present[example.solution_final]",
+    "ok": true,
+    "detail": "'得到 x = 2' in 94 chars"
+   },
+   {
+    "check": "anchor_exists[boundary.square_first]",
+    "ok": true,
+    "detail": "boundary seq=0 chunk_id=62b40f93-4a9a-429e-8f42-29895ed9aa1b"
+   },
+   {
+    "check": "anchor_text_present[boundary.square_first]",
+    "ok": true,
+    "detail": "'完全平方公式是整式乘法中最基本的一个公式' in 979 chars"
+   },
+   {
+    "check": "anchor_exists[boundary.square_middle]",
+    "ok": true,
+    "detail": "boundary seq=1 chunk_id=3120e02e-817c-429a-acfe-9829111acf86"
+   },
+   {
+    "check": "anchor_text_present[boundary.square_middle]",
+    "ok": true,
+    "detail": "'中间项是两数乘积的两倍' in 360 chars"
+   },
+   {
+    "check": "anchor_exists[boundary.rationalize]",
+    "ok": true,
+    "detail": "boundary seq=2 chunk_id=fe3769d7-0589-4910-9bda-a003a5380eb3"
+   },
+   {
+    "check": "anchor_text_present[boundary.rationalize]",
+    "ok": true,
+    "detail": "'分母有理化指把分母中的根号去掉' in 38 chars"
+   },
+   {
+    "check": "anchor_exists[neighbour.relevant_head]",
+    "ok": true,
+    "detail": "neighbour seq=0 chunk_id=08966349-b3e9-4d9e-805a-271a4a34b82c"
+   },
+   {
+    "check": "anchor_text_present[neighbour.relevant_head]",
+    "ok": true,
+    "detail": "'完全平方公式把两数之和的平方展开为三项之和' in 988 chars"
+   },
+   {
+    "check": "anchor_exists[neighbour.relevant_tail]",
+    "ok": true,
+    "detail": "neighbour seq=1 chunk_id=8e85a716-6aa6-4ca8-8632-60855e5c0510"
+   },
+   {
+    "check": "anchor_text_present[neighbour.relevant_tail]",
+    "ok": true,
+    "detail": "'完全平方公式在配方与因式分解中反复出现' in 119 chars"
+   },
+   {
+    "check": "anchor_exists[neighbour.distractor]",
+    "ok": true,
+    "detail": "neighbour seq=2 chunk_id=ee7d375d-ae8d-434d-87e4-f5f561746c99"
+   },
+   {
+    "check": "anchor_text_present[neighbour.distractor]",
+    "ok": true,
+    "detail": "'平方差公式的展开结果只有两项' in 105 chars"
+   },
+   {
+    "check": "required_subset_of_relevant[Q01]",
+    "ok": true,
+    "detail": "required=['disc.applicable_object', 'disc.definition'] relevant=['disc.applicable_object', 'disc.definition']"
+   },
+   {
+    "check": "forbidden_disjoint_from_relevant[Q01]",
+    "ok": true,
+    "detail": "forbidden=[]"
+   },
+   {
+    "check": "relevant_is_non_empty[Q01]",
+    "ok": true,
+    "detail": "2 labelled chunks"
+   },
+   {
+    "check": "distractor_disjoint_from_relevant[Q01]",
+    "ok": true,
+    "detail": "distractor=[]"
+   },
+   {
+    "check": "label_resolves[Q01:disc.definition]",
+    "ok": true,
+    "detail": "'disc.definition' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q01:disc.applicable_object]",
+    "ok": true,
+    "detail": "'disc.applicable_object' is a declared anchor"
+   },
+   {
+    "check": "required_subset_of_relevant[Q02]",
+    "ok": true,
+    "detail": "required=['example.solution', 'example.stem'] relevant=['example.solution', 'example.solution_final', 'example.stem']"
+   },
+   {
+    "check": "forbidden_disjoint_from_relevant[Q02]",
+    "ok": true,
+    "detail": "forbidden=[]"
+   },
+   {
+    "check": "relevant_is_non_empty[Q02]",
+    "ok": true,
+    "detail": "3 labelled chunks"
+   },
+   {
+    "check": "distractor_disjoint_from_relevant[Q02]",
+    "ok": true,
+    "detail": "distractor=[]"
+   },
+   {
+    "check": "label_resolves[Q02:example.solution_final]",
+    "ok": true,
+    "detail": "'example.solution_final' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q02:example.solution]",
+    "ok": true,
+    "detail": "'example.solution' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q02:example.stem]",
+    "ok": true,
+    "detail": "'example.stem' is a declared anchor"
+   },
+   {
+    "check": "required_subset_of_relevant[Q03]",
+    "ok": true,
+    "detail": "required=['boundary.square_middle'] relevant=['boundary.square_first', 'boundary.square_middle', 'neighbour.relevant_head', 'neighbour.relevant_tail']"
+   },
+   {
+    "check": "forbidden_disjoint_from_relevant[Q03]",
+    "ok": true,
+    "detail": "forbidden=['boundary.rationalize']"
+   },
+   {
+    "check": "relevant_is_non_empty[Q03]",
+    "ok": true,
+    "detail": "4 labelled chunks"
+   },
+   {
+    "check": "distractor_disjoint_from_relevant[Q03]",
+    "ok": true,
+    "detail": "distractor=[]"
+   },
+   {
+    "check": "label_resolves[Q03:boundary.square_middle]",
+    "ok": true,
+    "detail": "'boundary.square_middle' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q03:boundary.square_first]",
+    "ok": true,
+    "detail": "'boundary.square_first' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q03:neighbour.relevant_head]",
+    "ok": true,
+    "detail": "'neighbour.relevant_head' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q03:neighbour.relevant_tail]",
+    "ok": true,
+    "detail": "'neighbour.relevant_tail' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q03:boundary.rationalize]",
+    "ok": true,
+    "detail": "'boundary.rationalize' is a declared anchor"
+   },
+   {
+    "check": "required_subset_of_relevant[Q04]",
+    "ok": true,
+    "detail": "required=['neighbour.relevant_head', 'neighbour.relevant_tail'] relevant=['boundary.square_first', 'boundary.square_middle', 'neighbour.relevant_head', 'neighbour.relevant_tail']"
+   },
+   {
+    "check": "forbidden_disjoint_from_relevant[Q04]",
+    "ok": true,
+    "detail": "forbidden=[]"
+   },
+   {
+    "check": "relevant_is_non_empty[Q04]",
+    "ok": true,
+    "detail": "4 labelled chunks"
+   },
+   {
+    "check": "distractor_disjoint_from_relevant[Q04]",
+    "ok": true,
+    "detail": "distractor=['neighbour.distractor']"
+   },
+   {
+    "check": "label_resolves[Q04:neighbour.distractor]",
+    "ok": true,
+    "detail": "'neighbour.distractor' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q04:boundary.square_middle]",
+    "ok": true,
+    "detail": "'boundary.square_middle' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q04:boundary.square_first]",
+    "ok": true,
+    "detail": "'boundary.square_first' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q04:neighbour.relevant_head]",
+    "ok": true,
+    "detail": "'neighbour.relevant_head' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q04:neighbour.relevant_tail]",
+    "ok": true,
+    "detail": "'neighbour.relevant_tail' is a declared anchor"
+   },
+   {
+    "check": "required_subset_of_relevant[Q05]",
+    "ok": true,
+    "detail": "required=['disc.applicable_object', 'disc.definition'] relevant=['disc.applicable_object', 'disc.definition']"
+   },
+   {
+    "check": "forbidden_disjoint_from_relevant[Q05]",
+    "ok": true,
+    "detail": "forbidden=[]"
+   },
+   {
+    "check": "relevant_is_non_empty[Q05]",
+    "ok": true,
+    "detail": "2 labelled chunks"
+   },
+   {
+    "check": "distractor_disjoint_from_relevant[Q05]",
+    "ok": true,
+    "detail": "distractor=[]"
+   },
+   {
+    "check": "label_resolves[Q05:disc.definition]",
+    "ok": true,
+    "detail": "'disc.definition' is a declared anchor"
+   },
+   {
+    "check": "label_resolves[Q05:disc.applicable_object]",
+    "ok": true,
+    "detail": "'disc.applicable_object' is a declared anchor"
+   },
+   {
+    "check": "isolation_foreign_document_exists",
+    "ok": true,
+    "detail": "2 chunks ingested under hard-owner-other"
+   },
+   {
+    "check": "isolation_foreign_text_is_identical",
+    "ok": true,
+    "detail": "chunk-for-chunk identical text across owners"
+   },
+   {
+    "check": "isolation_identities_are_distinct",
+    "ok": true,
+    "detail": "no shared chunk ids between owners"
+   },
+   {
+    "check": "case_labels_are_unique",
+    "ok": true,
+    "detail": "['C1', 'C3', 'C5', 'C4', 'C2']"
+   },
+   {
+    "check": "C1_two_distinct_chunks[Q01]",
+    "ok": true,
+    "detail": "2 required chunks"
+   },
+   {
+    "check": "C1_same_section[Q01]",
+    "ok": true,
+    "detail": "('判别式',) vs ('判别式',)"
+   },
+   {
+    "check": "C1_sequence_adjacent[Q01]",
+    "ok": true,
+    "detail": "seq 0 -> 1"
+   },
+   {
+    "check": "C1_boundary_is_reachable[Q01]",
+    "ok": true,
+    "detail": "upper chunk ends '数'"
+   },
+   {
+    "check": "C1_two_distinct_chunks[Q05]",
+    "ok": true,
+    "detail": "2 required chunks"
+   },
+   {
+    "check": "C1_same_section[Q05]",
+    "ok": true,
+    "detail": "('判别式',) vs ('判别式',)"
+   },
+   {
+    "check": "C1_sequence_adjacent[Q05]",
+    "ok": true,
+    "detail": "seq 0 -> 1"
+   },
+   {
+    "check": "C1_boundary_is_reachable[Q05]",
+    "ok": true,
+    "detail": "upper chunk ends '数'"
+   },
+   {
+    "check": "C3_child_has_parent[Q02]",
+    "ok": true,
+    "detail": "parent_chunk_id=79506d2d-67fd-42d2-8470-16ca8cc8f2af"
+   },
+   {
+    "check": "C3_parent_is_the_stem[Q02]",
+    "ok": true,
+    "detail": "child.parent=79506d2d-67fd-42d2-8470-16ca8cc8f2af stem=79506d2d-67fd-42d2-8470-16ca8cc8f2af"
+   },
+   {
+    "check": "C3_parent_precedes_child[Q02]",
+    "ok": true,
+    "detail": "stem seq=0 child seq=1"
+   },
+   {
+    "check": "C4_has_relevant_chunks[Q04]",
+    "ok": true,
+    "detail": "2 required chunks"
+   },
+   {
+    "check": "C4_distractor_is_labelled[Q04]",
+    "ok": true,
+    "detail": "1 distractor chunks labelled"
+   },
+   {
+    "check": "C4_distractor_same_section[Q04]",
+    "ok": true,
+    "detail": "('乘法公式',) vs ('乘法公式',)"
+   },
+   {
+    "check": "C4_distractor_adjacent[Q04]",
+    "ok": true,
+    "detail": "seq 1 -> 2"
+   },
+   {
+    "check": "C4_distractor_shares_vocabulary[Q04]",
+    "ok": true,
+    "detail": "coverage distractor=0.611 vs relevant=0.556"
+   },
+   {
+    "check": "C4_distractor_lacks_the_answer[Q04]",
+    "ok": true,
+    "detail": "'两数乘积的两倍' absent from the distractor"
+   },
+   {
+    "check": "C5_forbidden_resolves[Q03:boundary.rationalize]",
+    "ok": true,
+    "detail": "boundary seq=2"
+   },
+   {
+    "check": "C5_is_sequence_adjacent[Q03:boundary.rationalize]",
+    "ok": true,
+    "detail": "predecessor sequences=[1]"
+   },
+   {
+    "check": "C5_is_a_different_section[Q03:boundary.rationalize]",
+    "ok": true,
+    "detail": "[('完全平方公式',)] vs ('完全平方公式', '分母有理化')"
+   }
+  ],
+  "failures": []
+ },
+ "hard": {
+  "queries": [
+   {
+    "key": "Q01",
+    "query": "判别式的定义是什么，它适用于什么样的方程",
+    "case": "C1",
+    "expansion_required": true,
+    "required": [
+     "disc#1",
+     "disc#0"
+    ],
+    "relevant": [
+     "disc#1",
+     "disc#0"
+    ],
+    "forbidden": [],
+    "retrieval": {
+     "decision": "conversation_documents",
+     "retrieval_ran": true,
+     "mode": "lexical",
+     "reranker_used": true,
+     "expansion_used": true,
+     "candidates_considered": 14,
+     "items_returned": 8,
+     "degraded_reasons": [
+      "embedding_runtime_unavailable"
+     ],
+     "truncated": false
+    },
+    "selected": [
+     {
+      "chunk": "disc#1",
+      "chunk_id": "3d42940c-bb37-4096-994f-6b496bf4af45",
+      "expanded_from": [
+       "disc#0"
+      ],
+      "chars": 1435,
+      "score": 0.931115,
+      "rerank_score": 1.149865
+     },
+     {
+      "chunk": "disc#0",
+      "chunk_id": "d53d8fb8-333b-40bd-b4d7-931ac98094e2",
+      "expanded_from": [
+       "disc#1"
+      ],
+      "chars": 1435,
+      "score": 0.833383,
+      "rerank_score": 0.958383
+     },
+     {
+      "chunk": "boundary#1",
+      "chunk_id": "3120e02e-817c-429a-acfe-9829111acf86",
+      "expanded_from": [],
+      "chars": 360,
+      "score": 0.755221,
+      "rerank_score": 0.880221
+     },
+     {
+      "chunk": "boundary#0",
+      "chunk_id": "62b40f93-4a9a-429e-8f42-29895ed9aa1b",
+      "expanded_from": [
+       "boundary#1"
+      ],
+      "chars": 1340,
+      "score": 0.746427,
+      "rerank_score": 0.871427
+     },
+     {
+      "chunk": "inequality#0",
+      "chunk_id": "dc4f7fd9-7e1a-4544-ae59-192a9961cf4e",
+      "expanded_from": [],
+      "chars": 30,
+      "score": 0.609519,
+      "rerank_score": 0.640769
+     },
+     {
+      "chunk": "neighbour#2",
+      "chunk_id": "ee7d375d-ae8d-434d-87e4-f5f561746c99",
+      "expanded_from": [],
+      "chars": 105,
+      "score": 0.578069,
+      "rerank_score": 0.640569
+     },
+     {
+      "chunk": "weida#0",
+      "chunk_id": "5b2ef519-e0af-448d-8630-fcdbfffecdfe",
+      "expanded_from": [],
+      "chars": 49,
+      "score": 0.4375,
+      "rerank_score": 0.46875
+     },
+     {
+      "chunk": "example#1",
+      "chunk_id": "cc91099a-f848-425d-9b17-390c6756ba41",
+      "expanded_from": [
+       "example#0"
+      ],
+      "chars": 113,
+      "score": 0.375,
+      "rerank_score": 0.40625
+     }
+    ],
+    "metrics": {
+     "cp": 0.2222222222222222,
+     "cr": 1.0,
+     "nr": 0.7777777777777778,
+     "rr": 0.9002390784612041,
+     "counts": {
+      "selected_chunks": 9,
+      "selected_and_relevant": 2,
+      "relevant_chunks": 2,
+      "required_chunks": 2,
+      "required_covered": 2,
+      "expanded_from_chunks": 4,
+      "cp_denominator": 9,
+      "cr_denominator": 2,
+      "counting_unit": "chunk identity (document_key, sequence)",
+      "rr_total_4grams": 4601,
+      "rr_distinct_4grams": 459,
+      "rr_duplicate_4grams": 4142,
+      "rr_concrete": "4142 of 4601 character 4-grams in the selected evidence texts are repeats",
+      "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+      "shared_characters_between_selected_chunks": {
+       "total_selected_chars": 4867,
+       "chars_also_present_in_another_selected_chunk": 3172,
+       "share": 0.6517
+      }
+     },
+     "required_covered": [
+      "disc#0",
+      "disc#1"
+     ],
+     "required_missing": [],
+     "forbidden_selected": [],
+     "expansion_leaks": [],
+     "distractor_selected": [],
+     "distractor_expansion_pulled": []
+    },
+    "observed_relation": {
+     "observed": "C1",
+     "matched": "disc#1",
+     "added": "disc#0"
+    },
+    "expansion_guard": null
+   },
+   {
+    "key": "Q02",
+    "query": "解方程 2x + 3 = 7 的完整步骤是什么",
+    "case": "C3",
+    "expansion_required": true,
+    "required": [
+     "example#1",
+     "example#0"
+    ],
+    "relevant": [
+     "example#1",
+     "example#0",
+     "example#1"
+    ],
+    "forbidden": [],
+    "retrieval": {
+     "decision": "conversation_documents",
+     "retrieval_ran": true,
+     "mode": "lexical",
+     "reranker_used": true,
+     "expansion_used": true,
+     "candidates_considered": 10,
+     "items_returned": 8,
+     "degraded_reasons": [
+      "embedding_runtime_unavailable"
+     ],
+     "truncated": false
+    },
+    "selected": [
+     {
+      "chunk": "example#0",
+      "chunk_id": "79506d2d-67fd-42d2-8470-16ca8cc8f2af",
+      "expanded_from": [],
+      "chars": 18,
+      "score": 0.916667,
+      "rerank_score": 1.125
+     },
+     {
+      "chunk": "example#1",
+      "chunk_id": "cc91099a-f848-425d-9b17-390c6756ba41",
+      "expanded_from": [
+       "example#0"
+      ],
+      "chars": 113,
+      "score": 0.916667,
+      "rerank_score": 1.0
+     },
+     {
+      "chunk": "disc#1",
+      "chunk_id": "3d42940c-bb37-4096-994f-6b496bf4af45",
+      "expanded_from": [
+       "disc#0"
+      ],
+      "chars": 1435,
+      "score": 0.426577,
+      "rerank_score": 0.468243
+     },
+     {
+      "chunk": "boundary#1",
+      "chunk_id": "3120e02e-817c-429a-acfe-9829111acf86",
+      "expanded_from": [
+       "boundary#0"
+      ],
+      "chars": 1340,
+      "score": 0.426547,
+      "rerank_score": 0.468214
+     },
+     {
+      "chunk": "boundary#0",
+      "chunk_id": "62b40f93-4a9a-429e-8f42-29895ed9aa1b",
+      "expanded_from": [
+       "boundary#1"
+      ],
+      "chars": 1340,
+      "score": 0.425742,
+      "rerank_score": 0.467409
+     },
+     {
+      "chunk": "disc#0",
+      "chunk_id": "d53d8fb8-333b-40bd-b4d7-931ac98094e2",
+      "expanded_from": [],
+      "chars": 984,
+      "score": 0.424291,
+      "rerank_score": 0.465958
+     },
+     {
+      "chunk": "linear#1",
+      "chunk_id": "aed386ca-4b05-4cf9-a9e9-296943da6508",
+      "expanded_from": [],
+      "chars": 37,
+      "score": 0.433277,
+      "rerank_score": 0.433277
+     },
+     {
+      "chunk": "fraction#0",
+      "chunk_id": "b2e6dcf9-b54c-4a69-b705-be8a8bd2063a",
+      "expanded_from": [],
+      "chars": 30,
+      "score": 0.333334,
+      "rerank_score": 0.375
+     }
+    ],
+    "metrics": {
+     "cp": 0.25,
+     "cr": 1.0,
+     "nr": 0.75,
+     "rr": 0.9256165473349244,
+     "counts": {
+      "selected_chunks": 8,
+      "selected_and_relevant": 2,
+      "relevant_chunks": 2,
+      "required_chunks": 2,
+      "required_covered": 2,
+      "expanded_from_chunks": 4,
+      "cp_denominator": 8,
+      "cr_denominator": 2,
+      "counting_unit": "chunk identity (document_key, sequence)",
+      "rr_total_4grams": 5028,
+      "rr_distinct_4grams": 374,
+      "rr_duplicate_4grams": 4654,
+      "rr_concrete": "4654 of 5028 character 4-grams in the selected evidence texts are repeats",
+      "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+      "shared_characters_between_selected_chunks": {
+       "total_selected_chars": 5297,
+       "chars_also_present_in_another_selected_chunk": 4259,
+       "share": 0.804
+      }
+     },
+     "required_covered": [
+      "example#0",
+      "example#1"
+     ],
+     "required_missing": [],
+     "forbidden_selected": [],
+     "expansion_leaks": [],
+     "distractor_selected": [],
+     "distractor_expansion_pulled": []
+    },
+    "observed_relation": null,
+    "expansion_guard": null
+   },
+   {
+    "key": "Q03",
+    "query": "完全平方公式展开后的中间项是什么",
+    "case": "C5",
+    "expansion_required": false,
+    "required": [
+     "boundary#1"
+    ],
+    "relevant": [
+     "boundary#0",
+     "boundary#1",
+     "neighbour#0",
+     "neighbour#1"
+    ],
+    "forbidden": [
+     "boundary#2"
+    ],
+    "retrieval": {
+     "decision": "conversation_documents",
+     "retrieval_ran": true,
+     "mode": "lexical",
+     "reranker_used": true,
+     "expansion_used": true,
+     "candidates_considered": 8,
+     "items_returned": 8,
+     "degraded_reasons": [
+      "embedding_runtime_unavailable"
+     ],
+     "truncated": false
+    },
+    "selected": [
+     {
+      "chunk": "neighbour#1",
+      "chunk_id": "8e85a716-6aa6-4ca8-8632-60855e5c0510",
+      "expanded_from": [
+       "neighbour#0",
+       "neighbour#2"
+      ],
+      "chars": 1214,
+      "score": 1.099951,
+      "rerank_score": 1.399951
+     },
+     {
+      "chunk": "neighbour#0",
+      "chunk_id": "08966349-b3e9-4d9e-805a-271a4a34b82c",
+      "expanded_from": [
+       "neighbour#1"
+      ],
+      "chars": 1108,
+      "score": 1.099654,
+      "rerank_score": 1.399654
+     },
+     {
+      "chunk": "boundary#1",
+      "chunk_id": "3120e02e-817c-429a-acfe-9829111acf86",
+      "expanded_from": [
+       "boundary#0"
+      ],
+      "chars": 1340,
+      "score": 1.099395,
+      "rerank_score": 1.399395
+     },
+     {
+      "chunk": "neighbour#2",
+      "chunk_id": "ee7d375d-ae8d-434d-87e4-f5f561746c99",
+      "expanded_from": [],
+      "chars": 105,
+      "score": 0.965314,
+      "rerank_score": 1.198648
+     },
+     {
+      "chunk": "boundary#0",
+      "chunk_id": "62b40f93-4a9a-429e-8f42-29895ed9aa1b",
+      "expanded_from": [],
+      "chars": 979,
+      "score": 0.779831,
+      "rerank_score": 0.946497
+     },
+     {
+      "chunk": "boundary#2",
+      "chunk_id": "fe3769d7-0589-4910-9bda-a003a5380eb3",
+      "expanded_from": [],
+      "chars": 38,
+      "score": 0.82329,
+      "rerank_score": 0.82329
+     },
+     {
+      "chunk": "disc#1",
+      "chunk_id": "3d42940c-bb37-4096-994f-6b496bf4af45",
+      "expanded_from": [],
+      "chars": 450,
+      "score": 0.316667,
+      "rerank_score": 0.35
+     },
+     {
+      "chunk": "disc#0",
+      "chunk_id": "d53d8fb8-333b-40bd-b4d7-931ac98094e2",
+      "expanded_from": [],
+      "chars": 984,
+      "score": 0.316667,
+      "rerank_score": 0.35
+     }
+    ],
+    "metrics": {
+     "cp": 0.5,
+     "cr": 1.0,
+     "nr": 0.5,
+     "rr": 0.9243922883487008,
+     "counts": {
+      "selected_chunks": 8,
+      "selected_and_relevant": 4,
+      "relevant_chunks": 4,
+      "required_chunks": 1,
+      "required_covered": 1,
+      "expanded_from_chunks": 4,
+      "cp_denominator": 8,
+      "cr_denominator": 4,
+      "counting_unit": "chunk identity (document_key, sequence)",
+      "rr_total_4grams": 5965,
+      "rr_distinct_4grams": 451,
+      "rr_duplicate_4grams": 5514,
+      "rr_concrete": "5514 of 5965 character 4-grams in the selected evidence texts are repeats",
+      "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+      "shared_characters_between_selected_chunks": {
+       "total_selected_chars": 6218,
+       "chars_also_present_in_another_selected_chunk": 4462,
+       "share": 0.7176
+      }
+     },
+     "required_covered": [
+      "boundary#1"
+     ],
+     "required_missing": [],
+     "forbidden_selected": [
+      "boundary#2"
+     ],
+     "expansion_leaks": [],
+     "distractor_selected": [],
+     "distractor_expansion_pulled": []
+    },
+    "observed_relation": null,
+    "expansion_guard": {
+     "windows_that_contained_the_forbidden_chunk": [
+      "boundary#1->[boundary#2]"
+     ],
+     "guard_exercised": true,
+     "leaks": [],
+     "holds": true
+    }
+   },
+   {
+    "key": "Q04",
+    "query": "完全平方公式展开之后中间的那一项是什么",
+    "case": "C4",
+    "expansion_required": true,
+    "required": [
+     "neighbour#0",
+     "neighbour#1"
+    ],
+    "relevant": [
+     "neighbour#0",
+     "neighbour#1",
+     "boundary#0",
+     "boundary#1"
+    ],
+    "forbidden": [],
+    "retrieval": {
+     "decision": "conversation_documents",
+     "retrieval_ran": true,
+     "mode": "lexical",
+     "reranker_used": true,
+     "expansion_used": true,
+     "candidates_considered": 10,
+     "items_returned": 8,
+     "degraded_reasons": [
+      "embedding_runtime_unavailable"
+     ],
+     "truncated": false
+    },
+    "selected": [
+     {
+      "chunk": "neighbour#2",
+      "chunk_id": "ee7d375d-ae8d-434d-87e4-f5f561746c99",
+      "expanded_from": [],
+      "chars": 105,
+      "score": 1.111111,
+      "rerank_score": 1.416666
+     },
+     {
+      "chunk": "neighbour#1",
+      "chunk_id": "8e85a716-6aa6-4ca8-8632-60855e5c0510",
+      "expanded_from": [
+       "neighbour#0",
+       "neighbour#2"
+      ],
+      "chars": 1214,
+      "score": 1.055543,
+      "rerank_score": 1.333321
+     },
+     {
+      "chunk": "neighbour#0",
+      "chunk_id": "08966349-b3e9-4d9e-805a-271a4a34b82c",
+      "expanded_from": [
+       "neighbour#1"
+      ],
+      "chars": 1108,
+      "score": 1.055436,
+      "rerank_score": 1.333213
+     },
+     {
+      "chunk": "boundary#1",
+      "chunk_id": "3120e02e-817c-429a-acfe-9829111acf86",
+      "expanded_from": [
+       "boundary#0"
+      ],
+      "chars": 1340,
+      "score": 0.942389,
+      "rerank_score": 1.164611
+     },
+     {
+      "chunk": "boundary#0",
+      "chunk_id": "62b40f93-4a9a-429e-8f42-29895ed9aa1b",
+      "expanded_from": [],
+      "chars": 979,
+      "score": 0.724275,
+      "rerank_score": 0.863164
+     },
+     {
+      "chunk": "boundary#2",
+      "chunk_id": "fe3769d7-0589-4910-9bda-a003a5380eb3",
+      "expanded_from": [],
+      "chars": 38,
+      "score": 0.767734,
+      "rerank_score": 0.767734
+     },
+     {
+      "chunk": "fraction#1",
+      "chunk_id": "8541a46e-652c-4050-94f1-e468a514dea0",
+      "expanded_from": [],
+      "chars": 32,
+      "score": 0.540339,
+      "rerank_score": 0.568117
+     },
+     {
+      "chunk": "linear#1",
+      "chunk_id": "aed386ca-4b05-4cf9-a9e9-296943da6508",
+      "expanded_from": [],
+      "chars": 37,
+      "score": 0.474629,
+      "rerank_score": 0.502406
+     }
+    ],
+    "metrics": {
+     "cp": 0.5,
+     "cr": 1.0,
+     "nr": 0.5,
+     "rr": 0.9016883949561872,
+     "counts": {
+      "selected_chunks": 8,
+      "selected_and_relevant": 4,
+      "relevant_chunks": 4,
+      "required_chunks": 2,
+      "required_covered": 2,
+      "expanded_from_chunks": 4,
+      "cp_denominator": 8,
+      "cr_denominator": 4,
+      "counting_unit": "chunk identity (document_key, sequence)",
+      "rr_total_4grams": 4679,
+      "rr_distinct_4grams": 460,
+      "rr_duplicate_4grams": 4219,
+      "rr_concrete": "4219 of 4679 character 4-grams in the selected evidence texts are repeats",
+      "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+      "shared_characters_between_selected_chunks": {
+       "total_selected_chars": 4853,
+       "chars_also_present_in_another_selected_chunk": 2558,
+       "share": 0.5271
+      }
+     },
+     "required_covered": [
+      "neighbour#0",
+      "neighbour#1"
+     ],
+     "required_missing": [],
+     "forbidden_selected": [],
+     "expansion_leaks": [],
+     "distractor_selected": [
+      "neighbour#2"
+     ],
+     "distractor_expansion_pulled": [
+      "neighbour#2"
+     ]
+    },
+    "observed_relation": null,
+    "expansion_guard": null
+   },
+   {
+    "key": "Q05",
+    "query": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零是为什么",
+    "case": "C2",
+    "expansion_required": true,
+    "required": [
+     "disc#0",
+     "disc#1"
+    ],
+    "relevant": [
+     "disc#0",
+     "disc#1"
+    ],
+    "forbidden": [],
+    "retrieval": {
+     "decision": "conversation_documents",
+     "retrieval_ran": true,
+     "mode": "lexical",
+     "reranker_used": true,
+     "expansion_used": true,
+     "candidates_considered": 11,
+     "items_returned": 8,
+     "degraded_reasons": [
+      "embedding_runtime_unavailable"
+     ],
+     "truncated": false
+    },
+    "selected": [
+     {
+      "chunk": "disc#0",
+      "chunk_id": "d53d8fb8-333b-40bd-b4d7-931ac98094e2",
+      "expanded_from": [
+       "disc#1"
+      ],
+      "chars": 1435,
+      "score": 1.289474,
+      "rerank_score": 1.684211
+     },
+     {
+      "chunk": "disc#1",
+      "chunk_id": "3d42940c-bb37-4096-994f-6b496bf4af45",
+      "expanded_from": [
+       "disc#0"
+      ],
+      "chars": 1435,
+      "score": 0.78696,
+      "rerank_score": 0.944854
+     },
+     {
+      "chunk": "weida#0",
+      "chunk_id": "5b2ef519-e0af-448d-8630-fcdbfffecdfe",
+      "expanded_from": [],
+      "chars": 49,
+      "score": 0.77255,
+      "rerank_score": 0.930445
+     },
+     {
+      "chunk": "boundary#1",
+      "chunk_id": "3120e02e-817c-429a-acfe-9829111acf86",
+      "expanded_from": [],
+      "chars": 360,
+      "score": 0.668144,
+      "rerank_score": 0.799723
+     },
+     {
+      "chunk": "boundary#0",
+      "chunk_id": "62b40f93-4a9a-429e-8f42-29895ed9aa1b",
+      "expanded_from": [
+       "boundary#1"
+      ],
+      "chars": 1340,
+      "score": 0.658705,
+      "rerank_score": 0.790284
+     },
+     {
+      "chunk": "example#1",
+      "chunk_id": "cc91099a-f848-425d-9b17-390c6756ba41",
+      "expanded_from": [
+       "example#0"
+      ],
+      "chars": 113,
+      "score": 0.632764,
+      "rerank_score": 0.65908
+     },
+     {
+      "chunk": "inequality#1",
+      "chunk_id": "6206b230-f615-4fb3-b337-9b2ef749d3e8",
+      "expanded_from": [],
+      "chars": 36,
+      "score": 0.547541,
+      "rerank_score": 0.600172
+     },
+     {
+      "chunk": "example#0",
+      "chunk_id": "79506d2d-67fd-42d2-8470-16ca8cc8f2af",
+      "expanded_from": [],
+      "chars": 18,
+      "score": 0.460526,
+      "rerank_score": 0.513158
+     }
+    ],
+    "metrics": {
+     "cp": 0.25,
+     "cr": 1.0,
+     "nr": 0.75,
+     "rr": 0.9147475642161205,
+     "counts": {
+      "selected_chunks": 8,
+      "selected_and_relevant": 2,
+      "relevant_chunks": 2,
+      "required_chunks": 2,
+      "required_covered": 2,
+      "expanded_from_chunks": 4,
+      "cp_denominator": 8,
+      "cr_denominator": 2,
+      "counting_unit": "chunk identity (document_key, sequence)",
+      "rr_total_4grams": 4516,
+      "rr_distinct_4grams": 385,
+      "rr_duplicate_4grams": 4131,
+      "rr_concrete": "4131 of 4516 character 4-grams in the selected evidence texts are repeats",
+      "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+      "shared_characters_between_selected_chunks": {
+       "total_selected_chars": 4786,
+       "chars_also_present_in_another_selected_chunk": 3204,
+       "share": 0.6695
+      }
+     },
+     "required_covered": [
+      "disc#0",
+      "disc#1"
+     ],
+     "required_missing": [],
+     "forbidden_selected": [],
+     "expansion_leaks": [],
+     "distractor_selected": [],
+     "distractor_expansion_pulled": []
+    },
+    "observed_relation": {
+     "observed": "C2",
+     "matched": "disc#0",
+     "added": "disc#1"
+    },
+    "expansion_guard": null
+   }
+  ],
+  "aggregate": {
+   "cp_macro": 0.34444444444444444,
+   "cr_macro": 1.0,
+   "nr_macro": 0.6555555555555556,
+   "rr_macro": 0.9133367746634274,
+   "n_queries": 5,
+   "expansion_required_subset": {
+    "keys": [
+     "Q01",
+     "Q02",
+     "Q04",
+     "Q05"
+    ],
+    "cp_macro": 0.3055555555555556,
+    "cr_macro": 1.0,
+    "n_queries": 4
+   },
+   "expansion_leaks": [],
+   "forbidden_selected_any_route": [
+    "Q03:boundary#2"
+   ],
+   "missing_required": [],
+   "distractor_pulled_by_expansion": [
+    "Q04:neighbour#2"
+   ],
+   "relation_mismatches": []
+  },
+  "metrics": {
+   "per_query": {
+    "Q01": {
+     "recall@1": 0.5,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 8,
+      "relevant_expected": 2,
+      "relevant_retrieved_at_5": 2,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "Q02": {
+     "recall@1": 0.5,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 8,
+      "relevant_expected": 2,
+      "relevant_retrieved_at_5": 2,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "Q03": {
+     "recall@1": 0.25,
+     "recall@3": 0.75,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 0.9829,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 8,
+      "relevant_expected": 4,
+      "relevant_retrieved_at_5": 4,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "Q04": {
+     "recall@1": 0.0,
+     "recall@3": 0.5,
+     "recall@5": 1.0,
+     "mrr@3": 0.5,
+     "mrr@5": 0.5,
+     "ndcg@3": 0.5307,
+     "ndcg@5": 0.7606,
+     "hit@1": 0.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 8,
+      "relevant_expected": 4,
+      "relevant_retrieved_at_5": 4,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "Q05": {
+     "recall@1": 0.5,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 8,
+      "relevant_expected": 2,
+      "relevant_retrieved_at_5": 2,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    }
+   },
+   "aggregate": {
+    "recall@1": 0.35,
+    "recall@3": 0.85,
+    "recall@5": 1.0,
+    "mrr@3": 0.9,
+    "mrr@5": 0.9,
+    "ndcg@3": 0.9061,
+    "ndcg@5": 0.9487,
+    "hit@1": 0.8,
+    "hit@3": 1.0,
+    "hit@5": 1.0
+   },
+   "eligible_queries": 5,
+   "definition_source": "tests/test_rag_production_benchmark.py",
+   "ranked_identity": "evidence.document_id:evidence.sequence — the MATCHED chunk only. Text widened by context expansion is not a separate ranked item here; the hard-set context metrics count it separately."
+  }
+ },
+ "easy": {
+  "status": "MEASURED",
+  "corpus": "tests/test_rag_production_benchmark.py::CORPUS",
+  "queries": "tests/test_rag_production_benchmark.py::QUERIES",
+  "documents": {
+   "linear": {
+    "document_id": "47fff1bd-c4f0-483c-b530-61e083301a8b",
+    "chunk_count": 2,
+    "parser_version": ""
+   },
+   "quadratic": {
+    "document_id": "eb0f175d-0fe0-4224-a3e7-845a923f9b15",
+    "chunk_count": 2,
+    "parser_version": ""
+   },
+   "commutative": {
+    "document_id": "b5eadbdd-3e3e-4584-ba53-1ec6be1c0a33",
+    "chunk_count": 2,
+    "parser_version": ""
+   },
+   "associative": {
+    "document_id": "9f4d2803-82f8-4b8a-a717-d3caada46dc0",
+    "chunk_count": 2,
+    "parser_version": ""
+   },
+   "fraction": {
+    "document_id": "8c029eea-4895-4392-91b2-93ea3999b98a",
+    "chunk_count": 2,
+    "parser_version": ""
+   },
+   "distractor": {
+    "document_id": "d1ee67e7-441c-48b2-bdbc-0b6011706d6b",
+    "chunk_count": 2,
+    "parser_version": ""
+   }
+  },
+  "corpus_chunks": 12,
+  "ground_truth_mismatches": [],
+  "ground_truth_ok": true,
+  "metrics": {
+   "per_query": {
+    "canonical_term": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 6,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "spoken_variant": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 6,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "transposition": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 2,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "formula": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 2,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "discriminant": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 4,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "commutative": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 5,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "associative": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 4,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "cross_topic": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 3,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    },
+    "mixed_cjk_latex": {
+     "recall@1": 1.0,
+     "recall@3": 1.0,
+     "recall@5": 1.0,
+     "mrr@3": 1.0,
+     "mrr@5": 1.0,
+     "ndcg@3": 1.0,
+     "ndcg@5": 1.0,
+     "hit@1": 1.0,
+     "hit@3": 1.0,
+     "hit@5": 1.0,
+     "counts": {
+      "ranked_returned": 3,
+      "relevant_expected": 1,
+      "relevant_retrieved_at_5": 1,
+      "counting_unit": "chunk identity (document_id:sequence), matched chunk only"
+     }
+    }
+   },
+   "aggregate": {
+    "recall@1": 1.0,
+    "recall@3": 1.0,
+    "recall@5": 1.0,
+    "mrr@3": 1.0,
+    "mrr@5": 1.0,
+    "ndcg@3": 1.0,
+    "ndcg@5": 1.0,
+    "hit@1": 1.0,
+    "hit@3": 1.0,
+    "hit@5": 1.0
+   },
+   "eligible_queries": 9,
+   "definition_source": "tests/test_rag_production_benchmark.py",
+   "ranked_identity": "evidence.document_id:evidence.sequence — the MATCHED chunk only. Text widened by context expansion is not a separate ranked item here; the hard-set context metrics count it separately."
+  }
+ },
+ "context": {
+  "status": "MEASURED",
+  "definitions": {
+   "selected_context": "The union of every evidence's own chunk_id and every id in its expanded_from. Expansion changes what the model reads, so it is charged to precision and recall like any other selection.",
+   "context_precision": "|selected ∩ relevant| / |selected|; 0.0 when nothing was selected.",
+   "context_recall": "|selected ∩ relevant| / |relevant|.",
+   "noise_ratio": "1 − context_precision.",
+   "redundancy_rate": "1 − (distinct character 4-grams / total character 4-grams) over the selected evidence texts. Overlap-based chunking repeats a fixed window across adjacent pieces, so a redundancy near 1 means the budget is being spent on duplicated text.",
+   "macro": "Unweighted mean across queries. Reported separately for the expansion-required subset."
+  },
+  "rr_attribution": {
+   "corpus_rr": 0.8307,
+   "corpus_counts": {
+    "rate": 0.8307172180632697,
+    "total": 4141,
+    "distinct": 701,
+    "duplicate": 3440,
+    "n": 4
+   },
+   "reading": "The CORPUS itself scores RR=0.831 before any retrieval. These fixtures repeat a sentence block many times on purpose, because that is what forces `_split_group_text` to cut at all. So RR here mostly measures the fixture's own self-similarity, plus the chunker's fixed overlap window. It is NOT a product quality finding and must not be quoted as one.",
+   "overlap_contribution": "The chunker repeats `overlap_chars` (100) at the head of each piece; per-query shared-character shares are reported in each query's counts."
+  },
+  "macro": {
+   "cp_macro": 0.34444444444444444,
+   "cr_macro": 1.0,
+   "nr_macro": 0.6555555555555556,
+   "rr_macro": 0.9133367746634274,
+   "n_queries": 5,
+   "expansion_required_subset": {
+    "keys": [
+     "Q01",
+     "Q02",
+     "Q04",
+     "Q05"
+    ],
+    "cp_macro": 0.3055555555555556,
+    "cr_macro": 1.0,
+    "n_queries": 4
+   },
+   "expansion_leaks": [],
+   "forbidden_selected_any_route": [
+    "Q03:boundary#2"
+   ],
+   "missing_required": [],
+   "distractor_pulled_by_expansion": [
+    "Q04:neighbour#2"
+   ],
+   "relation_mismatches": []
+  },
+  "corpus_chunks": 17,
+  "candidate_limit": 20,
+  "evidence_limit": 8,
+  "discrimination_caveat": "The corpus holds 17 chunks and the evidence limit is 8, so a pack can hold nearly the whole corpus. Context precision is therefore bounded by pack size rather than by ranking quality, and a high recall here is close to guaranteed. These numbers are a floor and a structural alarm, not a quality claim."
+ },
+ "faithfulness": {
+  "status": "NOT_MEASURED",
+  "reason": "Content support is an entailment question and no entailment model ships with the runtime: ``support_check`` in tutor_runtime requires a model provider, and the shipped product runs without one. A stub that returns the ground-truth labels would exercise the protocol and prove nothing about semantics, so no faithfulness rate is reported.",
+  "what_is_measured_instead": "Legal-citation structure (source was surfaced, quote is verbatim in that range, body_hash still matches) is fully deterministic and is measured under `citation`.",
+  "taxonomy": {
+   "LEGAL_CITATION": "measured — structural checks pass",
+   "CONTENT_SUPPORT": "UNKNOWN — needs an entailment model",
+   "WRONGFUL_ADMISSION": "measured — injected corruptions that were ACCEPTED",
+   "PARTIAL_SUPPORT": "UNKNOWN — needs an entailment model",
+   "UNKNOWN": "reported as a count, never folded into a rate"
+  }
+ },
+ "citation": {
+  "status": "MEASURED",
+  "path": "real KnowledgeService + KnowledgeTools over real SQLite; notes authored from the same fixture bodies the retrieval metrics use, because the note path and the import path are different code.",
+  "claims": [
+   {
+    "key": "CC1_verbatim",
+    "cohort": "valid_attribution",
+    "kind": "quote",
+    "cited": [
+     "disc"
+    ],
+    "required": [
+     "disc"
+    ],
+    "citation_links": 1,
+    "correct_link_count": 1,
+    "total_link_count": 1,
+    "aggregation_eligible": true,
+    "correct_link_definition": "cited source key belongs to required source keys; not semantic or quote validity",
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "expect": "accept",
+    "note": "A verbatim quotation of a range that was actually read.",
+    "outcome": "accept"
+   },
+   {
+    "key": "CC2_over_cited",
+    "cohort": "incorrect_attribution",
+    "kind": "summary",
+    "cited": [
+     "disc",
+     "weida"
+    ],
+    "required": [
+     "disc"
+    ],
+    "citation_links": 2,
+    "correct_link_count": 1,
+    "total_link_count": 2,
+    "aggregation_eligible": true,
+    "correct_link_definition": "cited source key belongs to required source keys; not semantic or quote validity",
+    "citation_precision": 0.5,
+    "citation_recall": 1.0,
+    "expect": "accept",
+    "note": "Cites one source too many. Accepted by the validator (both ranges were read and both quotes are verbatim) — the excess is exactly what citation precision is for, and no validator can see it.",
+    "outcome": "accept"
+   },
+   {
+    "key": "INJ1_tampered_quote",
+    "cohort": "incorrect_attribution",
+    "kind": "quote",
+    "cited": [
+     "disc"
+    ],
+    "required": [
+     "disc"
+    ],
+    "citation_links": 1,
+    "correct_link_count": 1,
+    "total_link_count": 1,
+    "aggregation_eligible": true,
+    "correct_link_definition": "cited source key belongs to required source keys; not semantic or quote validity",
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "expect": "reject",
+    "note": "Quote mutated by one sign; the range was read but does not contain this text.",
+    "rejection": "引用未读取、版本不一致或原文摘录不匹配。",
+    "outcome": "reject"
+   },
+   {
+    "key": "INJ2_fabricated_source",
+    "cohort": "malformed_or_unauthorized",
+    "kind": "quote",
+    "cited": [
+     "disc"
+    ],
+    "required": [
+     "disc"
+    ],
+    "citation_links": 1,
+    "correct_link_count": 1,
+    "total_link_count": 1,
+    "aggregation_eligible": false,
+    "correct_link_definition": "cited source key belongs to required source keys; not semantic or quote validity",
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "expect": "reject",
+    "note": "source_id that was never surfaced — an unauthorized operation, not a wording error.",
+    "rejection": "引用未读取、版本不一致或原文摘录不匹配。",
+    "outcome": "reject"
+   },
+   {
+    "key": "INJ3_quote_kind_mismatch",
+    "cohort": "incorrect_attribution",
+    "kind": "quote",
+    "cited": [
+     "disc"
+    ],
+    "required": [
+     "disc"
+    ],
+    "citation_links": 1,
+    "correct_link_count": 1,
+    "total_link_count": 1,
+    "aggregation_eligible": true,
+    "correct_link_definition": "cited source key belongs to required source keys; not semantic or quote validity",
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "expect": "reject",
+    "note": "Declared as a verbatim quotation but the claim text paraphrases it.",
+    "rejection": "原文摘录必须逐字对应实际读取区间。",
+    "outcome": "reject"
+   }
+  ],
+  "cohorts": {
+   "valid_attribution": {
+    "claim_cases": 1,
+    "citation_links": 1,
+    "keys": [
+     "CC1_verbatim"
+    ]
+   },
+   "incorrect_attribution": {
+    "claim_cases": 3,
+    "citation_links": 4,
+    "keys": [
+     "CC2_over_cited",
+     "INJ1_tampered_quote",
+     "INJ3_quote_kind_mismatch"
+    ]
+   },
+   "malformed_or_unauthorized": {
+    "claim_cases": 1,
+    "citation_links": 1,
+    "keys": [
+     "INJ2_fabricated_source"
+    ]
+   }
+  },
+  "totals": {
+   "claim_cases": 5,
+   "citation_links": 6
+  },
+  "attribution": {
+   "cohorts": [
+    "valid_attribution",
+    "incorrect_attribution"
+   ],
+   "claim_cases": 4,
+   "citation_links": 5,
+   "precision_macro": 0.875,
+   "recall_macro": 1.0,
+   "valid_cases": [
+    "CC1_verbatim"
+   ],
+   "invalid_cases": [
+    "CC2_over_cited",
+    "INJ1_tampered_quote",
+    "INJ3_quote_kind_mismatch"
+   ]
+  },
+  "operational": {
+   "cohort": "malformed_or_unauthorized",
+   "claim_cases": 1,
+   "citation_links": 1,
+   "rejection_rate": 1.0,
+   "wrongful_admissions": []
+  },
+  "misattribution_cases": [
+   "CC2_over_cited",
+   "INJ1_tampered_quote",
+   "INJ3_quote_kind_mismatch"
+  ],
+  "operational_probe_cases": [
+   "INJ2_fabricated_source"
+  ],
+  "what_precision_means": {
+   "citation_precision_macro": "ATTRIBUTION against reference evidence: of the sources this claim cited, the share the annotator marked as required. It is NOT operational validity and NOT semantic-check accuracy.",
+   "operational_validity": "Measured separately, as accept/reject by the real validator on the malformed_or_unauthorized cohort. A citation can be operationally valid and still mis-attributed (CC2 is exactly that), and neither number is production semantic-check accuracy."
+  },
+  "accepted": [
+   "CC1_verbatim",
+   "CC2_over_cited"
+  ],
+  "rejected": [
+   "INJ1_tampered_quote",
+   "INJ2_fabricated_source",
+   "INJ3_quote_kind_mismatch"
+  ],
+  "expected_disagreements": [],
+  "fail_closed": [
+   {
+    "key": "summary_without_checker",
+    "rejected": true,
+    "reason": "总结的证据覆盖不足；请删除推断或改用逐字摘录。"
+   },
+   {
+    "key": "summary_unsupported_by_checker",
+    "rejected": true,
+    "reason": "总结的证据覆盖不足；请删除推断或改用逐字摘录。"
+   }
+  ],
+  "receipt_lifecycle": [
+   {
+    "key": "exact_range",
+    "expectation": "accept",
+    "outcome": "accept"
+   },
+   {
+    "key": "widened_range",
+    "expectation": "reject",
+    "outcome": "reject",
+    "reason": "引用凭证只允许读取其签发的原始区间。"
+   },
+   {
+    "key": "shifted_start",
+    "expectation": "reject",
+    "outcome": "reject",
+    "reason": "引用凭证只允许读取其签发的原始区间。"
+   },
+   {
+    "key": "other_conversation",
+    "expectation": "reject",
+    "outcome": "reject",
+    "reason": "引用凭证不属于当前会话。"
+   },
+   {
+    "key": "after_deletion",
+    "expectation": "reject",
+    "outcome": "reject",
+    "reason": "引用凭证不存在，或已随资料删除。"
+   }
+  ],
+  "historical_receipt_validation_rate": 1.0,
+  "unauthorized_historical_read_rejection_rate": 1.0,
+  "receipt_probes": {
+   "legitimate": 1,
+   "unauthorized": 4
+  },
+  "unexpected_lifecycle_outcomes": []
+ },
+ "citation_mutations": {
+  "status": "MEASURED",
+  "scope": "Citation-layer injections only. Kept separate from fixture_mutations (benchmark self-checks) and from ablations (component removal): three different things, three verdicts.",
+  "injected": [
+   "INJ1_tampered_quote",
+   "INJ2_fabricated_source",
+   "INJ3_quote_kind_mismatch"
+  ],
+  "wrongful_admissions": [],
+  "fail_closed_checks": [
+   {
+    "key": "summary_without_checker",
+    "rejected": true,
+    "reason": "总结的证据覆盖不足；请删除推断或改用逐字摘录。"
+   },
+   {
+    "key": "summary_unsupported_by_checker",
+    "rejected": true,
+    "reason": "总结的证据覆盖不足；请删除推断或改用逐字摘录。"
+   }
+  ],
+  "receipt_probes_with_unexpected_outcomes": [],
+  "verdict": "OK — every injected corruption was rejected and every expectation matched"
+ },
+ "fixture_mutations": {
+  "status": "MEASURED",
+  "method": "Each injection breaks one fixture property; the named self-check must appear in the failure set. Injections are fixture mutations and are reported separately from citation mutations and from component ablations.",
+  "injections": [
+   {
+    "name": "anchor_points_at_the_wrong_sequence",
+    "expected_check": "anchor_text_present[disc.definition]",
+    "observed_failures": [
+     "anchor_text_present[disc.definition]",
+     "C1_two_distinct_chunks[Q01]",
+     "C1_sequence_adjacent[Q01]",
+     "C1_two_distinct_chunks[Q05]",
+     "C1_sequence_adjacent[Q05]"
+    ],
+    "fired": true
+   },
+   {
+    "name": "anchor_removed_from_relevant",
+    "expected_check": "label_resolves[Q01:disc.applicable_object]",
+    "observed_failures": [
+     "label_resolves[Q01:disc.applicable_object]",
+     "label_resolves[Q05:disc.applicable_object]",
+     "C1_probe_ran",
+     "C2_probe_ran"
+    ],
+    "fired": true
+   },
+   {
+    "name": "required_not_a_subset_of_relevant",
+    "expected_check": "required_subset_of_relevant[Q01]",
+    "observed_failures": [
+     "required_subset_of_relevant[Q01]",
+     "C1_two_distinct_chunks[Q01]"
+    ],
+    "fired": true
+   },
+   {
+    "name": "forbidden_is_not_sequence_adjacent",
+    "expected_check": "C5_is_sequence_adjacent[Q03:disc.definition]",
+    "observed_failures": [
+     "C5_is_sequence_adjacent[Q03:disc.definition]"
+    ],
+    "fired": true
+   },
+   {
+    "name": "c4_distractor_undeclared",
+    "expected_check": "C4_distractor_is_labelled[Q04]",
+    "observed_failures": [
+     "C4_distractor_is_labelled[Q04]"
+    ],
+    "fired": true
+   },
+   {
+    "name": "c4_distractor_anchor_removed",
+    "expected_check": "label_resolves[Q04:neighbour.distractor]",
+    "observed_failures": [
+     "label_resolves[Q04:neighbour.distractor]",
+     "C4_probe_ran"
+    ],
+    "fired": true
+   }
+  ],
+  "unfired": [],
+  "verdict": "OK — every injected fixture defect was caught by the check that exists for it"
+ },
+ "ablations": {
+  "status": "MEASURED",
+  "design": "Identical corpus, queries, kernel, scope, candidate_limit and evidence_limit across arms; only the named component differs.",
+  "arms": {
+   "production": {
+    "per_query": {
+     "Q01": {
+      "cp": 0.2222,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 9,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 9,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 4601,
+       "rr_distinct_4grams": 459,
+       "rr_duplicate_4grams": 4142,
+       "rr_concrete": "4142 of 4601 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 4867,
+        "chars_also_present_in_another_selected_chunk": 3172,
+        "share": 0.6517
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q02": {
+      "cp": 0.25,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 8,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 5028,
+       "rr_distinct_4grams": 374,
+       "rr_duplicate_4grams": 4654,
+       "rr_concrete": "4654 of 5028 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 5297,
+        "chars_also_present_in_another_selected_chunk": 4259,
+        "share": 0.804
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q03": {
+      "cp": 0.5,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 4,
+       "relevant_chunks": 4,
+       "required_chunks": 1,
+       "required_covered": 1,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 8,
+       "cr_denominator": 4,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 5965,
+       "rr_distinct_4grams": 451,
+       "rr_duplicate_4grams": 5514,
+       "rr_concrete": "5514 of 5965 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 6218,
+        "chars_also_present_in_another_selected_chunk": 4462,
+        "share": 0.7176
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q04": {
+      "cp": 0.5,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 4,
+       "relevant_chunks": 4,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 8,
+       "cr_denominator": 4,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 4679,
+       "rr_distinct_4grams": 460,
+       "rr_duplicate_4grams": 4219,
+       "rr_concrete": "4219 of 4679 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 4853,
+        "chars_also_present_in_another_selected_chunk": 2558,
+        "share": 0.5271
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q05": {
+      "cp": 0.25,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 8,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 4516,
+       "rr_distinct_4grams": 385,
+       "rr_duplicate_4grams": 4131,
+       "rr_concrete": "4131 of 4516 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 4786,
+        "chars_also_present_in_another_selected_chunk": 3204,
+        "share": 0.6695
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     }
+    },
+    "cp_macro": 0.3444,
+    "cr_macro": 1.0,
+    "eligible_queries": 5
+   },
+   "no_reranker": {
+    "per_query": {
+     "Q01": {
+      "cp": 0.2222,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 9,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 9,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 4601,
+       "rr_distinct_4grams": 459,
+       "rr_duplicate_4grams": 4142,
+       "rr_concrete": "4142 of 4601 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 4867,
+        "chars_also_present_in_another_selected_chunk": 3172,
+        "share": 0.6517
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q02": {
+      "cp": 0.25,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 8,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 5028,
+       "rr_distinct_4grams": 374,
+       "rr_duplicate_4grams": 4654,
+       "rr_concrete": "4654 of 5028 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 5297,
+        "chars_also_present_in_another_selected_chunk": 4259,
+        "share": 0.804
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q03": {
+      "cp": 0.5,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 4,
+       "relevant_chunks": 4,
+       "required_chunks": 1,
+       "required_covered": 1,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 8,
+       "cr_denominator": 4,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 5965,
+       "rr_distinct_4grams": 451,
+       "rr_duplicate_4grams": 5514,
+       "rr_concrete": "5514 of 5965 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 6218,
+        "chars_also_present_in_another_selected_chunk": 4462,
+        "share": 0.7176
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q04": {
+      "cp": 0.5,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 4,
+       "relevant_chunks": 4,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 8,
+       "cr_denominator": 4,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 4679,
+       "rr_distinct_4grams": 460,
+       "rr_duplicate_4grams": 4219,
+       "rr_concrete": "4219 of 4679 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 4853,
+        "chars_also_present_in_another_selected_chunk": 2558,
+        "share": 0.5271
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q05": {
+      "cp": 0.2222,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 9,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 4,
+       "cp_denominator": 9,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 4533,
+       "rr_distinct_4grams": 407,
+       "rr_duplicate_4grams": 4126,
+       "rr_concrete": "4126 of 4533 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 4798,
+        "chars_also_present_in_another_selected_chunk": 3175,
+        "share": 0.6617
+       }
+      },
+      "expansion_used": true,
+      "required_missing": [],
+      "visible_without_expansion": []
+     }
+    },
+    "cp_macro": 0.3389,
+    "cr_macro": 1.0,
+    "eligible_queries": 5
+   },
+   "no_expansion": {
+    "per_query": {
+     "Q01": {
+      "cp": 0.25,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 0,
+       "cp_denominator": 8,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 2887,
+       "rr_distinct_4grams": 437,
+       "rr_duplicate_4grams": 2450,
+       "rr_concrete": "2450 of 2887 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 3051,
+        "chars_also_present_in_another_selected_chunk": 2115,
+        "share": 0.6932
+       }
+      },
+      "expansion_used": false,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q02": {
+      "cp": 0.25,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 0,
+       "cp_denominator": 8,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 2792,
+       "rr_distinct_4grams": 362,
+       "rr_duplicate_4grams": 2430,
+       "rr_concrete": "2430 of 2792 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 2952,
+        "chars_also_present_in_another_selected_chunk": 2105,
+        "share": 0.7131
+       }
+      },
+      "expansion_used": false,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q03": {
+      "cp": 0.5,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 4,
+       "relevant_chunks": 4,
+       "required_chunks": 1,
+       "required_covered": 1,
+       "expanded_from_chunks": 0,
+       "cp_denominator": 8,
+       "cr_denominator": 4,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 3840,
+       "rr_distinct_4grams": 439,
+       "rr_duplicate_4grams": 3401,
+       "rr_concrete": "3401 of 3840 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 4023,
+        "chars_also_present_in_another_selected_chunk": 2276,
+        "share": 0.5657
+       }
+      },
+      "expansion_used": false,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q04": {
+      "cp": 0.5,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 4,
+       "relevant_chunks": 4,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 0,
+       "cp_denominator": 8,
+       "cr_denominator": 4,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 2554,
+       "rr_distinct_4grams": 448,
+       "rr_duplicate_4grams": 2106,
+       "rr_concrete": "2106 of 2554 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 2658,
+        "chars_also_present_in_another_selected_chunk": 496,
+        "share": 0.1866
+       }
+      },
+      "expansion_used": false,
+      "required_missing": [],
+      "visible_without_expansion": []
+     },
+     "Q05": {
+      "cp": 0.25,
+      "cr": 1.0,
+      "counts": {
+       "selected_chunks": 8,
+       "selected_and_relevant": 2,
+       "relevant_chunks": 2,
+       "required_chunks": 2,
+       "required_covered": 2,
+       "expanded_from_chunks": 0,
+       "cp_denominator": 8,
+       "cr_denominator": 2,
+       "counting_unit": "chunk identity (document_key, sequence)",
+       "rr_total_4grams": 2802,
+       "rr_distinct_4grams": 373,
+       "rr_duplicate_4grams": 2429,
+       "rr_concrete": "2429 of 2802 character 4-grams in the selected evidence texts are repeats",
+       "rr_is_not_irrelevance": "Redundancy counts repeated TEXT. It says nothing about whether a chunk is on topic — a highly redundant selection can still be entirely relevant, and an irrelevant one can be non-redundant. NR (1 - CP) is the irrelevance number; RR is not it.",
+       "shared_characters_between_selected_chunks": {
+        "total_selected_chars": 2970,
+        "chars_also_present_in_another_selected_chunk": 2115,
+        "share": 0.7121
+       }
+      },
+      "expansion_used": false,
+      "required_missing": [],
+      "visible_without_expansion": []
+     }
+    },
+    "cp_macro": 0.35,
+    "cr_macro": 1.0,
+    "eligible_queries": 5
+   }
+  },
+  "deltas_vs_production": {
+   "no_reranker": {
+    "cp_macro_delta": -0.0055,
+    "cr_macro_delta": 0.0,
+    "per_query": {
+     "Q01": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     },
+     "Q02": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     },
+     "Q03": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     },
+     "Q04": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     },
+     "Q05": {
+      "cp_delta": -0.0278,
+      "cr_delta": 0.0
+     }
+    }
+   },
+   "no_expansion": {
+    "cp_macro_delta": 0.0056,
+    "cr_macro_delta": 0.0,
+    "per_query": {
+     "Q01": {
+      "cp_delta": 0.0278,
+      "cr_delta": 0.0
+     },
+     "Q02": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     },
+     "Q03": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     },
+     "Q04": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     },
+     "Q05": {
+      "cp_delta": 0.0,
+      "cr_delta": 0.0
+     }
+    }
+   }
+  },
+  "no_reranker_reading": "DECLINE_ON_THIS_SET",
+  "no_expansion_reading": "GAIN_ON_THIS_SET",
+  "materiality": {
+   "no_reranker": {
+    "eligible_queries": 5,
+    "queries_that_changed": [
+     "Q05"
+    ],
+    "production_total_selections": 41,
+    "reading": "1 of 5 queries moved, across 41 production selections. CP is a per-query ratio of chunk counts, so a delta of this size is a handful of selections."
+   },
+   "no_expansion": {
+    "eligible_queries": 5,
+    "queries_that_changed": [
+     "Q01"
+    ],
+    "production_total_selections": 41,
+    "reading": "1 of 5 queries moved, across 41 production selections. CP is a per-query ratio of chunk counts, so a delta of this size is a handful of selections."
+   },
+   "queries_changed_no_reranker": [
+    "Q05"
+   ],
+   "queries_changed_no_expansion": [
+    "Q01"
+   ]
+  },
+  "no_expansion_lost_required": {},
+  "no_expansion_visible_elsewhere": {},
+  "interpretation_guard": "A null or negative delta is a result. Neither arm was re-tuned, re-filtered or re-scored to manufacture a decline."
+ },
+ "semantic": {
+  "status": "BLOCKED_PROVIDER",
+  "blocker": "No explicitly approved provider for semantic checking. Set MATHTUTOR_EVAL_PROVIDER to an operator-authorised provider id to enable this section. The runner does not sniff the environment for credentials, pick a paid provider, or fetch a model.",
+  "real_decisions": 0,
+  "semantic_rates": null,
+  "note": "Rates are null, not zero. Zero real decisions is an absence of evidence, and a 0.0 would read as a measured failure."
+ },
+ "answer_quality": {
+  "status": "EXPORTED_FOR_REVIEW",
+  "answers_generated": 0,
+  "generator": null,
+  "reviewed": false,
+  "labels_from": null,
+  "note": "No approved generator ran. These are the inputs a generator would receive, not answers. An UNREVIEWED export does not close answer-quality evaluation, and nothing here is a score. When a generator is approved, its saved outputs are evaluated separately with labels marked human or judge-estimated.",
+  "items": [
+   {
+    "query_key": "Q01",
+    "query": "判别式的定义是什么，它适用于什么样的方程",
+    "rewritten_query": "判别式的定义是什么，它适用于什么样的方程",
+    "context_fingerprint": "0656e813d59500f5",
+    "visible_context": [
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document": "disc#1",
+      "text": "现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数\n对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变",
+      "text_hash": "ed0009ca2354db2aae97d99e0a496cdadcc4ae8f489d8b7f93adfa34954a2dfb",
+      "expanded_from": [
+       "d53d8fb8-333b-40bd-b4d7-931ac98094e2"
+      ]
+     },
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document": "disc#0",
+      "text": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数",
+      "text_hash": "48bac9d70406f1b9d3e59010142938b5d4ba43603f1c68df5f55eb23468b746d",
+      "expanded_from": [
+       "3d42940c-bb37-4096-994f-6b496bf4af45"
+      ]
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document": "boundary#1",
+      "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+      "text_hash": "8234c7646b3f8faf7255d0b72ab2a3767daab94606e81e784f3dddb6d236fa8a",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document": "boundary#0",
+      "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+      "text_hash": "6368b5030e96a2afca9c20f911f88b8f8c681ab12224d33de3046dafa2f96e74",
+      "expanded_from": [
+       "3120e02e-817c-429a-acfe-9829111acf86"
+      ]
+     },
+     {
+      "source_id": "e-cc02cc809a8e098decc1e494",
+      "document": "inequality#0",
+      "text": "不等式两边同时乘以或除以同一个负数时，不等号的方向必须改变。",
+      "text_hash": "2034661b9a637c15ce824b7dd63279756563880eb1269473bfec2758684108d6",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-f7a5c9838d54948c1c333f4a",
+      "document": "neighbour#2",
+      "text": "定义： 平方差公式描述的是两数之和与两数之差的乘积。平方差公式的展开结果只有两项，并不存在中间的那一项。使用平方差公式之前要先确认两个二项式只有符号不同。平方差公式与完全平方公式的名字相近，展开结果却相差一项。",
+      "text_hash": "bf4c8d2b859ef32f1e278b329d1f37a72d30d10730815ecc2d46fc47e012de60",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-7b628e36a8831ffe490b7a1e",
+      "document": "weida#0",
+      "text": "韦达定理描述一元二次方程根与系数的关系：x1 + x2 = -b/a，x1 * x2 = c/a。",
+      "text_hash": "37e90f00109f3a14b83c761b9751961b6101a41958edc5c6662fd6633939a8c2",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-41c1ac576e074427e98b2c79",
+      "document": "example#1",
+      "text": "例1：解方程 2x + 3 = 7。\n解：两边同时减去 3，得到 2x = 4，这一步依据等式的基本性质中两边同时减去同一个数等式仍成立；再同时除以 2，得到 x = 2，这一步依据等式两边同时除以同一个不为零的数等式仍成立。",
+      "text_hash": "d6887dd605250c2d923b268e8109517afe74ffdf9918bd7a7a71df4ca201643e",
+      "expanded_from": [
+       "79506d2d-67fd-42d2-8470-16ca8cc8f2af"
+      ]
+     }
+    ],
+    "citation_candidates": [
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-cc02cc809a8e098decc1e494",
+      "document_id": "38ae9ee1-be6e-4c8f-9594-9b7363d2a31b",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-f7a5c9838d54948c1c333f4a",
+      "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+      "sequence": 2
+     },
+     {
+      "source_id": "e-7b628e36a8831ffe490b7a1e",
+      "document_id": "9663f4d6-765b-47d1-bbf5-7e93729eb5fa",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-41c1ac576e074427e98b2c79",
+      "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+      "sequence": 1
+     }
+    ]
+   },
+   {
+    "query_key": "Q02",
+    "query": "解方程 2x + 3 = 7 的完整步骤是什么",
+    "rewritten_query": "解方程 2x + 3 = 7 的完整步骤是什么",
+    "context_fingerprint": "92f8466222e865e9",
+    "visible_context": [
+     {
+      "source_id": "e-ec31554d544f6fc4873fb9cc",
+      "document": "example#0",
+      "text": "例1：解方程 2x + 3 = 7。",
+      "text_hash": "edea16a066af573245a07a3876f164f6f87346be613115da200ddd377511724e",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-41c1ac576e074427e98b2c79",
+      "document": "example#1",
+      "text": "例1：解方程 2x + 3 = 7。\n解：两边同时减去 3，得到 2x = 4，这一步依据等式的基本性质中两边同时减去同一个数等式仍成立；再同时除以 2，得到 x = 2，这一步依据等式两边同时除以同一个不为零的数等式仍成立。",
+      "text_hash": "d6887dd605250c2d923b268e8109517afe74ffdf9918bd7a7a71df4ca201643e",
+      "expanded_from": [
+       "79506d2d-67fd-42d2-8470-16ca8cc8f2af"
+      ]
+     },
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document": "disc#1",
+      "text": "现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数\n对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变",
+      "text_hash": "ed0009ca2354db2aae97d99e0a496cdadcc4ae8f489d8b7f93adfa34954a2dfb",
+      "expanded_from": [
+       "d53d8fb8-333b-40bd-b4d7-931ac98094e2"
+      ]
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document": "boundary#1",
+      "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍\n完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零",
+      "text_hash": "5140a44e0befee8d4c8e502a8a85a1d8ac3aafaa141d7c4a78f7c00fdeb7ff2c",
+      "expanded_from": [
+       "62b40f93-4a9a-429e-8f42-29895ed9aa1b"
+      ]
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document": "boundary#0",
+      "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+      "text_hash": "6368b5030e96a2afca9c20f911f88b8f8c681ab12224d33de3046dafa2f96e74",
+      "expanded_from": [
+       "3120e02e-817c-429a-acfe-9829111acf86"
+      ]
+     },
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document": "disc#0",
+      "text": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变",
+      "text_hash": "ab37e426550d8457ae294b9cc85931fce97ee0774e89c093fa4aba3442bd591d",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-0b241c243db4c2a1e852cd8a",
+      "document": "linear#1",
+      "text": "移项的依据是等式的基本性质，把某一项从等式的一边移到另一边时需要改变符号。",
+      "text_hash": "2f53e7078d3acc8eb20c9491ee50ce9f11e2b1e77d48c2aec5038afc26fb425c",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-2edb34fbfc0a80b9b0e9c99c",
+      "document": "fraction#0",
+      "text": "解分式方程的第一步通常是去分母，两边同乘各分母的最简公分母。",
+      "text_hash": "3ac62aba4e74afb7eb53a69f009db022a99c7180d03faf05947619ecfcd957f7",
+      "expanded_from": []
+     }
+    ],
+    "citation_candidates": [
+     {
+      "source_id": "e-ec31554d544f6fc4873fb9cc",
+      "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-41c1ac576e074427e98b2c79",
+      "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-0b241c243db4c2a1e852cd8a",
+      "document_id": "3b10f4ce-595f-4ee1-bedd-f024babc3225",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-2edb34fbfc0a80b9b0e9c99c",
+      "document_id": "34da559b-2be5-4d7f-9e6d-3f1e8ed7a811",
+      "sequence": 0
+     }
+    ]
+   },
+   {
+    "query_key": "Q03",
+    "query": "完全平方公式展开后的中间项是什么",
+    "rewritten_query": "完全平方公式展开后的中间项是什么",
+    "context_fingerprint": "1b173268b50d9a6e",
+    "visible_context": [
+     {
+      "source_id": "e-1c58077cd707aee1f61009a5",
+      "document": "neighbour#1",
+      "text": "分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n定义： 平方差公式描述的是两数之和与两数之差的乘积。平方差公式的展开结果只有两项，并不存在中间的那一项。使用平方差公式之前要先确认两个二项式只有符号不同。平方差公式与完全平方公式的名字相近，展开结果却相差一项。",
+      "text_hash": "2ef944b5e387da141242f0dab6adce8c46c4b4fbdf6dae67cb62e433260c2785",
+      "expanded_from": [
+       "08966349-b3e9-4d9e-805a-271a4a34b82c",
+       "ee7d375d-ae8d-434d-87e4-f5f561746c99"
+      ]
+     },
+     {
+      "source_id": "e-6f7a26bc114671491af3c543",
+      "document": "neighbour#0",
+      "text": "完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号",
+      "text_hash": "ae27462eb5f6e9106eb545fe034b946f6fb3c717a89c57ed89cdcdea05bb9b6b",
+      "expanded_from": [
+       "8e85a716-6aa6-4ca8-8632-60855e5c0510"
+      ]
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document": "boundary#1",
+      "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍\n完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零",
+      "text_hash": "5140a44e0befee8d4c8e502a8a85a1d8ac3aafaa141d7c4a78f7c00fdeb7ff2c",
+      "expanded_from": [
+       "62b40f93-4a9a-429e-8f42-29895ed9aa1b"
+      ]
+     },
+     {
+      "source_id": "e-f7a5c9838d54948c1c333f4a",
+      "document": "neighbour#2",
+      "text": "定义： 平方差公式描述的是两数之和与两数之差的乘积。平方差公式的展开结果只有两项，并不存在中间的那一项。使用平方差公式之前要先确认两个二项式只有符号不同。平方差公式与完全平方公式的名字相近，展开结果却相差一项。",
+      "text_hash": "bf4c8d2b859ef32f1e278b329d1f37a72d30d10730815ecc2d46fc47e012de60",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document": "boundary#0",
+      "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零",
+      "text_hash": "ef96b91a97f8c9b27695431cdf93c9c53bde61d933caae4c4337836a625b1bf1",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-d877b846904c86d35d85c808",
+      "document": "boundary#2",
+      "text": "分母有理化指把分母中的根号去掉，通常通过分子分母同乘分母的有理化因式来完成。",
+      "text_hash": "4db98872e0e252cf32a43a113571e42c842e03a1a18c53a32d9400fbd0bc29e7",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document": "disc#1",
+      "text": "现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数",
+      "text_hash": "600b5b597f0b5a28ffbe24275245ad3aec64c028ff846e18f2fb28e09316b082",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document": "disc#0",
+      "text": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变",
+      "text_hash": "ab37e426550d8457ae294b9cc85931fce97ee0774e89c093fa4aba3442bd591d",
+      "expanded_from": []
+     }
+    ],
+    "citation_candidates": [
+     {
+      "source_id": "e-1c58077cd707aee1f61009a5",
+      "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-6f7a26bc114671491af3c543",
+      "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-f7a5c9838d54948c1c333f4a",
+      "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+      "sequence": 2
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-d877b846904c86d35d85c808",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 2
+     },
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 0
+     }
+    ]
+   },
+   {
+    "query_key": "Q04",
+    "query": "完全平方公式展开之后中间的那一项是什么",
+    "rewritten_query": "完全平方公式展开之后中间的那一项是什么",
+    "context_fingerprint": "5fabb24f91258259",
+    "visible_context": [
+     {
+      "source_id": "e-f7a5c9838d54948c1c333f4a",
+      "document": "neighbour#2",
+      "text": "定义： 平方差公式描述的是两数之和与两数之差的乘积。平方差公式的展开结果只有两项，并不存在中间的那一项。使用平方差公式之前要先确认两个二项式只有符号不同。平方差公式与完全平方公式的名字相近，展开结果却相差一项。",
+      "text_hash": "bf4c8d2b859ef32f1e278b329d1f37a72d30d10730815ecc2d46fc47e012de60",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-1c58077cd707aee1f61009a5",
+      "document": "neighbour#1",
+      "text": "分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n定义： 平方差公式描述的是两数之和与两数之差的乘积。平方差公式的展开结果只有两项，并不存在中间的那一项。使用平方差公式之前要先确认两个二项式只有符号不同。平方差公式与完全平方公式的名字相近，展开结果却相差一项。",
+      "text_hash": "2ef944b5e387da141242f0dab6adce8c46c4b4fbdf6dae67cb62e433260c2785",
+      "expanded_from": [
+       "08966349-b3e9-4d9e-805a-271a4a34b82c",
+       "ee7d375d-ae8d-434d-87e4-f5f561746c99"
+      ]
+     },
+     {
+      "source_id": "e-6f7a26bc114671491af3c543",
+      "document": "neighbour#0",
+      "text": "完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，完全平方公式把两数之和的平方展开为三项之和，展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n分解中反复出现\n当两个数符号相反时，中间项应当取负号\n展开结果里第一项是第一个数的平方，最后一项是第二个数的平方\n中间的一项是两数乘积的两倍，这一项最容易被漏写\n完全平方公式在配方与因式分解中反复出现\n当两个数符号相反时，中间项应当取负号",
+      "text_hash": "ae27462eb5f6e9106eb545fe034b946f6fb3c717a89c57ed89cdcdea05bb9b6b",
+      "expanded_from": [
+       "8e85a716-6aa6-4ca8-8632-60855e5c0510"
+      ]
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document": "boundary#1",
+      "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍\n完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零",
+      "text_hash": "5140a44e0befee8d4c8e502a8a85a1d8ac3aafaa141d7c4a78f7c00fdeb7ff2c",
+      "expanded_from": [
+       "62b40f93-4a9a-429e-8f42-29895ed9aa1b"
+      ]
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document": "boundary#0",
+      "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零",
+      "text_hash": "ef96b91a97f8c9b27695431cdf93c9c53bde61d933caae4c4337836a625b1bf1",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-d877b846904c86d35d85c808",
+      "document": "boundary#2",
+      "text": "分母有理化指把分母中的根号去掉，通常通过分子分母同乘分母的有理化因式来完成。",
+      "text_hash": "4db98872e0e252cf32a43a113571e42c842e03a1a18c53a32d9400fbd0bc29e7",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-99ba6fbc4f9c3cc747890893",
+      "document": "fraction#1",
+      "text": "去分母可能引入使最简公分母为零的根，因此解分式方程之后必须验根。",
+      "text_hash": "ff267260ee91e48a116cc92d9c7be887a358b3a1cc57d7cdb41f8d1210352dcf",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-0b241c243db4c2a1e852cd8a",
+      "document": "linear#1",
+      "text": "移项的依据是等式的基本性质，把某一项从等式的一边移到另一边时需要改变符号。",
+      "text_hash": "2f53e7078d3acc8eb20c9491ee50ce9f11e2b1e77d48c2aec5038afc26fb425c",
+      "expanded_from": []
+     }
+    ],
+    "citation_candidates": [
+     {
+      "source_id": "e-f7a5c9838d54948c1c333f4a",
+      "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+      "sequence": 2
+     },
+     {
+      "source_id": "e-1c58077cd707aee1f61009a5",
+      "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-6f7a26bc114671491af3c543",
+      "document_id": "2e5a61d1-d737-4f56-abf6-bd6bec89fd27",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-d877b846904c86d35d85c808",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 2
+     },
+     {
+      "source_id": "e-99ba6fbc4f9c3cc747890893",
+      "document_id": "34da559b-2be5-4d7f-9e6d-3f1e8ed7a811",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-0b241c243db4c2a1e852cd8a",
+      "document_id": "3b10f4ce-595f-4ee1-bedd-f024babc3225",
+      "sequence": 1
+     }
+    ]
+   },
+   {
+    "query_key": "Q05",
+    "query": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零是为什么",
+    "rewritten_query": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零是为什么",
+    "context_fingerprint": "02f63b5071aefe26",
+    "visible_context": [
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document": "disc#0",
+      "text": "对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数",
+      "text_hash": "48bac9d70406f1b9d3e59010142938b5d4ba43603f1c68df5f55eb23468b746d",
+      "expanded_from": [
+       "3d42940c-bb37-4096-994f-6b496bf4af45"
+      ]
+     },
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document": "disc#1",
+      "text": "现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n判别式定义为 Δ = b^2 - 4ac，它决定方程实数根的个数\n对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，对于一元二次方程 ax^2+bx+c=0，其中 a 不等于零，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变",
+      "text_hash": "ed0009ca2354db2aae97d99e0a496cdadcc4ae8f489d8b7f93adfa34954a2dfb",
+      "expanded_from": [
+       "d53d8fb8-333b-40bd-b4d7-931ac98094e2"
+      ]
+     },
+     {
+      "source_id": "e-7b628e36a8831ffe490b7a1e",
+      "document": "weida#0",
+      "text": "韦达定理描述一元二次方程根与系数的关系：x1 + x2 = -b/a，x1 * x2 = c/a。",
+      "text_hash": "37e90f00109f3a14b83c761b9751961b6101a41958edc5c6662fd6633939a8c2",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document": "boundary#1",
+      "text": "式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+      "text_hash": "8234c7646b3f8faf7255d0b72ab2a3767daab94606e81e784f3dddb6d236fa8a",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document": "boundary#0",
+      "text": "完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，完全平方公式是整式乘法中最基本的一个公式，在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n在解一元二次方程的过程中，先观察二次项系数是否为零\n若二次项系数为零，则方程退化为一次方程，处理方式随之改变\n配方时需要保持等式两边同时变化，这一步最容易出现符号错误\n因式分解法适用于能够直接看出因式的情形\n使用公式法之前应当先把方程化为一般形式\n完全平方公式的展开结果里，首末两项分别是两数的平方，中间项是两数乘积的两倍",
+      "text_hash": "6368b5030e96a2afca9c20f911f88b8f8c681ab12224d33de3046dafa2f96e74",
+      "expanded_from": [
+       "3120e02e-817c-429a-acfe-9829111acf86"
+      ]
+     },
+     {
+      "source_id": "e-41c1ac576e074427e98b2c79",
+      "document": "example#1",
+      "text": "例1：解方程 2x + 3 = 7。\n解：两边同时减去 3，得到 2x = 4，这一步依据等式的基本性质中两边同时减去同一个数等式仍成立；再同时除以 2，得到 x = 2，这一步依据等式两边同时除以同一个不为零的数等式仍成立。",
+      "text_hash": "d6887dd605250c2d923b268e8109517afe74ffdf9918bd7a7a71df4ca201643e",
+      "expanded_from": [
+       "79506d2d-67fd-42d2-8470-16ca8cc8f2af"
+      ]
+     },
+     {
+      "source_id": "e-6c8b49bd4bccf395edf89678",
+      "document": "inequality#1",
+      "text": "一元一次不等式的解集通常在数轴上用区间表示，端点是否包含要用空心点区分。",
+      "text_hash": "0d06821542270a37bfe242568969644e4df48ae9ee1ea05f744e873d9d3a4763",
+      "expanded_from": []
+     },
+     {
+      "source_id": "e-ec31554d544f6fc4873fb9cc",
+      "document": "example#0",
+      "text": "例1：解方程 2x + 3 = 7。",
+      "text_hash": "edea16a066af573245a07a3876f164f6f87346be613115da200ddd377511724e",
+      "expanded_from": []
+     }
+    ],
+    "citation_candidates": [
+     {
+      "source_id": "e-3bd93f3164cc964c2f7bef4f",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-6acbcc86550dd18025e795e1",
+      "document_id": "d80629cf-51ff-40f8-9105-1e97bb0c8735",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-7b628e36a8831ffe490b7a1e",
+      "document_id": "9663f4d6-765b-47d1-bbf5-7e93729eb5fa",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-6c053922588bfa42ae359acf",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-975addfde109a6c72fa60df9",
+      "document_id": "09c8d61a-e2b6-456a-bacd-bc1fb9747d5d",
+      "sequence": 0
+     },
+     {
+      "source_id": "e-41c1ac576e074427e98b2c79",
+      "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-6c8b49bd4bccf395edf89678",
+      "document_id": "38ae9ee1-be6e-4c8f-9594-9b7363d2a31b",
+      "sequence": 1
+     },
+     {
+      "source_id": "e-ec31554d544f6fc4873fb9cc",
+      "document_id": "f29897d2-3765-4126-9e91-61f99b538be0",
+      "sequence": 0
+     }
+    ]
+   }
+  ]
+ },
+ "isolation": {
+  "foreign_owner": "hard-owner-other",
+  "foreign_chunk_count": 2,
+  "queries_run_with_disc_scope": 5,
+  "own_disc_chunk_count": 2,
+  "leaks": [],
+  "ok": true,
+  "text_identical_across_owners": true
+ },
+ "overall": {
+  "cp_macro": 0.34444444444444444,
+  "cr_macro": 1.0,
+  "nr_macro": 0.6555555555555556,
+  "rr_macro": 0.9133367746634274,
+  "scope": "hard set only; easy set not measured in this increment",
+  "isolation_ok": true,
+  "expansion_leaks": [],
+  "citation_attribution_precision": 0.875,
+  "citation_attribution_recall": 1.0,
+  "citation_attribution_claim_cases": 4,
+  "unauthorized_historical_read_rejection_rate": 1.0
+ }
+}

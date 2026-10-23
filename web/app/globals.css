@@ -303,6 +303,46 @@ button.mt-brand-mark:hover { transform: scale(1.06); }
 .mt-tool-loading { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 140px; font-size: 13px; color: var(--muted-foreground); }
 .mt-tool-message { border: 1px solid var(--border); border-radius: 14px; padding: 16px; background: var(--card); }
 .mt-knowledge-page { max-width: 1200px; }
+.mt-reference-journey { padding: 22px 24px 16px; border: 1px solid var(--primary-border); border-radius: 18px; background: var(--card); }
+.mt-reference-intro { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.mt-reference-intro h2 { margin-top: 6px; font-size: 18px; font-weight: 650; letter-spacing: -.02em; }
+.mt-reference-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 22px; }
+.mt-reference-steps li { display: flex; min-width: 0; align-items: flex-start; gap: 10px; }
+.mt-reference-step-icon { display: inline-flex; flex: 0 0 32px; height: 32px; align-items: center; justify-content: center; border-radius: 10px; background: var(--primary-soft); color: var(--primary-text); }
+.mt-reference-step-icon svg { width: 16px; height: 16px; }
+.mt-reference-steps h3 { font-size: 13px; font-weight: 600; line-height: 24px; }
+.mt-reference-steps h3 span { margin-right: 4px; font-family: var(--font-mono); font-size: 11px; color: var(--primary-text); }
+.mt-reference-steps p, .mt-reference-boundary { font-size: 12px; line-height: 1.8; color: var(--muted-foreground); }
+.mt-reference-steps p { margin-top: 3px; }
+.mt-reference-boundary { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 12px; }
+.mt-reference-boundary a { color: var(--primary-text); text-decoration: underline; text-underline-offset: 3px; }
+.mt-learning-overview { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; border: 1px solid var(--primary-border); border-radius: 20px; padding: 26px; background: var(--card); box-shadow: var(--shadow-xs); }
+.mt-learning-focus { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.mt-learning-focus h2 { margin-top: 8px; font-size: 20px; line-height: 1.5; font-weight: 650; letter-spacing: -.025em; text-wrap: balance; }
+.mt-learning-focus h2 + p { margin-top: 10px; font-size: 13px; line-height: 1.9; color: var(--muted-foreground); }
+.mt-learning-coverage { padding-left: 24px; border-left: 1px solid var(--border); }
+.mt-learning-coverage-value { margin-block: 8px; font-size: 38px; font-weight: 650; line-height: 1.25; letter-spacing: -.04em; color: var(--primary-text); font-variant-numeric: tabular-nums; }
+.mt-learning-coverage-value span { font-size: 18px; font-weight: 500; color: var(--muted-foreground); }
+.mt-learning-coverage-value + p { font-size: 12px; line-height: 1.8; color: var(--muted-foreground); }
+.mt-learning-start-link { display: inline-flex; min-height: 44px; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; color: var(--primary-text); }
+.mt-profile-empty { display: flex; align-items: flex-start; gap: 12px; border: 1px dashed var(--border); border-radius: 16px; padding: 22px; font-size: 13px; line-height: 1.9; color: var(--muted-foreground); }
+.mt-evidence-breakdown { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; padding: 14px 0; border-block: 1px solid var(--border); }
+.mt-evidence-breakdown dt { font-size: 12px; color: var(--muted-foreground); }
+.mt-evidence-breakdown dd { margin-top: 6px; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mt-evidence-breakdown dd span { font-size: 11px; font-weight: 400; color: var(--muted-foreground); }
+.mt-observation-card { transition: border-color var(--dur) ease, box-shadow var(--dur) ease; }
+.mt-observation-card:focus-within, .mt-observation-card:hover { border-color: var(--primary-border); box-shadow: var(--shadow-md); }
+@media (prefers-reduced-motion: no-preference) {
+  .mt-learning-overview, .mt-reference-journey { animation: mt-rise 340ms var(--ease-out) both; }
+  .mt-reference-intro .mt-btn svg, .mt-learning-start-link svg { transition: transform var(--dur) var(--ease-out); }
+  .mt-reference-intro .mt-btn:hover svg, .mt-learning-start-link:hover svg { transform: translateX(3px); }
+}
+@media (max-width: 760px) {
+  .mt-reference-journey { padding: 18px; }
+  .mt-reference-steps { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .mt-learning-overview { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .mt-learning-coverage { border-left: 0; border-top: 1px solid var(--border); padding: 18px 0 0; }
+}
 .mt-vault-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--sidebar); }
 .mt-vault-tabs > button { display: flex; flex: 1; min-width: max-content; min-height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: 1px solid transparent; border-radius: 10px; color: var(--muted-foreground); font-size: 13px; font-weight: 550; transition: color var(--dur-fast), background var(--dur-fast); }
 .mt-vault-tabs > button[aria-pressed="true"] { border-color: var(--primary-border); background: var(--card); color: var(--primary-text); box-shadow: var(--shadow-xs); }

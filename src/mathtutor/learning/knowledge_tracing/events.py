@@ -146,6 +146,33 @@ def valid_events(events: Sequence[LearningEvent]) -> list[LearningEvent]:
             if (x.student_id, x.event_id) not in invalidated and x.event_type != "evidence_invalidated"]
 
 
+def evidence_category(event: LearningEvent) -> str | None:
+    """Classify a replayed assessment without changing its recorded facts.
+
+    Call with ``valid_events`` so first-attempt eligibility is derived before
+    exclusions. Choice, step and diagnostic work are observations, not the
+    existing first independent free-response target. Repeated independent
+    whole-task attempts remain in history but do not create another target.
+    """
+    if event.event_type != "attempt_assessed" or event.duplicate_response:
+        return None
+    if event.correctness in {None, "unknown"} or event.provenance_uncertain or event.evidence_kind == "unknown":
+        return "unknown"
+    if (event.task_purpose in {"diagnostic", "error_analysis"}
+            or event.response_format == "single_choice"
+            or event.completion_scope != "full_problem" or event.correctness == "partial"):
+        return "diagnostic"
+    if event.target_answer_exposed_before_attempt:
+        return "post_solution"
+    if event.evidence_kind in {"assisted", "post_solution"}:
+        return event.evidence_kind
+    if event.independent_target:
+        return "independent"
+    if event.evidence_kind == "independent" and event.prior_task_attempt:
+        return None
+    return "unknown"
+
+
 def evidence_summary(events: Sequence[LearningEvent]) -> dict:
     """Counts are attributable facts, never level-based mastery increments.
 
@@ -177,11 +204,9 @@ def evidence_summary(events: Sequence[LearningEvent]) -> dict:
         if event.prior_task_attempt:
             for skill in event.skill_ids:
                 skills[skill]["repeat_attempts"] += 1
-            # Repetition disqualifies first independent whole-task evidence,
-            # not separately attributed partial/assisted/diagnostic history.
-            if (event.evidence_kind == "independent" and event.completion_scope == "full_problem"
-                    and event.correctness in {"correct", "incorrect"} and event.task_purpose != "diagnostic"):
-                continue
+        category = evidence_category(event)
+        if category is None:
+            continue
         targets = event.skill_ids
         if len(targets) > 1:
             if event.correctness == "incorrect" and event.verified_error_skill_ids:
@@ -194,18 +219,15 @@ def evidence_summary(events: Sequence[LearningEvent]) -> dict:
         for skill in targets:
             row = skills[skill]
             row["assessment_ids"].append(event.assessment_id)
-            if event.correctness in {None, "unknown"} or event.evidence_kind == "unknown" or event.provenance_uncertain:
+            if category == "unknown":
                 row["unknown"] += 1
-            elif event.task_purpose == "diagnostic":
+            elif category == "diagnostic":
                 if event.correctness in {"correct", "incorrect"}:
                     row["diagnostic"][event.correctness] += 1
-            elif event.completion_scope != "full_problem" or event.correctness == "partial":
-                if event.correctness in {"correct", "partial"}:
+                if (event.completion_scope != "full_problem" or event.correctness == "partial") and event.correctness in {"correct", "partial"}:
                     row["step_correct"] += 1
-                if event.completion_scope in {"reflection", "error_analysis"} and event.correctness in {"correct", "incorrect"}:
-                    row["diagnostic"][event.correctness] += 1
-            elif event.evidence_kind in {"independent", "assisted", "post_solution"}:
-                row[event.evidence_kind][event.correctness] += 1
+            else:
+                row[category][event.correctness] += 1
     for row in skills.values():
         correct = row["independent"]["correct"]
         incorrect = row["independent"]["incorrect"]
@@ -222,13 +244,10 @@ def evidence_summary(events: Sequence[LearningEvent]) -> dict:
         "estimator": "evidence_tracker_v2", "skills": [skills[x] for x in sorted(skills)],
         "item_level_uncertain": item_uncertain,
         "event_count": len(accepted), "last_event_seq": max((x.event_seq for x in events), default=0),
-        "totals": {kind: sum(x.event_type == "attempt_assessed" and x.evidence_kind == kind
-                    and not x.duplicate_response and (kind != "independent" or not x.prior_task_attempt)
-                    and x.task_purpose != "diagnostic" for x in accepted)
-                   for kind in ("independent", "assisted", "post_solution", "unknown")} | {
+        "totals": {kind: sum(evidence_category(x) == kind for x in accepted)
+                   for kind in ("independent", "assisted", "post_solution", "unknown", "diagnostic")} | {
                        "duplicate_responses": sum(x.duplicate_response for x in accepted),
-                       "repeat_attempts": sum(x.prior_task_attempt for x in accepted),
-                       "diagnostic": sum(x.event_type == "attempt_assessed" and x.task_purpose == "diagnostic" and not x.duplicate_response for x in accepted)},
+                       "repeat_attempts": sum(x.prior_task_attempt for x in accepted)},
     }
 
 

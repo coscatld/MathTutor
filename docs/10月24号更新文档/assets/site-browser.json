@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-23T16:56:12.008Z",
+  "browser": "installed Chrome, isolated context",
+  "fixtures": "local static export",
+  "checks": [
+    "/zh/ desktop 200, single H1, no horizontal overflow",
+    "/zh/docs/ desktop 200, single H1, no horizontal overflow",
+    "/zh/docs/user/knowledge-base/ desktop 200, single H1, no horizontal overflow",
+    "/en/docs/ desktop 200, single H1, no horizontal overflow",
+    "reader path navigates to quick-start",
+    "language switch preserves docs route",
+    "static search returns learning evidence and Escape closes",
+    {
+      "darkPrimaryContrast": 7.021859543278342,
+      "colors": {
+        "fg": "rgb(15, 23, 42)",
+        "bg": "rgb(96, 165, 250)"
+      }
+    },
+    "/zh/ mobile no overflow",
+    "/zh/docs/ mobile no overflow",
+    "mobile sidebar opens and exposes user guide",
+    "no page errors"
+  ]
+}

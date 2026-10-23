@@ -2,9 +2,7 @@
   "title": "MathTutor",
   "pages": [
     "index",
-    "---User guide---",
     "user",
-    "---Developer guide---",
     "developer"
   ]
 }

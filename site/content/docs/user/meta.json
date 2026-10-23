@@ -10,5 +10,6 @@
     "knowledge-base",
     "privacy",
     "faq"
-  ]
+  ],
+  "defaultOpen": true
 }

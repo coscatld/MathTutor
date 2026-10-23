@@ -22,7 +22,7 @@ export default function RootPage() {
       <div className="flex flex-wrap gap-3">
         <Link
           href="/zh/"
-          className="inline-flex min-h-11 items-center rounded-full bg-[var(--mt-blue)] px-5 text-white"
+          className="inline-flex min-h-11 items-center rounded-full bg-[var(--mt-blue)] px-5 text-[var(--mt-on-blue)]"
         >
           简体中文
         </Link>

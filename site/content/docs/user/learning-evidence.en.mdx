@@ -1,17 +1,36 @@
 ---
-title: Learning Evidence
-description: How independent, assisted, and after-reveal attempts are stored, and what DKT actually does.
+title: Learning Profile and Evidence
+description: Inspect real attempts, distinguish assistance, and verify progress with new problems.
 ---
 
-The learning profile is built from server-recorded attempts.
+The learning profile describes what you attempted, what help you received, and what still needs checking. It uses server-recorded attempts. Library size, chat counts, and model predictions are not presented as a mastery percentage.
 
-- **Independent**: verified results before hints, the full solution, or that item’s graph help.
-- **Assisted**: attempts after a hint, explanation, example, or that item’s graph.
-- **After-reveal**: attempts after the full solution is shown.
-- **Self-report**: reading, bookmarking, or “I get it” is not mastery.
+## Start with the next step, then inspect the evidence
 
-`LearningEvidence` is append-only and idempotent. UNDETERMINED results yield no evidence. Deleting evidence updates the projection.
+The profile shows a next-step entry and a count of observed skills. This count describes coverage of attempt records, **not mastery**. Each observation displays independent, assisted, and after-answer correct responses separately. Expand “证据计数” for incorrect responses and diagnostic counts.
 
-## DKT
+Select “查看依据” to inspect the problem, your response, verification result, time, and assistance conditions. You can return to the original conversation while it remains available. With no attempt evidence, the page guides you toward a verifiable problem.
 
-The product profile uses `evidence_tracker_v2`. DKT is a separate predictor trained on ASSISTments 2009 skill-builder weights, not MathTutor student logs. It may shift the next step or practice difficulty by at most one notch, and only with a skill mapping plus independent history. Set `MATHTUTOR_DKT_TEACHING=off` to disable it. This is not a classroom-effect claim.
+## How records are distinguished
+
+| Record | Meaning and limits |
+| --- | --- |
+| Independent | The first attempt at a new problem: a whole-problem free response with a definite correct/incorrect result, known assistance provenance, no hints or item-specific graph help, and no prior exposure to the target answer. Diagnostic and error-analysis tasks are excluded. |
+| Assisted | Performance after hints, explanations, examples, or relevant graph help. It can show progress but is not merged into independent success. |
+| After-answer | A response after the target answer or full solution was shown. A new problem is needed to observe independent performance. |
+| Diagnostic or step-level | Multiple-choice initial assessment, diagnostic tasks, error analysis, individual steps, or partial completion. These inform the starting point and difficulties, rather than first independent whole-problem success. |
+| Uncertain | An unverified result or unclear assistance provenance. Available records may remain, but they do not count as independently correct. |
+
+Repeated attempts at the same problem do not create another first-attempt observation. Whole-problem results involving several skills are joint evidence, not separate proof of mastery for each skill. Reading, bookmarking, saying “I understand,” and entering a learning goal do not count as independent success.
+
+## Correcting records and reviewing a stage
+
+If a verdict looks wrong, choose “这条记录有问题” in the evidence view, then confirm “排除这次判定”. The profile is recomputed from valid records while the original attempt order remains. Excluding an initial verdict does not make a retry into a first attempt.
+
+“阶段学习复盘” summarizes changes in verified records and suggests what to observe next. Expand “学习目标与讲解偏好” when needed. These preferences help arrange learning; they are not evidence of ability. Loading, queued work, and failures have distinct states.
+
+## Model predictions and learning outcomes
+
+The product profile uses the `evidence_tracker_v2` evidence projection. DKT is a separate prediction pipeline that may inform teaching policy when its applicability conditions are met. A prediction does not become an independent success or proof of long-term mastery.
+
+A correct response, assisted completion, or passing software test does not establish long-term learning outcomes. Further evidence is needed across different problems, transfer tasks, and delayed review. Educational effectiveness requires dedicated evaluation.

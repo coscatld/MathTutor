@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { JsonLd } from '@/components/json-ld';
 import { ScreenshotFrame } from '@/components/screenshot-frame';
+import { ReaderPaths } from '@/components/reader-paths';
 import { isLocale, localePath } from '@/lib/site';
 import { t } from '@/lib/messages';
 
@@ -24,18 +25,18 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
   return (
     <div>
       <JsonLd />
-      <section className="mt-hero-grid border-b border-[var(--mt-border)]">
-        <div className="mt-container grid gap-12 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
-          <div>
+      <section className="mt-editorial-hero border-b border-[var(--mt-border)]">
+        <div className="mt-container grid items-center gap-12 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
+          <div className="mt-arrive">
             <p className="text-sm font-medium tracking-wide text-[var(--mt-blue)]">{copy.hero.eyebrow}</p>
-            <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
+            <h1 className="mt-home-title mt-5 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
               {copy.hero.title}
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--mt-muted)]">{copy.hero.subtitle}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href={localePath(locale, '/docs/user/quick-start')}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--mt-blue)] px-5 text-white"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--mt-blue)] px-5 text-[var(--mt-on-blue)]"
               >
                 {copy.hero.getStarted}
                 <ArrowRight className="size-4" aria-hidden="true" />
@@ -64,19 +65,31 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
               </a>
             </div>
           </div>
+          <div className="mt-preview-panel mt-arrive">
+          <div className="mt-preview-caption"><span>{locale === 'zh' ? '一张白纸，一次新的尝试' : 'A fresh page. A new attempt.'}</span><span>{locale === 'zh' ? '数学练习' : 'MATH PRACTICE'}</span></div>
           <ScreenshotFrame
             src="/screenshots/teaching-desktop.png"
             alt={locale === 'zh' ? 'MathTutor 教学对话界面' : 'MathTutor teaching conversation'}
             priority
           />
+          <p className="mt-preview-note">{locale === 'zh' ? '先试一试 → 获得提示 → 再独立完成' : 'Try → Get a hint → Solve independently'}</p>
+          </div>
         </div>
+      </section>
+
+      <section className="mt-container py-12" aria-labelledby="reading-paths-title">
+        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="reading-paths-title" className="text-xl font-semibold">{locale === 'zh' ? '从你现在要做的事开始' : 'Start with what you want to do'}</h2>
+          <Link className="text-sm text-[var(--mt-blue)] hover:underline" href={localePath(locale, '/docs')}>{locale === 'zh' ? '浏览全部文档 →' : 'Explore the documentation →'}</Link>
+        </div>
+        <ReaderPaths locale={locale} />
       </section>
 
       <section className="mt-container py-16">
         <h2 className="text-2xl font-semibold">{copy.loopTitle}</h2>
         <ol className="mt-8 grid gap-4 md:grid-cols-4">
           {copy.loop.map((item, index) => (
-            <li key={item.title} className="rounded-2xl border border-[var(--mt-border)] bg-[var(--mt-card)] p-5">
+            <li key={item.title} className="mt-learning-step border-t border-[var(--mt-border)] py-5 pr-5">
               <span className="text-sm font-medium text-[var(--mt-blue)]">{String(index + 1).padStart(2, '0')}</span>
               <h3 className="mt-2 text-lg font-semibold">{item.title}</h3>
               <p className="mt-2 text-sm leading-7 text-[var(--mt-muted)]">{item.body}</p>
@@ -123,7 +136,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
           </div>
           <Link
             href={localePath(locale, '/download')}
-            className="inline-flex min-h-11 items-center rounded-full bg-[var(--mt-blue)] px-5 text-white"
+            className="inline-flex min-h-11 items-center rounded-full bg-[var(--mt-blue)] px-5 text-[var(--mt-on-blue)]"
           >
             {copy.hero.download}
           </Link>

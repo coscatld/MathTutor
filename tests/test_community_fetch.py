@@ -113,7 +113,8 @@ def test_download_rejects_redirects_errors_compression_and_invalid_sizes(monkeyp
     assert requests[0]["closed"] is True
 
 
-def test_tls_uses_the_original_hostname_with_public_pinned_socket(monkeypatch):
+@pytest.mark.parametrize("reject_certificate", [False, True], ids=["accepted", "rejected"])
+def test_tls_uses_the_original_hostname_with_public_pinned_socket(monkeypatch, reject_certificate):
     recorded = {}
     class Socket:
         def close(self):
@@ -122,17 +123,33 @@ def test_tls_uses_the_original_hostname_with_public_pinned_socket(monkeypatch):
     def connect(address, timeout):
         recorded.update(address=address, timeout=timeout)
         return raw
-    class Context:
-        def wrap_socket(self, sock, *, server_hostname):
-            recorded.update(server_hostname=server_hostname, wrapped=sock)
-            return raw
     monkeypatch.setattr(socket, "create_connection", connect)
     context = ssl.create_default_context()
-    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
-    monkeypatch.setattr(ssl, "create_default_context", lambda: Context())
+    certificate_error = ssl.SSLCertVerificationError("certificate rejected")
+    def wrap_socket(sock, *, server_hostname):
+        # Keep the real SSLContext contract used by HTTPSConnection on 3.11/3.12.
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname is True
+        recorded.update(server_hostname=server_hostname, wrapped=sock)
+        if reject_certificate:
+            raise certificate_error
+        return raw
+    monkeypatch.setattr(context, "wrap_socket", wrap_socket)
+    monkeypatch.setattr(ssl, "create_default_context", lambda: context)
     connection = fetch._PinnedHTTPSConnection("raw.example.org", 443, address="8.8.8.8", timeout=2)
-    connection.connect()
+    assert connection._context is context
+    if reject_certificate:
+        with pytest.raises(ssl.SSLCertVerificationError) as raised:
+            connection.connect()
+        assert raised.value is certificate_error
+        assert recorded["closed"] is True
+        assert connection.sock is None
+    else:
+        connection.connect()
+        assert connection.sock is raw
+        assert "closed" not in recorded
     assert recorded["address"] == ("8.8.8.8", 443)
+    assert recorded["timeout"] == 2
     assert recorded["server_hostname"] == "raw.example.org"
     assert recorded["wrapped"] is raw
 

@@ -1,23 +1,14 @@
 """Public item evidence counts; no internal prior is displayed as mastery."""
-from mathtutor.learning.knowledge_tracing.events import valid_events
+from mathtutor.learning.knowledge_tracing.events import evidence_category, valid_events
 
 
 def public_evidence(events):
     counts = {"independent": 0, "assisted": 0, "post_solution": 0, "diagnostic": 0, "ungradable": 0}
     for event in valid_events(events):
-        if event.event_type != "attempt_assessed" or getattr(event, "duplicate_response", False):
+        category = evidence_category(event)
+        if category is None:
             continue
-        if event.task_purpose in {"diagnostic", "error_analysis"}:
-            key = "diagnostic"
-        elif event.correctness in {None, "unknown"} or event.provenance_uncertain or event.evidence_kind == "unknown":
-            key = "ungradable"
-        elif event.completion_scope != "full_problem" or event.correctness == "partial":
-            key = "diagnostic"
-        else:
-            key = event.evidence_kind
-        if key == "independent" and event.prior_task_attempt:
-            continue
-        counts[key if key in counts else "ungradable"] += 1
+        counts["ungradable" if category == "unknown" else category] += 1
     counts["status"] = "已有独立作答记录，仍需跨题验证" if counts["independent"] else "已看过解答，需换题独立检测" if counts["post_solution"] else "尚无整题独立作答证据"
     return counts
 

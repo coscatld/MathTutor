@@ -66,6 +66,6 @@ async def enrich_offer(state, practice, sid, offer, public, *, history, feedback
             public.update(child_cycle_id=cycle_id, resume_session_id=client_id if available and active and not completed else None,
                 display_status="completed" if completed else "in_progress" if available and active else "history")
             public["evidence_href"] = "/math-tutor/profile?" + urlencode({"cycle": cycle_id})
-            public["result_summary"] = {"independent_correct": sum(e.evidence_kind == "independent" and e.correctness == "correct" and e.completion_scope == "full_problem" for e in rows),
+            public["result_summary"] = {"independent_correct": sum(e.independent_target and e.correctness == "correct" for e in rows),
                 "helped": sum(e.evidence_kind in {"assisted", "post_solution"} for e in rows), "observations": len(rows)}
     return public

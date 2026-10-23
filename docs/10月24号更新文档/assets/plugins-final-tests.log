@@ -1,0 +1,101 @@
+........................................................................ [ 49%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+=============================== warnings summary ===============================
+../../../miniconda3/envs/deeptutor/lib/python3.11/site-packages/fastapi/testclient.py:1
+  <USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_code_plugins.py: 1 warning
+tests/test_plugin_commands.py: 13 warnings
+tests/test_community_plugins.py: 1 warning
+tests/test_community_plugins_api.py: 5 warnings
+tests/test_creator_extensions.py: 2 warnings
+  <PROJECT_ROOT>/src/mathtutor/api/product_app.py:174: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_code_plugins.py: 6 warnings
+tests/test_plugin_commands.py: 78 warnings
+tests/test_community_plugins.py: 6 warnings
+tests/test_community_plugins_api.py: 30 warnings
+tests/test_creator_extensions.py: 12 warnings
+  <USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/fastapi/applications.py:4681: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+tests/test_code_plugins.py: 1 warning
+tests/test_plugin_commands.py: 13 warnings
+tests/test_community_plugins.py: 1 warning
+tests/test_community_plugins_api.py: 5 warnings
+tests/test_creator_extensions.py: 2 warnings
+  <PROJECT_ROOT>/src/mathtutor/api/product_app.py:181: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_code_plugins.py: 1 warning
+tests/test_plugin_commands.py: 13 warnings
+tests/test_community_plugins.py: 1 warning
+tests/test_community_plugins_api.py: 5 warnings
+tests/test_creator_extensions.py: 2 warnings
+  <PROJECT_ROOT>/src/mathtutor/api/product_app.py:194: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_code_plugins.py: 1 warning
+tests/test_plugin_commands.py: 13 warnings
+tests/test_community_plugins.py: 1 warning
+tests/test_community_plugins_api.py: 5 warnings
+tests/test_creator_extensions.py: 2 warnings
+  <PROJECT_ROOT>/src/mathtutor/api/product_app.py:223: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_code_plugins.py: 1 warning
+tests/test_plugin_commands.py: 13 warnings
+tests/test_community_plugins.py: 1 warning
+tests/test_community_plugins_api.py: 5 warnings
+tests/test_creator_extensions.py: 2 warnings
+  <PROJECT_ROOT>/src/mathtutor/api/product_app.py:250: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_code_plugins.py: 1 warning
+tests/test_plugin_commands.py: 13 warnings
+tests/test_community_plugins.py: 1 warning
+tests/test_community_plugins_api.py: 5 warnings
+tests/test_creator_extensions.py: 2 warnings
+  <PROJECT_ROOT>/src/mathtutor/api/product_app.py:267: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+145 passed, 265 warnings in 10.58s

@@ -16,8 +16,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sqlite3
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -147,6 +149,145 @@ async def test_create_backup_into_backup_dir_unique_names(db, tmp_path):
 
 
 # -------------------------------------------------- list + retention
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("created_at", value) for value in (None, 42, True, [], {})]
+    + [("sha256", None), ("sha256", 42), ("backup_path", None)],
+)
+async def test_list_backups_annotates_invalid_manifest_field_types(db, tmp_path, field, value):
+    """Malformed JSON fields cannot hide the other backups from the user."""
+    service = BackupService(db)
+    directory = tmp_path / "bk"
+    valid = await service.create_backup(backup_dir=directory)
+    malformed = await service.create_backup(backup_dir=directory)
+    sidecar = Path(f"{malformed.backup_path}.manifest.json")
+    payload = malformed.to_dict()
+    payload[field] = value
+    sidecar.write_text(json.dumps(payload), encoding="utf-8")
+
+    entries = {entry.backup_path: entry for entry in BackupService.list_backups(directory)}
+
+    assert entries[Path(valid.backup_path)].status == "ok"
+    entry = entries[Path(malformed.backup_path)]
+    assert entry.status == "manifest_unreadable"
+    assert entry.manifest is None
+    assert entry.created_at == BackupService._mtime_iso(Path(malformed.backup_path))
+    assert sidecar.is_file() and Path(malformed.backup_path).is_file()
+
+
+@pytest.mark.parametrize(
+    ("count", "orphan_indices", "limit", "retained_indices"),
+    [(2, {1}, 1, {0}), (6, {1, 4, 5}, 2, {2, 3})],
+    ids=["newest-orphan-keeps-only-backup", "multiple-orphans-do-not-use-slots"],
+)
+async def test_retention_orphans_do_not_displace_backups(
+    db, tmp_path, count, orphan_indices, limit, retained_indices
+):
+    await _seed_users(db)
+    service = BackupService(db)
+    directory = tmp_path / "bk"
+    manifests = []
+    for index in range(count):
+        backup = directory / f"b.backup-20261024T00000{index}Z.db"
+        manifest = await service.create_backup(backup)
+        # Explicit times make the intended order independent of disk speed.
+        payload = manifest.to_dict()
+        payload["created_at"] = f"2026-10-24T00:00:0{index}+00:00"
+        manifest = BackupManifest.from_dict(payload)
+        BackupService._write_manifest_atomic(backup, manifest)
+        manifests.append(manifest)
+        if index in orphan_indices:
+            backup.unlink()
+    foreign = directory / "notes.txt"
+    foreign.write_text("keep me", encoding="utf-8")
+
+    deleted = BackupService.apply_retention(directory, limit)
+
+    retained = {Path(manifests[index].backup_path) for index in retained_indices}
+    assert {entry.backup_path for entry in BackupService.list_backups(directory)} == retained
+    for index, manifest in enumerate(manifests):
+        backup = Path(manifest.backup_path)
+        sidecar = Path(f"{backup}.manifest.json")
+        assert backup.exists() == (index in retained_indices)
+        assert sidecar.exists() == (index in retained_indices)
+        if index in retained_indices:
+            assert BackupService.verify_backup(backup, manifest) == (True, "ok")
+    assert len(deleted) == 2 * (count - len(orphan_indices) - limit) + len(orphan_indices)
+    assert foreign.read_text(encoding="utf-8") == "keep me"
+
+
+@pytest.mark.parametrize(
+    ("statuses", "limit", "retained_indices"),
+    [(["ok", status], 1, {0, 1}) for status in (
+        "manifest_unreadable", "size_mismatch", "no_manifest"
+    )] + [
+        (
+            ["ok", "manifest_unreadable", "ok", "no_manifest", "ok",
+             "size_mismatch", "manifest_unreadable", "no_manifest"],
+            2,
+            {2, 4, 6, 7},
+        ),
+        (["manifest_unreadable", "size_mismatch", "no_manifest"], 2, {1, 2}),
+    ],
+    ids=["newest-unreadable", "newest-size-mismatch", "newest-no-manifest",
+         "mixed-backups-keep-two-regular-candidates", "all-abnormal-still-rotate"],
+)
+async def test_retention_preserves_regular_candidates_alongside_recent_backups(
+    db, tmp_path, statuses, limit, retained_indices
+):
+    """Known metadata failures cannot evict every older normal candidate."""
+    await _seed_users(db)
+    service = BackupService(db)
+    directory = tmp_path / "bk"
+    manifests = []
+    contents = []
+    original_files = set()
+    for index, status in enumerate(statuses):
+        backup = directory / f"b.backup-20261024T00000{index}Z.db"
+        manifest = await service.create_backup(backup)
+        created = datetime(2026, 10, 24, 0, 0, index, tzinfo=timezone.utc)
+        payload = manifest.to_dict()
+        payload["created_at"] = created.isoformat()
+        manifest = BackupManifest.from_dict(payload)
+        manifests.append(manifest)
+        contents.append(backup.read_bytes())
+        sidecar = BackupService._write_manifest_atomic(backup, manifest)
+        if status == "manifest_unreadable":
+            sidecar.write_text("{not json", encoding="utf-8")
+        elif status == "size_mismatch":
+            payload["size_bytes"] += 1
+            sidecar.write_text(json.dumps(payload), encoding="utf-8")
+        elif status == "no_manifest":
+            sidecar.unlink()
+        # Unreadable/missing manifests sort by the backup's mtime.
+        os.utime(backup, (created.timestamp(), created.timestamp()))
+        original_files.add(backup)
+        if sidecar.exists():
+            original_files.add(sidecar)
+
+    before = BackupService.list_backups(directory)
+    assert [entry.status for entry in before] == list(reversed(statuses))
+    deleted = BackupService.apply_retention(directory, limit)
+
+    retained = {Path(manifests[index].backup_path) for index in retained_indices}
+    remaining = BackupService.list_backups(directory)
+    assert {entry.backup_path for entry in remaining} == retained
+    assert len(remaining) <= 2 * limit
+    for index in retained_indices:
+        backup = Path(manifests[index].backup_path)
+        assert backup.read_bytes() == contents[index]
+        if statuses[index] == "ok":
+            assert BackupService.verify_backup(backup, manifests[index]) == (True, "ok")
+    remaining_files = set(directory.iterdir())
+    assert set(deleted) == original_files - remaining_files
+    for index, manifest in enumerate(manifests):
+        backup = Path(manifest.backup_path)
+        assert backup.exists() == (index in retained_indices)
+        assert Path(f"{backup}.manifest.json").exists() == (
+            index in retained_indices and statuses[index] != "no_manifest"
+        )
 
 
 async def test_list_backups_annotates_corrupt_orphan_and_ignores_foreign(

@@ -1,0 +1,81 @@
+
+> mathtutor-site@0.7.0 build
+> next build && node ./scripts/postbuild.mjs
+
+▲ Next.js 16.4.2 (Turbopack)
+[MDX] generated files in 0.7282500000000027ms
+✓ Running next.config.mjs took 154ms
+
+  Creating an optimized production build ...
+Found 2 warnings while optimizing generated CSS:
+
+Issue #1:
+[2m│     }[22m
+[2m│   }[22m
+[2m│[22m   .\[\&_\:\:highlight\(fd-search\)\]\:text-fd-primary ::highlight(fd-search) {
+[2m┆[22m                                                                   [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│     color: var(--color-fd-primary);[22m
+[2m│   }[22m
+
+Issue #2:
+[2m│     color: var(--color-fd-primary);[22m
+[2m│   }[22m
+[2m│[22m   .\[\&_\:\:highlight\(fd-search\)\]\:underline ::highlight(fd-search) {
+[2m┆[22m                                                             [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│     text-decoration-line: underline;[22m
+[2m│   }[22m
+
+✓ Compiled successfully in 2.0s
+  Running TypeScript ...
+  Finished TypeScript in 862ms ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/56) ...
+  Generating static pages using 9 workers (14/56)
+  Generating static pages using 9 workers (28/56)
+  Generating static pages using 9 workers (42/56)
+✓ Generating static pages using 9 workers (56/56) in 363ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├   /[lang]
+│ ├ ● /zh
+│ └ ● /en
+├   /[lang]/architecture
+│ ├ ● /zh/architecture
+│ └ ● /en/architecture
+├   /[lang]/docs/[[...slug]]
+│ ├ ● /zh/docs/developer/api-websocket
+│ ├ ● /zh/docs/developer/architecture
+│ ├ ● /zh/docs/developer/contributing
+│ └ ● [+37 more paths]
+├   /[lang]/download
+│ ├ ● /zh/download
+│ └ ● /en/download
+├   /[lang]/features
+│ ├ ● /zh/features
+│ └ ● /en/features
+├   /[lang]/roadmap
+│ ├ ● /zh/roadmap
+│ └ ● /en/roadmap
+├ ○ /api/search
+├ ○ /robots.txt
+└ ○ /sitemap.xml
+
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+postbuild: wrote out/.nojekyll
+
+> mathtutor-site@0.7.0 typecheck
+> tsc --noEmit
+
+
+> mathtutor-site@0.7.0 verify:export
+> node ./scripts/verify-export.mjs
+
+verify-export ok (304 text files scanned)

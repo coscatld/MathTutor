@@ -9,18 +9,25 @@ const browser = await chromium.launch({headless:true, executablePath:process.env
 const page = await browser.newPage();
 const errors=[];
 page.on('pageerror', error=>errors.push(error.message));
-let excluded=false, empty=false;
-const skill={code:'linear_isolation',label:'移项与符号处理',mastery:null,grade_band:null,observation:'有 2 道新题首次独立完成，仍可换题检查。',evidence_count:2,counts:{independent:{correct:2,incorrect:0},assisted:{correct:1,incorrect:0},post_solution:{correct:0,incorrect:0},diagnostic:{correct:0,incorrect:0}},last_checked_at:'2026-09-13T08:00:00Z'};
+let excluded=false, empty=false, summaryFailure=false;
+const mutations=[];
+const referenceScope={space_ids:[],document_ids:[],only_selected:false,mode:'tutor',hints_only:false,save_space_id:'',tool_mode:'native',available_documents:[],effective_document_ids:[]};
+const skill={code:'linear_isolation',label:'移项与符号处理',mastery:null,grade_band:null,observation:'有 2 道新题首次独立完成，仍可换题检查。',evidence_count:3,counts:{independent:{correct:2,incorrect:0},assisted:{correct:1,incorrect:0},post_solution:{correct:0,incorrect:0},diagnostic:{correct:0,incorrect:0}},last_checked_at:'2026-09-13T08:00:00Z'};
 const offer={offer_id:'practice-1',status:'ACTIVE',display_status:'pending',skill_labels:['移项与符号处理'],concept_labels:[],difficulty:2,offered_at:'2026-09-13T08:00:00Z',expires_at:'2026-09-15T08:00:00Z',parent_cycle_id:'parent',title:'换一道题，检查独立完成情况',reason:'上一次作答中使用过提示。',observation_goal:'不看例题时，能否正确处理符号。',question_count:1};
 await page.route('**/api/**', async route=>{
   const url=new URL(route.request().url());
+  if(route.request().method() !== 'GET') mutations.push(url.pathname);
   let body=[];
   if(url.pathname.endsWith('/auth/status'))body={enabled:false,authenticated:true};
   else if(url.pathname.endsWith('/bootstrap'))body={phase:'READY',readiness:'READY',steps:[]};
   else if(url.pathname.endsWith('/sessions'))body=[{conversation_id:'s',title:'一次数学问答'}];
   else if(url.pathname.endsWith('/settings'))body={is_configured:true,onboarding_completed:true,preset_id:'deepseek',model:'fixture',base_url:'',key_masked:null};
   else if(url.pathname.endsWith('/presets'))body=[{preset_id:'deepseek',label:'DeepSeek',default_model:'fixture',base_url:'',editable_base_url:true}];
-  else if(url.pathname.endsWith('/student-summary'))body={skills:[empty?{...skill,evidence_count:0,observation:'尚未检查'}:skill],total_attempts:empty?0:2,active_misconceptions:0,has_conversations:true,has_independent_evidence:!empty,coverage:{supported_skills:13,observed_skills:empty?0:1}};
+  else if(url.pathname.endsWith('/student-summary')){if(summaryFailure)return route.fulfill({status:503,json:{detail:'fixture-unavailable'}});body={skills:[empty?{...skill,evidence_count:0,observation:'尚未检查'}:skill],total_attempts:empty?0:3,active_misconceptions:0,has_conversations:true,has_independent_evidence:!empty,coverage:{supported_skills:13,observed_skills:empty?0:1}};}
+  else if(url.pathname.endsWith('/stage-review'))body={status:'idle',preferences:{goal:'巩固移项',style:'stepwise'},review:null};
+  else if(url.pathname.includes('/knowledge/conversations/'))body=referenceScope;
+  else if(url.pathname.endsWith('/resources'))body={documents:[],images:[],message_count:0,scope:referenceScope};
+  else if(url.pathname.includes('/sessions/'))body={messages:[],state:'idle',state_version:0};
   else if(url.pathname.endsWith('/student-evidence'))body={items:[{event_id:'event-1',event_seq:1,cycle_id:'cycle',occurred_at:'2026-09-13T08:00:00Z',skill_ids:['linear_isolation'],problem_text:'解方程：3x − 5 = 10',student_response:'x = 5',correctness:'correct',evidence_kind:'independent',completion_scope:'full_problem',first_target:!excluded,excluded,session_id:'s'}],next_cursor:null};
   else if(url.pathname.endsWith('/exclude')){excluded=true;body={ok:true};}
   else if(url.pathname.endsWith('/recompute-profile'))body={ok:true};
@@ -29,14 +36,21 @@ await page.route('**/api/**', async route=>{
   else if(url.pathname.includes('embedding'))body={enabled:false,status:'disabled',provider:'local',local_models:[]};
   await route.fulfill({json:body});
 });
+await page.routeWebSocket('**/api/**', () => {});
 const base=process.env.PROFILE_QA_URL || 'http://127.0.0.1:3198';
 try{
   for(const [width,height] of [[1280,800],[1024,768],[375,812],[812,375]]){
     await page.setViewportSize({width,height});
     await page.goto(base+'/math-tutor/profile');
     await page.getByRole('heading',{name:skill.observation,exact:true}).waitFor();
+    const nextStep=await page.getByRole('heading',{name:'换一道新题，看看能否独立完成'}).boundingBox();
+    const observation=await page.getByRole('heading',{name:skill.observation,exact:true}).boundingBox();
+    const review=await page.getByRole('heading',{name:'阶段学习复盘',exact:true}).boundingBox();
+    assert.ok(nextStep.y < observation.y && observation.y < review.y, 'next step and observations precede review settings');
+    assert.match(await page.locator('.mt-evidence-breakdown').innerText(), /独立答对\s*2 次\s*受助答对\s*1 次\s*答案后答对\s*0 次/);
+    assert.equal(await page.getByRole('textbox',{name:'当前学习目标'}).isVisible(),false);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth),false);
-    await page.screenshot({path:path.join(output,`profile-${width}.png`),fullPage:true});
+    await page.screenshot({path:path.join(output,`profile-${width}.png`),fullPage:true,animations:"disabled"});
     await page.getByRole('button',{name:'查看依据',exact:true}).click();
     await page.getByRole('dialog').waitFor();
     const bounds=await page.getByRole('dialog').boundingBox();
@@ -45,11 +59,14 @@ try{
     await page.getByRole('dialog').waitFor({state:'detached'});
     assert.equal(await page.getByRole('button',{name:'查看依据',exact:true}).evaluate(el=>el===document.activeElement),true);
   }
+  await page.getByText('学习目标与讲解偏好',{exact:true}).click();
+  assert.equal(await page.getByRole('textbox',{name:'当前学习目标'}).inputValue(),'巩固移项');
+  assert.equal(await page.getByRole('combobox',{name:'你明确选择的讲解偏好'}).inputValue(),'stepwise');
   await page.setViewportSize({width:1280,height:800});
   await page.goto(base+'/math-tutor/offers');
   await page.getByRole('button',{name:'继续练习',exact:true}).waitFor();
   assert.ok((await page.getByRole('heading',{name:'先继续这道题'}).boundingBox()).y < (await page.getByRole('heading',{name:'接下来可选'}).boundingBox()).y);
-  await page.screenshot({path:path.join(output,'offers.png'),fullPage:true});
+  await page.screenshot({path:path.join(output,'offers.png'),fullPage:true,animations:"disabled"});
   await page.getByRole('link',{name:'查看学习记录'}).click();
   await page.getByRole('dialog',{name:'本次学习记录'}).waitFor();
   await page.getByRole('button',{name:'这条记录有问题'}).click();
@@ -58,14 +75,55 @@ try{
   await page.keyboard.press('Escape');
   empty=true;
   await page.goto(base+'/math-tutor/profile');
-  await page.getByRole('heading',{name:'已有问答，独立作答还待观察'}).waitFor();
-  await page.screenshot({path:path.join(output,'profile-chat-only.png'),fullPage:true});
+  await page.getByRole('heading',{name:'先留下一次独立作答'}).waitFor();
+  assert.equal(await page.getByRole('link',{name:'开始一道题',exact:true}).getAttribute('href'), '/math-tutor');
+  await page.screenshot({path:path.join(output,'profile-chat-only.png'),fullPage:true,animations:"disabled"});
   await page.goto(base+'/math-tutor/settings');
   await page.getByRole('button',{name:'数据与隐私',exact:true}).click();
   await page.getByRole('button',{name:'重新计算学习画像',exact:true}).waitFor();
   assert.equal(await page.getByRole('dialog').count(),0);
   await page.getByRole('button',{name:'重新计算学习画像',exact:true}).click();
   await page.getByText('已根据有效记录重新计算学习画像。',{exact:true}).waitFor();
+  summaryFailure=true;
+  await page.goto(base+'/math-tutor/profile');
+  await page.getByRole('alert').filter({hasText:'画像暂时无法加载'}).waitFor();
+  assert.equal(await page.locator('.mt-learning-overview').count(),0,'load failure must not invent an empty summary');
+  summaryFailure=false;
+  await page.getByRole('button',{name:'重新加载',exact:true}).click();
+  await page.getByRole('heading',{name:'先留下一次独立作答'}).waitFor();
+  for(const theme of ['light','dark']){
+    await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});
+    await page.setViewportSize({width:375,height:812});
+    await page.goto(base+'/math-tutor/profile');
+    await page.getByRole('heading',{name:'先留下一次独立作答'}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth),false);
+    assert.equal(await page.locator('.mt-learning-overview').evaluate(el=>getComputedStyle(el).animationName),'none');
+    await page.screenshot({path:path.join(output,`profile-${theme}-reduced.png`),fullPage:true,animations:"disabled"});
+    await page.goto(base+'/math-tutor/knowledge?conversation=s');
+    await page.getByRole('heading',{name:'资料如何进入回答'}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth),false);
+    const selector=page.getByRole('link',{name:'选择当前对话资料',exact:true});
+    assert.equal(await selector.getAttribute('href'),'/math-tutor?session=s&panel=documents');
+    await selector.focus();
+    assert.notEqual(await selector.evaluate(el=>getComputedStyle(el).outlineStyle),'none');
+    await page.screenshot({path:path.join(output,`knowledge-${theme}-reduced.png`),fullPage:true,animations:"disabled"});
+    const before=mutations.length;
+    await selector.click();
+    await page.getByRole('heading',{name:'回答可以参考哪些资料？'}).waitFor();
+    assert.equal(new URL(page.url()).searchParams.get('session'),'s');
+    assert.equal(mutations.length,before,'opening the selector must not apply a reference scope');
+  }
+  await page.setViewportSize({width:1280,height:800});
+  await page.emulateMedia({colorScheme:'light',reducedMotion:'no-preference'});
+  await page.goto(base+'/math-tutor/knowledge');
+  await page.getByRole('heading',{name:'资料如何进入回答'}).waitFor();
+  await page.screenshot({path:path.join(output,'knowledge-desktop.png'),fullPage:true,animations:"disabled"});
+  await page.getByRole('link',{name:'打开对话选择资料',exact:true}).click();
+  await page.getByRole('heading',{name:'回答可以参考哪些资料？'}).waitFor();
+  await page.waitForURL(url=>Boolean(url.searchParams.get('session')));
+  assert.equal(new URL(page.url()).searchParams.get('panel'),'documents');
+  await page.reload();
+  await page.getByRole('heading',{name:'回答可以参考哪些资料？'}).waitFor();
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({status:'passed',viewportCount:4,output}));
 }finally{await browser.close();}

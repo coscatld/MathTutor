@@ -152,6 +152,15 @@ def test_practice_choices_bind_and_roundtrip_without_answer_key(tmp_path):
             _send(ws, "submit_attempt", {"choice_id": "A", "choice_version": choices["version"]})
             frames = _collect(ws)
             assert not any(f["event_type"] == "turn_error" for f in frames)
+        profile = client.get("/api/v2/math-tutor/desktop/student-summary").json()
+        # The original free-response task remains independent; selecting an
+        # option on its child practice creates a separate diagnostic record.
+        assert profile["evidence_summary"]["independent"] == 1
+        assert profile["evidence_summary"]["diagnostic"] == 1
+        accepted = next(row for row in client.get("/api/v2/math-tutor/offers").json()
+            if row["offer_id"] == offer["offer_id"])
+        assert accepted["result_summary"]["independent_correct"] == 0
+        assert accepted["result_summary"]["observations"] == 1
         rows = client.get("/api/v2/math-tutor/desktop/student-evidence").json()["items"]
         assert len(rows) == 2
         assert rows[0]["correctness"] in {"correct", "incorrect"}

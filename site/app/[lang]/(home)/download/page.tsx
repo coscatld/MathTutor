@@ -38,7 +38,7 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
               <p className="mt-2 text-sm text-[var(--mt-muted)]">{asset.filename}</p>
               <a
                 href={asset.url}
-                className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--mt-blue)] px-5 text-white"
+                className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--mt-blue)] px-5 text-[var(--mt-on-blue)]"
               >
                 {locale === 'zh' ? '下载' : 'Download'}
               </a>

@@ -4,6 +4,51 @@
 
 社区“我的插件”支持导入开发者的 Python、TypeScript 单文件和受限 ZIP 代码包。插件导入后默认停用；使用者确认信任并启用后，可以在对话框输入 `/命令 参数`。宿主识别当前请求、实际运行插件一次，再把有界结果交给当前配置的模型组织回答。没有模型配置时，展示真实执行结果，不伪造模型回答。
 
+## 开发者：创建、打包与离线检查
+
+将 MathTutor 安装到 Python 开发环境后，可在任意工作目录使用统一入口，无需查找仓库的 `examples/` 脚本：
+
+```bash
+python -m mathtutor.extensions.developer init my-plugin \
+  --id community.echo --name "社区回显" --author "你的名字" \
+  --license MIT --command echo
+python -m mathtutor.extensions.developer build my-plugin \
+  --include README.md --output my-plugin-1.0.0.zip
+python -m mathtutor.extensions.developer check my-plugin-1.0.0.zip
+```
+
+`init` 在一个**尚不存在的目录**中生成 `plugin.json`、`main.py` 和 `README.md`。模板接收命令文字，返回原文及 Unicode 字符数；增加 `--runtime typescript` 可生成 `main.ts`。填写自己的作者、插件 ID、命令和所选许可，再修改入口实现功能。命令不会覆盖已有目录；新版本需在清单中提升版本并选用新的输出 ZIP 文件名。
+
+`build` 自动纳入入口文件，其他源码和资源逐个用 `--include` 选择，重新生成校验值；未选中的文件不会加入包。`check` 接受 ZIP、Python 或 TypeScript 单文件，使用应用导入时的同一校验器，输出 ID、版本、命令、权限及文件清单。退出码 `0` 表示包格式校验通过，`2` 表示失败。它检查清单、路径、体积和 ZIP 源码校验值，不代表代码已被安全审查或功能已经通过运行验证。
+
+三条命令都不安装插件、不执行作者代码、不访问学生资料，也不授予本地代码信任。检查通过后在社区“我的插件”导入 ZIP，审查并启用，再发送 `/echo 你好` 完成真实调用。原有 `examples/code-plugins/build_bundle.py` 继续兼容，内部使用同一打包实现。
+
+该入口借鉴 [DeepSeek Harness 的最小插件教程](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-tutorial/01-first-plugin.md)：提供独立插件入口和可运行的最小样例。MathTutor 使用自己的版本化包协议、显式同意和教学结果边界，不声明兼容完整 Cordis 插件生态。
+
+## Harness 风格工具插件兼容子集
+
+已有 `export function apply(ctx, config)` 的 TypeScript 工具可通过源代码适配打包为标准 MathTutor 代码插件。支持基线为 DeepSeek Harness revision `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` 的 `ToolDefinition` 原始 schema 注册形态（[工具接口](https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/core/tools/README.md)）。可直接复现本仓库示例：
+
+```bash
+python -m mathtutor.extensions.developer adapt-harness \
+  examples/code-plugins/harness-double --tool double \
+  --output harness-double-1.0.0.zip
+python -m mathtutor.extensions.developer check harness-double-1.0.0.zip
+```
+
+在社区导入输出 ZIP，审查并同意本地代码执行、启用后，发送 `/harness-double {"value":21}`，工具返回 `42`。源码见 `examples/code-plugins/harness-double/tool.ts`。其他插件须提供现有格式的 `plugin.json`，`runtime` 为 `typescript`，`entrypoint` 指向导出 `apply` 的源文件；辅助模块仍用 `--include` 明确选择。适配器生成独立入口，原始作者源码和全部文件哈希一并进入正常代码插件包；构建和检查不导入、执行作者模块。
+
+支持的接口与输入范围：
+
+- 模块仅导出 `apply`，以及可选的 `name`、只声明 `tools` 的 `inject`。`apply(ctx, config)` 接收该插件原有个人配置。
+- `ctx.tools.register` 接收 `name`、`description`、`parameters`、`output`、`execute`，返回可重复调用的注销函数；最多注册 8 个工具，重复名称拒绝。`--tool` 选出的一个工具映射到插件的斜杠命令。
+- `parameters` 为对象根的原始 JSON Schema。支持 `type`（object、array、string、number、integer、boolean、null）、`properties`、`required`、布尔 `additionalProperties`、`items`、标量 `enum`，以及说明字段 `title`、`description`。未知关键字拒绝，包括 `$ref`、组合 schema、`minimum`、`pattern`；不静默忽略约束。不转换输入类型，命令参数必须为 JSON 对象。
+- `output` 必须包含 `schema` 和同步 `render(args, value)`；结果按相同 schema 子集校验，渲染只接受 `{type:"text", text:string}` 数组。`execute(args, exec)` 可同步或异步，`exec` 仅提供 `name`、`arguments`、`signal`。
+
+未知上下文服务、注入项、工具字段、输出字段和 schema 关键字在执行时拒绝。此版本不提供 Cordis 生命周期、事件、服务类、`defineTool` 运行时包、动态插件加载、模型权限提示、嵌套工具调用、图像渲染或热重载；不自动安装 npm 包。带运行时 `@deepseek-ai/*` 导入的插件需作者先移除依赖或改写为上述独立注册形态。`check` 只检查包格式，不执行 `apply`，因此不能代替首次适配运行验证。
+
+执行继续经过 MathTutor 原有同意、owner 隔离、5 秒总限时、stdout/stderr 限额、有限 JSON 结果和重放记录。`signal` 在 4.5 秒后请求协作取消，宿主仍执行原有总限时终止。输出继续是 `reference_only`，不自动开放为模型工具或写入学习证据。这是源代码工具接口的明确子集，不是完整 Cordis 生态或二进制兼容。
+
 ## 1. 普通用户怎样使用
 
 1. 从自己信任的开发者取得 `.py`、`.ts` 或插件 `.zip` 文件。

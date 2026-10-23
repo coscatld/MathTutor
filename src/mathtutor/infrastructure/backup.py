@@ -32,7 +32,8 @@ Phase 6 second round — policy/scheduler (spec 5.7):
   never touched.
 - :class:`BackupService.verify_backup` re-checks sha256 + integrity.
 - :class:`BackupService.apply_retention` deletes only pattern-matching
-  backup+manifest pairs, oldest first, keeping the newest N.
+  backup+manifest pairs, retaining the newest N backup files plus the newest
+  N with readable manifests and matching sizes (at most 2N total).
 - :class:`BackupScheduler` runs create_backup + apply_retention on a policy
   (interval loop / one-shot at startup), start/stop in the same graceful
   cancellable style as the outbox relay loop.
@@ -100,6 +101,9 @@ class BackupManifest:
     def from_dict(cls, data: dict[str, Any]) -> "BackupManifest":
         """Rebuild from the sidecar JSON (raises KeyError/TypeError when the
         payload is not a manifest — callers annotate it unreadable)."""
+        for field in ("backup_path", "created_at", "sha256"):
+            if not isinstance(data[field], str):
+                raise TypeError(f"manifest {field} must be a string")
         return cls(
             backup_path=data["backup_path"],
             created_at=data["created_at"],
@@ -118,7 +122,10 @@ class BackupPolicy:
       the scheduler starts), "interval" (backup every ``interval_seconds``).
     - ``backup_dir``: directory for scheduler-created backups (None → next
       to the source database, the create_backup default).
-    - ``retention_limit``: keep the newest N backups (apply_retention).
+    - ``retention_limit``: keep the newest N backup files plus the newest N
+      with readable manifests and matching sizes (at most 2N). Normal
+      directories keep N; known metadata problems cannot displace every
+      older normal candidate. Hash/integrity verification is separate.
     - ``interval_seconds``: interval mode period.
     - ``enabled``: global switch (disabled → scheduler never runs).
     """
@@ -150,7 +157,8 @@ class BackupEntry:
     "size_mismatch" | "orphan_manifest" (a manifest whose backup file is
     gone). ``created_at`` is the sort key (manifest timestamp, else file
     mtime). Corrupt/orphan entries are ANNOTATED here, never deleted by
-    listing.
+    listing. ``ok`` only means readable metadata and matching file size;
+    it does not imply hash or SQLite integrity verification.
     """
 
     backup_path: Path
@@ -432,22 +440,32 @@ class BackupService:
 
     @staticmethod
     def apply_retention(backup_dir: Path | str, limit: int) -> list[Path]:
-        """Delete the OLDEST service-named backups, keeping the newest
-        ``limit``; manifests are deleted in pairs with their backup.
+        """Retain recent backups and protect older normal metadata candidates.
+
+        Keep the union of the newest ``limit`` existing backups and the
+        newest ``limit`` entries with status ``ok``. This retains at most
+        twice the limit when recent backups have known metadata problems;
+        a normal directory still keeps only the limit. Status ``ok`` is a
+        metadata/size check, not proof of hash or SQLite integrity. Older
+        entries outside both sets are deleted with their manifests, so
+        abnormal files do not suspend retention indefinitely.
 
         Only files matching the service pattern (``*.backup-*.db`` and
         ``*.backup-*.db.manifest.json``) are ever deleted — any other file
         in the directory is untouched. Orphan manifests (backup already
-        gone) are cleaned up regardless of age. Returns the deleted paths.
+        gone) are cleaned up regardless of age and never count toward the
+        number of retained backups. Returns the deleted paths.
         """
         if limit < 1:
             raise ValueError("retention limit 必须 >= 1")
         entries = BackupService.list_backups(backup_dir)
         deleted: list[Path] = []
-        drop = entries[limit:]
+        backups = [entry for entry in entries if entry.status != "orphan_manifest"]
+        retained = {entry.backup_path for entry in backups[:limit]}
+        normal = [entry for entry in backups if entry.status == "ok"]
+        retained.update(entry.backup_path for entry in normal[:limit])
+        drop = [entry for entry in backups if entry.backup_path not in retained]
         for entry in drop:
-            if entry.status == "orphan_manifest":
-                continue  # 孤儿 manifest 统一在下面清理
             if entry.backup_path.is_file():
                 entry.backup_path.unlink(missing_ok=True)
                 deleted.append(entry.backup_path)

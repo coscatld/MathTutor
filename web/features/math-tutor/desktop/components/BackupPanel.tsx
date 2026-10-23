@@ -242,6 +242,9 @@ export default function BackupPanel({
           <dd className="text-sm font-medium text-[var(--foreground)]">
             {list ? `自动保留最近 ${list.policy.retention_limit} 份` : "—"}
           </dd>
+          <dd className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+            检测到近期备份异常时，会额外保留较早的备份，实际数量可能超过设置值。恢复前请先校验。
+          </dd>
         </div>
       </dl>
 

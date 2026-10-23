@@ -1,22 +1,39 @@
 ---
-title: Knowledge Base
-description: Conversation sources, question packs, note import, and community plugins.
+title: Knowledge Base and Sources
+description: Save reference material, choose a conversation scope, and trace citations to their source.
 ---
 
-## Conversation sources
+The knowledge base stores notes, course material, and question packs. Retrieval-augmented generation (RAG) retrieves relevant content from the sources allowed in the current conversation. The learning profile has a different role: it records verifiable student attempts. Uploading, reading, or bookmarking material does not create independent-attempt evidence.
 
-What an answer may read is chosen in “对话资料”, previewed, then applied. Importing a file does not silently widen the current session.
+## From a file to an answer
 
-## Library
+1. **Save material.** Create a library, import documents, or edit Markdown notes. Folders, tags, versions, and backlinks help organize them.
+2. **Choose the reference scope.** Select “选择当前对话资料” in the knowledge base, or open “对话资料” in tutoring. Choose libraries, review the document preview, and select “应用到当前对话”. From the main knowledge-base page, “打开对话选择资料” opens a new conversation.
+3. **Check citations.** When an answer cites a source, open the citation to inspect its version, original text, and available line numbers. A citation identifies a source; it does not verify the mathematics.
 
-Folders hold question packs and Markdown notes, with editing, versions, tags, and backlinks. Shared pack JSON / library ZIP files can be imported and re-exported.
+An applied change takes effect on the next message. Opening the selector does not apply changes. Closing it retains the draft during the current use of the app. If a save is awaiting confirmation, reload the scope before continuing the conversation.
 
-Question-bank counts follow the README: 383 knowledge points from grade 1 to 12, 801 original course items, plus locally verifiable practice and graph demos. Course keys and verifiable practice are labeled separately. An author `answer` **does not become a formal verification**.
+## Two document scopes
 
-## Retrieval
+| Selection | Effective scope |
+| --- | --- |
+| “仅使用我勾选的文档” is off | Retrievable uploads in this conversation, explicitly shared global material, and documents in the selected libraries. Adding retrievable material to these locations can change the effective scope. |
+| “仅使用我勾选的文档” is on | Only explicitly checked documents that remain retrievable. An empty selection means no text sources. |
 
-Lexical FTS is the default. Vector search is an explicit embedding opt-in and is off by default. Text, Markdown, and text-extractable PDFs are supported. There is no OCR.
+Importing into an unselected library does not automatically add that library to a conversation. Disabled material is excluded, and server-side access checks still apply across conversations and users. The panel displays the scope confirmed by the backend.
 
-## Community
+This scope controls **text retrieval**. Previously sent images are read by the vision model and are not controlled by the document checkboxes.
 
-“发现资源” imports notes and packs. “我的插件” imports plugins separately. Code plugins stay disabled until you consent. They run with your OS user rights and **are not an OS sandbox**.
+## Source questions and mathematics tutoring
+
+The advanced settings offer mathematics tutoring and source-based Q&A. Tutoring supports step-by-step work and practice; source-based Q&A focuses on the selected material. Generated note drafts can be previewed before choosing a library in which to save them.
+
+“用此库开始对话” creates a new conversation with that library selected. Use “对话资料” afterward to restrict the scope to individual documents.
+
+## Import, retrieval, and sharing
+
+Supported imports include question-pack JSON, library ZIP archives, text, Markdown, and text-extractable PDFs. Markdown notes support editing and version history; libraries can be exported for sharing. Course reference answers and locally verifiable exercises are labeled separately. An author's answer does not become a mathematical verification result.
+
+Lexical retrieval is the default. Vector retrieval requires an explicit Embedding configuration or model download and is off by default. Document import does not perform OCR. Convert scanned PDFs to text first, or send an individual problem as an image.
+
+Community material, question packs, and code plugins have separate imports. Code plugins start disabled and run with the local user's permissions after explicit enablement. Importing material does not execute plugins. Code plugins are not an operating-system sandbox.
