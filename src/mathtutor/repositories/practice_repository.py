@@ -36,6 +36,11 @@ from mathtutor.repositories.solution_repository import AttestationDeniedError
 from mathtutor.security.scopes import student_uuid
 
 
+# Excluding an assessment label does not erase its prior submission/exposure.
+SEEN_PROBLEM_EVENT_TYPES = frozenset({"problem_started", "attempt_submitted", "attempt_assessed",
+                                    "help_presented", "help_possibly_exposed"})
+
+
 def validate_release_binding(
     problem: MathProblem,
     candidate: MathSolutionCandidate,
@@ -143,7 +148,8 @@ class PracticeRepository(Protocol):
 
     async def begin_recommendation(self, recommendation: PracticeRecommendation) -> tuple[PracticeRecommendation, bool]: ...
 
-    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer, outbox_events: list[dict[str, Any]]) -> None: ...
+    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer,
+        outbox_events: list[dict[str, Any]], *, unseen_for_student: str | None = None) -> None: ...
 
     async def fail_recommendation(self, recommendation: PracticeRecommendation) -> None: ...
 
@@ -166,6 +172,8 @@ class PracticeRepository(Protocol):
     async def load_offer(self, offer_id: UUID) -> PracticeOffer | None: ...
 
     async def offers_for_student(self, student_id: str) -> list[PracticeOffer]: ...
+
+    async def seen_problem_revisions(self, student_id: str) -> frozenset[str]: ...
 
     async def offers_for_student_with_detail(
         self, student_id: str
@@ -313,10 +321,17 @@ class InMemoryPracticeRepository:
         self._recommendations[str(recommendation.recommendation_id)] = recommendation
         return recommendation, True
 
-    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer, outbox_events: list[dict[str, Any]]) -> None:
+    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer,
+        outbox_events: list[dict[str, Any]], *, unseen_for_student: str | None = None) -> None:
         current = self._recommendations.get(str(recommendation.recommendation_id))
         if current is None or current.status != "PREPARING" or current.student_id != offer.student_id or current.parent_cycle_id != offer.parent_cycle_id:
             raise ValueError("推荐状态已变化，不能发布邀请")
+        if current.purpose in {"A1", "A2", "B"}:
+            if unseen_for_student is None or student_uuid(unseen_for_student) != offer.student_id:
+                raise ValueError("新题检查缺少学生身份")
+            release = self._releases.get(str(offer.exercise_release_id))
+            if release is None or release.problem_hash in await self.seen_problem_revisions(unseen_for_student):
+                raise ValueError("这道题已出现过，请重新请求新题")
         await self.create_offer(offer, outbox_events)
         self._recommendations[str(recommendation.recommendation_id)] = recommendation
 
@@ -341,6 +356,13 @@ class InMemoryPracticeRepository:
             for offer in self._offers.values()
             if str(offer.student_id) == owner
         ]
+
+    async def seen_problem_revisions(self, student_id: str) -> frozenset[str]:
+        """All retained owner offers; the service also merges its event store."""
+        owner = student_uuid(student_id)
+        return frozenset(release.problem_hash for offer in self._offers.values()
+            if offer.student_id == owner
+            and (release := self._releases.get(str(offer.exercise_release_id))) is not None)
 
     async def offers_for_student_with_detail(
         self, student_id: str

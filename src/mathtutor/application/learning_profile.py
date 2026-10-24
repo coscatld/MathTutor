@@ -2,25 +2,26 @@
 from urllib.parse import urlencode
 
 from mathtutor.learning.diagnosis import RULES
-from mathtutor.learning.knowledge_tracing.events import evidence_summary, valid_events
+from mathtutor.learning.knowledge_tracing.events import (
+    attributed_skill_ids, evidence_summary, has_verified_outcome,
+    independent_skill_success_ids, valid_events,
+)
 from mathtutor.learning.skill_graph import SKILLS
 
 _RULE_BY_SIGNAL = {signal: rule for rule in RULES for signal in rule.signals}
 
 
-def active_misconceptions(accepted):
-    """Diagnosis rules seen in a wrong or partial attempt on a skill and not
-    yet followed by an independent correct attempt on that skill."""
+def active_misconceptions(history):
+    """Localized error rules not yet followed by new independent skill evidence."""
     active = {}
-    attempts = [e for e in accepted if e.event_type == "attempt_assessed" and not e.duplicate_response]
-    for event in sorted(attempts, key=lambda e: (e.event_seq, e.occurred_at, e.event_id)):
-        if event.independent_target and event.correctness == "correct":
-            for key in [k for k in active if k[1] in event.skill_ids]:
+    for event in valid_events(history):
+        if resolved := independent_skill_success_ids(event):
+            for key in [k for k in active if k[1] in resolved]:
                 del active[key]
-        elif event.correctness in ("incorrect", "partial"):
+        elif has_verified_outcome(event) and event.correctness in ("incorrect", "partial"):
             for signal in event.misconception_codes:
                 rule = _RULE_BY_SIGNAL.get(signal)
-                for skill in event.skill_ids if rule else ():
+                for skill in attributed_skill_ids(event) if rule else ():
                     active[(rule.rule_id, skill)] = (rule, event.occurred_at)
     by_rule = {}
     for (rule_id, skill), (rule, seen) in active.items():
@@ -28,6 +29,37 @@ def active_misconceptions(accepted):
         row["skill_ids"].append(skill)
         row["last_seen_at"] = max(row["last_seen_at"] or "", seen or "") or None
     return sorted(by_rule.values(), key=lambda row: row["rule_id"])
+
+
+def item_error_observations(history):
+    """Keep unlocalized multi-skill errors as traceable item-level history.
+
+    A later verified whole answer may correct that item, including with help.
+    It does not erase the error, diagnose a component, or establish mastery.
+    Excluding either fact replays this status from the remaining events.
+    """
+    rows, pending = [], {}
+    for event in valid_events(history):
+        if not has_verified_outcome(event):
+            continue
+        key = (event.student_id, event.problem_revision)
+        if (event.correctness == "correct" and event.completion_scope == "full_problem"
+                and event.response_format == "free_response"
+                and event.task_purpose not in {"diagnostic", "error_analysis"}):
+            for row in pending.pop(key, []):
+                row.update(status="corrected_later", correction_event_id=event.event_id)
+        elif (event.correctness in {"incorrect", "partial"} and len(event.skill_ids) > 1
+              and not attributed_skill_ids(event)):
+            rules = {_RULE_BY_SIGNAL[signal].rule_id: _RULE_BY_SIGNAL[signal]
+                     for signal in event.misconception_codes if signal in _RULE_BY_SIGNAL}
+            for rule in rules.values():
+                row = {"rule_id": rule.rule_id, "label": rule.title, "event_id": event.event_id,
+                       "assessment_id": event.assessment_id, "cycle_id": event.cycle_id,
+                       "related_skill_ids": list(event.skill_ids), "last_seen_at": event.occurred_at or None,
+                       "status": "unlocalized", "correction_event_id": None}
+                rows.append(row)
+                pending.setdefault(key, []).append(row)
+    return list(reversed(rows))
 
 
 def profile_projection(history, *, has_conversations=False, model_status="not_trained"):
@@ -68,6 +100,7 @@ def profile_projection(history, *, has_conversations=False, model_status="not_tr
         "coverage": {"supported_skills": len(SKILLS), "observed_skills": sum(r["evidence_count"] > 0 for r in rows)},
         "total_attempts": sum(e.event_type == "attempt_assessed" and not e.duplicate_response for e in accepted),
         "active_misconceptions": len(misconceptions), "misconceptions": misconceptions,
+        "item_error_observations": item_error_observations(accepted),
         "has_conversations": has_conversations,
         "has_independent_evidence": any(e.independent_target for e in accepted)}
 

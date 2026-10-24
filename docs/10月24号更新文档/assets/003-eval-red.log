@@ -1,0 +1,172 @@
+FFFFFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+_____________ test_empty_or_unscored_results_cannot_pass_the_gate ______________
+tests/test_tutor_multiturn_eval.py:29: in test_empty_or_unscored_results_cannot_pass_the_gate
+    assert not empty["gate"]["passed"]
+E   assert not True
+_ test_invalid_selection_fails_before_starting_any_product_session[selection0] _
+tests/test_tutor_multiturn_eval.py:41: in test_invalid_selection_fails_before_starting_any_product_session
+    with pytest.raises(ValueError, match="scenario|场景"):
+E   Failed: DID NOT RAISE ValueError
+_ test_invalid_selection_fails_before_starting_any_product_session[selection1] _
+tests/test_tutor_multiturn_eval.py:42: in test_invalid_selection_fails_before_starting_any_product_session
+    run(only=selection, prepare=prepare)
+src/mathtutor/evaluation/tutor_multiturn.py:345: in run
+    results = [run_scenario(s, Path(tmp), live if mode == "live" else None, prepare) for s in scenarios]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/mathtutor/evaluation/tutor_multiturn.py:345: in <listcomp>
+    results = [run_scenario(s, Path(tmp), live if mode == "live" else None, prepare) for s in scenarios]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/mathtutor/evaluation/tutor_multiturn.py:231: in run_scenario
+    with _client(workdir / f"{scenario['id']}.db", live, prepare) as client, \
+../../../miniconda3/envs/deeptutor/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src/mathtutor/evaluation/tutor_multiturn.py:85: in _client
+    prepare(get_product_state())
+tests/test_tutor_multiturn_eval.py:39: in prepare
+    pytest.fail("invalid selection must not create an app or invoke a model")
+E   Failed: invalid selection must not create an app or invoke a model
+_ test_invalid_selection_fails_before_starting_any_product_session[selection2] _
+tests/test_tutor_multiturn_eval.py:42: in test_invalid_selection_fails_before_starting_any_product_session
+    run(only=selection, prepare=prepare)
+src/mathtutor/evaluation/tutor_multiturn.py:345: in run
+    results = [run_scenario(s, Path(tmp), live if mode == "live" else None, prepare) for s in scenarios]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/mathtutor/evaluation/tutor_multiturn.py:345: in <listcomp>
+    results = [run_scenario(s, Path(tmp), live if mode == "live" else None, prepare) for s in scenarios]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/mathtutor/evaluation/tutor_multiturn.py:231: in run_scenario
+    with _client(workdir / f"{scenario['id']}.db", live, prepare) as client, \
+../../../miniconda3/envs/deeptutor/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src/mathtutor/evaluation/tutor_multiturn.py:85: in _client
+    prepare(get_product_state())
+tests/test_tutor_multiturn_eval.py:39: in prepare
+    pytest.fail("invalid selection must not create an app or invoke a model")
+E   Failed: invalid selection must not create an app or invoke a model
+__ test_a_valid_subset_records_coverage_without_passing_the_full_release_gate __
+tests/test_tutor_multiturn_eval.py:48: in test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+    assert report["coverage"]["scope"] == "subset"
+           ^^^^^^^^^^^^^^^^^^
+E   KeyError: 'coverage'
+_ test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report[selection0] _
+tests/test_tutor_multiturn_eval.py:68: in test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report
+    assert result.returncode == 2, result.stderr
+E   AssertionError:
+E   assert 0 == 2
+E    +  where 0 = CompletedProcess(args=['<USER_HOME>/miniconda3/envs/deeptutor/bin/python', 'scripts/tutor_multiturn_eval.py', '--out...n| 适配 | 0/0 | None | 0.9 |\n| 连贯 | 0/0 | None | 0.95 |\n\n## 场景\n\n| 场景 | 结果 | 未通过的检查 |\n|---|---|---|\n\n', stderr='').returncode
+_ test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report[selection1] _
+tests/test_tutor_multiturn_eval.py:68: in test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report
+    assert result.returncode == 2, result.stderr
+E   AssertionError: <USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+E       from starlette.testclient import TestClient as TestClient  # noqa
+E
+E   assert 0 == 2
+E    +  where 0 = CompletedProcess(args=['<USER_HOME>/miniconda3/envs/deeptutor/bin/python', 'scripts/tutor_multiturn_eval.py', '--out...ient` is deprecated; install `httpx2` instead.\n  from starlette.testclient import TestClient as TestClient  # noqa\n').returncode
+_ test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report[selection2] _
+tests/test_tutor_multiturn_eval.py:68: in test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report
+    assert result.returncode == 2, result.stderr
+E   AssertionError: <USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+E       from starlette.testclient import TestClient as TestClient  # noqa
+E
+E   assert 0 == 2
+E    +  where 0 = CompletedProcess(args=['<USER_HOME>/miniconda3/envs/deeptutor/bin/python', 'scripts/tutor_multiturn_eval.py', '--out...ient` is deprecated; install `httpx2` instead.\n  from starlette.testclient import TestClient as TestClient  # noqa\n').returncode
+______ test_cli_valid_subset_succeeds_and_writes_explicit_subset_coverage ______
+tests/test_tutor_multiturn_eval.py:83: in test_cli_valid_subset_succeeds_and_writes_explicit_subset_coverage
+    assert report["coverage"]["scope"] == "subset"
+           ^^^^^^^^^^^^^^^^^^
+E   KeyError: 'coverage'
+=============================== warnings summary ===============================
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+  <USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection2]
+tests/test_tutor_multiturn_eval.py::test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+  <USER_HOME>/Desktop/大学生计算科学与智能创新/MathTutor/src/mathtutor/api/product_app.py:174: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_tutor_multiturn_eval.py: 18 warnings
+  <USER_HOME>/miniconda3/envs/deeptutor/lib/python3.11/site-packages/fastapi/applications.py:4681: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection2]
+tests/test_tutor_multiturn_eval.py::test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+  <USER_HOME>/Desktop/大学生计算科学与智能创新/MathTutor/src/mathtutor/api/product_app.py:181: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection2]
+tests/test_tutor_multiturn_eval.py::test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+  <USER_HOME>/Desktop/大学生计算科学与智能创新/MathTutor/src/mathtutor/api/product_app.py:194: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection2]
+tests/test_tutor_multiturn_eval.py::test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+  <USER_HOME>/Desktop/大学生计算科学与智能创新/MathTutor/src/mathtutor/api/product_app.py:223: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection2]
+tests/test_tutor_multiturn_eval.py::test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+  <USER_HOME>/Desktop/大学生计算科学与智能创新/MathTutor/src/mathtutor/api/product_app.py:250: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection2]
+tests/test_tutor_multiturn_eval.py::test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+  <USER_HOME>/Desktop/大学生计算科学与智能创新/MathTutor/src/mathtutor/api/product_app.py:267: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_tutor_multiturn_eval.py::test_empty_or_unscored_results_cannot_pass_the_gate
+FAILED tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection0]
+FAILED tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection1]
+FAILED tests/test_tutor_multiturn_eval.py::test_invalid_selection_fails_before_starting_any_product_session[selection2]
+FAILED tests/test_tutor_multiturn_eval.py::test_a_valid_subset_records_coverage_without_passing_the_full_release_gate
+FAILED tests/test_tutor_multiturn_eval.py::test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report[selection0]
+FAILED tests/test_tutor_multiturn_eval.py::test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report[selection1]
+FAILED tests/test_tutor_multiturn_eval.py::test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report[selection2]
+FAILED tests/test_tutor_multiturn_eval.py::test_cli_valid_subset_succeeds_and_writes_explicit_subset_coverage
+9 failed, 5 deselected, 37 warnings in 11.04s

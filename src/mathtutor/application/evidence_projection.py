@@ -1,5 +1,5 @@
 """Public item evidence counts; no internal prior is displayed as mastery."""
-from mathtutor.learning.knowledge_tracing.events import evidence_category, valid_events
+from mathtutor.learning.knowledge_tracing.events import attributed_skill_ids, evidence_category, valid_events
 
 
 def public_evidence(events):
@@ -14,7 +14,11 @@ def public_evidence(events):
 
 
 def teaching_evidence(events, skills):
-    rows = [e for e in valid_events(events) if set(e.skill_ids) & set(skills)]
+    requested = set(skills)
+    # Joint observations can inform the whole task, but a mere overlap cannot
+    # turn them into evidence about one requested component skill.
+    rows = [e for e in valid_events(events) if (set(attributed_skill_ids(e)) & requested
+            or (e.skill_ids and set(e.skill_ids).issubset(requested)))]
     independent = {e.problem_revision for e in rows if e.independent_target and e.correctness == "correct"}
     errors = {e.problem_revision for e in rows if e.independent_target and e.correctness == "incorrect"}
     # Count distinct first, independently attempted items, not retries, help,

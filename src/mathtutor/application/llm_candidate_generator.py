@@ -133,6 +133,23 @@ def candidate_is_distinct(statement: str, excluded: Sequence[str]) -> bool:
     return True
 
 
+def candidate_problem_revision(statement: str) -> str | None:
+    """Use the release gate's canonical identity without solving past history."""
+    from mathtutor.solving.parser import parse_problem
+    from mathtutor.domain.problem import MathProblem
+    outcome = parse_problem(statement)
+    if outcome.kind != "parsed" or outcome.problem is None:
+        return None  # Invalid candidates still fail the full release gate.
+    parsed = outcome.problem
+    return MathProblem.canonicalize(problem_type=parsed.problem_type,
+        normalized_ast=parsed.normalized_ast, display_latex=parsed.display_latex).content_hash
+
+
+def _candidate_allowed(statement: str, context: PracticeGenerationContext) -> bool:
+    return (candidate_problem_revision(statement) not in context.excluded_problem_revisions
+            and candidate_is_distinct(statement, context.excluded_problem_statements))
+
+
 def _parameterized_templates(family: str, difficulty: int) -> tuple[str, ...]:
     """Finite verifier-covered pool; difficulty affects the mathematical structure."""
     result = []
@@ -256,7 +273,7 @@ class TemplateCandidateExerciseGenerator:
         candidates: list[CandidateExercise] = []
         for offset in range(len(options)):
             statement = options[(index + offset) % len(options)]
-            if not candidate_is_distinct(statement, context.excluded_problem_statements):
+            if not _candidate_allowed(statement, context):
                 continue
             candidates.append(
                 CandidateExercise(
@@ -291,6 +308,7 @@ _LLM_SYSTEM_PROMPT = (
     "使用数学标准写法，如 2x + 3 = 7、x^2 - 5x + 6 = 0）。"
     "如果提供了 document_context（学生自己的资料摘录），必须根据资料出同构题："
     "同一知识点、不同数字，不要忽略资料，也不要照抄整段课文。"
+    "若提供 excluded_problem_statements，不要重复这些题目；最终新题资格由宿主检查。"
     "不要输出任何解释、答案或解题过程。"
 )
 
@@ -326,9 +344,11 @@ def build_llm_prompt(context: PracticeGenerationContext) -> str:
                 "effective_assistance_level": entry.effective_assistance_level,
                 "attempt_index": entry.attempt_index,
             }
-            for entry in context.recent_attempt_summary
+            for entry in context.recent_attempt_summary[-20:]
         ],
         "desired_difficulty": context.desired_difficulty,
+        "practice_purpose": context.practice_purpose,
+        "excluded_problem_statements": list(context.excluded_problem_statements[:21]),
     }
     if context.personal_preferences is not None:
         public["personal_preferences"] = to_json_safe(
@@ -405,7 +425,7 @@ class LLMCandidateExerciseGenerator:
         else:
             self._client = None
 
-async def generate(
+    async def generate(
         self, context: PracticeGenerationContext, *, count: int = 1
     ) -> list[CandidateExercise]:
         if self._client is None:
@@ -459,7 +479,7 @@ def bank_candidates_for(
             continue
         if wanted_concepts and not (set(item.concept_ids) & wanted_concepts):
             continue
-        if item.difficulty != context.desired_difficulty or not candidate_is_distinct(item.problem_statement, context.excluded_problem_statements):
+        if item.difficulty != context.desired_difficulty or not _candidate_allowed(item.problem_statement, context):
             continue
         matches.append(
             CandidateExercise(

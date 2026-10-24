@@ -283,11 +283,24 @@ export interface SkillSummary {
   next_action?: string;
 }
 
+export interface ItemErrorObservation {
+  rule_id: string;
+  label: string;
+  event_id: string;
+  assessment_id: string;
+  cycle_id: string;
+  related_skill_ids: string[];
+  last_seen_at: string | null;
+  status: "unlocalized" | "corrected_later";
+  correction_event_id: string | null;
+}
+
 export interface StudentSummary {
   skills: SkillSummary[];
   total_attempts: number;
   active_misconceptions: number;
   misconceptions?: {rule_id: string; label: string; skill_ids: string[]; last_seen_at: string | null}[];
+  item_error_observations?: ItemErrorObservation[];
   schema_version?: string;
   has_conversations?: boolean;
   has_independent_evidence?: boolean;
@@ -375,6 +388,7 @@ export interface StudentExport {
     projection_version: number | null;
     skills: ExportSkill[];
     active_misconceptions: ExportMisconception[];
+    item_error_observations?: ItemErrorObservation[];
   };
 }
 

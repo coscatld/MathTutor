@@ -1,0 +1,2434 @@
+{
+  "suite": "tutor-multiturn-v1",
+  "mode": "template",
+  "model": "template",
+  "generated_at": "2026-10-24T04:44:58+00:00",
+  "human_review": false,
+  "dimensions": {
+    "math": {
+      "name": "数学正确",
+      "passed": 46,
+      "total": 46,
+      "score": 1.0
+    },
+    "relevance": {
+      "name": "目标相关",
+      "passed": 30,
+      "total": 30,
+      "score": 1.0
+    },
+    "evidence": {
+      "name": "学生证据",
+      "passed": 19,
+      "total": 19,
+      "score": 1.0
+    },
+    "actionability": {
+      "name": "可执行性",
+      "passed": 10,
+      "total": 10,
+      "score": 1.0
+    },
+    "adaptation": {
+      "name": "适配",
+      "passed": 34,
+      "total": 34,
+      "score": 1.0
+    },
+    "coherence": {
+      "name": "连贯",
+      "passed": 97,
+      "total": 97,
+      "score": 1.0
+    }
+  },
+  "critical_failures": [],
+  "scenarios_passed": 16,
+  "scenarios_total": 16,
+  "gate": {
+    "passed": true,
+    "thresholds": {
+      "math": 1.0,
+      "relevance": 0.9,
+      "evidence": 1.0,
+      "actionability": 0.8,
+      "adaptation": 0.9,
+      "coherence": 0.95
+    },
+    "failures": []
+  },
+  "coverage": {
+    "scope": "full_suite",
+    "available": 16,
+    "executed": 16,
+    "selected_ids": [
+      "linear-independent",
+      "linear-hint-then-correct",
+      "answer-gate",
+      "sign-error-diagnosis",
+      "repeated-stuck",
+      "no-answer-request",
+      "composite-answer-and-request",
+      "quadratic-missing-root",
+      "system-partial",
+      "inequality",
+      "quadratic-inequality",
+      "graph-open-problem",
+      "self-report-check",
+      "explanation-request",
+      "free-graph-and-chat",
+      "scene-ellipse-and-line"
+    ],
+    "missing_ids": []
+  },
+  "release_gate": {
+    "passed": true
+  },
+  "scenarios": [
+    {
+      "id": "linear-independent",
+      "title": "一元一次：独立答对",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：状态 awaiting_attempt（预期 awaiting_attempt）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：出现动作 correct（实际 ['correct', 'correct', 'practice_offered', 'correct']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 independent = 1（预期 1）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 assisted = 0（预期 0）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 post_solution = 0（预期 0）",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "2x+3=7"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：2x + 3 = 7",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=2"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x=2」满足这道题的完整要求。\n\n这道题已经独立完成，可以换一道题检验迁移。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "linear-hint-then-correct",
+      "title": "一元一次：看提示后答对",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：出现动作 GIVE_HINT（实际 ['GIVE_HINT', 'GIVE_HINT']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：出现动作 correct（实际 ['correct', 'correct', 'practice_offered', 'correct']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 independent = 0（预期 0）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 assisted = 1（预期 1）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 post_solution = 0（预期 0）",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "3x-5=10"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：3x - 5 = 10",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "request_hint",
+          "payload": {},
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( 3x - 5 = 10 \\)。一元一次方程的概念。先指出要消去哪个常数项，再写出等式两边同时做的运算。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 3,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=5"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x=5」满足这道题的完整要求。\n\n这道题在帮助后完成了，可以换一道题独立巩固。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "answer-gate",
+      "title": "先看一次提示才能看答案",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_solution：错误码 ['HINT_REQUIRED']（预期 HINT_REQUIRED）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_solution：状态 awaiting_attempt（预期 awaiting_attempt）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 request_solution：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 request_solution：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：出现动作 GIVE_HINT（实际 ['GIVE_HINT', 'GIVE_HINT']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 4 轮 request_solution：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 4 轮 request_solution：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 4 轮 request_solution：状态 solution_shown（预期 solution_shown）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 4 轮 request_solution：出现动作 SHOW_SOLUTION（实际 ['SHOW_SOLUTION', 'SHOW_SOLUTION', 'practice_offered', 'SHOW_SOLUTION']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 4 轮 request_solution：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 5 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 5 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 5 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 independent = 0（预期 0）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 post_solution = 1（预期 1）",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "4x-1=19"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：4x - 1 = 19",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "request_solution",
+          "payload": {},
+          "actions": [],
+          "errors": [
+            "HINT_REQUIRED"
+          ],
+          "status": "FAILED",
+          "text": "先看一次提示，自己再试一步；看过提示后仍然可以查看完整答案。",
+          "terminal_type": "assistant_error",
+          "finish_reason": "INTERNAL_ERROR",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 3,
+          "send": "request_hint",
+          "payload": {},
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( 4x - 1 = 19 \\)。一元一次方程的概念。先指出要消去哪个常数项，再写出等式两边同时做的运算。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 4,
+          "send": "request_solution",
+          "payload": {},
+          "actions": [
+            "SHOW_SOLUTION",
+            "SHOW_SOLUTION",
+            "practice_offered",
+            "SHOW_SOLUTION"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "完整解答：\n移项：把右边的项移到左边：\n\\[ 4x - 20 = 0 \\]\n移项：把常数项移到等号右边：\n\\[ 4x = 20 \\]\n两边除以一次项系数：\n\\[ x = 5 \\]\n答案：\\( x = 5 \\)\n\n已展示解答；这不等于已经掌握。可以换一道题独立检测。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solution_shown"
+        },
+        {
+          "step": 5,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=5"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x=5」满足这道题的完整要求。\n\n已展示解答；这不等于已经掌握。可以换一道题独立检测。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "sign-error-diagnosis",
+      "title": "符号错误保留为整题观察",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：状态 awaiting_retry（预期 awaiting_retry）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：出现动作 incorrect（实际 ['incorrect', 'incorrect']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：出现动作 GIVE_HINT（实际 ['GIVE_HINT', 'GIVE_HINT']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 3 轮 request_hint：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "技能错误概念 []（预期 []）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "整题错误观察 1 条（预期 1）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "整题错误观察 miscon-sign-error：状态、相关技能与作答来源一致",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "2x+3=7"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：2x + 3 = 7",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=-2"
+          },
+          "actions": [
+            "incorrect",
+            "incorrect"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "你提交的「x=-2」未通过原题检验。这个结果的符号没有通过原题检验。先把带符号的运算单独写成一步。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_retry"
+        },
+        {
+          "step": 3,
+          "send": "request_hint",
+          "payload": {},
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( 2x + 3 = 7 \\)。一元一次方程的概念。这个结果的符号没有通过原题检验。先把带符号的运算单独写成一步。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_retry"
+        }
+      ]
+    },
+    {
+      "id": "repeated-stuck",
+      "title": "连续卡住后换策略",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 send_message：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 2 轮 send_message：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 3 轮 send_message：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 3 轮 send_message：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 3 轮 send_message：教学策略由 focused_question 变为 smaller_step",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "2x+3=11"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：2x + 3 = 11",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "send_message",
+          "payload": {
+            "text": "我不会，给个提示"
+          },
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( 2x + 3 = 11 \\)。一元一次方程的概念。先指出要消去哪个常数项，再写出等式两边同时做的运算。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 3,
+          "send": "send_message",
+          "payload": {
+            "text": "还是没懂，再给个提示"
+          },
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( 2x + 3 = 11 \\)。下面演示已验证的一小段：\n移项：把右边的项移到左边：\\( 2x - 8 = 0 \\)\n请接着完成剩余要求，或说出这一步仍不清楚的地方。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        }
+      ]
+    },
+    {
+      "id": "no-answer-request",
+      "title": "明确说不要答案",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 send_message：出现动作 GIVE_HINT（实际 ['GIVE_HINT', 'GIVE_HINT']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 send_message：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 2 轮 send_message：给出可执行的下一步",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "5x+1=26"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：5x + 1 = 26",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "send_message",
+          "payload": {
+            "text": "不要告诉我答案，先给个提示"
+          },
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( 5x + 1 = 26 \\)。一元一次方程的概念。先指出要消去哪个常数项，再写出等式两边同时做的运算。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        }
+      ]
+    },
+    {
+      "id": "composite-answer-and-request",
+      "title": "交答案同时要答案",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 send_message：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：错误码 ['HINT_REQUIRED']（预期 HINT_REQUIRED）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：重发同一请求的回放一致",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 send_message：出现动作 incorrect（实际 ['incorrect', 'incorrect']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 send_message：未提前给出答案",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "send_message",
+          "payload": {
+            "text": "2x+3=7"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：2x + 3 = 7",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "send_message",
+          "payload": {
+            "text": "我算得 x=3，直接给我答案"
+          },
+          "actions": [
+            "incorrect",
+            "incorrect"
+          ],
+          "errors": [
+            "HINT_REQUIRED"
+          ],
+          "status": "PARTIAL",
+          "text": "你提交的「我算得 x=3，直接给我答案」未通过原题检验。先把你刚才的运算写成一步，我来检查。\n\n先看一次提示，自己再试一步；看过提示后仍然可以查看完整答案。",
+          "terminal_type": "assistant_partial",
+          "finish_reason": "INTERNAL_ERROR",
+          "state": "awaiting_retry"
+        }
+      ]
+    },
+    {
+      "id": "quadratic-missing-root",
+      "title": "一元二次：漏根",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：状态 awaiting_retry（预期 awaiting_retry）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：出现动作 partial（实际 ['partial', 'partial']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：出现动作 correct（实际 ['correct', 'correct', 'practice_offered', 'correct']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "技能错误概念 []（预期 []）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "整题错误观察 1 条（预期 1）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "整题错误观察 miscon-missing-root：状态、相关技能与作答来源一致",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "x^2-5x+6=0"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：x^{2} - 5x + 6 = 0",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=2"
+          },
+          "actions": [
+            "partial",
+            "partial"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证「x=2」是有效的部分结果；整题还没有完成，请继续补齐剩余要求。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_retry"
+        },
+        {
+          "step": 3,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=2或x=3"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x=2或x=3」满足这道题的完整要求。\n\n这道题已经独立完成，可以换一道题检验迁移。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "system-partial",
+      "title": "二元一次方程组：只求出一个未知数",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：出现动作 partial（实际 ['partial', 'partial']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：出现动作 correct（实际 ['correct', 'correct', 'practice_offered', 'correct']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：算式核验通过",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "2x+y=7;x-y=2"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：\\begin{cases}y + 2x = 7 \\\\ x - y = 2\\end{cases}",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=3"
+          },
+          "actions": [
+            "partial",
+            "partial"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证「x=3」是有效的部分结果；整题还没有完成，请继续补齐剩余要求。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_retry"
+        },
+        {
+          "step": 3,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=3,y=1"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x=3,y=1」满足这道题的完整要求。\n\n这道题已经独立完成，可以换一道题检验迁移。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "inequality",
+      "title": "一步线性不等式",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：出现动作 incorrect（实际 ['incorrect', 'incorrect']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 submit_attempt：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：出现动作 correct（实际 ['correct', 'correct', 'practice_offered', 'correct']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：算式核验通过",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "2x+1>5"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：2x + 1 > 5",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x<2"
+          },
+          "actions": [
+            "incorrect",
+            "incorrect"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "你提交的「x<2」未通过原题检验。不等号方向和原题不一致。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_retry"
+        },
+        {
+          "step": 3,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x>2"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x>2」满足这道题的完整要求。\n\n这道题已经独立完成，可以换一道题检验迁移。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "quadratic-inequality",
+      "title": "一元二次不等式：取错区间后改正",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：出现动作 GIVE_HINT（实际 ['GIVE_HINT', 'GIVE_HINT']）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：包含「抛物线开口方向」",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 send_message：出现动作 incorrect（实际 ['incorrect', 'incorrect']）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 send_message：包含「区间方向」",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 3 轮 send_message：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 4 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 4 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 4 轮 send_message：出现动作 correct（实际 ['correct', 'correct', 'practice_offered', 'correct']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 4 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 independent = 0（预期 0）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 assisted = 2（预期 2）",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "x^2-5x+6>0"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：x^{2} - 5x + 6 > 0",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "request_hint",
+          "payload": {},
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( x^{2} - 5x + 6 > 0 \\)。一元二次不等式与二次函数图像的关系。先把不等号换成等号，求出对应方程的根，再看抛物线开口方向。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 3,
+          "send": "send_message",
+          "payload": {
+            "text": "2<x<3"
+          },
+          "actions": [
+            "incorrect",
+            "incorrect"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "你提交的「2<x<3」未通过原题检验。边界找对了，但取的区间方向和开口方向、不等号不一致。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_retry"
+        },
+        {
+          "step": 4,
+          "send": "send_message",
+          "payload": {
+            "text": "x<2或x>3"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x<2或x>3」满足这道题的完整要求。\n\n这道题在帮助后完成了，可以换一道题独立巩固。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "graph-open-problem",
+      "title": "题目未完成时看图像",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 send_message：出现动作 SHOW_GRAPH（实际 ['SHOW_GRAPH', 'SHOW_GRAPH']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 send_message：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：出现动作 correct（实际 ['correct', 'correct', 'practice_offered', 'correct']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 submit_attempt：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 4 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 4 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 4 轮 send_message：出现动作 SHOW_GRAPH（实际 ['SHOW_GRAPH', 'SHOW_GRAPH']）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 4 轮 send_message：包含「与横轴交点 (2, 0)」",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 4 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 independent = 0（预期 0）",
+          "critical": true
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 assisted = 1（预期 1）",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "x^2-5x+6=0"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：x^{2} - 5x + 6 = 0",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "send_message",
+          "payload": {
+            "text": "画出这道题的函数图像"
+          },
+          "actions": [
+            "SHOW_GRAPH",
+            "SHOW_GRAPH"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "**函数图像**：y = x² - 5x + 6（横轴 x）\n\n```mathtutor-graph\n{\"v\":1,\"title\":\"y = x² - 5x + 6（横轴 x）\",\"x_range\":[-4,7],\"y_range\":[-2.035,17.24],\"series\":[{\"label\":\"y = x² - 5x + 6（横轴 x）\",\"segments\":[[[-4.0,36.515],[-3.9542,36.515],[-3.9083,36.515],[-3.8625,36.515],[-3.8167,36.515],[-3.7708,36.515],[-3.725,36.515],[-3.6792,36.515],[-3.6333,36.515],[-3.5875,36.515],[-3.5417,36.2517],[-3.4958,35.7],[-3.45,35.1525],[-3.4042,34.6092],[-3.3583,34.0701],[-3.3125,33.5352],[-3.2667,33.0044],[-3.2208,32.4779],[-3.175,31.9556],[-3.1292,31.4375],[-3.0833,30.9236],[-3.0375,30.4139],[-2.9917,29.9084],[-2.9458,29.4071],[-2.9,28.91],[-2.8542,28.4171],[-2.8083,27.9284],[-2.7625,27.4439],[-2.7167,26.9636],[-2.6708,26.4875],[-2.625,26.0156],[-2.5792,25.5479],[-2.5333,25.0844],[-2.4875,24.6252],[-2.4417,24.1701],[-2.3958,23.7192],[-2.35,23.2725],[-2.3042,22.83],[-2.2583,22.3917],[-2.2125,21.9577],[-2.1667,21.5278],[-2.1208,21.1021],[-2.075,20.6806],[-2.0292,20.2634],[-1.9833,19.8503],[-1.9375,19.4414],[-1.8917,19.0367],[-1.8458,18.6363],[-1.8,18.24],[-1.7542,17.8479],[-1.7083,17.4601],[-1.6625,17.0764],[-1.6167,16.6969],[-1.5708,16.3217],[-1.525,15.9506],[-1.4792,15.5838],[-1.4333,15.2211],[-1.3875,14.8627],[-1.3417,14.5084],[-1.2958,14.1584],[-1.25,13.8125],[-1.2042,13.4709],[-1.1583,13.1334],[-1.1125,12.8002],[-1.0667,12.4711],[-1.0208,12.1463],[-0.975,11.8256],[-0.9292,11.5092],[-0.8833,11.1969],[-0.8375,10.8889],[-0.7917,10.5851],[-0.7458,10.2854],[-0.7,9.99],[-0.6542,9.6988],[-0.6083,9.4117],[-0.5625,9.1289],[-0.5167,8.8503],[-0.4708,8.5759],[-0.425,8.3056],[-0.3792,8.0396],[-0.3333,7.7778],[-0.2875,7.5202],[-0.2417,7.2667],[-0.1958,7.0175],[-0.15,6.7725],[-0.1042,6.5317],[-0.0583,6.2951],[-0.0125,6.0627],[0.0333,5.8344],[0.0792,5.6104],[0.125,5.3906],[0.1708,5.175],[0.2167,4.9636],[0.2625,4.7564],[0.3083,4.5534],[0.3542,4.3546],[0.4,4.16],[0.4458,3.9696],[0.4917,3.7834],[0.5375,3.6014],[0.5833,3.4236],[0.6292,3.25],[0.675,3.0806],[0.7208,2.9154],[0.7667,2.7544],[0.8125,2.5977],[0.8583,2.4451],[0.9042,2.2967],[0.95,2.1525],[0.9958,2.0125],[1.0417,1.8767],[1.0875,1.7452],[1.1333,1.6178],[1.1792,1.4946],[1.225,1.3756],[1.2708,1.2609],[1.3167,1.1503],[1.3625,1.0439],[1.4083,0.9417],[1.4542,0.8438],[1.5,0.75],[1.5458,0.6604],[1.5917,0.5751],[1.6375,0.4939],[1.6833,0.4169],[1.7292,0.3442],[1.775,0.2756],[1.8208,0.2113],[1.8667,0.1511],[1.9125,0.0952],[1.9583,0.0434],[2.0042,-0.0041],[2.05,-0.0475],[2.0958,-0.0866],[2.1417,-0.1216],[2.1875,-0.1523],[2.2333,-0.1789],[2.2792,-0.2012],[2.325,-0.2194],[2.3708,-0.2333],[2.4167,-0.2431],[2.4625,-0.2486],[2.5083,-0.2499],[2.5542,-0.2471],[2.6,-0.24],[2.6458,-0.2287],[2.6917,-0.2133],[2.7375,-0.1936],[2.7833,-0.1697],[2.8292,-0.1416],[2.875,-0.1094],[2.9208,-0.0729],[2.9667,-0.0322],[3.0125,0.0127],[3.0583,0.0617],[3.1042,0.115],[3.15,0.1725],[3.1958,0.2342],[3.2417,0.3001],[3.2875,0.3702],[3.3333,0.4444],[3.3792,0.5229],[3.425,0.6056],[3.4708,0.6925],[3.5167,0.7836],[3.5625,0.8789],[3.6083,0.9784],[3.6542,1.0821],[3.7,1.19],[3.7458,1.3021],[3.7917,1.4184],[3.8375,1.5389],[3.8833,1.6636],[3.9292,1.7925],[3.975,1.9256],[4.0208,2.0629],[4.0667,2.2044],[4.1125,2.3502],[4.1583,2.5001],[4.2042,2.6542],[4.25,2.8125],[4.2958,2.975],[4.3417,3.1417],[4.3875,3.3127],[4.4333,3.4878],[4.4792,3.6671],[4.525,3.8506],[4.5708,4.0384],[4.6167,4.2303],[4.6625,4.4264],[4.7083,4.6267],[4.7542,4.8313],[4.8,5.04],[4.8458,5.2529],[4.8917,5.4701],[4.9375,5.6914],[4.9833,5.9169],[5.0292,6.1467],[5.075,6.3806],[5.1208,6.6188],[5.1667,6.8611],[5.2125,7.1077],[5.2583,7.3584],[5.3042,7.6134],[5.35,7.8725],[5.3958,8.1359],[5.4417,8.4034],[5.4875,8.6752],[5.5333,8.9511],[5.5792,9.2313],[5.625,9.5156],[5.6708,9.8042],[5.7167,10.0969],[5.7625,10.3939],[5.8083,10.6951],[5.8542,11.0004],[5.9,11.31],[5.9458,11.6238],[5.9917,11.9417],[6.0375,12.2639],[6.0833,12.5903],[6.1292,12.9209],[6.175,13.2556],[6.2208,13.5946],[6.2667,13.9378],[6.3125,14.2852],[6.3583,14.6367],[6.4042,14.9925],[6.45,15.3525],[6.4958,15.7167],[6.5417,16.0851],[6.5875,16.4577],[6.6333,16.8344],[6.6792,17.2154],[6.725,17.6006],[6.7708,17.99],[6.8167,18.3836],[6.8625,18.7814],[6.9083,19.1834],[6.9542,19.5896],[7.0,20.0]]]}],\"vertical\":[],\"marks\":[{\"x\":0,\"y\":6.0,\"label\":\"与纵轴交点 (0, 6)\"},{\"x\":2.5,\"y\":-0.25,\"label\":\"顶点 (5/2, -1/4)\"}],\"note\":\"方程的解，就是图像与横轴交点的横坐标。 题目完成或看过答案后，图上会标出关键点。\"}\n```\n\n方程的解，就是图像与横轴交点的横坐标。 题目完成或看过答案后，图上会标出关键点。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 3,
+          "send": "submit_attempt",
+          "payload": {
+            "answer": "x=2或x=3"
+          },
+          "actions": [
+            "correct",
+            "correct",
+            "practice_offered",
+            "correct"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "已验证你提交的「x=2或x=3」满足这道题的完整要求。\n\n这道题在帮助后完成了，可以换一道题独立巩固。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        },
+        {
+          "step": 4,
+          "send": "send_message",
+          "payload": {
+            "text": "画出这道题的函数图像"
+          },
+          "actions": [
+            "SHOW_GRAPH",
+            "SHOW_GRAPH"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "**函数图像**：y = x² - 5x + 6（横轴 x）\n\n```mathtutor-graph\n{\"v\":1,\"title\":\"y = x² - 5x + 6（横轴 x）\",\"x_range\":[-4,7],\"y_range\":[-2.035,17.24],\"series\":[{\"label\":\"y = x² - 5x + 6（横轴 x）\",\"segments\":[[[-4.0,36.515],[-3.9542,36.515],[-3.9083,36.515],[-3.8625,36.515],[-3.8167,36.515],[-3.7708,36.515],[-3.725,36.515],[-3.6792,36.515],[-3.6333,36.515],[-3.5875,36.515],[-3.5417,36.2517],[-3.4958,35.7],[-3.45,35.1525],[-3.4042,34.6092],[-3.3583,34.0701],[-3.3125,33.5352],[-3.2667,33.0044],[-3.2208,32.4779],[-3.175,31.9556],[-3.1292,31.4375],[-3.0833,30.9236],[-3.0375,30.4139],[-2.9917,29.9084],[-2.9458,29.4071],[-2.9,28.91],[-2.8542,28.4171],[-2.8083,27.9284],[-2.7625,27.4439],[-2.7167,26.9636],[-2.6708,26.4875],[-2.625,26.0156],[-2.5792,25.5479],[-2.5333,25.0844],[-2.4875,24.6252],[-2.4417,24.1701],[-2.3958,23.7192],[-2.35,23.2725],[-2.3042,22.83],[-2.2583,22.3917],[-2.2125,21.9577],[-2.1667,21.5278],[-2.1208,21.1021],[-2.075,20.6806],[-2.0292,20.2634],[-1.9833,19.8503],[-1.9375,19.4414],[-1.8917,19.0367],[-1.8458,18.6363],[-1.8,18.24],[-1.7542,17.8479],[-1.7083,17.4601],[-1.6625,17.0764],[-1.6167,16.6969],[-1.5708,16.3217],[-1.525,15.9506],[-1.4792,15.5838],[-1.4333,15.2211],[-1.3875,14.8627],[-1.3417,14.5084],[-1.2958,14.1584],[-1.25,13.8125],[-1.2042,13.4709],[-1.1583,13.1334],[-1.1125,12.8002],[-1.0667,12.4711],[-1.0208,12.1463],[-0.975,11.8256],[-0.9292,11.5092],[-0.8833,11.1969],[-0.8375,10.8889],[-0.7917,10.5851],[-0.7458,10.2854],[-0.7,9.99],[-0.6542,9.6988],[-0.6083,9.4117],[-0.5625,9.1289],[-0.5167,8.8503],[-0.4708,8.5759],[-0.425,8.3056],[-0.3792,8.0396],[-0.3333,7.7778],[-0.2875,7.5202],[-0.2417,7.2667],[-0.1958,7.0175],[-0.15,6.7725],[-0.1042,6.5317],[-0.0583,6.2951],[-0.0125,6.0627],[0.0333,5.8344],[0.0792,5.6104],[0.125,5.3906],[0.1708,5.175],[0.2167,4.9636],[0.2625,4.7564],[0.3083,4.5534],[0.3542,4.3546],[0.4,4.16],[0.4458,3.9696],[0.4917,3.7834],[0.5375,3.6014],[0.5833,3.4236],[0.6292,3.25],[0.675,3.0806],[0.7208,2.9154],[0.7667,2.7544],[0.8125,2.5977],[0.8583,2.4451],[0.9042,2.2967],[0.95,2.1525],[0.9958,2.0125],[1.0417,1.8767],[1.0875,1.7452],[1.1333,1.6178],[1.1792,1.4946],[1.225,1.3756],[1.2708,1.2609],[1.3167,1.1503],[1.3625,1.0439],[1.4083,0.9417],[1.4542,0.8438],[1.5,0.75],[1.5458,0.6604],[1.5917,0.5751],[1.6375,0.4939],[1.6833,0.4169],[1.7292,0.3442],[1.775,0.2756],[1.8208,0.2113],[1.8667,0.1511],[1.9125,0.0952],[1.9583,0.0434],[2.0042,-0.0041],[2.05,-0.0475],[2.0958,-0.0866],[2.1417,-0.1216],[2.1875,-0.1523],[2.2333,-0.1789],[2.2792,-0.2012],[2.325,-0.2194],[2.3708,-0.2333],[2.4167,-0.2431],[2.4625,-0.2486],[2.5083,-0.2499],[2.5542,-0.2471],[2.6,-0.24],[2.6458,-0.2287],[2.6917,-0.2133],[2.7375,-0.1936],[2.7833,-0.1697],[2.8292,-0.1416],[2.875,-0.1094],[2.9208,-0.0729],[2.9667,-0.0322],[3.0125,0.0127],[3.0583,0.0617],[3.1042,0.115],[3.15,0.1725],[3.1958,0.2342],[3.2417,0.3001],[3.2875,0.3702],[3.3333,0.4444],[3.3792,0.5229],[3.425,0.6056],[3.4708,0.6925],[3.5167,0.7836],[3.5625,0.8789],[3.6083,0.9784],[3.6542,1.0821],[3.7,1.19],[3.7458,1.3021],[3.7917,1.4184],[3.8375,1.5389],[3.8833,1.6636],[3.9292,1.7925],[3.975,1.9256],[4.0208,2.0629],[4.0667,2.2044],[4.1125,2.3502],[4.1583,2.5001],[4.2042,2.6542],[4.25,2.8125],[4.2958,2.975],[4.3417,3.1417],[4.3875,3.3127],[4.4333,3.4878],[4.4792,3.6671],[4.525,3.8506],[4.5708,4.0384],[4.6167,4.2303],[4.6625,4.4264],[4.7083,4.6267],[4.7542,4.8313],[4.8,5.04],[4.8458,5.2529],[4.8917,5.4701],[4.9375,5.6914],[4.9833,5.9169],[5.0292,6.1467],[5.075,6.3806],[5.1208,6.6188],[5.1667,6.8611],[5.2125,7.1077],[5.2583,7.3584],[5.3042,7.6134],[5.35,7.8725],[5.3958,8.1359],[5.4417,8.4034],[5.4875,8.6752],[5.5333,8.9511],[5.5792,9.2313],[5.625,9.5156],[5.6708,9.8042],[5.7167,10.0969],[5.7625,10.3939],[5.8083,10.6951],[5.8542,11.0004],[5.9,11.31],[5.9458,11.6238],[5.9917,11.9417],[6.0375,12.2639],[6.0833,12.5903],[6.1292,12.9209],[6.175,13.2556],[6.2208,13.5946],[6.2667,13.9378],[6.3125,14.2852],[6.3583,14.6367],[6.4042,14.9925],[6.45,15.3525],[6.4958,15.7167],[6.5417,16.0851],[6.5875,16.4577],[6.6333,16.8344],[6.6792,17.2154],[6.725,17.6006],[6.7708,17.99],[6.8167,18.3836],[6.8625,18.7814],[6.9083,19.1834],[6.9542,19.5896],[7.0,20.0]]]}],\"vertical\":[],\"marks\":[{\"x\":0,\"y\":6.0,\"label\":\"与纵轴交点 (0, 6)\"},{\"x\":2.0,\"y\":0,\"label\":\"与横轴交点 (2, 0)\"},{\"x\":3.0,\"y\":0,\"label\":\"与横轴交点 (3, 0)\"},{\"x\":2.5,\"y\":-0.25,\"label\":\"顶点 (5/2, -1/4)\"}],\"note\":\"方程的解，就是图像与横轴交点的横坐标。\"}\n```\n\n方程的解，就是图像与横轴交点的横坐标。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "solved"
+        }
+      ]
+    },
+    {
+      "id": "self-report-check",
+      "title": "说「我懂了」不算完成",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 2 轮 request_hint：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 send_message：状态 awaiting_attempt（不应为 solved）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 3 轮 send_message：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "evidence",
+          "passed": true,
+          "detail": "证据 independent = 0（预期 0）",
+          "critical": true
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "3x+2=11"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：3x + 2 = 11",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "request_hint",
+          "payload": {},
+          "actions": [
+            "GIVE_HINT",
+            "GIVE_HINT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( 3x + 2 = 11 \\)。一元一次方程的概念。先指出要消去哪个常数项，再写出等式两边同时做的运算。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 3,
+          "send": "send_message",
+          "payload": {
+            "text": "我懂了"
+          },
+          "actions": [
+            "verified",
+            "verified",
+            "UNDERSTANDING_CHECK",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：3z + 2 = 17\n\n好，用一道需要两步的检查题试试。原题会保留，做完就回去。先写出你能确定的一步。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        }
+      ]
+    },
+    {
+      "id": "explanation-request",
+      "title": "请求讲解概念",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 1 轮 submit_problem：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_explanation：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 request_explanation：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 2 轮 request_explanation：出现动作 EXPLAIN_CONCEPT（实际 ['EXPLAIN_CONCEPT', 'EXPLAIN_CONCEPT']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 request_explanation：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 2 轮 request_explanation：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 2 轮 request_explanation：给出可执行的下一步",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 request_example：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 3 轮 request_example：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 3 轮 request_example：出现动作 SHOW_EXAMPLE（实际 ['SHOW_EXAMPLE', 'SHOW_EXAMPLE']）",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 3 轮 request_example：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "adaptation",
+          "passed": true,
+          "detail": "第 3 轮 request_example：未提前给出答案",
+          "critical": false
+        },
+        {
+          "dimension": "actionability",
+          "passed": true,
+          "detail": "第 3 轮 request_example：给出可执行的下一步",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "submit_problem",
+          "payload": {
+            "text": "x^2-4=0"
+          },
+          "actions": [
+            "verified",
+            "verified"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "题目已解析并验证：x^{2} - 4 = 0",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 2,
+          "send": "request_explanation",
+          "payload": {},
+          "actions": [
+            "EXPLAIN_CONCEPT",
+            "EXPLAIN_CONCEPT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "仍看这道题：\\( x^{2} - 4 = 0 \\)。一元二次方程的概念。你准备先用哪一种方法：因式分解还是求根公式？",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        },
+        {
+          "step": 3,
+          "send": "request_example",
+          "payload": {},
+          "actions": [
+            "SHOW_EXAMPLE",
+            "SHOW_EXAMPLE"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "方法示例（不是你这道题的答案）：\\( z^{2} - 12z + 35 = 0 \\)。\n完整解答：\n计算判别式 \\Delta = b^2 - 4ac：\n\\[ \\Delta = 4 \\]\n由求根公式得到解：\n\\[ z = 5 \\text{或} z = 7 \\]\n答案：\\( z = 5 或 z = 7 \\)\n仍看这道题：\\( x^{2} - 4 = 0 \\)。比较两题中需要保持不变的条件，再写你的一步。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": "awaiting_attempt"
+        }
+      ]
+    },
+    {
+      "id": "free-graph-and-chat",
+      "title": "无题目时画图与闲聊",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 1 轮 send_message：出现动作 SHOW_GRAPH（实际 ['SHOW_GRAPH', 'SHOW_GRAPH']）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 1 轮 send_message：包含「顶点 (1, -4)」",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 send_message：算式核验通过",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 2 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 2 轮 send_message：算式核验通过",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "send_message",
+          "payload": {
+            "text": "画出 y=x^2-2x-3 的图像"
+          },
+          "actions": [
+            "SHOW_GRAPH",
+            "SHOW_GRAPH"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "**函数图像**：y = x² - 2x - 3\n\n```mathtutor-graph\n{\"v\":1,\"title\":\"y = x² - 2x - 3\",\"x_range\":[-4,6],\"y_range\":[-5.13,7.192],\"series\":[{\"label\":\"y = x² - 2x - 3\",\"segments\":[[[-4.0,19.514],[-3.9583,19.514],[-3.9167,19.514],[-3.875,19.514],[-3.8333,19.3611],[-3.7917,18.9601],[-3.75,18.5625],[-3.7083,18.1684],[-3.6667,17.7778],[-3.625,17.3906],[-3.5833,17.0069],[-3.5417,16.6267],[-3.5,16.25],[-3.4583,15.8767],[-3.4167,15.5069],[-3.375,15.1406],[-3.3333,14.7778],[-3.2917,14.4184],[-3.25,14.0625],[-3.2083,13.7101],[-3.1667,13.3611],[-3.125,13.0156],[-3.0833,12.6736],[-3.0417,12.3351],[-3.0,12.0],[-2.9583,11.6684],[-2.9167,11.3403],[-2.875,11.0156],[-2.8333,10.6944],[-2.7917,10.3767],[-2.75,10.0625],[-2.7083,9.7517],[-2.6667,9.4444],[-2.625,9.1406],[-2.5833,8.8403],[-2.5417,8.5434],[-2.5,8.25],[-2.4583,7.9601],[-2.4167,7.6736],[-2.375,7.3906],[-2.3333,7.1111],[-2.2917,6.8351],[-2.25,6.5625],[-2.2083,6.2934],[-2.1667,6.0278],[-2.125,5.7656],[-2.0833,5.5069],[-2.0417,5.2517],[-2.0,5.0],[-1.9583,4.7517],[-1.9167,4.5069],[-1.875,4.2656],[-1.8333,4.0278],[-1.7917,3.7934],[-1.75,3.5625],[-1.7083,3.3351],[-1.6667,3.1111],[-1.625,2.8906],[-1.5833,2.6736],[-1.5417,2.4601],[-1.5,2.25],[-1.4583,2.0434],[-1.4167,1.8403],[-1.375,1.6406],[-1.3333,1.4444],[-1.2917,1.2517],[-1.25,1.0625],[-1.2083,0.8767],[-1.1667,0.6944],[-1.125,0.5156],[-1.0833,0.3403],[-1.0417,0.1684],[-1.0,0.0],[-0.9583,-0.1649],[-0.9167,-0.3264],[-0.875,-0.4844],[-0.8333,-0.6389],[-0.7917,-0.7899],[-0.75,-0.9375],[-0.7083,-1.0816],[-0.6667,-1.2222],[-0.625,-1.3594],[-0.5833,-1.4931],[-0.5417,-1.6233],[-0.5,-1.75],[-0.4583,-1.8733],[-0.4167,-1.9931],[-0.375,-2.1094],[-0.3333,-2.2222],[-0.2917,-2.3316],[-0.25,-2.4375],[-0.2083,-2.5399],[-0.1667,-2.6389],[-0.125,-2.7344],[-0.0833,-2.8264],[-0.0417,-2.9149],[0.0,-3.0],[0.0417,-3.0816],[0.0833,-3.1597],[0.125,-3.2344],[0.1667,-3.3056],[0.2083,-3.3733],[0.25,-3.4375],[0.2917,-3.4983],[0.3333,-3.5556],[0.375,-3.6094],[0.4167,-3.6597],[0.4583,-3.7066],[0.5,-3.75],[0.5417,-3.7899],[0.5833,-3.8264],[0.625,-3.8594],[0.6667,-3.8889],[0.7083,-3.9149],[0.75,-3.9375],[0.7917,-3.9566],[0.8333,-3.9722],[0.875,-3.9844],[0.9167,-3.9931],[0.9583,-3.9983],[1.0,-4.0],[1.0417,-3.9983],[1.0833,-3.9931],[1.125,-3.9844],[1.1667,-3.9722],[1.2083,-3.9566],[1.25,-3.9375],[1.2917,-3.9149],[1.3333,-3.8889],[1.375,-3.8594],[1.4167,-3.8264],[1.4583,-3.7899],[1.5,-3.75],[1.5417,-3.7066],[1.5833,-3.6597],[1.625,-3.6094],[1.6667,-3.5556],[1.7083,-3.4983],[1.75,-3.4375],[1.7917,-3.3733],[1.8333,-3.3056],[1.875,-3.2344],[1.9167,-3.1597],[1.9583,-3.0816],[2.0,-3.0],[2.0417,-2.9149],[2.0833,-2.8264],[2.125,-2.7344],[2.1667,-2.6389],[2.2083,-2.5399],[2.25,-2.4375],[2.2917,-2.3316],[2.3333,-2.2222],[2.375,-2.1094],[2.4167,-1.9931],[2.4583,-1.8733],[2.5,-1.75],[2.5417,-1.6233],[2.5833,-1.4931],[2.625,-1.3594],[2.6667,-1.2222],[2.7083,-1.0816],[2.75,-0.9375],[2.7917,-0.7899],[2.8333,-0.6389],[2.875,-0.4844],[2.9167,-0.3264],[2.9583,-0.1649],[3.0,0.0],[3.0417,0.1684],[3.0833,0.3403],[3.125,0.5156],[3.1667,0.6944],[3.2083,0.8767],[3.25,1.0625],[3.2917,1.2517],[3.3333,1.4444],[3.375,1.6406],[3.4167,1.8403],[3.4583,2.0434],[3.5,2.25],[3.5417,2.4601],[3.5833,2.6736],[3.625,2.8906],[3.6667,3.1111],[3.7083,3.3351],[3.75,3.5625],[3.7917,3.7934],[3.8333,4.0278],[3.875,4.2656],[3.9167,4.5069],[3.9583,4.7517],[4.0,5.0],[4.0417,5.2517],[4.0833,5.5069],[4.125,5.7656],[4.1667,6.0278],[4.2083,6.2934],[4.25,6.5625],[4.2917,6.8351],[4.3333,7.1111],[4.375,7.3906],[4.4167,7.6736],[4.4583,7.9601],[4.5,8.25],[4.5417,8.5434],[4.5833,8.8403],[4.625,9.1406],[4.6667,9.4444],[4.7083,9.7517],[4.75,10.0625],[4.7917,10.3767],[4.8333,10.6944],[4.875,11.0156],[4.9167,11.3403],[4.9583,11.6684],[5.0,12.0],[5.0417,12.3351],[5.0833,12.6736],[5.125,13.0156],[5.1667,13.3611],[5.2083,13.7101],[5.25,14.0625],[5.2917,14.4184],[5.3333,14.7778],[5.375,15.1406],[5.4167,15.5069],[5.4583,15.8767],[5.5,16.25],[5.5417,16.6267],[5.5833,17.0069],[5.625,17.3906],[5.6667,17.7778],[5.7083,18.1684],[5.75,18.5625],[5.7917,18.9601],[5.8333,19.3611],[5.875,19.514],[5.9167,19.514],[5.9583,19.514],[6.0,19.514]]]}],\"vertical\":[],\"marks\":[{\"x\":0,\"y\":-3.0,\"label\":\"与 y 轴交点 (0, -3)\"},{\"x\":-1.0,\"y\":0,\"label\":\"与 x 轴交点 (-1, 0)\"},{\"x\":3.0,\"y\":0,\"label\":\"与 x 轴交点 (3, 0)\"},{\"x\":1.0,\"y\":-4.0,\"label\":\"顶点 (1, -4)\"}],\"note\":\"\"}\n```",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": ""
+        },
+        {
+          "step": 2,
+          "send": "send_message",
+          "payload": {
+            "text": "分数加法为什么要先通分？"
+          },
+          "actions": [
+            "TUTOR_CHAT",
+            "TUTOR_CHAT"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "我在。你可以继续描述想理解的概念，或发来具体题目。",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": ""
+        }
+      ]
+    },
+    {
+      "id": "scene-ellipse-and-line",
+      "title": "数形结合：椭圆与带参数的直线",
+      "passed": true,
+      "checks": [
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 send_message：错误码 无（预期 无）",
+          "critical": false
+        },
+        {
+          "dimension": "coherence",
+          "passed": true,
+          "detail": "第 1 轮 send_message：终态 assistant_complete/COMPLETED/FINAL_ANSWER",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 1 轮 send_message：出现动作 SHOW_GRAPH（实际 ['SHOW_GRAPH', 'SHOW_GRAPH']）",
+          "critical": false
+        },
+        {
+          "dimension": "relevance",
+          "passed": true,
+          "detail": "第 1 轮 send_message：包含「mathtutor-scene」",
+          "critical": false
+        },
+        {
+          "dimension": "math",
+          "passed": true,
+          "detail": "第 1 轮 send_message：算式核验通过",
+          "critical": false
+        }
+      ],
+      "transcript": [
+        {
+          "step": 1,
+          "send": "send_message",
+          "payload": {
+            "text": "画出 x^2/4+y^2/3=1 和 y=kx+1"
+          },
+          "actions": [
+            "SHOW_GRAPH",
+            "SHOW_GRAPH"
+          ],
+          "errors": [],
+          "status": "COMPLETED",
+          "text": "**数形结合**：x²/4+y²/3 = 1、y = kx+1\n\n```mathtutor-scene\n{\"v\":2,\"title\":\"x²/4+y²/3 = 1、y = kx+1\",\"source\":\"deterministic\",\"x_range\":[-2.4,2.4],\"y_range\":[-2.218,3.628],\"equal_aspect\":true,\"params\":[{\"name\":\"k\",\"min\":-5.0,\"max\":5.0,\"step\":0.1,\"value\":1.0,\"animate\":false,\"label\":\"k\"}],\"objects\":[{\"id\":\"O1\",\"type\":\"implicit\",\"expr\":{\"k\":\"op\",\"o\":\"-\",\"a\":[{\"k\":\"op\",\"o\":\"+\",\"a\":[{\"k\":\"op\",\"o\":\"/\",\"a\":[{\"k\":\"op\",\"o\":\"^\",\"a\":[{\"k\":\"var\",\"n\":\"x\"},{\"k\":\"num\",\"v\":2.0}]},{\"k\":\"num\",\"v\":4.0}]},{\"k\":\"op\",\"o\":\"/\",\"a\":[{\"k\":\"op\",\"o\":\"^\",\"a\":[{\"k\":\"var\",\"n\":\"y\"},{\"k\":\"num\",\"v\":2.0}]},{\"k\":\"num\",\"v\":3.0}]}]},{\"k\":\"num\",\"v\":1.0}]},\"label\":\"x²/4+y²/3 = 1\"},{\"id\":\"O2\",\"type\":\"function\",\"expr\":{\"k\":\"op\",\"o\":\"+\",\"a\":[{\"k\":\"op\",\"o\":\"*\",\"a\":[{\"k\":\"var\",\"n\":\"k\"},{\"k\":\"var\",\"n\":\"x\"}]},{\"k\":\"num\",\"v\":1.0}]},\"label\":\"y = kx+1\"}],\"readouts\":[],\"marks\":[],\"note\":\"\"}\n```",
+          "terminal_type": "assistant_complete",
+          "finish_reason": "FINAL_ANSWER",
+          "state": ""
+        }
+      ]
+    }
+  ]
+}

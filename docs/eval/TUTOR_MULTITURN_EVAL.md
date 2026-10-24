@@ -1,6 +1,6 @@
 # 固定多轮辅导评测
 
-这套评测用 15 个固定的多轮场景，经学生 WebSocket 驱动真实产品流程，每轮回复自动打分。**评分全部由规则和本地验证器完成，没有人工评分**，它是回归与发布门，不是人工质量评审；真实模型讲题质量的人工评审仍待完成。
+这套评测用 16 个固定的多轮场景，经学生 WebSocket 驱动真实产品流程，每轮回复自动打分。**评分全部由规则和本地验证器完成，没有人工评分**，它是回归与发布门，不是人工质量评审；真实模型讲题质量的人工评审仍待完成。
 
 ## 怎么跑
 
@@ -14,6 +14,8 @@ PYTHONPATH=src MT_EVAL_API_KEY=... python scripts/tutor_multiturn_eval.py --mode
 ```
 
 场景定义在 `src/mathtutor/evaluation/tutor_multiturn_v1.json`，评分逻辑在 `src/mathtutor/evaluation/tutor_multiturn.py`。
+
+可以用 `--only linear-independent` 运行指定子集。未知ID（包括已知与未知混合）或空的`--only`会以退出码2报错，不创建结果文件；零场景或没有执行检查的结果不会通过。合法子集检查通过时退出0，报告显示“子集回归通过”，并列出实际覆盖数与未运行ID。JSON的`gate.passed`表示已运行检查的结果；发布脚本应读取`release_gate.passed`，它仅在完整套件通过时为true。旧的JSON报告没有该字段，需要重新运行，不能默认当作全套通过。
 
 ## 六个维度（来自 tutor-v2 矩阵）
 

@@ -37,6 +37,31 @@ export function LearningOverview({summary}: {summary: StudentSummary}) {
   </section>;
 }
 
+export function ItemErrorObservations({summary, onEvidence}: {
+  summary: StudentSummary;
+  onEvidence: (cycleId: string) => void;
+}) {
+  const observations = summary.item_error_observations || [];
+  if (!observations.length) return null;
+  return <section className="mt-card p-5 sm:p-6" aria-labelledby="item-error-observations-title">
+    <h2 id="item-error-observations-title" className="mt-section-title">整题错误观察</h2>
+    <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">这些作答涉及多个技能，具体技能待定位。记录中的错误线索用于复盘，不代表相关技能都存在问题。</p>
+    <details className="mt-4">
+      <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">查看 {observations.length} 条整题观察</summary>
+      <ul className="mt-2 divide-y divide-[var(--border)]">
+        {observations.map(observation => <li key={`${observation.event_id}:${observation.rule_id}`} className="py-4">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
+            <div className="min-w-0 flex-1"><h3 className="break-words font-medium">{observation.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{observation.status === "corrected_later" ? "该题后来答对，技能仍待独立检验。" : "具体技能待定位，请结合整题作答查看。"}</p>
+            </div>
+            <button type="button" className="mt-btn min-h-11 shrink-0" onClick={() => onEvidence(observation.cycle_id)} aria-label={`查看${observation.label}的整题记录`}>查看本题记录</button>
+          </div>
+        </li>)}
+      </ul>
+    </details>
+  </section>;
+}
+
 export default function LearningProfilePanel() {
   const query = useSearchParams();
   const cycle = query.get("cycle") || undefined;
@@ -61,6 +86,7 @@ export default function LearningProfilePanel() {
       <LearningOverview summary={summary} />
       <section aria-labelledby="learning-observations-title"><div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm"><h2 id="learning-observations-title" className="mt-section-title">已有的学习观察</h2><p className="text-[var(--muted-foreground)]">独立与受助表现分开记录</p></div>
       {observed.length ? <div className="grid gap-4 lg:grid-cols-2">{observed.map(skill => <SkillObservation key={skill.code} skill={skill} onEvidence={() => setSelected({title:skill.label, skillId:skill.code})} />)}</div> : <div className="mt-profile-empty"><BookOpen className="h-5 w-5 shrink-0 text-[var(--primary-text)]" aria-hidden="true" /><p>{summary.has_conversations ? "已有问答，作答证据还待积累。聊天次数、上传资料和说“懂了”不会自动形成学习观察。" : "还没有可展示的作答记录。完成可核验的题目后，这里会显示观察和下一步建议。"}</p></div>}</section>
+      <ItemErrorObservations summary={summary} onEvidence={cycleId => setSelected({title:"整题错误观察", cycleId})} />
       {!!unchecked.length && <details className="mt-card p-5"><summary className="cursor-pointer font-medium">尚未检查的技能 · {unchecked.length}</summary><ul className="mt-4 grid gap-3 text-sm text-[var(--muted-foreground)] sm:grid-cols-2">{unchecked.map(skill => <li key={skill.code}>{skill.label} · 尚未检查</li>)}</ul></details>}
     </>}
     <StageReviewPanel />

@@ -404,6 +404,7 @@ async def test_export_in_memory_mode_returns_empty_summary() -> None:
             "projection_version": 0,
             "skills": [],
             "active_misconceptions": [],
+            "item_error_observations": [],
             "model_status": "not_trained",
         }
     reset_product_state()

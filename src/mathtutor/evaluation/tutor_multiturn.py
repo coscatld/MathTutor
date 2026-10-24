@@ -64,7 +64,7 @@ class ScenarioResult:
 
     @property
     def passed(self) -> bool:
-        return all(c.passed for c in self.checks)
+        return bool(self.checks) and all(c.passed for c in self.checks)
 
 
 @contextmanager
@@ -217,6 +217,31 @@ async def _refuted_formulas(text: str, anchor) -> list[str]:
     return [statement.shown for statement, _ in result.refuted]
 
 
+def _profile_gate(profile: dict, final: dict) -> list[Check]:
+    checks = []
+    if "misconceptions" in final:
+        found = sorted(row["rule_id"] for row in profile.get("misconceptions", []))
+        checks.append(Check("evidence", found == sorted(final["misconceptions"]),
+                            f"技能错误概念 {found}（预期 {final['misconceptions']}）", critical=True))
+    if "item_error_observations" in final:
+        observations = profile.get("item_error_observations", [])
+        expected = final["item_error_observations"]
+        checks.append(Check("evidence", len(observations) == len(expected),
+                            f"整题错误观察 {len(observations)} 条（预期 {len(expected)}）", critical=True))
+        for wanted in expected:
+            matches = [row for row in observations if row.get("rule_id") == wanted["rule_id"]]
+            correct = len(matches) == 1 and all((
+                matches[0].get("status") == wanted["status"],
+                set(matches[0].get("related_skill_ids", [])) == set(wanted["related_skill_ids"]),
+                "skill_ids" not in matches[0],
+                bool(matches[0].get("event_id") and matches[0].get("assessment_id") and matches[0].get("cycle_id")),
+                bool(matches[0].get("correction_event_id")) == (wanted["status"] == "corrected_later"),
+            ))
+            checks.append(Check("evidence", correct,
+                                f"整题错误观察 {wanted['rule_id']}：状态、相关技能与作答来源一致", critical=True))
+    return checks
+
+
 def run_scenario(scenario: dict, workdir: Path, live: dict | None = None, prepare=None) -> ScenarioResult:
     from mathtutor.application.math_claims import anchor_for
     from mathtutor.solving.parser import parse_problem
@@ -312,11 +337,9 @@ def run_scenario(scenario: dict, workdir: Path, live: dict | None = None, prepar
             for kind, count in final.get("evidence", {}).items():
                 result.add("evidence", evidence.get(kind, 0) == count,
                            f"证据 {kind} = {evidence.get(kind, 0)}（预期 {count}）", critical=True)
-            if final.get("misconceptions"):
+            if "misconceptions" in final or "item_error_observations" in final:
                 profile = client.get("/api/v2/math-tutor/desktop/student-summary").json()
-                found = [row["rule_id"] for row in profile.get("misconceptions", [])]
-                for rule in final["misconceptions"]:
-                    result.add("evidence", rule in found, f"画像错误概念包含 {rule}（实际 {found}）")
+                result.checks.extend(_profile_gate(profile, final))
     return result
 
 
@@ -330,6 +353,11 @@ def score(results: list[ScenarioResult]) -> dict:
     critical = [{"scenario": r.id, "detail": c.detail} for r in results for c in r.critical_failures]
     gate_failures = [f"{DIMENSIONS[d]} {v['score']} < {GATE_MIN[d]}" for d, v in by_dimension.items()
                      if v["score"] is not None and v["score"] < GATE_MIN[d]]
+    if not results:
+        gate_failures.append("没有执行任何场景")
+    unscored = [r.id for r in results if not r.checks]
+    if unscored:
+        gate_failures.append("场景没有执行检查：" + ", ".join(unscored))
     if critical:
         gate_failures.insert(0, f"关键检查失败 {len(critical)} 项")
     return {"dimensions": by_dimension, "critical_failures": critical,
@@ -340,27 +368,51 @@ def score(results: list[ScenarioResult]) -> dict:
 def run(mode: str = "template", *, live: dict | None = None, only: list[str] | None = None, prepare=None) -> dict:
     """``prepare(state)`` may swap writers in tests; production runs leave it unset."""
     spec = json.loads(SCENARIOS.read_text(encoding="utf-8"))
-    scenarios = [s for s in spec["scenarios"] if not only or s["id"] in only]
+    available_ids = [s["id"] for s in spec["scenarios"]]
+    if only is not None:
+        if not only:
+            raise ValueError("No scenario IDs selected; omit --only to run the full suite")
+        unknown = sorted(set(only) - set(available_ids))
+        if unknown:
+            raise ValueError("Unknown scenario IDs: " + ", ".join(unknown)
+                             + "; available: " + ", ".join(available_ids))
+    scenarios = [s for s in spec["scenarios"] if only is None or s["id"] in only]
     with tempfile.TemporaryDirectory(prefix="mt-eval-") as tmp:
         results = [run_scenario(s, Path(tmp), live if mode == "live" else None, prepare) for s in scenarios]
     summary = score(results)
+    selected_ids = [r.id for r in results]
+    missing_ids = [id_ for id_ in available_ids if id_ not in selected_ids]
+    complete = bool(results) and not missing_ids
     return {
         "suite": spec["version"], "mode": mode, "model": (live or {}).get("model", "template"),
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "human_review": False, **summary,
+        "coverage": {"scope": "full_suite" if complete else "subset",
+                     "available": len(available_ids), "executed": len(results),
+                     "selected_ids": selected_ids, "missing_ids": missing_ids},
+        "release_gate": {"passed": complete and summary["gate"]["passed"]},
         "scenarios": [{"id": r.id, "title": r.title, "passed": r.passed,
                        "checks": [c.__dict__ for c in r.checks], "transcript": r.transcript} for r in results],
     }
 
 
 def render_markdown(report: dict) -> str:
+    coverage = report.get("coverage", {})
+    subset = coverage.get("scope") == "subset"
+    gate_label = "子集回归" if subset else "发布门" if coverage else "历史检查结果"
     lines = [f"# 固定多轮辅导评测（{report['suite']}）", "",
              f"- 模式：`{report['mode']}`；模型：`{report['model']}`；生成时间：{report['generated_at']}",
              "- 评分方式：全部自动（规则 + 本地验证器），**没有人工评分**。",
              f"- 场景通过：{report['scenarios_passed']}/{report['scenarios_total']}",
-             f"- 发布门：**{'通过' if report['gate']['passed'] else '未通过'}**"
-             + ("" if report["gate"]["passed"] else "（" + "；".join(report["gate"]["failures"]) + "）"), "",
-             "| 维度 | 通过/总数 | 得分 | 门槛 |", "|---|---|---|---|"]
+             f"- {gate_label}：**{'通过' if report['gate']['passed'] else '未通过'}**"
+             + ("" if report["gate"]["passed"] else "（" + "；".join(report["gate"]["failures"]) + "）")]
+    if coverage:
+        lines.append(f"- 套件覆盖：{coverage['executed']}/{coverage['available']} 个场景")
+    if subset:
+        lines.append("- 全套发布门：**未验收**；未运行场景：" + ", ".join(coverage["missing_ids"]))
+    elif not coverage:
+        lines.append("- 全套发布门：**未验收**；历史报告缺少覆盖信息，请重新运行。")
+    lines += ["", "| 维度 | 通过/总数 | 得分 | 门槛 |", "|---|---|---|---|"]
     for key, row in report["dimensions"].items():
         lines.append(f"| {row['name']} | {row['passed']}/{row['total']} | {row['score']} | {GATE_MIN[key]} |")
     lines += ["", "## 场景", "", "| 场景 | 结果 | 未通过的检查 |", "|---|---|---|"]

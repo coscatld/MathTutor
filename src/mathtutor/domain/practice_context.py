@@ -113,6 +113,8 @@ class PracticeGenerationContext(BaseModel):
 
     desired_difficulty: int = Field(ge=1, le=5, default=2)
     excluded_problem_statements: tuple[str, ...] = ()
+    # Complete owner history for LOCAL eligibility only, never an LLM/export field.
+    excluded_problem_revisions: frozenset[str] = Field(default_factory=frozenset, exclude=True, repr=False)
     practice_purpose: str = "D"
     foundation_focus: str = ""
 

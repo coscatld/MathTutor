@@ -39,9 +39,12 @@ async def enrich_offer(state, practice, sid, offer, public, *, history, feedback
                   else "围绕当前题目安排一次相关练习。")
         if basis.initial_assessment_run_id:
             reason += "难度参考初评练习起点，并结合后续首次独立作答调整。"
+    if purpose == "E":
+        reason = "到期复习允许重做旧题，用再次作答观察保持情况；这不代表新题迁移已通过。"
     public.update({"purpose": purpose, "title": PURPOSE_LABELS.get(purpose, "相关练习"),
         "reason": reason,
-        "observation_goal": "观察新题是否能独立完成，以及哪些步骤仍需帮助。",
+        "observation_goal": ("观察复习时能否再次完成，以及哪些步骤仍需帮助。" if purpose == "E" else
+            "观察新题是否能独立完成，以及哪些步骤仍需帮助。"),
         "evidence_ids": list(basis.evidence_ids) if basis else [], "question_count": 1,
         "history_cutoff_seq": basis.history_cutoff_seq if basis else None,
         "basis": basis.model_dump(mode="json") if basis else None,

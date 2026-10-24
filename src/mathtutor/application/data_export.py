@@ -89,6 +89,7 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
             "projection_version",
             "skills",
             "active_misconceptions",
+            "item_error_observations",
             "model_status",
         }
     ),
@@ -97,6 +98,10 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
     "student_summary.skills.binary_counts": frozenset({"correct", "incorrect"}),
     "student_summary.active_misconceptions": frozenset(
         {"rule_id", "label", "status", "confidence", "skill_ids", "last_seen_at"}
+    ),
+    "student_summary.item_error_observations": frozenset(
+        {"rule_id", "label", "event_id", "assessment_id", "cycle_id", "related_skill_ids",
+         "last_seen_at", "status", "correction_event_id"}
     ),
 }
 
@@ -155,6 +160,9 @@ def validate_export(export: dict[str, Any]) -> None:
             EXPORT_ALLOWED_FIELDS["student_summary.active_misconceptions"],
             f"student_summary.active_misconceptions[{index}]",
         )
+    for index, entry in enumerate(export["student_summary"].get("item_error_observations", [])):
+        _check(entry, EXPORT_ALLOWED_FIELDS["student_summary.item_error_observations"],
+               f"student_summary.item_error_observations[{index}]")
 
 
 def _default_document_projector() -> Callable[[UserDocument], dict[str, Any]]:
@@ -226,12 +234,14 @@ async def build_student_export(
 async def export_evidence_summary(student_id, *, uow=None, student_state=None):
     """Shared API/export projection; strictly read-only, no migration writes."""
     from mathtutor.learning.knowledge_tracing.service import StudentStateService
+    from mathtutor.application.learning_profile import item_error_observations
     if uow is None:
         snapshot = await student_state.summary(student_id) if student_state else {"skills": [], "last_event_seq": 0}
         events = await student_state.events(student_id) if student_state else []
         return {"total_attempts": sum(snapshot.get("totals", {}).values()), "estimator_version": "evidence_tracker_v2",
                 "projection_version": snapshot["last_event_seq"], "skills": _export_skills(snapshot["skills"]),
-                "active_misconceptions": _export_misconceptions(events), "model_status": snapshot.get("dkt_mode", "not_trained")}
+                "active_misconceptions": _export_misconceptions(events),
+                "item_error_observations": item_error_observations(events), "model_status": snapshot.get("dkt_mode", "not_trained")}
     tracker = student_state or StudentStateService(uow.engine)
     async with uow.transaction() as conn:
         snapshot = await tracker.summary(student_id, conn=conn)
@@ -255,6 +265,7 @@ async def export_evidence_summary(student_id, *, uow=None, student_state=None):
     return {"total_attempts": total_attempts, "estimator_version": "evidence_tracker_v2",
             "projection_version": snapshot["last_event_seq"], "skills": [rows[k] for k in sorted(rows)],
             "active_misconceptions": _export_misconceptions(events),
+            "item_error_observations": item_error_observations(events),
             "model_status": snapshot.get("dkt_mode", "not_trained")}
 
 

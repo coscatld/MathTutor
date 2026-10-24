@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
 import {renderToStaticMarkup} from "react-dom/server";
-import {LearningOverview, SkillObservation} from "../features/math-tutor/desktop/components/LearningProfilePanel";
+import {ItemErrorObservations, LearningOverview, SkillObservation} from "../features/math-tutor/desktop/components/LearningProfilePanel";
 import ReferenceJourney from "../features/math-tutor/knowledge/ReferenceJourney";
 import StageReviewPanel from "../features/math-tutor/knowledge/StageReviewPanel";
 import {referenceSelectionHref, withTutorSession} from "../features/math-tutor/lib/workspace-navigation";
@@ -38,6 +38,23 @@ test("missing assistance counts stay unknown instead of becoming zero successes"
   const html = renderToStaticMarkup(<SkillObservation skill={{code:"skill", label:"移项",mastery:null,grade_band:null,evidence_count:1}} onEvidence={() => {}} />);
   assert.match(html, /独立答对<\/dt><dd>待确认/);
   assert.match(html, /受助答对<\/dt><dd>待确认/);
+});
+test("unlocalized multi-skill errors remain item observations with a route to their evidence", () => {
+  const summary = {skills: [], total_attempts: 1, active_misconceptions: 0, item_error_observations: [{
+    rule_id:"SIGN_ERROR", label:"符号错误", event_id:"event", assessment_id:"assessment", cycle_id:"cycle",
+    related_skill_ids:["equality", "isolate", "substitution"], last_seen_at:null,
+    status:"unlocalized" as const, correction_event_id:null,
+  }]};
+  const html = renderToStaticMarkup(<ItemErrorObservations summary={summary} onEvidence={() => {}} />);
+  assert.ok(html.includes("整题错误观察") && html.includes("具体技能待定位"));
+  assert.ok(html.includes("不代表相关技能都存在问题"));
+  assert.ok(html.includes('aria-label="查看符号错误的整题记录"'));
+  assert.ok(!html.includes("equality") && !html.includes("掌握"));
+  const corrected = renderToStaticMarkup(<ItemErrorObservations summary={{...summary,
+    item_error_observations:[{...summary.item_error_observations[0], status:"corrected_later", correction_event_id:"correct"}],
+  }} onEvidence={() => {}} />);
+  assert.ok(corrected.includes("该题后来答对，技能仍待独立检验"));
+  assert.equal(renderToStaticMarkup(<ItemErrorObservations summary={{...summary, item_error_observations:undefined}} onEvidence={() => {}} />), "");
 });
 test("reference workflow preserves the conversation and opens its existing selector", () => {
   const href = referenceSelectionHref("c/中文&scope=all");

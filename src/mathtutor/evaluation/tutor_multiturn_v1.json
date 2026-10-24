@@ -142,7 +142,7 @@
     },
     {
       "id": "sign-error-diagnosis",
-      "title": "符号错误被诊断并进入画像",
+      "title": "符号错误保留为整题观察",
       "problem": "2x+3=7",
       "forbidden_before_solution": [
         "x\\s*=\\s*2(?![0-9])"
@@ -179,8 +179,10 @@
         }
       ],
       "final": {
-        "misconceptions": [
-          "miscon-sign-error"
+        "misconceptions": [],
+        "item_error_observations": [
+          {"rule_id": "miscon-sign-error", "status": "unlocalized",
+           "related_skill_ids": ["equality_preservation", "linear_isolation", "substitution_check"]}
         ]
       }
     },
@@ -319,8 +321,10 @@
         }
       ],
       "final": {
-        "misconceptions": [
-          "miscon-missing-root"
+        "misconceptions": [],
+        "item_error_observations": [
+          {"rule_id": "miscon-missing-root", "status": "corrected_later",
+           "related_skill_ids": ["factorisation", "quadratic_discriminant", "quadratic_roots", "substitution_check"]}
         ]
       }
     },

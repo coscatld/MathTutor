@@ -11,8 +11,10 @@ const errors=[];
 page.on('pageerror', error=>errors.push(error.message));
 let excluded=false, empty=false, summaryFailure=false;
 const mutations=[];
+const evidenceQueries=[];
 const referenceScope={space_ids:[],document_ids:[],only_selected:false,mode:'tutor',hints_only:false,save_space_id:'',tool_mode:'native',available_documents:[],effective_document_ids:[]};
 const skill={code:'linear_isolation',label:'移项与符号处理',mastery:null,grade_band:null,observation:'有 2 道新题首次独立完成，仍可换题检查。',evidence_count:3,counts:{independent:{correct:2,incorrect:0},assisted:{correct:1,incorrect:0},post_solution:{correct:0,incorrect:0},diagnostic:{correct:0,incorrect:0}},last_checked_at:'2026-09-13T08:00:00Z'};
+const itemObservations=[{rule_id:'SIGN_ERROR',label:'符号错误',event_id:'event-1',assessment_id:'assessment',cycle_id:'cycle',related_skill_ids:['linear_isolation','substitution'],last_seen_at:'2026-09-13T08:00:00Z',status:'unlocalized',correction_event_id:null}, {rule_id:'SIGN_ERROR',label:'符号错误',event_id:'event-2',assessment_id:'assessment-2',cycle_id:'cycle-2',related_skill_ids:['linear_isolation','substitution'],last_seen_at:'2026-09-12T08:00:00Z',status:'corrected_later',correction_event_id:'correction'}];
 const offer={offer_id:'practice-1',status:'ACTIVE',display_status:'pending',skill_labels:['移项与符号处理'],concept_labels:[],difficulty:2,offered_at:'2026-09-13T08:00:00Z',expires_at:'2026-09-15T08:00:00Z',parent_cycle_id:'parent',title:'换一道题，检查独立完成情况',reason:'上一次作答中使用过提示。',observation_goal:'不看例题时，能否正确处理符号。',question_count:1};
 await page.route('**/api/**', async route=>{
   const url=new URL(route.request().url());
@@ -23,12 +25,12 @@ await page.route('**/api/**', async route=>{
   else if(url.pathname.endsWith('/sessions'))body=[{conversation_id:'s',title:'一次数学问答'}];
   else if(url.pathname.endsWith('/settings'))body={is_configured:true,onboarding_completed:true,preset_id:'deepseek',model:'fixture',base_url:'',key_masked:null};
   else if(url.pathname.endsWith('/presets'))body=[{preset_id:'deepseek',label:'DeepSeek',default_model:'fixture',base_url:'',editable_base_url:true}];
-  else if(url.pathname.endsWith('/student-summary')){if(summaryFailure)return route.fulfill({status:503,json:{detail:'fixture-unavailable'}});body={skills:[empty?{...skill,evidence_count:0,observation:'尚未检查'}:skill],total_attempts:empty?0:3,active_misconceptions:0,has_conversations:true,has_independent_evidence:!empty,coverage:{supported_skills:13,observed_skills:empty?0:1}};}
+  else if(url.pathname.endsWith('/student-summary')){if(summaryFailure)return route.fulfill({status:503,json:{detail:'fixture-unavailable'}});body={skills:[empty?{...skill,evidence_count:0,observation:'尚未检查'}:skill],total_attempts:empty?0:3,active_misconceptions:0,item_error_observations:empty?[]:itemObservations,has_conversations:true,has_independent_evidence:!empty,coverage:{supported_skills:13,observed_skills:empty?0:1}};}
   else if(url.pathname.endsWith('/stage-review'))body={status:'idle',preferences:{goal:'巩固移项',style:'stepwise'},review:null};
   else if(url.pathname.includes('/knowledge/conversations/'))body=referenceScope;
   else if(url.pathname.endsWith('/resources'))body={documents:[],images:[],message_count:0,scope:referenceScope};
   else if(url.pathname.includes('/sessions/'))body={messages:[],state:'idle',state_version:0};
-  else if(url.pathname.endsWith('/student-evidence'))body={items:[{event_id:'event-1',event_seq:1,cycle_id:'cycle',occurred_at:'2026-09-13T08:00:00Z',skill_ids:['linear_isolation'],problem_text:'解方程：3x − 5 = 10',student_response:'x = 5',correctness:'correct',evidence_kind:'independent',completion_scope:'full_problem',first_target:!excluded,excluded,session_id:'s'}],next_cursor:null};
+  else if(url.pathname.endsWith('/student-evidence')){evidenceQueries.push(Object.fromEntries(url.searchParams));body={items:[{event_id:'event-1',event_seq:1,cycle_id:'cycle',occurred_at:'2026-09-13T08:00:00Z',skill_ids:['linear_isolation'],problem_text:'解方程：3x − 5 = 10',student_response:'x = 5',correctness:'correct',evidence_kind:'independent',completion_scope:'full_problem',first_target:!excluded,excluded,session_id:'s'}],next_cursor:null};}
   else if(url.pathname.endsWith('/exclude')){excluded=true;body={ok:true};}
   else if(url.pathname.endsWith('/recompute-profile'))body={ok:true};
   else if(url.pathname.endsWith('/offers'))body=[offer,{...offer,offer_id:'ongoing',status:'ACCEPTED',display_status:'in_progress',resume_session_id:'s',title:'继续检查移项时的符号'}, {...offer,offer_id:'done',status:'ACCEPTED',display_status:'completed',title:'刚完成的练习',result_summary:{independent_correct:1,helped:0,observations:1},evidence_href:'/math-tutor/profile?cycle=cycle'}];
@@ -124,6 +126,30 @@ try{
   assert.equal(new URL(page.url()).searchParams.get('panel'),'documents');
   await page.reload();
   await page.getByRole('heading',{name:'回答可以参考哪些资料？'}).waitFor();
+  empty=false;
+  for(const theme of ['light','dark']){
+    await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});
+    for(const [width,height] of [[1280,800],[375,812],[812,375]]){
+      await page.setViewportSize({width,height});
+      await page.goto(base+'/math-tutor/profile');
+      await page.getByRole('heading',{name:'整题错误观察',exact:true}).waitFor();
+      await page.getByText('查看 2 条整题观察',{exact:true}).click();
+      await page.getByText('该题后来答对，技能仍待独立检验。',{exact:true}).waitFor();
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth),false);
+      const record=page.getByRole('button',{name:'查看符号错误的整题记录',exact:true}).first();
+      const target=await record.boundingBox();
+      assert.ok(target.height>=44 && target.width>=44);
+      await record.click();
+      await page.getByRole('dialog',{name:'整题错误观察',exact:true}).waitFor();
+      await page.getByText('你的作答：x = 5',{exact:true}).waitFor();
+      assert.equal(evidenceQueries.at(-1).cycle_id,'cycle');
+      assert.equal(evidenceQueries.at(-1).skill_id,undefined);
+      await page.keyboard.press('Escape');
+      await page.getByRole('dialog').waitFor({state:'detached'});
+      assert.equal(await record.evaluate(el=>el===document.activeElement),true);
+      await page.screenshot({path:path.join(output,`item-observations-${theme}-${width}.png`),fullPage:true,animations:'disabled'});
+    }
+  }
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({status:'passed',viewportCount:4,output}));
+  console.log(JSON.stringify({status:'passed',viewportCount:4,itemObservationChecks:6,data:'isolated synthetic API fixtures; not real student results',output}));
 }finally{await browser.close();}

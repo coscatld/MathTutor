@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, union
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from mathtutor.domain.practice import Exercise, ExerciseRelease
@@ -40,6 +40,9 @@ from mathtutor.infrastructure.schema import (
     exercises,
     practice_offers,
     practice_recommendations,
+    math_problems,
+    tutoring_cycles,
+    learning_events,
 )
 from mathtutor.repositories.sqlite_math_facts import (
     issue_solution_attestation,
@@ -50,12 +53,32 @@ from mathtutor.repositories.sqlite_math_facts import (
 from mathtutor.repositories.uow import append_outbox_events
 from mathtutor.repositories.practice_repository import (
     validate_release_binding,
+    SEEN_PROBLEM_EVENT_TYPES,
 )
 from mathtutor.security.scopes import student_uuid
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+async def load_seen_problem_revisions(conn: AsyncConnection, student_id: str) -> frozenset[str]:
+    """Complete retained owner facts, without raw text, limits or label filtering.
+
+    Learning-result deletion removes its events; explicitly retained cycle/offer
+    skeletons still prove prior exposure. Global verified catalog rows alone do not.
+    """
+    offered = select(exercise_releases.c.problem_hash).select_from(practice_offers.join(
+        exercise_releases, practice_offers.c.exercise_release_id == exercise_releases.c.release_id
+    )).where(practice_offers.c.student_id == str(student_uuid(student_id)))
+    bound = select(math_problems.c.content_hash).select_from(tutoring_cycles.join(
+        math_problems, tutoring_cycles.c.problem_id == math_problems.c.problem_id
+    )).where(tutoring_cycles.c.student_id == str(student_id))
+    events = select(learning_events.c.payload["problem_revision"].as_string()).where(
+        learning_events.c.student_id == str(student_id),
+        learning_events.c.event_type.in_(SEEN_PROBLEM_EVENT_TYPES))
+    revisions = (await conn.execute(union(offered, bound, events))).scalars().all()
+    return frozenset(value for value in revisions if isinstance(value, str) and value)
 
 
 # ------------------------------------------------------------------ mappers
@@ -486,9 +509,14 @@ class SQLitePracticeRepository:
             ))).one()
             return PracticeRecommendation.model_validate(row.payload).model_copy(update={"status": row.status}), False
 
-    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer, outbox_events: list[dict[str, Any]]) -> None:
+    async def complete_recommendation(self, recommendation: PracticeRecommendation, offer: PracticeOffer,
+        outbox_events: list[dict[str, Any]], *, unseen_for_student: str | None = None) -> None:
         # Offer + recommendation + outbox become visible atomically.
         async with self.uow.transaction() as conn:
+            if recommendation.purpose in {"A1", "A2", "B"}:
+                # Explicitly reserve the writer before reading current history;
+                # this also covers SQLCipher's isolation_level=None connection.
+                await conn.exec_driver_sql("BEGIN IMMEDIATE")
             row = (await conn.execute(select(practice_recommendations).where(
                 practice_recommendations.c.recommendation_id == str(recommendation.recommendation_id),
                 practice_recommendations.c.student_id == str(offer.student_id),
@@ -497,6 +525,12 @@ class SQLitePracticeRepository:
             ))).first()
             if row is None:
                 raise ValueError("推荐状态已变化，不能发布邀请")
+            if row.purpose in {"A1", "A2", "B"}:
+                if unseen_for_student is None or student_uuid(unseen_for_student) != offer.student_id:
+                    raise ValueError("新题检查缺少学生身份")
+                release = await load_release_row(conn, offer.exercise_release_id)
+                if release is None or release.problem_hash in await load_seen_problem_revisions(conn, unseen_for_student):
+                    raise ValueError("这道题已出现过，请重新请求新题")
             await _insert_offer(conn, offer)
             result = await conn.execute(practice_recommendations.update().where(
                 practice_recommendations.c.recommendation_id == str(recommendation.recommendation_id),
@@ -536,6 +570,10 @@ class SQLitePracticeRepository:
         owner = str(student_uuid(student_id))
         async with self.uow.transaction() as conn:
             return await load_offers_for_student(conn, owner)
+
+    async def seen_problem_revisions(self, student_id: str) -> frozenset[str]:
+        async with self.uow.transaction() as conn:
+            return await load_seen_problem_revisions(conn, student_id)
 
     async def offers_for_student_with_detail(
         self, student_id: str

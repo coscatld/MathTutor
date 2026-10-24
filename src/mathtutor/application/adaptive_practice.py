@@ -177,6 +177,7 @@ class AdaptivePracticeService:
         requested_difficulty: int | None = None,
         current_difficulty: int | None = None,
         excluded_problem_statements: Sequence[str] = (),
+        excluded_problem_revisions: frozenset[str] = frozenset(),
         foundation_focus: str = "",
     ) -> list[CandidateExercise]:
         """Assemble the REQUIRED+OPTIONAL context and hand it to the generator."""
@@ -227,9 +228,23 @@ class AdaptivePracticeService:
         context = context.model_copy(update={
             "desired_difficulty": difficulty, "practice_purpose": purpose,
             "excluded_problem_statements": tuple(excluded_problem_statements),
+            "excluded_problem_revisions": excluded_problem_revisions,
             "foundation_focus": foundation_focus,
         })
         return (await self._generator.generate(context, count=min(MAX_CANDIDATES, max(1, count))))[:MAX_CANDIDATES]
+
+    async def _seen_problem_revisions(self, student_id: str) -> frozenset[str]:
+        """Full retained history for local eligibility, never model context text."""
+        from mathtutor.repositories.practice_repository import SEEN_PROBLEM_EVENT_TYPES
+        revisions = await self._release_service.repository.seen_problem_revisions(student_id)
+        if self.student_state is not None:
+            # The event store can be separate in development. Do not use
+            # valid_events: excluding a verdict never makes its task unseen.
+            events = await self.student_state.events(student_id)
+            revisions |= frozenset(event.problem_revision for event in events
+                if event.student_id == str(student_id) and event.event_type in SEEN_PROBLEM_EVENT_TYPES
+                and event.problem_revision)
+        return revisions
 
     async def assemble_for_intent(
         self,
@@ -345,8 +360,13 @@ class AdaptivePracticeService:
         attempted = 0
         try:
             recent = await repository.offers_for_student_with_detail(student_id)
-            excluded = [problem_text] if problem_text else []
-            excluded.extend(exercise.problem_statement for _, exercise in recent[:20] if exercise)
+            requires_unseen = purpose in {"A1", "A2", "B"}
+            used_revisions = await self._seen_problem_revisions(student_id) if requires_unseen else frozenset()
+            # Review may deliberately reuse a task. Other purposes retain the
+            # bounded near-duplicate/answer-copy guard as a separate constraint.
+            excluded = [] if purpose == "E" else [problem_text] if problem_text else []
+            if purpose != "E":
+                excluded.extend(exercise.problem_statement for _, exercise in recent[:20] if exercise)
             candidates = await asyncio.wait_for(self.generate_candidates(
                 student_id, target_skill_ids=targets,
                 target_concept_ids=() if purpose == "C" else target_concept_ids,
@@ -354,20 +374,29 @@ class AdaptivePracticeService:
                 problem_text=problem_text, misconception_ids=misconception_ids,
                 purpose=purpose, requested_difficulty=requested_difficulty,
                 current_difficulty=current_difficulty, excluded_problem_statements=excluded,
+                excluded_problem_revisions=used_revisions,
                 foundation_focus=foundation_focus,
             ), timeout=30)
             chain = None
             seen = set()
-            from mathtutor.application.llm_candidate_generator import candidate_is_distinct
+            from mathtutor.application.llm_candidate_generator import candidate_is_distinct, candidate_problem_revision
             for candidate in candidates[:MAX_CANDIDATES]:
                 attempted += 1
                 if (not set(targets).issubset(candidate.skill_ids) or candidate.student_id != student_uuid(student_id)
+                        or candidate_problem_revision(candidate.problem_statement) in used_revisions
                         or not candidate_is_distinct(candidate.problem_statement, (*excluded, *seen))):
                     continue
                 seen.add(candidate.problem_statement)
                 try:
                     chain = await self._release_service.release_candidate(
                         candidate, source_type=source_type_for_generated_by(candidate.generated_by))
+                    # Generation and verification may overlap another tab's
+                    # submission/exposure. Check current facts, not the snapshot.
+                    if requires_unseen:
+                        used_revisions = await self._seen_problem_revisions(student_id)
+                        if chain.problem.content_hash in used_revisions:
+                            chain = None
+                            continue
                     from mathtutor.application.multiple_choice import make_choices
                     make_choices(chain.problem, chain.candidate, salt=str(chain.release.release_id))
                     break
@@ -375,7 +404,8 @@ class AdaptivePracticeService:
                     chain = None
                     continue
             if chain is None:
-                raise PracticeOfferError("候选预算内没有通过技能匹配、去重与验证的练习；原题结果保持不变，可重试")
+                raise PracticeOfferError("候选预算内暂无未见过且通过验证的新题；可重新请求或明确选择其他难度，原题结果保持不变"
+                    if requires_unseen else "候选预算内没有通过技能匹配、去重与验证的练习；原题结果保持不变，可重试")
             offer = PracticeOffer(
                 student_id=student_uuid(student_id), parent_cycle_id=parent_cycle_id,
                 exercise_release_id=chain.release.release_id,
@@ -387,7 +417,9 @@ class AdaptivePracticeService:
                 "status": "ACTIVE", "offer_id": offer.offer_id, "candidate_count": attempted,
                 "desired_difficulty": chain.exercise.difficulty,
                 "material_basis": tuple(basis.model_dump(mode="json") for basis in candidate.material_basis),
-                "decision_reason": "离散难度、目标技能、近期去重与确定性发布门均已检查",
+                "decision_reason": ("到期复习允许重做旧题；目标技能与确定性发布门已检查" if purpose == "E" else
+                    "离散难度、目标技能、完整历史新题检查与确定性发布门均已检查" if requires_unseen else
+                    "离散难度、目标技能、近期去重与确定性发布门均已检查"),
                 "updated_at": datetime.now(timezone.utc),
             })
             await repository.complete_recommendation(recommendation, offer, outbox_events=[
@@ -406,7 +438,7 @@ class AdaptivePracticeService:
                         "recommendation_id": str(recommendation.recommendation_id),
                     },
                 }
-            ])
+            ], unseen_for_student=student_id if requires_unseen else None)
             return offer
         except asyncio.CancelledError:
             await asyncio.shield(repository.fail_recommendation(recommendation.model_copy(update={

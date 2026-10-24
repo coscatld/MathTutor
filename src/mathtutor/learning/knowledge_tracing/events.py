@@ -173,6 +173,49 @@ def evidence_category(event: LearningEvent) -> str | None:
     return "unknown"
 
 
+def has_verified_outcome(event: LearningEvent) -> bool:
+    """A recorded mathematical verdict, independent of help or task repetition."""
+    return (event.event_type == "attempt_assessed" and not event.duplicate_response
+            and event.correctness in {"correct", "incorrect", "partial"}
+            and event.evidence_kind in {"independent", "assisted", "post_solution"}
+            and not event.provenance_uncertain)
+
+
+def attributed_skill_ids(event: LearningEvent) -> tuple[str, ...]:
+    """The skills this outcome can address, not every skill the item involves.
+
+    Single-skill observations keep their existing scope (including unknown
+    outcomes). For a multi-skill error, only server-verifier localization is
+    accepted. A final answer, signal name or current teaching goal alone does
+    not identify a failed/successful component. This never changes event facts.
+    """
+    if event.event_type != "attempt_assessed":
+        return ()
+    if len(event.skill_ids) <= 1:
+        return event.skill_ids
+    if has_verified_outcome(event) and event.correctness in {"incorrect", "partial"}:
+        return tuple(skill for skill in event.skill_ids if skill in event.verified_error_skill_ids)
+    return ()
+
+
+def independent_skill_success_ids(event: LearningEvent) -> tuple[str, ...]:
+    """A new independent single-skill task or explicitly identified step.
+
+    A verified step may address its own skill without becoming a whole-task
+    training label. Call after valid_events so retries/exclusions cannot reset
+    first-attempt eligibility. Multi-skill final answers never clear all rules.
+    """
+    targets = attributed_skill_ids(event)
+    if (len(targets) == 1 and has_verified_outcome(event) and event.correctness == "correct"
+            and event.evidence_kind == "independent" and not event.prior_task_attempt
+            and not event.target_answer_exposed_before_attempt and event.response_format == "free_response"
+            and event.task_purpose not in {"diagnostic", "error_analysis"}
+            and (event.completion_scope == "full_problem"
+                 or (event.completion_scope == "subgoal" and bool(event.subgoal_id)))):
+        return targets
+    return ()
+
+
 def evidence_summary(events: Sequence[LearningEvent]) -> dict:
     """Counts are attributable facts, never level-based mastery increments.
 
@@ -207,24 +250,27 @@ def evidence_summary(events: Sequence[LearningEvent]) -> dict:
         category = evidence_category(event)
         if category is None:
             continue
-        targets = event.skill_ids
-        if len(targets) > 1:
-            if event.correctness == "incorrect" and event.verified_error_skill_ids:
-                targets = event.verified_error_skill_ids
-            else:
-                item_uncertain += 1
-                for skill in targets:
-                    skills[skill]["joint_task_evidence"] += 1
-                continue
+        targets = attributed_skill_ids(event)
+        if len(event.skill_ids) > 1 and not targets:
+            item_uncertain += 1
+            for skill in event.skill_ids:
+                skills[skill]["joint_task_evidence"] += 1
+            continue
         for skill in targets:
             row = skills[skill]
             row["assessment_ids"].append(event.assessment_id)
             if category == "unknown":
                 row["unknown"] += 1
             elif category == "diagnostic":
-                if event.correctness in {"correct", "incorrect"}:
+                if event.correctness == "partial" and skill in event.verified_error_skill_ids:
+                    # A partially successful item can contain a verified
+                    # failed component; do not call that component a success.
+                    row["diagnostic"]["incorrect"] += 1
+                elif event.correctness in {"correct", "incorrect"}:
                     row["diagnostic"][event.correctness] += 1
-                if (event.completion_scope != "full_problem" or event.correctness == "partial") and event.correctness in {"correct", "partial"}:
+                if ((event.completion_scope != "full_problem" or event.correctness == "partial")
+                        and event.correctness in {"correct", "partial"}
+                        and skill not in event.verified_error_skill_ids):
                     row["step_correct"] += 1
             else:
                 row[category][event.correctness] += 1

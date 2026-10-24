@@ -163,8 +163,9 @@ class Evidence(BaseModel):
     lexical_score: float = 0.0
     vector_score: float | None = None
     rerank_score: float | None = None
-    #: Chunk ids merged into ``text`` by context expansion. Empty = verbatim
-    #: single-chunk projection.
+    #: Chunk ids whose text survives projection. ContextExpander orders these
+    #: as parent (when present), then one id per neighbour_texts entry.
+    #: Empty = single-chunk projection, which may itself be truncated.
     expanded_from: tuple[UUID, ...] = ()
     retriever: str = "lexical"
     matched_text: str = ""
@@ -252,6 +253,37 @@ def make_source_id(document_id: UUID, chunk_id: UUID) -> str:
     return "e-" + sha256(f"{document_id}:{chunk_id}".encode()).hexdigest()[:24]
 
 
+def _prefix_expansion(
+    item: Evidence, text: str
+) -> tuple[str, tuple[str, ...], tuple[UUID, ...]]:
+    """Keep only expansion spans intersecting a delivered ordinary prefix.
+
+    ContextExpander's text and id order is stable: matched text, then
+    neighbours (parents use the atomic branch below). Do not guess source
+    offsets for legacy callers that supplied unstructured merged text.
+    """
+    structured = "\n".join(
+        part for part in (item.matched_text, *item.neighbour_texts) if part
+    )
+    if structured != item.text:
+        return text, (), ()
+    matched = item.matched_text[:len(text)]
+    neighbours: list[str] = []
+    sources: list[UUID] = []
+    end = len(item.matched_text)
+    for index, neighbour in enumerate(item.neighbour_texts):
+        if not neighbour:
+            continue
+        start = end + bool(end)  # newline between nonempty components
+        end = start + len(neighbour)
+        retained = text[start:end]
+        if retained:
+            neighbours.append(retained)
+            if index < len(item.expanded_from):
+                sources.append(item.expanded_from[index])
+    return matched, tuple(neighbours), tuple(sources)
+
+
 def build_evidence_pack(
     *,
     query: str,
@@ -269,45 +301,63 @@ def build_evidence_pack(
     """
     kept: list[Evidence] = []
     budget = MAX_EVIDENCE_CHARS
-    truncated = False
+    base = execution or RetrievalExecution()
+    truncated = base.coverage.truncated
     for item in evidences:
+        if not item.text.strip() and not item.parent_text.strip():
+            continue
         if len(kept) >= MAX_EVIDENCE_ITEMS or budget <= 0:
             truncated = True
             continue
+        limit = min(MAX_PER_ITEM_CHARS, budget)
         if item.parent_text:
             group = "\n".join(part for part in (item.parent_text, item.matched_text) if part)
             if not group.strip():
                 continue
-            if len(group) > MAX_PER_ITEM_CHARS or len(group) > budget:
+            if len(group) > limit:
                 truncated = True
                 continue
             parts = [group]
+            neighbours = []
+            sources = list(item.expanded_from[:1])
             used = len(group)
-            for neighbour in item.neighbour_texts:
+            for index, neighbour in enumerate(item.neighbour_texts, start=1):
                 extra = 1 + len(neighbour)
-                if used + extra > min(MAX_PER_ITEM_CHARS, budget):
+                if used + extra > limit:
                     truncated = True
                     continue
                 parts.append(neighbour)
+                neighbours.append(neighbour)
+                if index < len(item.expanded_from):
+                    sources.append(item.expanded_from[index])
                 used += extra
             text = "\n".join(parts)
+            matched_text = item.matched_text
+            neighbour_texts, expanded_from = tuple(neighbours), tuple(sources)
         else:
-            text = item.text[:MAX_PER_ITEM_CHARS]
-            if not text.strip():
-                continue  # empty evidence is dropped, not shipped as noise
+            text = item.text[:limit]
             if len(text) < len(item.text):
                 truncated = True  # per-item truncation is also a budget cut
+            if not text.strip():
+                continue  # empty evidence is dropped, not shipped as noise
             used = len(text)
+            matched_text, neighbour_texts, expanded_from = _prefix_expansion(item, text)
         budget -= used
-        kept.append(item.model_copy(update={"text": text}))
+        kept.append(item.model_copy(update={
+            "text": text,
+            "text_hash": text_hash(text),
+            "matched_text": matched_text,
+            "neighbour_texts": neighbour_texts,
+            "expanded_from": expanded_from,
+        }))
 
-    base = execution or RetrievalExecution()
+    expansion_used = any(item.expanded for item in kept)
     coverage = base.coverage.model_copy(
         update={
             "retrieved_count": len(evidences),
             "selected_count": len(kept),
             "source_count": len({item.document_id for item in kept}),
-            "expansion_used": any(item.expanded for item in kept),
+            "expansion_used": expansion_used,
             "truncated": truncated,
         }
     )
@@ -321,7 +371,8 @@ def build_evidence_pack(
         ),
         evidences=tuple(kept),
         execution=base.model_copy(
-            update={"items_returned": len(kept), "coverage": coverage}
+            update={"items_returned": len(kept), "expansion_used": expansion_used,
+                    "coverage": coverage}
         ),
     )
 
