@@ -1,0 +1,209 @@
+{
+  "source_commit": "6f152c400a8cab74ad874aa6ecaf88885c30c388",
+  "ci_run": {
+    "id": 40071978429,
+    "url": "https://github.com/coscatld/MathTutor/actions/runs/40071978429",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "ci_jobs": [
+    {
+      "job": "verify (macos-latest)",
+      "id": 120807186076,
+      "url": "https://github.com/coscatld/MathTutor/actions/runs/40071978429/job/120807186076",
+      "python": [
+        "========= 3314 passed, 21 skipped, 6716 warnings in 752.85s (0:12:32) =========="
+      ],
+      "node": [
+        "[check] native TypeScript: PASS (v24.21.0, /Users/runner/hostedtoolcache/node/24.21.0/arm64/bin/node)"
+      ],
+      "tap": [
+        "ℹ tests 252",
+        "ℹ pass 252",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 55",
+        "ℹ pass 53",
+        "ℹ fail 0",
+        "ℹ skipped 2"
+      ],
+      "final": [
+        "[check] cross-platform source verification: PASS",
+        "[check] Distribution: SKIPPED / NOT APPLICABLE — target packaging runtime not provisioned"
+      ],
+      "eval": "tests/test_tutor_multiturn_eval.py .....................                 [ 92%]"
+    },
+    {
+      "job": "verify (ubuntu-latest)",
+      "id": 120807186229,
+      "url": "https://github.com/coscatld/MathTutor/actions/runs/40071978429/job/120807186229",
+      "python": [
+        "========= 3314 passed, 21 skipped, 6716 warnings in 676.83s (0:11:16) =========="
+      ],
+      "node": [
+        "[check] native TypeScript: PASS (v24.21.0, /opt/hostedtoolcache/node/24.21.0/x64/bin/node)"
+      ],
+      "tap": [
+        "ℹ tests 252",
+        "ℹ pass 252",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 55",
+        "ℹ pass 52",
+        "ℹ fail 0",
+        "ℹ skipped 3"
+      ],
+      "final": [
+        "[check] cross-platform source verification: PASS",
+        "[check] Distribution: SKIPPED / NOT APPLICABLE — target packaging runtime not provisioned"
+      ],
+      "eval": "tests/test_tutor_multiturn_eval.py .....................                 [ 92%]"
+    },
+    {
+      "job": "verify (windows-latest)",
+      "id": 120807186233,
+      "url": "https://github.com/coscatld/MathTutor/actions/runs/40071978429/job/120807186233",
+      "python": [
+        "======== 3313 passed, 22 skipped, 6716 warnings in 1137.50s (0:18:57) ========="
+      ],
+      "node": [
+        "[check] native TypeScript: PASS (v24.22.1, C:\\hostedtoolcache\\windows\\node\\24.22.1\\x64\\node.exe)"
+      ],
+      "tap": [
+        "ℹ tests 252",
+        "ℹ pass 252",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 55",
+        "ℹ pass 52",
+        "ℹ fail 0",
+        "ℹ skipped 3"
+      ],
+      "final": [
+        "[check] cross-platform source verification: PASS",
+        "[check] Distribution: SKIPPED / NOT APPLICABLE � target packaging runtime not provisioned"
+      ]
+    }
+  ],
+  "deployment": {
+    "id": 40073939499,
+    "name": "Deploy site",
+    "event": "workflow_dispatch",
+    "head_sha": "6f152c400a8cab74ad874aa6ecaf88885c30c388",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/coscatld/MathTutor/actions/runs/40073939499"
+  },
+  "deployment_jobs": [
+    {
+      "id": 120813171099,
+      "name": "build",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40073939499,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4.2.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/setup-node@v4.4.0",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Install",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Typecheck",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Static export",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Verify export",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Upload Pages artifact",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Post Run actions/setup-node@v4.4.0",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15
+        },
+        {
+          "name": "Post Run actions/checkout@v4.2.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        }
+      ]
+    },
+    {
+      "id": 120813349348,
+      "name": "deploy",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40073939499,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/configure-pages@v5.0.0",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/deploy-pages@v4.0.5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        }
+      ]
+    }
+  ]
+}

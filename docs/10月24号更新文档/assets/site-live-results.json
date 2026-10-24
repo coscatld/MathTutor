@@ -1,0 +1,130 @@
+{
+  "at": "2026-10-24T07:25:23.686Z",
+  "commit": "6f152c400a8cab74ad874aa6ecaf88885c30c388",
+  "base": "https://coscatld.github.io/MathTutor",
+  "browser": "installed Chrome, new isolated context; no user account",
+  "data": "published static site; no API mocks",
+  "checks": [
+    {
+      "route": "/zh/",
+      "status": 200,
+      "title": "让每一步推理，都有迹可循。",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "overflow": false
+    },
+    {
+      "route": "/zh/docs/",
+      "status": 200,
+      "title": "把 MathTutor 用起来",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "overflow": false
+    },
+    {
+      "route": "/zh/docs/user/knowledge-base/",
+      "status": 200,
+      "title": "知识库与参考资料",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "overflow": false
+    },
+    {
+      "route": "/zh/docs/user/learning-evidence/",
+      "status": 200,
+      "title": "学习画像与证据",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "overflow": false
+    },
+    {
+      "route": "/en/docs/",
+      "status": 200,
+      "title": "Make MathTutor yours",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "overflow": false
+    },
+    "home task entry opens quick-start",
+    "language switch preserves docs path",
+    "live static search returns a real evidence result and navigates to it",
+    "Escape closes the search dialog",
+    "zh installation link resolves user/quick-start/",
+    "zh installation link resolves developer/development-setup/",
+    "en installation link resolves user/quick-start/",
+    "en installation link resolves developer/development-setup/",
+    {
+      "route": "/zh/",
+      "status": 200,
+      "title": "让每一步推理，都有迹可循。",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "overflow": false
+    },
+    {
+      "route": "/zh/docs/",
+      "status": 200,
+      "title": "把 MathTutor 用起来",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "overflow": false
+    },
+    {
+      "route": "/zh/docs/user/knowledge-base/",
+      "status": 200,
+      "title": "知识库与参考资料",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "overflow": false
+    },
+    {
+      "route": "/zh/docs/user/learning-evidence/",
+      "status": 200,
+      "title": "学习画像与证据",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "overflow": false
+    },
+    "mobile sidebar exposes evidence guide, navigates and has no horizontal overflow",
+    {
+      "darkPrimaryContrast": 7.021859543278342,
+      "colors": {
+        "foreground": "rgb(15, 23, 42)",
+        "background": "rgb(96, 165, 250)"
+      }
+    },
+    {
+      "route": "/zh/docs/user/learning-evidence/",
+      "status": 200,
+      "title": "学习画像与证据",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false
+    },
+    "dark theme persists to the mobile evidence guide with reduced motion"
+  ],
+  "pageErrors": [],
+  "resourceErrors": [],
+  "networkFailures": [],
+  "status": "PASS"
+}

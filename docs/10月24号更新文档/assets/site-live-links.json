@@ -1,0 +1,491 @@
+{
+  "at": "2026-10-24T07:25:48.266752+00:00",
+  "commit": "6f152c400a8cab74ad874aa6ecaf88885c30c388",
+  "scope": "Public HTTP GET for internal anchor targets enumerated from the matching local static export; fragments and external links excluded",
+  "source_html_files": 54,
+  "targets": 80,
+  "status": "PASS",
+  "failures": [],
+  "results": [
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/architecture/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/architecture/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/api-websocket/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/api-websocket/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/architecture",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/architecture/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/architecture/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/architecture/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/contributing",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/contributing/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/contributing/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/contributing/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/desktop-packaging/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/desktop-packaging/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/development-setup",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/development-setup/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/development-setup/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/development-setup/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/evidence-dkt",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/evidence-dkt/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/evidence-dkt/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/evidence-dkt/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/math-solver",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/math-solver/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/math-solver/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/math-solver/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/retrieval-rag",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/retrieval-rag/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/retrieval-rag/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/retrieval-rag/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/teaching-state-machine",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/teaching-state-machine/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/teaching-state-machine/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/teaching-state-machine/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/testing-evaluation",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/testing-evaluation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/developer/testing-evaluation/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/developer/testing-evaluation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/faq/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/faq/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/installation",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/installation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/installation/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/installation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/introduction/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/introduction/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/knowledge-base",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/knowledge-base/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/knowledge-base/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/knowledge-base/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/learning-evidence",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/learning-evidence/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/learning-evidence/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/learning-evidence/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/model-configuration",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/model-configuration/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/model-configuration/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/model-configuration/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/privacy",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/privacy/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/privacy/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/privacy/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/quick-start",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/quick-start/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/quick-start/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/quick-start/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/tutoring-workflow",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/tutoring-workflow/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/docs/user/tutoring-workflow/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/docs/user/tutoring-workflow/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/download/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/download/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/features/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/features/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/en/roadmap/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/en/roadmap/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/architecture/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/architecture/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/api-websocket/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/api-websocket/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/architecture",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/architecture/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/architecture/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/architecture/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/contributing",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/contributing/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/contributing/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/contributing/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/desktop-packaging/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/desktop-packaging/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/development-setup",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/development-setup/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/development-setup/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/development-setup/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/evidence-dkt",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/evidence-dkt/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/evidence-dkt/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/evidence-dkt/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/math-solver",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/math-solver/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/math-solver/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/math-solver/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/retrieval-rag",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/retrieval-rag/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/retrieval-rag/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/retrieval-rag/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/teaching-state-machine",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/teaching-state-machine/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/teaching-state-machine/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/teaching-state-machine/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/testing-evaluation",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/testing-evaluation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/developer/testing-evaluation/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/developer/testing-evaluation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/faq/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/faq/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/installation",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/installation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/installation/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/installation/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/introduction/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/introduction/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/knowledge-base",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/knowledge-base/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/knowledge-base/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/knowledge-base/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/learning-evidence",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/learning-evidence/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/learning-evidence/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/learning-evidence/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/model-configuration",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/model-configuration/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/model-configuration/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/model-configuration/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/privacy",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/privacy/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/privacy/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/privacy/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/quick-start",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/quick-start/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/quick-start/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/quick-start/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/tutoring-workflow",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/tutoring-workflow/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/docs/user/tutoring-workflow/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/docs/user/tutoring-workflow/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/download/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/download/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/features/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/features/",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "url": "https://coscatld.github.io/MathTutor/zh/roadmap/",
+      "status": 200,
+      "final_url": "https://coscatld.github.io/MathTutor/zh/roadmap/",
+      "content_type": "text/html; charset=utf-8"
+    }
+  ]
+}
