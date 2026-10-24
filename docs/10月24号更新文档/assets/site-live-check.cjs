@@ -76,6 +76,22 @@ const dir=__dirname;
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   checks.push('mobile sidebar exposes evidence guide, navigates and has no horizontal overflow');
   await page.screenshot({path:path.join(dir,'site-live-evidence-mobile.png'),fullPage:true,animations:'disabled'});
+  await page.setViewportSize({width:1280,height:900});
+  await page.goto(base+'/zh/docs/',{waitUntil:'networkidle'});
+  await page.getByRole('button',{name:'切换颜色主题'}).click();
+  await page.waitForFunction(()=>document.documentElement.classList.contains('dark'));
+  await page.goto(base+'/zh/',{waitUntil:'networkidle'});
+  const colors=await page.getByRole('link',{name:'开始使用',exact:true}).evaluate(element=>({foreground:getComputedStyle(element).color,background:getComputedStyle(element).backgroundColor}));
+  function luminance(color){const rgb=color.match(/[\d.]+/g).slice(0,3).map(Number).map(value=>value/255).map(value=>value<=0.04045?value/12.92:((value+0.055)/1.055)**2.4);return 0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2];}
+  const foreground=luminance(colors.foreground),background=luminance(colors.background);
+  const contrast=(Math.max(foreground,background)+0.05)/(Math.min(foreground,background)+0.05);
+  assert.ok(contrast>=4.5,'live dark primary action contrast');
+  checks.push({darkPrimaryContrast:contrast,colors});
+  await page.screenshot({path:path.join(dir,'site-live-home-dark.png'),fullPage:true,animations:'disabled'});
+  await page.setViewportSize({width:375,height:812});
+  await visit('/zh/docs/user/learning-evidence/','学习画像与证据');
+  assert.ok(await page.locator('html').evaluate(element=>element.classList.contains('dark')));
+  checks.push('dark theme persists to the mobile evidence guide with reduced motion');
   assert.deepEqual(pageErrors,[],'browser runtime errors');assert.deepEqual(resourceErrors,[],'HTTP resource errors');assert.deepEqual(networkFailures,[],'network failures');
   result.status='PASS';
  } catch(error){result.status='FAIL';result.failure=error.stack||String(error);throw error;}

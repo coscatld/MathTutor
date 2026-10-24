@@ -17,6 +17,8 @@ PYTHONPATH=src MT_EVAL_API_KEY=... python scripts/tutor_multiturn_eval.py --mode
 
 可以用 `--only linear-independent` 运行指定子集。未知ID（包括已知与未知混合）或空的`--only`会以退出码2报错，不创建结果文件；零场景或没有执行检查的结果不会通过。合法子集检查通过时退出0，报告显示“子集回归通过”，并列出实际覆盖数与未运行ID。JSON的`gate.passed`表示已运行检查的结果；发布脚本应读取`release_gate.passed`，它仅在完整套件通过时为true。旧的JSON报告没有该字段，需要重新运行，不能默认当作全套通过。
 
+报告文件、标准输出和错误诊断均使用UTF-8，重定向输出的Windows环境也可读取中文；消费CLI输出的脚本应按UTF-8解码。
+
 ## 六个维度（来自 tutor-v2 矩阵）
 
 | 维度 | 自动检查 | 是否关键 |

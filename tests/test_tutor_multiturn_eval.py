@@ -74,12 +74,14 @@ def test_cli_rejects_unknown_or_empty_selection_without_writing_a_green_report(t
     assert not output.exists()
 
 
-def test_cli_valid_subset_succeeds_and_writes_explicit_subset_coverage(tmp_path):
+@pytest.mark.parametrize("stdio_encoding", ["utf-8", "cp1252", "ascii"])
+def test_cli_valid_subset_succeeds_and_writes_explicit_subset_coverage(tmp_path, stdio_encoding):
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         [sys.executable, "scripts/tutor_multiturn_eval.py", "--output", str(tmp_path),
          "--only", "linear-independent"],
-        cwd=root, env=dict(os.environ, PYTHONPATH=os.pathsep.join(filter(None, [str(root / "src"), os.environ.get("PYTHONPATH")]))),
+        cwd=root, env=dict(os.environ, PYTHONIOENCODING=stdio_encoding,
+                          PYTHONPATH=os.pathsep.join(filter(None, [str(root / "src"), os.environ.get("PYTHONPATH")]))),
         capture_output=True, text=True, encoding="utf-8", timeout=30,
     )
     assert result.returncode == 0, result.stderr
@@ -88,6 +90,20 @@ def test_cli_valid_subset_succeeds_and_writes_explicit_subset_coverage(tmp_path)
     assert report["gate"]["passed"] is True
     assert report["release_gate"]["passed"] is False
     assert "子集回归：**通过**" in result.stdout
+
+
+def test_cli_unknown_chinese_id_uses_utf8_diagnostics_with_legacy_stdio(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    output = tmp_path / "invalid-report"
+    result = subprocess.run(
+        [sys.executable, "scripts/tutor_multiturn_eval.py", "--output", str(output), "--only", "不存在"],
+        cwd=root, env=dict(os.environ, PYTHONIOENCODING="cp1252",
+                          PYTHONPATH=os.pathsep.join(filter(None, [str(root / "src"), os.environ.get("PYTHONPATH")]))),
+        capture_output=True, timeout=30,
+    )
+    assert result.returncode == 2
+    assert "Unknown scenario IDs: 不存在" in result.stderr.decode("utf-8")
+    assert not output.exists()
 
 
 @pytest.mark.parametrize("invalid", ["skill_diagnosis", "missing", "false_correction", "wrong_skills"])

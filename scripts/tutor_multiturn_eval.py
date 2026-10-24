@@ -16,6 +16,12 @@ from pathlib import Path
 
 
 def main() -> int:
+    # Reports and diagnostics use UTF-8 even when Windows redirects stdio
+    # through a legacy locale. Keep each stream's existing error policy.
+    for stream in (sys.stdout, sys.stderr):
+        if callable(reconfigure := getattr(stream, "reconfigure", None)):
+            reconfigure(encoding="utf-8", errors=stream.errors)
+
     from mathtutor.evaluation.tutor_multiturn import render_markdown, run
 
     parser = argparse.ArgumentParser()
