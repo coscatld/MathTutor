@@ -6,6 +6,7 @@ from pydantic import Field
 from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.creator_api import require_local_creator_origin
 from mathtutor.api.product_state import get_product_state
+from mathtutor.api.upload_limits import read_upload_limited
 from mathtutor.application.community import CommunityError, CommunityService, MAX_SHARE_BYTES, Strict
 from mathtutor.application.knowledge import KnowledgeError
 from mathtutor.security.scopes import StudentOwnerScope
@@ -105,18 +106,14 @@ async def subscribe(body: SourceInput, owner: StudentOwnerScope = Depends(requir
 
 @router.post("/sources/import", dependencies=[Depends(require_local_creator_origin)])
 async def import_source(file: UploadFile = File(...), owner: StudentOwnerScope = Depends(require_student_owner)):
-    data = await file.read(MAX_SHARE_BYTES + 1)
-    if len(data) > MAX_SHARE_BYTES:
-        raise HTTPException(413, "分享资源文件最多 32 MiB。")
+    data = await read_upload_limited(file, MAX_SHARE_BYTES, detail="分享资源文件最多 32 MiB。")
     return await invoke(owner, lambda service: service.import_source(owner.student_id, data))
 
 
 @router.post("/import", dependencies=[Depends(require_local_creator_origin)])
 async def import_file(file: UploadFile = File(...), operation_id: str | None = Form(default=None, min_length=1, max_length=128),
                       owner: StudentOwnerScope = Depends(require_student_owner)):
-    data = await file.read(MAX_SHARE_BYTES + 1)
-    if len(data) > MAX_SHARE_BYTES:
-        raise HTTPException(413, "分享文件最多 32 MiB。")
+    data = await read_upload_limited(file, MAX_SHARE_BYTES, detail="分享文件最多 32 MiB。")
     try:
         return await invoke(owner, lambda service: service.import_file(owner.student_id, data, file.filename or "", operation_id=operation_id))
     except HTTPException as exc:
@@ -128,9 +125,7 @@ async def import_file(file: UploadFile = File(...), operation_id: str | None = F
 @router.post("/plugins/import", dependencies=[Depends(require_local_creator_origin)])
 async def import_plugin_file(file: UploadFile = File(...), operation_id: str | None = Form(default=None, min_length=1, max_length=128),
                              owner: StudentOwnerScope = Depends(require_student_owner)):
-    data = await file.read(MAX_SHARE_BYTES + 1)
-    if len(data) > MAX_SHARE_BYTES:
-        raise HTTPException(413, "插件文件最多 32 MiB。")
+    data = await read_upload_limited(file, MAX_SHARE_BYTES, detail="插件文件最多 32 MiB。")
     async def action(service):
         try:
             service.validate_plugin_file(data, file.filename or "")

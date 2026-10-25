@@ -1,4 +1,5 @@
 "use strict";
+const { secretRedactor } = require("./transport-boundary");
 
 function claimSingleInstance(app, windows) {
   if (!app.requestSingleInstanceLock()) {
@@ -16,15 +17,19 @@ function claimSingleInstance(app, windows) {
 }
 
 /** Own the spawn error and retain a bounded diagnostic tail after exit. */
-function monitorService(child, writeLog = () => {}) {
+function monitorService(child, writeLog = () => {}, secret = "") {
   let stopped = false;
   let reason = "";
   let stderr = "";
-  child.stdout?.on("data", (data) => writeLog(String(data)));
+  const stdoutLog = secretRedactor(secret, writeLog);
+  const stderrLog = secretRedactor(secret, writeLog);
+  child.stdout?.on("data", data => stdoutLog.write(data));
+  child.stdout?.on("end", () => stdoutLog.end());
   child.stderr?.on("data", (data) => {
     stderr = (stderr + String(data)).slice(-8192);
-    writeLog(String(data));
+    stderrLog.write(data);
   });
+  child.stderr?.on("end", () => stderrLog.end());
   child.on("error", (error) => {
     stopped = true;
     reason = error.message;
@@ -38,20 +43,21 @@ function monitorService(child, writeLog = () => {}) {
   return {
     assertRunning(what) {
       if (stopped) {
-        throw new Error(`${what}已退出（${reason}）。${stderr ? `\n${stderr.trim().slice(-2000)}` : ""}`);
+        const message = `${what}已退出（${reason}）。${stderr ? `\n${stderr.trim().slice(-2000)}` : ""}`;
+        throw new Error(secret ? message.split(secret).join("[redacted]") : message);
       }
     },
   };
 }
 
-async function waitForService(url, { timeoutMs, what, services = [], intervalMs = 300 }) {
+async function waitForService(url, { timeoutMs, what, services = [], intervalMs = 300, headers }) {
   const deadline = Date.now() + timeoutMs;
   const check = () => services.forEach((service) => service.assertRunning(what));
   while (Date.now() < deadline) {
     check();
     let ready = false;
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(Math.max(1, Math.min(1000, deadline - Date.now()))) });
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(Math.max(1, Math.min(1000, deadline - Date.now()))) });
       ready = response.ok;
       await response.body?.cancel();
     } catch {

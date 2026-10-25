@@ -14,9 +14,8 @@ router = APIRouter(prefix="/content")
 @router.post("/question-packs/import")
 async def import_question_pack(file: UploadFile = File(...), name: str = Form(default=""),
                                owner: StudentOwnerScope = Depends(require_student_owner)):
-    data = await file.read(MAX_UPLOAD_BYTES + 1)
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(413, "资料包最大 20 MiB。")
+    from mathtutor.api.upload_limits import read_upload_limited
+    data = await read_upload_limited(file, MAX_UPLOAD_BYTES, detail="资料包最大 20 MiB。")
     state = state_for()
     async with state.turn_requests.owner(owner.student_id):
         try:

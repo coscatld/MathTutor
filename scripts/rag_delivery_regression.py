@@ -169,16 +169,22 @@ def knowledge(phase):
                            request_record_ids=list(range(before+1, provider.requests+1))))
         return result
     with tempfile.TemporaryDirectory(prefix="mathtutor-knowledge-live-") as folder:
+        import secrets
         reset_product_state()
         try:
             with patch("mathtutor.api.product_state._default_secret_store", return_value=store):
-                app = create_math_tutor_app(MathTutorSecuritySettings(environment="development", host="127.0.0.1"),
-                    auth_enabled=False, db_path=str(Path(folder) / "knowledge.db"))
+                settings = MathTutorSecuritySettings(
+                    environment="development", host="127.0.0.1",
+                    allowed_hosts=("testserver",), allowed_origins=(),
+                    bridge_secret=secrets.token_hex(32),
+                )
+                app = create_math_tutor_app(settings, auth_enabled=False, db_path=str(Path(folder) / "knowledge.db"))
             state = get_product_state()
             for role in ModelRole:
                 state.gateway.register_provider(role, provider)
             with patch.object(KnowledgeTools, "execute", execute), patch.object(KnowledgeTools, "seed_evidence", seed), \
-                 patch.object(tutor_runtime, "check_claim_support", check), TestClient(app) as client:
+                 patch.object(tutor_runtime, "check_claim_support", check), \
+                 TestClient(app, headers={"X-MathTutor-Bridge": settings.bridge_secret}) as client:
                 for case in cases:
                     cid = case["case_id"]
                     provider.case_id = cid

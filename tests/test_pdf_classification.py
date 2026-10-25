@@ -196,7 +196,7 @@ async def test_baseline_parser_identity_is_recorded(tmp_path):
     except ImportError:
         expected = "pypdf"
     assert doc.parser_id == expected
-    assert PARSER_VERSION == "mt-local-parser-v4"
+    assert PARSER_VERSION == "mt-local-parser-v5"
 
 
 async def test_pypdf_baseline_extracts_a_text_layer(tmp_path, monkeypatch):

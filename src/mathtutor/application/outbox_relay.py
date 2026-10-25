@@ -114,8 +114,9 @@ class LoggingDispatchSink:
     """Whitelisted-summary sink: logs event_type + aggregate keys only.
 
     ``payload`` is summarized through :data:`_PAYLOAD_SUMMARY_WHITELIST` —
-    unknown event types contribute ZERO payload keys. The full event is
-    retained only in the in-memory ``dispatched`` list (never logged).
+    unknown event types contribute ZERO payload keys. Only a dispatch count
+    is retained; event payloads are released after the call. Tests that need
+    event history must explicitly inject a recording sink.
 
     This is the offline-desktop loopback sink: local logging now, local
     event projection later. There is NO external broker anywhere in the
@@ -123,7 +124,7 @@ class LoggingDispatchSink:
     """
 
     def __init__(self) -> None:
-        self.dispatched: list[dict[str, Any]] = []
+        self.dispatched_count = 0
 
     def summarize(self, event: dict[str, Any]) -> dict[str, Any]:
         summary: dict[str, Any] = {}
@@ -148,7 +149,7 @@ class LoggingDispatchSink:
     async def dispatch(self, event: dict[str, Any]) -> None:
         summary = self.summarize(event)
         logger.info("outbox dispatch: %s", json.dumps(summary, ensure_ascii=False))
-        self.dispatched.append(dict(event))
+        self.dispatched_count += 1
 
 
 class OutboxRelayService:

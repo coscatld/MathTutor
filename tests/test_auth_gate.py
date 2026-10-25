@@ -66,6 +66,13 @@ class TestProductionAuthGate:
             auth_enabled=False,
         )
 
+    def test_local_desktop_requires_per_launch_bridge_credential(self) -> None:
+        with pytest.raises(SecurityConfigurationError, match="bridge credential"):
+            validate_math_tutor_security(
+                _settings(environment="production", local_desktop=True, bridge_secret=""),
+                auth_enabled=False,
+            )
+
     def test_packaged_local_desktop_auth_disabled_non_loopback_fails(self) -> None:
         with pytest.raises(SecurityConfigurationError):
             validate_math_tutor_security(

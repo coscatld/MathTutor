@@ -16,6 +16,10 @@ from pydantic import BaseModel, Field, field_validator
 Environment = Literal["development", "test", "production"]
 
 
+def _transport_values(name: str, default: str) -> tuple[str, ...]:
+    return tuple(value.strip() for value in os.environ.get(name, default).split(",") if value.strip())
+
+
 class MathTutorSecuritySettings(BaseModel):
     """Unified, testable security configuration for the MathTutor product app."""
 
@@ -34,6 +38,42 @@ class MathTutorSecuritySettings(BaseModel):
     execution_surfaces_enabled: bool = False
     # The TCP host the product app will bind (loopback gate input).
     host: str = "127.0.0.1"
+    # Exact authorities/origins, including the real port. Never trust forwarded
+    # headers or accept arbitrary loopback ports. Desktop overrides these on
+    # each launch; dev/native clients configure them explicitly.
+    allowed_hosts: tuple[str, ...] = Field(default_factory=lambda: _transport_values(
+        "MATHTUTOR_ALLOWED_HOSTS", "127.0.0.1:8001,localhost:8001"), validate_default=True)
+    allowed_origins: tuple[str, ...] = Field(default_factory=lambda: _transport_values(
+        "MATHTUTOR_ALLOWED_ORIGINS", "http://127.0.0.1:3000,http://localhost:3000"), validate_default=True)
+    bridge_secret: str = Field(default_factory=lambda: os.environ.get("MATHTUTOR_BRIDGE_SECRET", ""), repr=False, exclude=True)
+
+    @field_validator("allowed_origins")
+    @classmethod
+    def _exact_origins(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        from urllib.parse import urlsplit
+        for value in values:
+            parsed = urlsplit(value)
+            if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                    or parsed.username or parsed.password or parsed.path
+                    or parsed.query or parsed.fragment or value != f"{parsed.scheme}://{parsed.netloc}"):
+                raise ValueError("allowed_origins must contain exact HTTP(S) origins")
+            _ = parsed.port  # reject malformed authorities
+        return values
+
+    @field_validator("allowed_hosts")
+    @classmethod
+    def _exact_hosts(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        from urllib.parse import urlsplit
+        for value in values:
+            parsed = urlsplit("http://" + value)
+            if (not parsed.hostname or parsed.username or parsed.password or parsed.path
+                    or parsed.query or parsed.fragment or "*" in value
+                    or value != parsed.netloc or value != value.lower()):
+                raise ValueError("allowed_hosts must contain exact authorities")
+            _ = parsed.port
+        if not values:
+            raise ValueError("allowed_hosts must not be empty")
+        return values
 
     @field_validator("host", mode="after")
     @classmethod

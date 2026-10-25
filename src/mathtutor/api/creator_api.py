@@ -93,7 +93,8 @@ async def pick_workspace(owner: StudentOwnerScope = Depends(require_student_owne
     endpoint = urlunsplit((parsed.scheme, parsed.netloc, "/native-directory", "", ""))
     try:
         async with httpx.AsyncClient(timeout=55, trust_env=False) as client:
-            response = await client.post(endpoint, json={"student_id": owner.student_id})
+            response = await client.post(endpoint, json={"student_id": owner.student_id},
+                headers={"X-MathTutor-Bridge": os.environ.get("MATHTUTOR_BRIDGE_SECRET", "")}, follow_redirects=False)
         response.raise_for_status()
         payload = response.json()
         path = payload.get("path")

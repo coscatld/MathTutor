@@ -109,6 +109,12 @@ class DocumentRepository(Protocol):
         self, student_id: str, document_id: UUID, chunks: Sequence[DocumentChunk]
     ) -> None: ...
 
+    async def publish_parse_result(
+        self, student_id: str, doc: UserDocument, chunks: Sequence[DocumentChunk]
+    ) -> UserDocument | None:
+        """Atomically replace complete chunks, vectors and parse metadata."""
+        ...
+
     async def list_chunks(
         self, student_id: str, document_id: UUID
     ) -> list[DocumentChunk]: ...
@@ -282,6 +288,23 @@ class InMemoryDocumentRepository:
         return rows
 
     # ------------------------------------------------------------- chunks
+
+    async def publish_parse_result(
+        self, student_id: str, doc: UserDocument, chunks: Sequence[DocumentChunk]
+    ) -> UserDocument | None:
+        owner = student_uuid(student_id)
+        current = self._documents.get(doc.document_id)
+        if current is None or current.student_id != owner or current.deleted_at is not None:
+            return None
+        # Prepare every value before mutating any collection. No await occurs
+        # between writes, matching SQLite's all-or-nothing short transaction.
+        stored = [chunk.model_copy(update={"student_id": owner}) for chunk in chunks]
+        stored.sort(key=lambda chunk: chunk.sequence)
+        updated = doc.model_copy(update={"student_id": owner})
+        self._chunks[doc.document_id] = stored
+        self._documents[doc.document_id] = updated
+        self._vectors.pop(doc.document_id, None)
+        return updated
 
     async def replace_chunks(
         self, student_id: str, document_id: UUID, chunks: Sequence[DocumentChunk]

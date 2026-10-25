@@ -192,6 +192,7 @@ class LoopbackElectronPickTransport:
                 response = await client.post(
                     endpoint,
                     json={"student_id": student_id},
+                    headers={"X-MathTutor-Bridge": os.environ.get("MATHTUTOR_BRIDGE_SECRET", "")},
                     follow_redirects=False,
                 )
         except httpx.HTTPError as error:

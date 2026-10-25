@@ -223,6 +223,26 @@ class BackupService:
         """
         if backup_path is not None and backup_dir is not None:
             raise ValueError("backup_path 与 backup_dir 只能指定其一")
+        path = await self._run_owned(self._prepare_backup_path, backup_path, backup_dir)
+
+        integrity = await self._source_integrity_check()
+        if integrity != "ok":
+            raise BackupError(
+                f"源数据库完整性检查未通过（{integrity!r}），拒绝备份"
+            )
+
+        await self._run_owned(self._vacuum_into, path)
+        journal_mode = await self._journal_mode()
+        manifest = await self._run_owned(
+            self._finalize_backup, path, integrity, journal_mode
+        )
+        self.manifests.append(manifest)
+        return manifest
+
+    def _prepare_backup_path(
+        self, backup_path: Path | None, backup_dir: Path | None
+    ) -> Path:
+        """Resolve/check directories in an owned I/O worker."""
         if backup_dir is not None:
             directory = Path(backup_dir).resolve()
             directory.mkdir(parents=True, exist_ok=True)
@@ -232,27 +252,28 @@ class BackupService:
         else:
             path = self._unique_default_path(self._db_path().parent)
         path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
-        integrity = await self._source_integrity_check()
-        if integrity != "ok":
-            raise BackupError(
-                f"源数据库完整性检查未通过（{integrity!r}），拒绝备份"
-            )
+    @staticmethod
+    def _finalize_backup(
+        path: Path, integrity: str, journal_mode: str
+    ) -> BackupManifest:
+        """Stat, hash and publish the manifest in the same owned worker.
 
-        await self._run_owned(self._vacuum_into, path)
+        Cancelling the caller does not interrupt this atomic publication;
+        shutdown must join the worker before restore or engine disposal.
+        """
         if not path.is_file() or path.stat().st_size == 0:
             raise BackupError(f"备份文件未生成或为空: {path}")
-
         manifest = BackupManifest(
             backup_path=str(path),
             created_at=_now(),
             size_bytes=path.stat().st_size,
             sha256=_sha256(path),
             integrity=integrity,
-            source_journal_mode=await self._journal_mode(),
+            source_journal_mode=journal_mode,
         )
-        self._write_manifest_atomic(path, manifest)
-        self.manifests.append(manifest)
+        BackupService._write_manifest_atomic(path, manifest)
         return manifest
 
     async def _source_integrity_check(self) -> str:
@@ -437,6 +458,14 @@ class BackupService:
         if integrity != "ok":
             return False, f"integrity_check 未通过（{integrity!r}）"
         return True, "ok"
+
+    async def run_retention(self, backup_dir: Path | str, limit: int) -> list[Path]:
+        """Run retention under the same ownership/drain contract as backup.
+
+        Both manual requests and scheduled cycles use this entry point so
+        cancellation cannot leave untracked directory scans or deletions.
+        """
+        return await self._run_owned(BackupService.apply_retention, backup_dir, limit)
 
     @staticmethod
     def apply_retention(backup_dir: Path | str, limit: int) -> list[Path]:
@@ -788,8 +817,7 @@ class BackupScheduler:
             manifest = await self.service.create_backup(
                 backup_dir=self.policy.backup_dir
             )
-            await asyncio.to_thread(
-                BackupService.apply_retention,
+            await self.service.run_retention(
                 self.policy.backup_dir or _backup_dir_of(self.service),
                 self.policy.retention_limit,
             )

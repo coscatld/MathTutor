@@ -31,8 +31,13 @@ The parser version is part of the index-lifecycle signature.
 
 from __future__ import annotations
 
+import contextvars
 import math
 import re
+import shutil
+import tempfile
+import threading
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, Sequence
 
@@ -47,8 +52,69 @@ from mathtutor.domain.documents import (
     classify_pdf,
 )
 from mathtutor.infrastructure.parse_adapters import try_mineru_parse
+from mathtutor.infrastructure.document_workers import DocumentWorkControl, DocumentWorkerPool
 
-PARSER_VERSION = "mt-local-parser-v4"
+PARSER_VERSION = "mt-local-parser-v5"
+
+
+@dataclass(frozen=True)
+class DocumentParseLimits:
+    """Budgets for extracted output; not an operating-system memory sandbox."""
+
+    max_pages: int = 500
+    max_text_chars: int = 2_000_000
+    max_blocks: int = 20_000
+    max_assets: int = 256
+    max_asset_bytes: int = 32 * 1024 * 1024
+    timeout_seconds: float = 30.0
+
+    def __post_init__(self) -> None:
+        for name in ("max_pages", "max_text_chars", "max_blocks", "max_assets", "max_asset_bytes"):
+            if not isinstance(getattr(self, name), int) or getattr(self, name) < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        if not math.isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
+
+
+@dataclass
+class _ParseBudget:
+    limits: DocumentParseLimits
+    control: DocumentWorkControl
+    text_chars: int = 0
+    asset_count: int = 0
+    asset_bytes: int = 0
+
+    def check(self) -> None:
+        self.control.check()
+
+    def pages(self, count: int) -> None:
+        self.check()
+        if count > self.limits.max_pages:
+            raise DocumentParseError("PARSE_PAGE_LIMIT", "PDF 页数超过解析限制。")
+
+    def text(self, count: int) -> None:
+        self.check()
+        self.text_chars += count
+        if self.text_chars > self.limits.max_text_chars:
+            raise DocumentParseError("PARSE_TEXT_LIMIT", "文档提取文字超过解析限制。")
+
+    def blocks(self, count: int) -> None:
+        self.check()
+        if count > self.limits.max_blocks:
+            raise DocumentParseError("PARSE_BLOCK_LIMIT", "文档内容块数量超过解析限制。")
+
+    def asset(self, size: int) -> None:
+        self.check()
+        self.asset_count += 1
+        self.asset_bytes += size
+        if self.asset_count > self.limits.max_assets or self.asset_bytes > self.limits.max_asset_bytes:
+            raise DocumentParseError("PARSE_ASSET_LIMIT", "文档图片数量或总大小超过解析限制。")
+
+
+_ACTIVE_BUDGET: contextvars.ContextVar[_ParseBudget] = contextvars.ContextVar("document_parse_budget")
+# PyMuPDF's native runtime does not support concurrent multithreaded access.
+# Keep optional rich parsing serial even across separate parser instances.
+_PYMUPDF_LOCK = threading.Lock()
 
 # Empty-page fraction at or above this value sets parse_warning (mixed PDFs).
 EMPTY_PAGE_WARNING_RATIO = 0.3
@@ -108,7 +174,25 @@ class DocumentParser(Protocol):
 
 
 class LocalDocumentParser:
-    """PyMuPDF for digital PDFs; UTF-8 decode for text; optional MinerU."""
+    """Bounded, owned thread parsing with cooperative cancellation/deadlines.
+
+    Library calls can temporarily allocate more than the output budgets and
+    cannot be forcibly interrupted. Shutdown joins them before releasing files.
+    """
+
+    def __init__(
+        self,
+        *,
+        limits: DocumentParseLimits | None = None,
+        workers: DocumentWorkerPool | None = None,
+    ) -> None:
+        self.limits = limits or DocumentParseLimits()
+        self._workers = workers or DocumentWorkerPool()
+        self._owns_workers = workers is None
+
+    async def aclose(self) -> None:
+        if self._owns_workers:
+            await self._workers.aclose()
 
     def parser_version(self) -> str:
         return PARSER_VERSION
@@ -122,6 +206,59 @@ class LocalDocumentParser:
         path: str,
         asset_dir: str | None = None,
         asset_ref_prefix: str = "",
+    ) -> ParsedTextDocument:
+        # Never expose files from an incomplete/cancelled parse. Ingestion
+        # adds a second staging boundary around parse + chunk publication.
+        destination = Path(asset_dir) if asset_dir else None
+        stage = None
+        if destination is not None:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            stage = Path(tempfile.mkdtemp(prefix=".parse-", dir=destination.parent))
+        try:
+            parsed = await self._workers.run(
+                lambda control: self._parse_sync(
+                    path=path,
+                    asset_dir=str(stage) if stage is not None else None,
+                    asset_ref_prefix=asset_ref_prefix,
+                    control=control,
+                ),
+                timeout_seconds=self.limits.timeout_seconds,
+            )
+            if stage is not None and destination is not None:
+                # Existing assets belong to the previous successful result.
+                # Move them aside only once the entire new result is valid.
+                old = destination.with_name(destination.name + ".old-" + stage.name)
+                if destination.exists():
+                    destination.replace(old)
+                try:
+                    stage.replace(destination)
+                except BaseException:
+                    if old.exists():
+                        old.replace(destination)
+                    raise
+                finally:
+                    shutil.rmtree(old, ignore_errors=True)
+            return parsed
+        finally:
+            if stage is not None:
+                shutil.rmtree(stage, ignore_errors=True)
+
+    def _parse_sync(
+        self,
+        *,
+        path: str,
+        asset_dir: str | None,
+        asset_ref_prefix: str,
+        control: DocumentWorkControl,
+    ) -> ParsedTextDocument:
+        token = _ACTIVE_BUDGET.set(_ParseBudget(self.limits, control))
+        try:
+            return self._parse_file(path=path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix)
+        finally:
+            _ACTIVE_BUDGET.reset(token)
+
+    def _parse_file(
+        self, *, path: str, asset_dir: str | None, asset_ref_prefix: str
     ) -> ParsedTextDocument:
         file_path = Path(path)
         extension = file_path.suffix.lower()
@@ -140,6 +277,19 @@ class LocalDocumentParser:
                 markdown=extension in {".md", ".markdown"},
                 tex=extension == ".tex",
             )
+        _ACTIVE_BUDGET.get().blocks(len(blocks))
+        if asset_dir is not None:
+            # Validate optional adapter output as well as the baseline's writes.
+            limits = self.limits
+            count = size = 0
+            for asset in Path(asset_dir).rglob("*"):
+                _ACTIVE_BUDGET.get().check()
+                if not asset.is_file():
+                    continue
+                count += 1
+                size += asset.stat().st_size
+                if count > limits.max_assets or size > limits.max_asset_bytes:
+                    raise DocumentParseError("PARSE_ASSET_LIMIT", "文档图片数量或总大小超过解析限制。")
         return ParsedTextDocument(blocks=tuple(blocks), **stats)
 
     # ------------------------------------------------------------- PDF
@@ -171,6 +321,10 @@ class LocalDocumentParser:
             file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix
         )
         if recovered is not None and recovered.extractable_chars > 0:
+            budget = _ACTIVE_BUDGET.get()
+            budget.pages(recovered.total_pages)
+            budget.text(max(recovered.extractable_chars, sum(len(block.text) for block in recovered.blocks)))
+            budget.blocks(len(recovered.blocks))
             return list(recovered.blocks), {
                 "total_pages": recovered.total_pages,
                 "text_pages": recovered.text_pages,
@@ -199,9 +353,16 @@ class LocalDocumentParser:
         fitz = _pymupdf()
         if fitz is None:
             return self._parse_pdf_pypdf(file_path)
-        return self._parse_pdf_pymupdf(
-            fitz, file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix
-        )
+        budget = _ACTIVE_BUDGET.get()
+        while not _PYMUPDF_LOCK.acquire(timeout=0.05):
+            budget.check()
+        try:
+            budget.check()
+            return self._parse_pdf_pymupdf(
+                fitz, file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix
+            )
+        finally:
+            _PYMUPDF_LOCK.release()
 
     def _parse_pdf_pymupdf(
         self,
@@ -240,6 +401,8 @@ class LocalDocumentParser:
         blocks: list[ParsedBlock] = []
         pages: list[PdfPageProfile] = []
         total_pages = document.page_count
+        budget = _ACTIVE_BUDGET.get()
+        budget.pages(total_pages)
         text_pages = 0
         empty_pages = 0
         extractable_chars = 0
@@ -250,6 +413,7 @@ class LocalDocumentParser:
             dest.mkdir(parents=True, exist_ok=True)
 
         for page_number, page in enumerate(document, start=1):
+            budget.check()
             page_chars = 0
             table_rects = _table_rects(page)
             for table in _page_tables(page):
@@ -257,6 +421,7 @@ class LocalDocumentParser:
                 rendered = _render_table(table_text)
                 if not rendered:
                     continue
+                budget.text(len(rendered))
                 page_chars += len(rendered)
                 blocks.extend(
                     _sized_blocks(
@@ -267,6 +432,7 @@ class LocalDocumentParser:
                     )
                     for part in _split_oversize(rendered)
                 )
+                budget.blocks(len(blocks))
 
             page_dict = page.get_text("dict") or {}
             page_median = _page_median_size(page_dict)
@@ -279,6 +445,7 @@ class LocalDocumentParser:
                 text, _max_size, block_median = _block_text_and_size(raw_block)
                 if not text:
                     continue
+                budget.text(len(text))
                 page_chars += len(text)
                 kind, latex = _classify_text_block(
                     text, font_size=block_median, median=page_median
@@ -295,6 +462,7 @@ class LocalDocumentParser:
                     )
                     for part in _split_oversize(text)
                 )
+                budget.blocks(len(blocks))
 
             saved = _save_page_images(
                 document,
@@ -306,6 +474,7 @@ class LocalDocumentParser:
             image_count += len(saved)
             for figure in saved:
                 blocks.append(figure)
+            budget.blocks(len(blocks))
 
             if page_chars:
                 text_pages += 1
@@ -364,10 +533,14 @@ class LocalDocumentParser:
         text_pages = 0
         empty_pages = 0
         extractable_chars = 0
+        budget = _ACTIVE_BUDGET.get()
         try:
             total_pages = len(reader.pages)
+            budget.pages(total_pages)
             for page_number, page in enumerate(reader.pages, start=1):
+                budget.check()
                 text = (page.extract_text() or "").strip()
+                budget.text(len(text))
                 if not text:
                     empty_pages += 1
                     pages.append(PdfPageProfile(page_number=page_number))
@@ -385,6 +558,7 @@ class LocalDocumentParser:
                     _sized_blocks(type="paragraph", page=page_number, text=part)
                     for part in _split_oversize(text)
                 )
+                budget.blocks(len(blocks))
         except FileNotDecryptedError as error:
             raise DocumentParseError(
                 "ENCRYPTED_PDF",
@@ -410,11 +584,19 @@ class LocalDocumentParser:
     def _parse_text(
         self, file_path: Path, *, markdown: bool, tex: bool
     ) -> tuple[list[ParsedBlock], dict]:
-        raw = file_path.read_bytes()
+        budget = _ACTIVE_BUDGET.get()
+        # UTF-8 has at most four bytes per character. Bound even standalone
+        # parser use before decoding; ingestion separately bounds input bytes.
+        with file_path.open("rb") as stream:
+            raw = stream.read(budget.limits.max_text_chars * 4 + 1)
+        if len(raw) > budget.limits.max_text_chars * 4:
+            raise DocumentParseError("PARSE_TEXT_LIMIT", "文档提取文字超过解析限制。")
         text = raw.decode("utf-8", errors="replace")
+        budget.text(len(text))
         blocks: list[ParsedBlock] = []
         heading_path: list[str] = []
         for paragraph in _paragraphs(text):
+            budget.check()
             heading = None
             level = 1
             if markdown:
@@ -444,6 +626,7 @@ class LocalDocumentParser:
                         heading_path=tuple(heading_path),
                     )
                 )
+                budget.blocks(len(blocks))
                 continue
             kind: ParsedElementType = "paragraph"
             latex = None
@@ -462,6 +645,7 @@ class LocalDocumentParser:
                 )
                 for part in _split_oversize(paragraph)
             )
+            budget.blocks(len(blocks))
         extractable_chars = len(text.strip())
         return blocks, _parse_stats(
             total_pages=0,
@@ -705,6 +889,8 @@ def _save_page_images(
     except Exception:
         return []
     for index, image in enumerate(images):
+        budget = _ACTIVE_BUDGET.get()
+        budget.check()
         xref = image[0]
         try:
             extracted = document.extract_image(xref)
@@ -715,6 +901,7 @@ def _save_page_images(
         payload = extracted.get("image") or b""
         if width < _MIN_IMAGE_EDGE or height < _MIN_IMAGE_EDGE or not payload:
             continue
+        budget.asset(len(payload))
         ext = (extracted.get("ext") or "png").lstrip(".")
         name = f"page-{page_number}-img-{index}.{ext}"
         (dest / name).write_bytes(payload)
@@ -732,6 +919,7 @@ def _save_page_images(
 
 __all__ = [
     "DocumentParser",
+    "DocumentParseLimits",
     "EMPTY_PAGE_WARNING_RATIO",
     "LocalDocumentParser",
     "NO_TEXT_FILE_WARNING",

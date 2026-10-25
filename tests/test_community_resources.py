@@ -361,7 +361,8 @@ async def test_plugin_history_failure_reports_actual_installed_state_instead_of_
 
 
 @pytest.mark.parametrize("origin", ["https://evil.example", "null", "file:///"])
-def test_community_mutations_reject_foreign_null_and_file_origin_before_changes(tmp_path, origin):
+def test_community_mutations_reject_foreign_null_and_file_origin_before_changes(tmp_path, origin, monkeypatch):
+    monkeypatch.setenv("MATHTUTOR_ALLOWED_ORIGINS", "http://127.0.0.1:3199")
     prefix = "/api/v2/math-tutor/desktop/community"
     with client_at(tmp_path / "origin.db") as client:
         item = client.get(prefix + "/catalog?type=question-pack").json()["resources"][0]

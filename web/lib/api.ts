@@ -79,7 +79,9 @@ export async function apiFetch(
   init?: RequestInit & { skipAuthRedirect?: boolean },
 ): Promise<Response> {
   const { skipAuthRedirect, ...fetchInit } = init ?? {};
-  const res = await fetch(input, { credentials: "include", ...fetchInit });
+  const headers = new Headers(fetchInit.headers ?? (input instanceof Request ? input.headers : undefined));
+  headers.set("X-MathTutor-CSRF", "1");
+  const res = await fetch(input, { credentials: "include", ...fetchInit, headers });
 
   if (
     res.status === 401 &&

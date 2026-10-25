@@ -649,6 +649,9 @@ class ProductState:
         backup = getattr(self, "backup_service", None)
         if backup is not None:
             await stage("backup_workers", backup.shutdown)
+        documents = getattr(self, "documents", None)
+        if documents is not None:
+            await stage("document_workers", documents.aclose)
         worker_shutdown = getattr(self.verification_backend, "shutdown", None)
         if worker_shutdown is not None:
             trace(id(self), "owned_verifier",

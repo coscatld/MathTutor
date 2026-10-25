@@ -21,7 +21,11 @@ ContextAssembler projects retrieved chunk selections only.
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import hashlib
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Protocol, Sequence
 from uuid import UUID, uuid4
@@ -32,6 +36,7 @@ from mathtutor.domain.documents import (
     ALLOWED_DOCUMENT_MIME_TYPES,
     MAX_DOCUMENT_BYTES,
     DocumentChunk,
+    DocumentParseError,
     DocumentQueryResult,
     IndexBuildRecord,
     ParsedTextDocument,
@@ -51,6 +56,7 @@ from mathtutor.infrastructure.document_storage import (
     DocumentStorage,
     sanitize_filename,
 )
+from mathtutor.infrastructure.document_workers import DocumentWorkerPool, drain_document_work
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
 from mathtutor.infrastructure.lexical import tokenize_lexical
 from mathtutor.repositories.document_repository import (
@@ -66,6 +72,23 @@ class DocumentValidationError(ValueError):
 
 class DocumentBusyError(ValueError):
     """Reparse refused because the document is still importing/parsing."""
+
+
+def _owned_document_operation(method):
+    @functools.wraps(method)
+    async def owned(self, *args, **kwargs):
+        if self._closing:
+            raise DocumentBusyError("文档处理服务正在关闭。")
+        task = asyncio.current_task()
+        self._operations.add(task)
+        try:
+            return await method(self, *args, **kwargs)
+        finally:
+            self._operations.discard(task)
+            for key, owner in tuple(self._active_documents.items()):
+                if owner is task:
+                    self._active_documents.pop(key, None)
+    return owned
 
 
 def ingest_outcome_from_parse(
@@ -197,10 +220,32 @@ class DocumentIngestionService:
     ) -> None:
         self._repo = repository
         self._storage = storage
-        self._parser = parser if parser is not None else LocalDocumentParser()
+        self._workers = DocumentWorkerPool()
+        self._parser = parser if parser is not None else LocalDocumentParser(workers=self._workers)
         self._chunker = chunker if chunker is not None else TextChunker()
         self._index = index_manager
+        self._operations: set[asyncio.Task] = set()
+        self._active_documents: dict[tuple[UUID, UUID], asyncio.Task] = {}
+        self._closing = False
 
+    async def aclose(self) -> None:
+        """Stop admission and drain parsing/chunking before storage/DB closes."""
+        self._closing = True
+        current = asyncio.current_task()
+        operations = tuple(task for task in self._operations if task is not current)
+        for task in operations:
+            task.cancel()
+        for task in operations:
+            try:
+                await drain_document_work(task)
+            except (asyncio.CancelledError, Exception):
+                pass
+        close = getattr(self._parser, "aclose", None)
+        if close is not None:
+            await close()
+        await self._workers.aclose()
+
+    @_owned_document_operation
     async def ingest(self, student_id: str, picked: PickedFile) -> UserDocument:
         """Import ONE explicitly picked file. Idempotent per (owner, hash)."""
         validate_import(picked.filename, picked.mime_type, len(picked.data))
@@ -225,7 +270,20 @@ class DocumentIngestionService:
             status="importing",
             size_bytes=len(picked.data),
         )
-        doc = await self._repo.add_document(student_id, doc)
+        self._active_documents[(student_uuid(student_id), document_id)] = asyncio.current_task()
+        addition = asyncio.create_task(self._repo.add_document(student_id, doc))
+        try:
+            doc = await asyncio.shield(addition)
+        except asyncio.CancelledError:
+            try:
+                await drain_document_work(addition)
+            except Exception:
+                pass
+            await self._record_cancelled(student_id, doc, remove_if_missing=True)
+            raise
+        except Exception:
+            await self._storage.remove(storage_ref)
+            raise
 
         # Parse + chunk. A parse failure does NOT delete the import — the
         # document stays visible as failed (user can delete it). Empty
@@ -234,11 +292,10 @@ class DocumentIngestionService:
             await self._repo.update_document(
                 student_id, doc.model_copy(update={"status": "parsing"})
             )
-            parsed = await self._parse_stored(student_id, document_id, storage_ref)
-            chunks = self._build_chunks(student_id, document_id, parsed)
-            doc = await self._persist_parse_result(
-                student_id, doc, parsed, chunks, preserve_retrieval=False
-            )
+            doc = await self._parse_chunk_publish(student_id, doc, preserve_retrieval=False)
+        except asyncio.CancelledError:
+            await self._record_cancelled(student_id, doc)
+            raise
         except Exception as error:  # parse layer failure — mark, never crash the import
             failed = doc.model_copy(update=_failure_update(error))
             stored = await self._repo.update_document(student_id, failed)
@@ -250,25 +307,32 @@ class DocumentIngestionService:
         await self._maybe_build_index(student_id, document_id, doc)
         return doc
 
+    @_owned_document_operation
     async def reparse(self, student_id: str, document_id: UUID) -> UserDocument:
         """Re-run parse + chunk on stored bytes (same status machine as ingest)."""
+        key = (student_uuid(student_id), document_id)
+        # Claim synchronously, before the first repository await. Two callers
+        # must never both observe ready and overwrite this worker ownership.
+        if key in self._active_documents:
+            raise DocumentBusyError("文档正在处理中，请稍后再试。")
+        self._active_documents[key] = asyncio.current_task()
         doc = await self._repo.get_document(student_id, document_id)
         if doc is None:
             raise ValueError(f"document not found: {document_id}")
         if doc.status in {"importing", "parsing"}:
             raise DocumentBusyError("文档正在处理中，请稍后再试。")
 
-        doc = await self._repo.update_document(
-            student_id, doc.model_copy(update={"status": "parsing"})
-        )
-        if doc is None:
-            raise ValueError(f"document not found: {document_id}")
         try:
-            parsed = await self._parse_stored(student_id, document_id, doc.storage_ref)
-            chunks = self._build_chunks(student_id, document_id, parsed)
-            doc = await self._persist_parse_result(
-                student_id, doc, parsed, chunks, preserve_retrieval=True
+            parsing = await self._repo.update_document(
+                student_id, doc.model_copy(update={"status": "parsing"})
             )
+            if parsing is None:
+                raise ValueError(f"document not found: {document_id}")
+            doc = parsing
+            doc = await self._parse_chunk_publish(student_id, doc, preserve_retrieval=True)
+        except asyncio.CancelledError:
+            await self._record_cancelled(student_id, doc)
+            raise
         except Exception as error:
             doc = await self._repo.update_document(
                 student_id,
@@ -283,6 +347,82 @@ class DocumentIngestionService:
             raise ValueError(f"document not found: {document_id}")
         return doc
 
+    async def _record_cancelled(
+        self, student_id: str, doc: UserDocument, *, remove_if_missing: bool = False
+    ) -> None:
+        error = DocumentParseError("PARSE_CANCELLED", "文档处理已取消。")
+        async def record():
+            # Publication may already have completed while cancellation was
+            # being drained; keep its complete counters rather than restoring
+            # the stale pre-parse projection.
+            current = await self._repo.get_document(student_id, doc.document_id)
+            if current is not None:
+                await self._repo.update_document(
+                    student_id, current.model_copy(update=_failure_update(error))
+                )
+            elif remove_if_missing:
+                await self._storage.remove(doc.storage_ref)
+        task = asyncio.create_task(record())
+        await drain_document_work(task)
+
+    async def _parse_chunk_publish(
+        self, student_id: str, doc: UserDocument, *, preserve_retrieval: bool
+    ) -> UserDocument:
+        owner = student_uuid(student_id)
+        assets = self._storage.assets_dir(owner, doc.document_id)
+        assets.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=".ingest-", dir=assets.parent))
+        try:
+            parsed = await self._parse_stored(student_id, doc.document_id, doc.storage_ref, asset_dir=stage)
+
+            def build(control):
+                control.check()
+                chunks = self._build_chunks(student_id, doc.document_id, parsed)
+                control.check()
+                return chunks
+
+            limits = getattr(self._parser, "limits", None)
+            chunks = await self._workers.run(
+                build, timeout_seconds=getattr(limits, "timeout_seconds", 30.0)
+            )
+            # Cancellation before this point publishes neither assets nor
+            # chunks. Once publication begins, join its complete write before
+            # recording failure or allowing deletion/shutdown to release files.
+            publication = asyncio.create_task(self._persist_staged_result(
+                student_id, doc, parsed, chunks, preserve_retrieval=preserve_retrieval,
+                stage=stage, assets=assets,
+            ))
+            try:
+                return await asyncio.shield(publication)
+            except asyncio.CancelledError:
+                try:
+                    await drain_document_work(publication)
+                except Exception:
+                    pass
+                raise
+        finally:
+            shutil.rmtree(stage, ignore_errors=True)
+
+    async def _persist_staged_result(
+        self, student_id, doc, parsed, chunks, *, preserve_retrieval, stage: Path, assets: Path
+    ) -> UserDocument:
+        previous = assets.with_name(".previous-" + stage.name)
+        if assets.exists():
+            assets.replace(previous)
+        try:
+            stage.replace(assets)
+            result = await self._persist_parse_result(
+                student_id, doc, parsed, chunks, preserve_retrieval=preserve_retrieval
+            )
+        except BaseException:
+            shutil.rmtree(assets, ignore_errors=True)
+            if previous.exists():
+                previous.replace(assets)
+            raise
+        else:
+            shutil.rmtree(previous, ignore_errors=True)
+            return result
+
     async def _persist_parse_result(
         self,
         student_id: str,
@@ -292,7 +432,6 @@ class DocumentIngestionService:
         *,
         preserve_retrieval: bool,
     ) -> UserDocument:
-        await self._repo.replace_chunks(student_id, doc.document_id, chunks)
         outcome = ingest_outcome_from_parse(
             parsed, len(chunks), filename=doc.filename
         )
@@ -302,8 +441,8 @@ class DocumentIngestionService:
             and outcome["status"] in RETRIEVABLE_DOCUMENT_STATUSES
         ):
             outcome["retrieval_enabled"] = doc.retrieval_enabled
-        updated = await self._repo.update_document(
-            student_id, doc.model_copy(update=outcome)
+        updated = await self._repo.publish_parse_result(
+            student_id, doc.model_copy(update=outcome), chunks
         )
         if updated is None:
             raise ValueError(f"document not found: {doc.document_id}")
@@ -323,10 +462,10 @@ class DocumentIngestionService:
             pass  # degraded mode — no backend provisioned
 
     async def _parse_stored(
-        self, student_id: str, document_id: UUID, storage_ref: str
+        self, student_id: str, document_id: UUID, storage_ref: str, *, asset_dir: Path | None = None
     ) -> ParsedTextDocument:
         owner = student_uuid(student_id)
-        asset_dir = self._storage.assets_dir(owner, document_id)
+        asset_dir = asset_dir or self._storage.assets_dir(owner, document_id)
         prefix = self._storage.assets_ref_prefix(owner, document_id)
         return await self._parser.parse(
             path=str(self._storage.resolve(storage_ref)),
@@ -380,6 +519,13 @@ class DocumentIngestionService:
 
     async def delete(self, student_id: str, document_id: UUID) -> bool:
         """Soft delete + controlled-storage removal (immediate retention)."""
+        active = self._active_documents.get((student_uuid(student_id), document_id))
+        if active is not None and active is not asyncio.current_task():
+            active.cancel()
+            try:
+                await drain_document_work(active)
+            except (asyncio.CancelledError, Exception):
+                pass
         doc = await self._repo.get_document(student_id, document_id)
         if doc is None:
             return False

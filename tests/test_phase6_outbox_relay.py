@@ -22,6 +22,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import select
 
+from recording_dispatch_sink import RecordingSink
+
 from mathtutor.application.outbox_relay import (
     LoggingDispatchSink,
     OutboxRelayService,
@@ -33,6 +35,51 @@ from mathtutor.infrastructure.schema import (
 from mathtutor.repositories.uow import MathTutorUow, append_outbox_events
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_production_logging_sink_does_not_retain_event_payloads(monkeypatch):
+    """A long-lived production sink retains only its scalar counter."""
+    import gc
+    import weakref
+
+    from mathtutor.application import outbox_relay
+
+    # Test log capture is itself a recorder; bypass it for this volume probe.
+    monkeypatch.setattr(outbox_relay.logger, "info", lambda *args: None)
+    sink = LoggingDispatchSink()
+
+    class Payload(dict):
+        pass
+
+    payload = Payload(answer="private student answer", reasoning="private reasoning")
+    reference = weakref.ref(payload)
+    event = _event(payload=payload)
+    for _ in range(100_000):
+        await sink.dispatch(event)
+    del payload, event
+    gc.collect()
+
+    assert sink.dispatched_count == 100_000
+    assert vars(sink) == {"dispatched_count": 100_000}
+    assert reference() is None
+
+
+async def test_production_logging_sink_emits_only_whitelisted_summary(caplog):
+    import logging
+
+    sink = LoggingDispatchSink()
+    event = _event(payload={
+        "offer_id": "o-safe",
+        "answer": "secret-answer",
+        "reasoning": "secret-reasoning",
+        "attestation_hash": "secret-attestation",
+    })
+    with caplog.at_level(logging.INFO, logger="mathtutor.application.outbox_relay"):
+        await sink.dispatch(event)
+        await sink.dispatch(_event(event_type="unknown", payload={"offer_id": "unknown-secret"}))
+    assert "o-safe" in caplog.text
+    assert "secret" not in caplog.text
+    assert sink.dispatched_count == 2
 
 
 @pytest_asyncio.fixture()
@@ -122,7 +169,7 @@ async def test_dispatches_committed_rows_ledger_same_tx_outbox_untouched(db):
     await _insert_events(uow, events)
     before = await _outbox_rows(db)
 
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(uow, sink, sink_id="sink-1")
     result = await relay.process_batch(limit=10)
     assert result == {"pending": 2, "dispatched": 2, "failed": 0, "skipped": 0}
@@ -171,7 +218,7 @@ async def test_idempotent_replay_restart_resume_and_ledger_constraint(db):
             }
         ],
     )
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(uow, sink, sink_id="sink-a")
     await relay.process_batch()
     assert len(sink.dispatched) == 1
@@ -180,7 +227,7 @@ async def test_idempotent_replay_restart_resume_and_ledger_constraint(db):
     assert len(sink.dispatched) == 1
 
     # A NEW instance on the same db resumes from the ledger watermark.
-    sink2 = LoggingDispatchSink()
+    sink2 = RecordingSink()
     relay2 = OutboxRelayService(uow, sink2, sink_id="sink-b")
     result2 = await relay2.process_batch()
     assert result2 == {"pending": 0, "dispatched": 0, "failed": 0, "skipped": 0}
@@ -220,7 +267,7 @@ async def test_idempotent_replay_restart_resume_and_ledger_constraint(db):
             )
 
 
-class _FlakySink(LoggingDispatchSink):
+class _FlakySink(RecordingSink):
     """Fails the first ``fail_count`` dispatch calls, then behaves normally."""
 
     def __init__(self, fail_count: int) -> None:
@@ -307,14 +354,14 @@ async def test_failure_records_attempts_retries_and_does_not_block(db):
     assert (await relay.process_batch())["pending"] == 0
 
 
-class _AlwaysFailSink(LoggingDispatchSink):
+class _AlwaysFailSink(RecordingSink):
     """Poison sink: every dispatch raises."""
 
     async def dispatch(self, event: dict) -> None:
         raise RuntimeError("poison sink")
 
 
-class _PoisonSink(LoggingDispatchSink):
+class _PoisonSink(RecordingSink):
     """只对指定 aggregate_id 抛错（poison），其余正常投递。"""
 
     def __init__(self, poison_id: str) -> None:
@@ -436,6 +483,6 @@ async def test_invalid_now_provider_raises(db):
     """now_provider 契约是 ISO UTC 串；坏了要 fail-loud，绝不静默误判。"""
     uow = MathTutorUow(db)
     await _insert_events(uow, [_event(aggregate_id="n-1")])
-    relay = OutboxRelayService(uow, LoggingDispatchSink())
+    relay = OutboxRelayService(uow, RecordingSink())
     with pytest.raises(ValueError):
         await relay.process_batch(now_provider=lambda: "not-a-time")

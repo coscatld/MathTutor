@@ -173,9 +173,8 @@ async def save_note(sid: str, body: NoteInput, owner: StudentOwnerScope = Depend
 async def import_file(sid: str, file: UploadFile = File(...), owner: StudentOwnerScope = Depends(require_student_owner)):
     from mathtutor.application.desktop_files import PickedFile
     from mathtutor.domain.documents import MAX_DOCUMENT_BYTES
-    data = await file.read(MAX_DOCUMENT_BYTES + 1)
-    if len(data) > MAX_DOCUMENT_BYTES:
-        raise HTTPException(413, "文件超过导入大小限制。")
+    from mathtutor.api.upload_limits import read_upload_limited
+    data = await read_upload_limited(file, MAX_DOCUMENT_BYTES)
     async def action(state, oid):
         await state.knowledge.require_space(oid, sid, enabled=True)
         generation = await state.knowledge.generation(oid)

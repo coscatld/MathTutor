@@ -358,7 +358,8 @@ def test_direct_plugin_envelope_history_failure_reports_installed_plugin_without
 
 
 @pytest.mark.parametrize("wrapped", [False, True], ids=["bare-plugin", "shared-plugin"])
-def test_plugin_only_upload_installs_disabled_retries_and_is_owner_isolated(tmp_path, wrapped):
+def test_plugin_only_upload_installs_disabled_retries_and_is_owner_isolated(tmp_path, wrapped, monkeypatch):
+    monkeypatch.setenv("MATHTUTOR_ALLOWED_ORIGINS", "http://127.0.0.1:3199")
     with client_at(tmp_path / "plugin-only.db") as client:
         package = builtin_plugin_packages()[0]
         if wrapped:

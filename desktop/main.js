@@ -42,6 +42,19 @@ const {
   resolveWebRoot,
 } = require("./runtime/paths");
 const { claimSingleInstance, monitorService, waitForService } = require("./runtime/startup");
+const { validBridgeHeader, rendererHeaders, secretRedactor } = require("./runtime/transport-boundary");
+// Per-process capability: only main and the two controlled child servers see
+// it. Never use NEXT_PUBLIC_, preload globals, URLs, or logs for this value.
+const bridgeSecret = crypto.randomBytes(32).toString("hex");
+
+function transportEnvironment() {
+  return {
+    MATHTUTOR_BRIDGE_SECRET: bridgeSecret,
+    MATHTUTOR_ALLOWED_HOSTS: new URL(backendUrl).host,
+    MATHTUTOR_ALLOWED_ORIGINS: frontendUrl,
+    MATHTUTOR_BROWSER_DEV: "0",
+  };
+}
 
 const DESKTOP_DIR = __dirname;
 const IS_PACKAGED = Boolean(app && app.isPackaged);
@@ -80,6 +93,7 @@ let startupLogPath = "";
 let startupLogBytes = 0;
 
 function writeStartupLog(message) {
+  message = String(message).split(bridgeSecret).join("[redacted]");
   if (!startupLogPath || startupLogBytes >= 2 * 1024 * 1024) return;
   try {
     const line = `${new Date().toISOString()} ${message}`;
@@ -106,12 +120,13 @@ function initializeStartupLog(root) {
 // ---------------------------------------------------------------------------
 
 function log(...args) {
-  const message = `[desktop] ${args.join(" ")}\n`;
+  const message = `[desktop] ${args.join(" ")}\n`.split(bridgeSecret).join("[redacted]");
   process.stdout.write(message);
   writeStartupLog(message);
 }
 
 function fail(message) {
+  message = String(message).split(bridgeSecret).join("[redacted]");
   writeStartupLog(`FATAL: ${message}\n`);
   if (startupLogPath) message += `\n\n启动日志：${startupLogPath}`;
   process.stderr.write(`[desktop] FATAL: ${message}\n`);
@@ -216,6 +231,7 @@ function resolveDataLayout() {
 
 function backendEnvironment(dataLayout, extra = {}) {
   return {
+    ...transportEnvironment(),
     MATHTUTOR_DATA_ROOT: dataLayout.root,
     MATHTUTOR_DB_PATH: dataLayout.database,
     // Code plugins use the app's bundled Node runtime, never the user's PATH.
@@ -326,7 +342,9 @@ function startPickerServer(port) {
     // Only the Python bridge calls this loopback endpoint. Browser pages
     // cannot open native dialogs directly or grant directories by posting
     // a simple cross-origin form.
-    if (req.headers.origin || !String(req.headers["content-type"] || "").toLowerCase().startsWith("application/json")) {
+    if (req.headers.origin !== undefined || req.headers.host !== `${HOST}:${server.address().port}` ||
+        !validBridgeHeader(req.headers["x-mathtutor-bridge"], bridgeSecret) ||
+        !String(req.headers["content-type"] || "").toLowerCase().startsWith("application/json")) {
       res.writeHead(403, { "Content-Type": "application/json" }).end(
         JSON.stringify({ error: "native picker requires a local bridge request" }),
       );
@@ -430,6 +448,13 @@ const children = [];
 const serviceMonitors = new WeakMap();
 let startupServices = [];
 
+function forwardChildOutput(stream, output) {
+  if (!stream) return;
+  const redactor = secretRedactor(bridgeSecret, text => output.write(`[child] ${text}`));
+  stream.on("data", chunk => redactor.write(chunk));
+  stream.on("end", () => redactor.end());
+}
+
 function startChild(cmd, args, env, cwd) {
   const child = spawn(cmd, args, {
     env: { ...process.env, ...env },
@@ -437,10 +462,10 @@ function startChild(cmd, args, env, cwd) {
     stdio: isSmoke ? "inherit" : ["ignore", "pipe", "pipe"],
   });
   children.push(child);
-  serviceMonitors.set(child, monitorService(child, writeStartupLog));
+  serviceMonitors.set(child, monitorService(child, writeStartupLog, bridgeSecret));
   if (!isSmoke) {
-    child.stdout.on("data", (d) => process.stdout.write(`[child] ${String(d)}`));
-    child.stderr.on("data", (d) => process.stderr.write(`[child] ${String(d)}`));
+    forwardChildOutput(child.stdout, process.stdout);
+    forwardChildOutput(child.stderr, process.stderr);
   }
   child.on("exit", (code, signal) => {
     const idx = children.indexOf(child);
@@ -470,9 +495,9 @@ function startPackagedFrontend(server, env, cwd) {
     serviceName: "MathTutor Web Runtime",
   });
   children.push(child);
-  serviceMonitors.set(child, monitorService(child, writeStartupLog));
-  child.stdout?.on("data", (d) => process.stdout.write(`[child] ${String(d)}`));
-  child.stderr?.on("data", (d) => process.stderr.write(`[child] ${String(d)}`));
+  serviceMonitors.set(child, monitorService(child, writeStartupLog, bridgeSecret));
+  forwardChildOutput(child.stdout, process.stdout);
+  forwardChildOutput(child.stderr, process.stderr);
   child.on("exit", (code) => {
     const idx = children.indexOf(child);
     if (idx >= 0) children.splice(idx, 1);
@@ -495,7 +520,8 @@ function stopChildren() {
 }
 
 async function waitForHttp(url, timeoutMs, what) {
-  return waitForService(url, { timeoutMs, what, services: startupServices });
+  return waitForService(url, { timeoutMs, what, services: startupServices,
+    headers: { "X-MathTutor-Bridge": bridgeSecret } });
 }
 
 /** Prove the rendered page's browser JS/CSS is actually available. */
@@ -621,7 +647,9 @@ function containsAuthorityLeak(value) {
 }
 
 async function httpJson(url, init) {
-  const res = await fetch(url, init);
+  const headers = new Headers(init?.headers);
+  headers.set("X-MathTutor-Bridge", bridgeSecret);
+  const res = await fetch(url, { ...init, headers });
   const text = await res.text();
   let body = null;
   try {
@@ -752,6 +780,7 @@ function wsTurn(wsUrl, command, payload, sessionId, timeoutMs = 90000) {
           "Upgrade: websocket\r\n" +
           "Connection: Upgrade\r\n" +
           `Sec-WebSocket-Key: ${crypto.randomBytes(16).toString("base64")}\r\n` +
+          `X-MathTutor-Bridge: ${bridgeSecret}\r\n` +
           "Sec-WebSocket-Version: 13\r\n\r\n",
       );
     });
@@ -822,6 +851,7 @@ async function runSmokeFull() {
   const wsUrl = `ws://${HOST}:${backendPort}/api/v2/math-tutor/ws`;
 
   const backendEnv = {
+    ...transportEnvironment(),
     MATHTUTOR_DESKTOP: "1",
     MATHTUTOR_PLUGIN_NODE_EXECUTABLE: process.execPath,
     MATHTUTOR_ELECTRON_PICKER_URL: "",
@@ -848,6 +878,7 @@ async function runSmokeFull() {
     log(`smoke-full: frontend: ${f.cmd} ${f.args.join(" ")}`);
     return startChild(f.cmd, f.args, {
       ...f.env,
+      ...transportEnvironment(),
       MATHTUTOR_API_BASE_URL: backendUrl,
       ...authEnvironment("0"),
       // process.execPath may be the Electron binary; force the next CLI to
@@ -1273,6 +1304,7 @@ async function runSmokeProduction() {
   const frontend = frontendCommand(frontendPort);
   const frontendChild = startChild(frontend.cmd, frontend.args, {
     ...frontend.env,
+    ...transportEnvironment(),
     ...authEnv,
     MATHTUTOR_API_BASE_URL: backendUrl,
     ELECTRON_RUN_AS_NODE: "1",
@@ -1441,6 +1473,7 @@ app.whenReady().then(async () => {
   log(`frontend: ${frontend.cmd} ${frontend.args.join(" ")}`);
   const frontendEnv = {
     ...frontend.env,
+    ...transportEnvironment(),
     MATHTUTOR_API_BASE_URL: backendUrl,
     ...authEnvironment(authEnabled),
   };
@@ -1478,6 +1511,14 @@ app.whenReady().then(async () => {
     },
   });
   win.setMenuBarVisibility(false);
+  win.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    callback({ requestHeaders: rendererHeaders(details, win.webContents.id, frontendUrl, bridgeSecret) });
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (event, target) => {
+    try { if (new URL(target).origin === frontendUrl) return; } catch {}
+    event.preventDefault();
+  });
   await win.loadURL(frontendUrl);
   log("startup: ready");
 }).catch((error) => fail(error && error.message ? error.message : String(error)));

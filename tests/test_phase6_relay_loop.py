@@ -8,7 +8,7 @@ the resident loop, injected-clock backoff inside the loop, and loop
 survival over transient DB errors.
 
 Offline desktop semantics (spec 5.6): the sink is the local loopback
-LoggingDispatchSink — no external broker is assumed anywhere in these
+RecordingSink — no external broker is assumed anywhere in these
 tests and none is added by the implementation.
 """
 
@@ -23,8 +23,9 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import select
 
+from recording_dispatch_sink import RecordingSink
+
 from mathtutor.application.outbox_relay import (
-    LoggingDispatchSink,
     OutboxRelayService,
 )
 from mathtutor.infrastructure.schema import outbox_dispatch_ledger
@@ -114,7 +115,7 @@ async def _ledger_rows(uow: MathTutorUow) -> list:
 
 async def test_start_idempotent_loop_dispatches_committed_events(db):
     uow = MathTutorUow(db)
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(uow, sink, idle_seconds=0.02)
     relay.start()
     first_task = relay.task
@@ -138,7 +139,7 @@ async def test_start_idempotent_loop_dispatches_committed_events(db):
 async def test_uncommitted_events_never_delivered(db):
     """回滚事务里的 outbox 行根本不存在 → 常驻 relay 永远看不到。"""
     uow = MathTutorUow(db)
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(uow, sink, idle_seconds=0.02)
     relay.start()
     try:
@@ -161,7 +162,7 @@ async def test_uncommitted_events_never_delivered(db):
 async def test_wake_drains_quickly_with_long_idle(db):
     """wake() 是加速器：idle=30s 也立即排空（轮询只是兜底）。"""
     uow = MathTutorUow(db)
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(uow, sink, idle_seconds=30.0)
     relay.start()
     await _insert_events(uow, [_event("w-1")])
@@ -173,7 +174,7 @@ async def test_wake_drains_quickly_with_long_idle(db):
 async def test_idle_poll_picks_up_events_without_wake(db):
     """唤醒丢失也正确：最多 idle_seconds 后必然轮询。"""
     uow = MathTutorUow(db)
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(uow, sink, idle_seconds=0.05)
     relay.start()
     await _insert_events(uow, [_event("p-1")])  # 不调用 wake()
@@ -184,7 +185,7 @@ async def test_idle_poll_picks_up_events_without_wake(db):
 async def test_stop_graceful_drain_and_idempotent(db):
     """stop() 有界优雅关停：当前批次完成即退出；重复调用无害。"""
     uow = MathTutorUow(db)
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(uow, sink, idle_seconds=0.02)
     relay.start()
     await _insert_events(
@@ -257,7 +258,7 @@ async def test_crash_cancel_mid_dispatch_then_restart_no_duplicate_effect(db):
     assert gate.completed == []
 
     # 新实例同 DB 重启：恰好投递一次。
-    sink2 = LoggingDispatchSink()
+    sink2 = RecordingSink()
     relay2 = OutboxRelayService(uow, sink2, sink_id="sink-r")
     result = await relay2.process_batch()
     assert result["dispatched"] == 1
@@ -268,7 +269,7 @@ async def test_crash_cancel_mid_dispatch_then_restart_no_duplicate_effect(db):
 async def test_crash_cancel_while_idle_then_restart_continues(db):
     """空闲时崩溃 → 重启继续排空，事件不丢不重。"""
     uow = MathTutorUow(db)
-    sink1 = LoggingDispatchSink()
+    sink1 = RecordingSink()
     relay1 = OutboxRelayService(uow, sink1, idle_seconds=0.02)
     relay1.start()
     await asyncio.sleep(0.05)  # 进入空闲等待
@@ -280,7 +281,7 @@ async def test_crash_cancel_while_idle_then_restart_continues(db):
     assert sink1.dispatched == []
 
     await _insert_events(uow, [_event("after-crash")])
-    sink2 = LoggingDispatchSink()
+    sink2 = RecordingSink()
     relay2 = OutboxRelayService(uow, sink2, idle_seconds=0.02)
     relay2.start()
     await _wait_until(lambda: len(sink2.dispatched) == 1)
@@ -289,7 +290,7 @@ async def test_crash_cancel_while_idle_then_restart_continues(db):
     assert len(await _ledger_rows(uow)) == 1
 
 
-class _SelectiveFailSink(LoggingDispatchSink):
+class _SelectiveFailSink(RecordingSink):
     """只对指定 aggregate_id 抛错；计数所有调用。"""
 
     def __init__(self, poison_id: str) -> None:
@@ -331,7 +332,7 @@ async def test_loop_backoff_uses_injected_clock(db):
     """循环内重试同样受派生 backoff 门约束：时钟冻结时不重试，推进到
     窗口后（>= BASE 之后）才发生第二次投递。"""
 
-    class _FailOnceSink(LoggingDispatchSink):
+    class _FailOnceSink(RecordingSink):
         def __init__(self) -> None:
             super().__init__()
             self.calls = 0
@@ -382,7 +383,7 @@ async def test_loop_survives_transient_db_error(db):
             return self._uow.transaction()
 
     uow = MathTutorUow(db)
-    sink = LoggingDispatchSink()
+    sink = RecordingSink()
     relay = OutboxRelayService(_FlakyUow(uow), sink, idle_seconds=0.02)
     await _insert_events(uow, [_event("t-1")])
     relay.start()

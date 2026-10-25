@@ -69,6 +69,11 @@ def validate_math_tutor_security(
             "product has no routable capability"
         )
 
+    if settings.local_desktop and len(settings.bridge_secret) < 32:
+        raise SecurityConfigurationError(
+            "local desktop requires a per-launch bridge credential of at least 32 characters"
+        )
+
     if settings.in_production():
         local_desktop_without_auth = (
             settings.local_desktop

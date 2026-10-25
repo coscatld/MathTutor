@@ -82,6 +82,14 @@ DocumentClassification = Literal[
     "ENCRYPTED_PDF",           # password-protected; needs a key before parsing
     "CORRUPTED_PDF",           # structurally broken; the parser could not read it
     "TEXT_FILE",               # .txt / .md / .markdown / .tex — no page model
+    "PARSE_TIMEOUT",           # cooperative processing deadline was exceeded
+    "PARSE_CANCELLED",         # user cancellation or owned-service shutdown
+    "PARSE_BUSY",              # bounded worker admission queue was full
+    "PARSE_CLOSED",            # worker service no longer accepts parsing
+    "PARSE_PAGE_LIMIT",        # PDF page count exceeded the configured budget
+    "PARSE_TEXT_LIMIT",        # extracted characters exceeded the budget
+    "PARSE_BLOCK_LIMIT",       # extracted blocks exceeded the budget
+    "PARSE_ASSET_LIMIT",       # extracted image count/bytes exceeded the budget
 ]
 
 

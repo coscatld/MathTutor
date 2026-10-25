@@ -15,7 +15,7 @@
     "package:mac:release": "MATHTUTOR_PUBLIC_RELEASE=1 electron-builder --config electron-builder.config.cjs --mac dmg --arm64",
     "package:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1",
     "package:linux": "electron-builder --config electron-builder.config.cjs --linux AppImage --x64",
-    "test:contracts": "node --test tests/distribution.test.js tests/runtime-paths.test.js tests/startup.test.js tests/platform-release.test.js tests/package-surface.test.js tests/packaging-prerequisites.test.js tests/native-picker.test.js",
+    "test:contracts": "node --test tests/distribution.test.js tests/runtime-paths.test.js tests/startup.test.js tests/platform-release.test.js tests/package-surface.test.js tests/packaging-prerequisites.test.js tests/native-picker.test.js tests/transport-boundary.test.js",
     "test:package": "electron-builder --config electron-builder.config.cjs --dir"
   },
   "devDependencies": {

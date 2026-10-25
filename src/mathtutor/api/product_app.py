@@ -169,7 +169,12 @@ def create_math_tutor_app(
         # product app never mounts a general execution surface (§25).
     )
     app.state.math_tutor_auth = LocalAuthProvider(effective_auth, auth_data_root)
+    app.state.math_tutor_security = settings
     app.add_middleware(_MaintenanceGateMiddleware)
+    from mathtutor.api.upload_limits import UploadBodyLimitMiddleware
+    app.add_middleware(UploadBodyLimitMiddleware)
+    from mathtutor.api.local_boundary import LocalBoundaryMiddleware
+    app.add_middleware(LocalBoundaryMiddleware, settings=settings)
 
     @app.on_event("startup")
     async def _resolve_embedding_settings() -> None:

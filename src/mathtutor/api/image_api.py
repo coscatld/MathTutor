@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.product_state import get_product_state
+from mathtutor.api.upload_limits import read_upload_limited
 from mathtutor.infrastructure.generative_gateway import ModelRole
 from mathtutor.infrastructure.vision import supports_vision
 from mathtutor.repositories.image_repository import MAX_IMAGE_BYTES
@@ -19,7 +20,7 @@ async def capabilities(owner=Depends(require_student_owner)):
 @router.post("/images", status_code=201)
 async def upload(file: UploadFile = File(...), owner=Depends(require_student_owner)):
     try:
-        data = await file.read(MAX_IMAGE_BYTES + 1)
+        data = await read_upload_limited(file, MAX_IMAGE_BYTES)
         return await get_product_state().images.put(owner.student_id, data, file.content_type, file.filename)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None

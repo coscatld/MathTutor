@@ -246,6 +246,7 @@ async def route_a(plan, provider, directory, tmp):
 
 
 def route_b(plan, provider, store, config, directory, tmp):
+    import secrets
     from fastapi.testclient import TestClient
     from mathtutor.api.product_app import create_math_tutor_app
     from mathtutor.api.product_state import get_product_state, reset_product_state
@@ -257,12 +258,16 @@ def route_b(plan, provider, store, config, directory, tmp):
     rows = []
     try:
         with patch("mathtutor.api.product_state._default_secret_store", return_value=store):
-            app = create_math_tutor_app(MathTutorSecuritySettings(environment="development", host="127.0.0.1"),
-                                       auth_enabled=False, db_path=str(tmp / "isolated.db"))
+            settings = MathTutorSecuritySettings(
+                environment="development", host="127.0.0.1",
+                allowed_hosts=("testserver",), allowed_origins=(),
+                bridge_secret=secrets.token_hex(32),
+            )
+            app = create_math_tutor_app(settings, auth_enabled=False, db_path=str(tmp / "isolated.db"))
         state = get_product_state()
         for role in ModelRole:
             state.gateway.register_provider(role, provider)
-        with TestClient(app) as client:
+        with TestClient(app, headers={"X-MathTutor-Bridge": settings.bridge_secret}) as client:
             for case in plan["questions"]:
                 cid = case["case_id"].replace(":", "-")
                 provider.case_id = "B:" + case["case_id"]

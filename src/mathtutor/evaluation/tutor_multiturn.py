@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import secrets
 import tempfile
 import time
 from contextlib import contextmanager
@@ -75,10 +76,14 @@ def _client(db_path: Path, live: dict | None, prepare=None):
     from mathtutor.security.settings import MathTutorSecuritySettings
 
     reset_product_state()
-    app = create_math_tutor_app(MathTutorSecuritySettings(environment="development", host="127.0.0.1"),
-                                auth_enabled=False, db_path=str(db_path))
+    settings = MathTutorSecuritySettings(
+        environment="development", host="127.0.0.1",
+        allowed_hosts=("testserver",), allowed_origins=(),
+        bridge_secret=secrets.token_hex(32),
+    )
+    app = create_math_tutor_app(settings, auth_enabled=False, db_path=str(db_path))
     try:
-        with TestClient(app) as client:
+        with TestClient(app, headers={"X-MathTutor-Bridge": settings.bridge_secret}) as client:
             if live:
                 _register_live_model(get_product_state(), live)
             if prepare:

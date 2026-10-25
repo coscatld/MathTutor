@@ -189,6 +189,25 @@ class SQLiteDocumentRepository:
                 conn, student_id=student_id, document_id=document_id, chunks=chunks
             )
 
+    async def publish_parse_result(
+        self, student_id: str, doc: UserDocument, chunks: Sequence[DocumentChunk]
+    ) -> UserDocument | None:
+        async with self.uow.transaction() as conn:
+            current = await sd.select_user_document(
+                conn, student_id=student_id, document_id=doc.document_id
+            )
+            if current is None:
+                return None
+            await sd.replace_document_chunks(
+                conn, student_id=student_id, document_id=doc.document_id, chunks=chunks
+            )
+            updated = await sd.update_user_document(conn, student_id=student_id, doc=doc)
+            if updated is None:
+                # Also roll back chunks/FTS/vectors if a concurrent deletion
+                # won before the metadata write.
+                raise ValueError(f"document not found: {doc.document_id}")
+            return updated
+
     async def list_chunks(
         self, student_id: str, document_id: UUID
     ) -> list[DocumentChunk]:

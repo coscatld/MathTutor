@@ -15,7 +15,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from mathtutor.domain.documents import ParsedBlock, ParsedTextDocument
+from mathtutor.domain.documents import DocumentParseError, ParsedBlock, ParsedTextDocument
 
 
 def mineru_available() -> bool:
@@ -39,11 +39,13 @@ def mineru_available() -> bool:
 def try_mineru_parse(
     file_path: Path, *, asset_dir: str | None, asset_ref_prefix: str
 ) -> ParsedTextDocument | None:
-    """Best-effort local MinerU. Returns None on any miss/failure (fail closed)."""
+    """Best-effort MinerU; budget/cancellation failures remain classified."""
     if not mineru_available():
         return None
     try:
         return _run_mineru_cli(file_path, asset_dir=asset_dir, asset_ref_prefix=asset_ref_prefix)
+    except DocumentParseError:
+        raise
     except Exception:
         return None
 
@@ -58,22 +60,52 @@ def _run_mineru_cli(
     """
     import subprocess
     import tempfile
+    import time
+
+    # Loaded at invocation time to avoid the parser/adapter import cycle.
+    from mathtutor.infrastructure.document_parser import _ACTIVE_BUDGET
+
+    budget = _ACTIVE_BUDGET.get(None)
 
     if not shutil.which("mineru"):
         return None
     with tempfile.TemporaryDirectory(prefix="mathtutor-mineru-") as tmp:
-        result = subprocess.run(
+        process = subprocess.Popen(
             ["mineru", "-p", str(file_path), "-o", tmp],
-            capture_output=True,
-            timeout=90,
-            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-        if result.returncode != 0:
+        deadline = time.monotonic() + 90
+        try:
+            while process.poll() is None:
+                if budget is not None:
+                    budget.check()
+                if time.monotonic() >= deadline:
+                    return None
+                try:
+                    process.wait(timeout=0.05)
+                except subprocess.TimeoutExpired:
+                    pass
+        finally:
+            if process.poll() is None:
+                process.kill()
+            process.wait()
+        if process.returncode != 0:
             return None
-        markdown_files = sorted(Path(tmp).rglob("*.md"))
-        if not markdown_files:
+        markdown_file = None
+        for candidate in Path(tmp).rglob("*.md"):
+            if budget is not None:
+                budget.check()
+            if markdown_file is None or candidate < markdown_file:
+                markdown_file = candidate
+        if markdown_file is None:
             return None
-        text = markdown_files[0].read_text(encoding="utf-8", errors="replace").strip()
+        char_limit = budget.limits.max_text_chars if budget is not None else 2_000_000
+        with markdown_file.open("rb") as stream:
+            raw = stream.read(char_limit * 4 + 1)
+        text = raw.decode("utf-8", errors="replace").strip()
+        if len(raw) > char_limit * 4 or len(text) > char_limit:
+            raise DocumentParseError("PARSE_TEXT_LIMIT", "文档提取文字超过解析限制。")
         if not text:
             return None
         blocks = [
@@ -91,7 +123,9 @@ def _run_mineru_cli(
         if asset_dir:
             dest = Path(asset_dir)
             dest.mkdir(parents=True, exist_ok=True)
-            for index, image in enumerate(sorted(Path(tmp).rglob("*.png"))):
+            for index, image in enumerate(Path(tmp).rglob("*.png")):
+                if budget is not None:
+                    budget.asset(image.stat().st_size)
                 name = f"mineru-img-{index}{image.suffix.lower()}"
                 target = dest / name
                 target.write_bytes(image.read_bytes())

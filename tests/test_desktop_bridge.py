@@ -953,6 +953,32 @@ async def test_ollama_settings_require_no_key_and_offline_error_is_specific(monk
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("classification,expected", [
+    ("PARSE_PAGE_LIMIT", "页数超过"),
+    ("PARSE_TEXT_LIMIT", "文字量超过"),
+    ("PARSE_BLOCK_LIMIT", "内容数量超过"),
+    ("PARSE_ASSET_LIMIT", "图片数量或总大小超过"),
+    ("PARSE_TIMEOUT", "用时过长"),
+    ("PARSE_CANCELLED", "已取消"),
+    ("PARSE_BUSY", "任务较多"),
+    ("PARSE_CLOSED", "服务已关闭"),
+])
+def test_resource_parse_failure_has_actionable_public_message(classification, expected):
+    from uuid import uuid4
+    from mathtutor.domain.documents import UserDocument
+
+    document = UserDocument(
+        student_id=uuid4(), filename="notes.pdf", mime_type="application/pdf",
+        content_hash="0" * 64, storage_ref="private/notes.pdf", size_bytes=20,
+        status="failed", classification=classification,
+        parse_error="internal-parser-detail-and-private-path",
+    )
+    projection = desktop_api._project_document(document)
+    assert expected in projection["error"]
+    assert "private" not in str(projection)
+    assert "parse_error" not in projection
+
+
 def test_document_import_and_projection() -> None:
     reset_product_state()
     with _client() as client:

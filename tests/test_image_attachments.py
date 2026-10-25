@@ -152,7 +152,8 @@ def test_provider_failure_preserves_image_history(tmp_path):
 @pytest.mark.parametrize("mime,data", [("application/pdf", b"%PDF"), ("image/svg+xml", b"<svg/>"), ("image/png", b"<html>"), ("image/jpeg", PNG), ("image/png", PNG + b"a" * MAX_IMAGE_BYTES)], ids=["pdf", "svg", "fake-png", "mime-mismatch", "oversize"])
 def test_upload_validation(tmp_path, mime, data):
     with client_at(tmp_path / "db") as client:
-        assert client.post("/api/v2/math-tutor/images", files={"file": ("a", data, mime)}).status_code == 400
+        expected = 413 if len(data) > MAX_IMAGE_BYTES else 400
+        assert client.post("/api/v2/math-tutor/images", files={"file": ("a", data, mime)}).status_code == expected
 
 
 @pytest.mark.asyncio

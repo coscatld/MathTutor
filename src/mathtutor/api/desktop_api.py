@@ -962,7 +962,6 @@ async def create_backup_endpoint(
     retention limit. Failures return a friendly message — never internals."""
     from mathtutor.infrastructure.backup import (
         BackupError,
-        BackupService,
     )
 
     state = get_product_state()
@@ -971,7 +970,7 @@ async def create_backup_endpoint(
     try:
         manifest = await state.backup_service.create_backup(backup_dir=directory)
         try:
-            BackupService.apply_retention(
+            await state.backup_service.run_retention(
                 directory, state.backup_policy.retention_limit
             )
         except Exception:  # pragma: no cover - retention is best-effort
@@ -1400,7 +1399,19 @@ def _project_document(doc) -> dict:
             or "未提取到文字层，可能是扫描件。当前版本不支持 OCR，无法用于检索。"
         )
     elif doc.status == "failed":
-        if Path(doc.filename).suffix.lower() == ".pdf":
+        resource_errors = {
+            "PARSE_PAGE_LIMIT": "资料页数超过处理上限，请拆分后重试。",
+            "PARSE_TEXT_LIMIT": "资料文字量超过处理上限，请拆分后重试。",
+            "PARSE_BLOCK_LIMIT": "资料内容数量超过处理上限，请拆分后重试。",
+            "PARSE_ASSET_LIMIT": "资料图片数量或总大小超过处理上限，请拆分后重试。",
+            "PARSE_TIMEOUT": "资料处理用时过长，请拆分资料后重试。",
+            "PARSE_CANCELLED": "资料处理已取消，可以重新解析。",
+            "PARSE_BUSY": "资料处理任务较多，请稍后重新解析。",
+            "PARSE_CLOSED": "资料处理服务已关闭，请重新打开应用后重试。",
+        }
+        if getattr(doc, "classification", "") in resource_errors:
+            friendly_error = resource_errors[doc.classification]
+        elif Path(doc.filename).suffix.lower() == ".pdf":
             friendly_error = "无法解析此 PDF，请确认它是文本型 PDF（非扫描图片）。"
         else:
             friendly_error = "无法解析此文件，请确认内容是纯文本格式。"
@@ -1550,12 +1561,9 @@ async def import_document(
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
     """Import one explicitly uploaded file (browser fallback / Electron)."""
-    data = await file.read()
-    if len(data) > MAX_DOCUMENT_BYTES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"文件过大（最大 {MAX_DOCUMENT_BYTES} 字节）。",
-        )
+    from mathtutor.api.upload_limits import read_upload_limited
+
+    data = await read_upload_limited(file, MAX_DOCUMENT_BYTES)
     picked = PickedFile(
         filename=file.filename or "unnamed",
         mime_type=file.content_type or "",
