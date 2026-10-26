@@ -17,7 +17,8 @@ export function inspectProxyRequest(
   const matching = origins.find(value => {
     try { return new URL(value).host === host; } catch { return false; }
   });
-  if (!matching || (origin !== null && !origins.includes(origin))) return { allowed: false };
+  if (!matching || (origin !== null && !origins.includes(origin)) ||
+      ["cross-site", "same-site"].includes(headers.get("sec-fetch-site") ?? "")) return { allowed: false };
   const secret = env.MATHTUTOR_BRIDGE_SECRET ?? "";
   const supplied = headers.get("x-mathtutor-bridge") ?? "";
   const credential = Boolean(secret && supplied && Buffer.byteLength(secret) === Buffer.byteLength(supplied) &&
@@ -32,7 +33,7 @@ export function inspectProxyRequest(
   // Fetch Metadata plus our non-simple CSRF marker. Native clients instead
   // present the bridge header. These headers cannot be forged by a webpage.
   const accountWeb = /^(1|true|yes|on)$/i.test((env.MATHTUTOR_AUTH_ENABLED ?? env.AUTH_ENABLED ?? env.DEEPTUTOR_AUTH_ENABLED ?? "").trim());
-  const devBrowser = env.MATHTUTOR_BROWSER_DEV === "1" &&
+  const devBrowser = env.NODE_ENV !== "production" && env.MATHTUTOR_BROWSER_DEV === "1" &&
     ["development", "test"].includes(env.MATHTUTOR_ENVIRONMENT ?? "development");
   const mode = headers.get("sec-fetch-mode");
   const destination = headers.get("sec-fetch-dest");

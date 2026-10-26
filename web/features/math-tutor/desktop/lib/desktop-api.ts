@@ -9,6 +9,7 @@
  */
 
 import { apiFetch } from "@/lib/api";
+import { ApiError, responseError } from "@/lib/api-error";
 import type {
   BackupActionResult,
   BackupRecord,
@@ -41,7 +42,7 @@ export const DESKTOP_PREFIX = "/api/v2/math-tutor/desktop";
 
 export async function resumePractice(offerId: string): Promise<string> {
   const response = await apiFetch(`/api/v2/math-tutor/offers/${encodeURIComponent(offerId)}/resume`, {method:"POST"});
-  if (!response.ok) throw new DesktopApiError(await toFriendlyMessage(response, "暂时无法继续，请刷新列表。"));
+  if (!response.ok) throw await desktopError(response, "暂时无法继续，请刷新列表。");
   const result = await response.json() as {session_id: string};
   return result.session_id;
 }
@@ -64,21 +65,14 @@ export async function sendOfferFeedback(offerId: string, kind: "later" | "not_re
   const response = await apiFetch(`/api/v2/math-tutor/offers/${encodeURIComponent(offerId)}/feedback`, {
     method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({kind}),
   });
-  if (!response.ok) throw new DesktopApiError(await toFriendlyMessage(response, "暂时无法保存反馈，请重试。"));
+  if (!response.ok) throw await desktopError(response, "暂时无法保存反馈，请重试。");
 }
 
-export class DesktopApiError extends Error {}
+export class DesktopApiError extends ApiError {}
 
-/** Parse a backend error into a friendly message (detail or fallback). */
-async function toFriendlyMessage(res: Response, fallback: string): Promise<string> {
-  let detail = "";
-  try {
-    const body = (await res.json()) as { detail?: unknown };
-    detail = typeof body.detail === "string" ? body.detail : "";
-  } catch {
-    detail = "";
-  }
-  return detail || fallback;
+async function desktopError(res: Response, fallback: string): Promise<DesktopApiError> {
+  const error = await responseError(res, fallback);
+  return new DesktopApiError(error.message, error.status, error.code);
 }
 
 async function desktopFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -90,7 +84,7 @@ async function desktopFetch<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    throw new DesktopApiError(await toFriendlyMessage(res, "请求失败，请稍后再试。"));
+    throw await desktopError(res, "请求失败，请稍后再试。");
   }
   return (await res.json()) as T;
 }
@@ -352,7 +346,7 @@ export async function importDocumentFile(file: File, conversationId?: string): P
     body,
   });
   if (!res.ok) {
-    throw new DesktopApiError(await toFriendlyMessage(res, "导入失败，请稍后再试。"));
+    throw await desktopError(res, "导入失败，请稍后再试。");
   }
   return (await res.json()) as DesktopDocument;
 }
@@ -369,7 +363,7 @@ export async function nativePickAndImport(conversationId?: string): Promise<Desk
     body: JSON.stringify({}),
   });
   if (!res.ok) {
-    throw new DesktopApiError(await toFriendlyMessage(res, "无法打开文件选择器。"));
+    throw await desktopError(res, "无法打开文件选择器。");
   }
   const body = (await res.json()) as { status?: string; document?: DesktopDocument };
   if (body.status === "cancelled") return null;

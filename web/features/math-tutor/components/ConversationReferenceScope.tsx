@@ -3,7 +3,7 @@
 import { Check, ChevronRight, Library as LibraryIcon, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { knowledgeApi, mountConfiguration, type Library, type Mount, type ScopeDocument } from "../knowledge/api";
-import { BEFORE_TUTOR_NAVIGATION, requestTutorNavigation } from "../lib/navigation-guard";
+import { useUnsavedNavigation } from "../hooks/useUnsavedNavigation";
 
 const configurationKey = (value: Mount) => JSON.stringify(mountConfiguration(value));
 // Route changes keep only configuration IDs in this tab's memory; no document
@@ -99,25 +99,8 @@ export function useConversationReferenceScope(sessionId: string) {
     } else scopeDrafts.delete(sessionId);
   }, [sessionId, draftKey, savedKey, dirty, draft, saved]);
 
-  useEffect(() => {
-    if (!dirty && !saving && !unconfirmed) return;
-    const unload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    const guard = (event: Event) => {
-      if (!window.confirm(saving || unconfirmed ? "资料范围正在保存或等待确认，确认离开？" : "对话资料的参考范围尚未应用，确认暂时离开？草案会在本次使用中保留。")) event.preventDefault();
-    };
-    const navigate = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const target = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
-      if (!target || target.download || target.target === "_blank") return;
-      const next = new URL(target.href, window.location.href);
-      if (next.origin === window.location.origin && next.pathname === window.location.pathname && next.search === window.location.search) return;
-      if (!requestTutorNavigation()) { event.preventDefault(); event.stopPropagation(); }
-    };
-    window.addEventListener("beforeunload", unload);
-    window.addEventListener(BEFORE_TUTOR_NAVIGATION, guard);
-    document.addEventListener("click", navigate, true);
-    return () => { window.removeEventListener("beforeunload", unload); window.removeEventListener(BEFORE_TUTOR_NAVIGATION, guard); document.removeEventListener("click", navigate, true); };
-  }, [dirty, saving, unconfirmed]);
+  useUnsavedNavigation(saving || unconfirmed ? "资料范围正在保存或等待确认。"
+    : dirty ? "对话资料的参考范围尚未应用，草案会在本次使用中保留。" : "");
 
   const edit = (value: Mount) => {
     if (savingRef.current || unconfirmed || status !== "ready") return;

@@ -5,6 +5,7 @@ import BrandMark from "@/components/common/BrandMark";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fetchAuthStatus } from "@/lib/auth";
+import { ApiError } from "@/lib/api-error";
 import { fetchBootstrap, fetchSettings } from "../lib/desktop-api";
 import { decideStartupRoute, type StartupDecision } from "../lib/startup";
 
@@ -27,7 +28,7 @@ export default function StartupBoundary({ children, entry = false }: Props) {
     setDecision("waiting");
     setReason("");
     try {
-      const auth = await fetchAuthStatus();
+      const auth = await fetchAuthStatus({ throwHttpErrors: true });
       if (!auth) {
         setReason("本地 MathTutor 服务还没有准备好。");
         return;
@@ -43,8 +44,13 @@ export default function StartupBoundary({ children, entry = false }: Props) {
       const next = decideStartupRoute(auth, bootstrap, settings);
       setDecision(next);
       setReason(bootstrap.reason || "");
-    } catch {
-      setReason("本地 MathTutor 服务还没有准备好。");
+    } catch (error) {
+      if (error instanceof ApiError && error.status && error.status >= 400 && error.status < 500) {
+        setDecision("blocked");
+        setReason(error.status === 403
+          ? "访问被来源校验拒绝（403）。浏览器开发请在 web 目录运行 npm run dev，并使用 README 中的本机地址；桌面或服务器部署请检查来源与认证配置。"
+          : `启动请求被拒绝（${error.status}），请检查服务配置后重新检查。`);
+      } else setReason("本地 MathTutor 服务还没有准备好。");
     }
   }, []);
 

@@ -1,4 +1,5 @@
 import { apiFetch, apiUrl, setRuntimeAuthEnabled } from "@/lib/api";
+import { ApiError, responseError } from "@/lib/api-error";
 
 // Auth state is resolved at runtime from the standalone backend
 // (`/api/v2/auth/status`),
@@ -23,16 +24,17 @@ export interface AuthStatus {
  * Call the backend to check whether the current session is authenticated.
  * Returns null on network error so callers can decide how to handle it.
  */
-export async function fetchAuthStatus(): Promise<AuthStatus | null> {
+export async function fetchAuthStatus(options: { throwHttpErrors?: boolean } = {}): Promise<AuthStatus | null> {
   try {
     const res = await apiFetch(apiUrl("/api/v2/auth/status"));
-    if (!res.ok) return null;
+    if (!res.ok) throw await responseError(res, "无法读取登录状态。");
     const status: AuthStatus = await res.json();
     // Record the real auth state so apiFetch's in-session 401 → /login redirect
     // fires only when auth is actually enabled.
     setRuntimeAuthEnabled(Boolean(status.enabled));
     return status;
-  } catch {
+  } catch (error) {
+    if (options.throwHttpErrors && error instanceof ApiError) throw error;
     return null;
   }
 }

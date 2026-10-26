@@ -5,9 +5,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import { apiFetch } from "@/lib/api";
 import { makeSessionId } from "../lib/protocol";
-import { BEFORE_TUTOR_NAVIGATION, requestTutorNavigation } from "../lib/navigation-guard";
+import { requestTutorNavigation } from "../lib/navigation-guard";
 import { knowledgeApi as api, root, mountConfiguration, knowledgeSection, type KnowledgeSection, type Library, type Source, type Mount, type Draft } from "./api";
 
+import { useUnsavedNavigation } from "../hooks/useUnsavedNavigation";
 import VaultFileList, { vaultPath, type VaultNote } from "./VaultFileList";
 import TeachingSkills from "./TeachingSkills";
 import ReferenceJourney from "./ReferenceJourney";
@@ -75,23 +76,7 @@ export default function KnowledgeWorkbench() {
     }).catch(e => { if (live) setError(e.message); });
     return () => { live = false; };
   }, [search, citation]);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
-    const guard = (event: Event) => { if (!window.confirm("笔记有未保存修改，确认离开？")) event.preventDefault(); };
-    const navigate = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const target = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
-      if (!target || target.download || target.target === "_blank") return;
-      const next = new URL(target.href, window.location.href);
-      if (next.origin === window.location.origin && next.pathname === window.location.pathname && next.search === window.location.search) return;
-      if (!requestTutorNavigation()) { event.preventDefault(); event.stopPropagation(); }
-    };
-    window.addEventListener("beforeunload", warn);
-    window.addEventListener(BEFORE_TUTOR_NAVIGATION, guard);
-    document.addEventListener("click", navigate, true);
-    return () => { window.removeEventListener("beforeunload", warn); window.removeEventListener(BEFORE_TUTOR_NAVIGATION, guard); document.removeEventListener("click", navigate, true); };
-  }, [dirty]);
+  useUnsavedNavigation(dirty ? "笔记有未保存修改，离开将放弃这些修改。" : "");
   const mayDiscard = () => !dirty || window.confirm("笔记有未保存修改，确认放弃这些修改？");
   const openNote = async (did: string, selectedPath?: string) => {
     if (!mayDiscard()) return;

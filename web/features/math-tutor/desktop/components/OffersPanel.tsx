@@ -1,7 +1,7 @@
 "use client";
 
 import {BookOpen, RefreshCw} from "lucide-react";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {fetchOffers, sendOfferFeedback} from "../lib/desktop-api";
 import type {PracticeOffer} from "../types";
 import {useOfferAccept} from "../hooks/useOfferAccept";
@@ -23,25 +23,29 @@ export default function OffersPanel({fetchOffersFn = fetchOffers}: {fetchOffersF
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const {error: acceptError, accept} = useOfferAccept();
+  const {state: acceptState, error: acceptError, accept} = useOfferAccept();
   const refresh = useCallback(async () => {
     setLoading(true); setError("");
     try {setOffers(await fetchOffersFn());} catch {setError("推荐暂时无法加载，请重试。");}
     finally {setLoading(false);}
   }, [fetchOffersFn]);
   useEffect(() => {void refresh();}, [refresh]);
+  const operation = useRef(false);
+  const pending = acceptState === "connecting" || acceptState === "accepting";
   const start = async (offer: PracticeOffer) => {
-    setBusy(offer.offer_id);
-    try {await accept(offer);} finally {setBusy(null);}
+    if (operation.current) return;
+    operation.current = true; setBusy(offer.offer_id);
+    try {await accept(offer);} finally {operation.current = false; setBusy(null);}
   };
   const feedback = async (offer: PracticeOffer, kind: "later" | "not_relevant") => {
-    setBusy(offer.offer_id); setError("");
+    if (operation.current) return;
+    operation.current = true; setBusy(offer.offer_id); setError("");
     try {await sendOfferFeedback(offer.offer_id, kind); await refresh();}
-    catch {setError("反馈暂时无法保存，请重试。");} finally {setBusy(null);}
+    catch {setError("反馈暂时无法保存，请重试。");} finally {operation.current = false; setBusy(null);}
   };
   const groups = groupOffers(offers);
   const card = (offer: PracticeOffer) => <PracticeOfferCard key={offer.offer_id} offer={offer}
-    accepting={busy === offer.offer_id} disabled={busy !== null}
+    accepting={busy === offer.offer_id} disabled={busy !== null || pending}
     onStart={() => void start(offer)} onFeedback={kind => void feedback(offer, kind)} />;
   return <div className="mt-page">
     <header className="flex items-start justify-between gap-4"><div><p className="mt-eyebrow">让每次练习都有来由</p><h1 className="mt-2">推荐练习</h1><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">继续已经开始的题目，再决定下一步。稍后再做不会影响学习判断。</p></div><button aria-label="刷新推荐练习" disabled={loading} onClick={() => void refresh()} className="mt-btn mt-btn-icon shrink-0"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden="true" /></button></header>

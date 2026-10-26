@@ -14,6 +14,7 @@ import {
   fetchDocumentDestinations,
 } from "../lib/desktop-api";
 import type { DesktopDocument, EmbeddingSettings } from "../types";
+import { documentResult, documentScopeLabel } from "../lib/document-result";
 import DocumentRow from "./DocumentRow";
 import DocumentGroups from "./DocumentGroups";
 import EmbeddingStatusBadge from "./EmbeddingStatusBadge";
@@ -29,11 +30,13 @@ export default function DocumentsPanel({
   fetchEmbeddingSettingsFn = fetchEmbeddingSettings,
   nativePickAndImportFn = nativePickAndImport,
   importDocumentFileFn = importDocumentFile,
+  setDocumentGlobalFn = setDocumentGlobal,
 }: {
   fetchDocumentsFn?: typeof fetchDocuments;
   fetchEmbeddingSettingsFn?: typeof fetchEmbeddingSettings;
   nativePickAndImportFn?: typeof nativePickAndImport;
   importDocumentFileFn?: typeof importDocumentFile;
+  setDocumentGlobalFn?: typeof setDocumentGlobal;
 }) {
   const [destinations, setDestinations] = useState<Array<{conversation_id: string; title: string}>>([]);
   const [destination, setDestination] = useState("");
@@ -43,10 +46,14 @@ export default function DocumentsPanel({
   const [picking, setPicking] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [scopeFailures, setScopeFailures] = useState<DesktopDocument[]>([]);
+  const importing = useRef(false);
+  const retrying = useRef(false);
+  const fallbackDestination = useRef("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (retained?: DesktopDocument) => {
     setLoading(true);
     try {
       const [nextDocuments, nextEmbedding, nextDestinations] = await Promise.all([
@@ -54,14 +61,15 @@ export default function DocumentsPanel({
         fetchEmbeddingSettingsFn().catch(() => null),
         fetchDocumentDestinations().catch(() => []),
       ]);
-      setDocuments(nextDocuments);
+      setDocuments(retained && !nextDocuments.some(doc => doc.document_id === retained.document_id) ? [retained, ...nextDocuments] : nextDocuments);
+      setScopeFailures(list => list.filter(doc => !nextDocuments.some(row => row.document_id === doc.document_id && row.is_global)));
       setDestinations(nextDestinations);
       setEmbeddingSettings(nextEmbedding);
-      setMessage(null);
+
     } catch (err) {
       setMessage({
         kind: "error",
-        text: err instanceof DesktopApiError ? err.message : "读取资料列表失败，请稍后再试。",
+        text: retained ? "资料已保存，但列表刷新失败。已保留刚导入的资料，请稍后刷新。" : err instanceof DesktopApiError ? err.message : "读取资料列表失败，请稍后再试。",
       });
     } finally {
       setLoading(false);
@@ -72,44 +80,62 @@ export default function DocumentsPanel({
     refresh().catch(() => undefined);
   }, [refresh]);
 
-  const handleNativePick = async () => {
-    setPicking(true);
-    setMessage(null);
-    try {
-      const doc = await nativePickAndImportFn(destination && destination !== "global" ? destination : undefined);
-      if (doc && destination === "global") await setDocumentGlobal(doc.document_id, true);
-      if (doc) {
-        toast({ title: "资料已导入", description: `《${doc.filename}》已经可以管理与检索。` });
-        await refresh();
-      }
-    } catch (err) {
-      // Shell absent → fall back to the browser file input.
-      setMessage({
-        kind: "error",
-        text: err instanceof DesktopApiError ? err.message : "无法打开文件选择器。",
-      });
-      fileInputRef.current?.click();
-    } finally {
-      setPicking(false);
-    }
+  const upsert = (doc: DesktopDocument) => setDocuments(list => [doc, ...list.filter(row => row.document_id !== doc.document_id)]);
+  const locate = (doc: DesktopDocument) => {
+    const row = document.getElementById(`document-${doc.document_id}`);
+    row?.scrollIntoView({ block: "center", behavior: "instant" }); row?.focus({ preventScroll: true });
   };
-
-  const handleFileChosen = async (file: File | null) => {
-    if (!file) return;
-    setPicking(true);
-    setMessage(null);
+  const notifySaved = (doc: DesktopDocument) => toast({ ...documentResult(doc), action: { label: "查看资料", onClick: () => locate(doc) } });
+  const finishImport = async (saved: DesktopDocument, target: string) => {
+    let doc = saved;
+    upsert(doc);
+    if (target === "global" && !doc.is_global) {
+      try { doc = await setDocumentGlobalFn(doc.document_id, true); upsert(doc); }
+      catch { setScopeFailures(list => [...list.filter(row => row.document_id !== doc.document_id), doc]); }
+    }
+    notifySaved(doc);
+    await refresh(doc);
+  };
+  const retryScope = async (doc: DesktopDocument) => {
+    if (retrying.current) return;
+    retrying.current = true; setBusyId(doc.document_id); setMessage(null);
     try {
-      const doc = await importDocumentFileFn(file, destination && destination !== "global" ? destination : undefined);
-      if (destination === "global") await setDocumentGlobal(doc.document_id, true);
-      toast({ title: "资料已导入", description: `《${doc.filename}》已经可以管理与检索。` });
-      await refresh();
+      const updated = await setDocumentGlobalFn(doc.document_id, true);
+      upsert(updated);
+      setScopeFailures(list => list.filter(row => row.document_id !== doc.document_id));
+      notifySaved(updated);
+    } catch { setMessage({ kind: "error", text: "归属设置仍未完成，文件已保留，可再次重试。" }); }
+    finally { retrying.current = false; setBusyId(null); }
+  };
+  const handleNativePick = async () => {
+    if (importing.current) return;
+    importing.current = true; setPicking(true); setMessage(null);
+    const target = destination;
+    let doc: DesktopDocument | null = null;
+    try {
+      try { doc = await nativePickAndImportFn(target && target !== "global" ? target : undefined); }
+      catch (err) {
+        if (err instanceof DesktopApiError && err.status === 501) {
+          fallbackDestination.current = target; fileInputRef.current?.click(); return;
+        }
+        throw err;
+      }
+      if (doc) await finishImport(doc, target);
     } catch (err) {
-      setMessage({
-        kind: "error",
-        text: err instanceof DesktopApiError ? err.message : "导入失败，请稍后再试。",
-      });
+      setMessage({ kind: "error", text: err instanceof DesktopApiError ? err.message : "文件选择或导入未完成，请重试。" });
+    } finally { importing.current = false; setPicking(false); }
+  };
+  const handleFileChosen = async (file: File | null) => {
+    if (!file || importing.current) return;
+    importing.current = true; setPicking(true); setMessage(null);
+    const target = fallbackDestination.current;
+    try {
+      const doc = await importDocumentFileFn(file, target && target !== "global" ? target : undefined);
+      await finishImport(doc, target);
+    } catch (err) {
+      setMessage({ kind: "error", text: err instanceof DesktopApiError ? err.message : "导入失败，请稍后再试。" });
     } finally {
-      setPicking(false);
+      importing.current = false; setPicking(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -133,6 +159,7 @@ export default function DocumentsPanel({
     setBusyId(doc.document_id);
     try {
       await deleteDocument(doc.document_id);
+      setScopeFailures(list => list.filter(row => row.document_id !== doc.document_id));
       setDocuments((list) => list.filter((d) => d.document_id !== doc.document_id));
       toast({ title: "资料已删除", description: `《${doc.filename}》不会再被检索或召回。` });
     } catch (err) {
@@ -146,6 +173,7 @@ export default function DocumentsPanel({
   };
 
   const handleUpdated = (doc: DesktopDocument) => {
+    if (doc.is_global) setScopeFailures(list => list.filter(row => row.document_id !== doc.document_id));
     setDocuments((list) => list.map((d) => (d.document_id === doc.document_id ? { ...d, ...doc } : d)));
   };
 
@@ -161,7 +189,7 @@ export default function DocumentsPanel({
           {embeddingSettings ? <span className="mt-2 block"><EmbeddingStatusBadge settings={embeddingSettings} /></span> : null}
         </div>
         <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">新资料保存到
-          <select aria-label="新资料保存到" value={destination} onChange={e => setDestination(e.target.value)} className="min-h-[44px] max-w-[240px] rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
+          <select disabled={picking || loading} aria-label="新资料保存到" value={destination} onChange={e => setDestination(e.target.value)} className="min-h-[44px] max-w-[240px] rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
             <option value="">未归类（不跨对话检索）</option><option value="global">总资料（所有对话）</option>
             {Array.from(new Map([...destinations.map(d => [d.conversation_id, d.title] as const), ...documents.flatMap(d => (d.conversation_ids || []).map(id => [id, d.conversation_titles?.[id] || "未命名对话"] as const))])).map(([id,title]) => <option key={id} value={id}>{title}</option>)}
           </select>
@@ -169,7 +197,7 @@ export default function DocumentsPanel({
         <button
           type="button"
           onClick={handleNativePick}
-          disabled={picking}
+          disabled={picking || loading}
           className="mt-btn mt-btn-primary"
         >
           {picking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FilePlus2 className="h-4 w-4" aria-hidden="true" />}
@@ -200,7 +228,16 @@ export default function DocumentsPanel({
         </p>
       )}
 
-      {loading ? (
+      {scopeFailures.map(doc => <section key={doc.document_id} role="status" className="mt-note mt-note-warning p-4">
+        <p>《{doc.filename}》文件已导入，尚未确认设为总资料。最近确认的范围：{documentScopeLabel(doc)}。</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" className="mt-btn" disabled={busyId !== null} onClick={() => void retryScope(doc)}>重试设为总资料</button>
+          <button type="button" className="mt-btn" disabled={busyId !== null} onClick={() => setScopeFailures(list => list.filter(row => row.document_id !== doc.document_id))}>暂不重试</button>
+          <button type="button" className="mt-btn" onClick={() => locate(doc)}>查看已导入资料</button>
+        </div>
+      </section>)}
+
+      {loading && !documents.length ? (
         <p className="flex items-center gap-2 py-10 text-sm text-[var(--muted-foreground)]">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           正在加载资料…

@@ -4,6 +4,7 @@ import { Check, FileText, Loader2, Pencil, RefreshCw, Trash2, TriangleAlert, X }
 import { useState } from "react";
 import { formatBytes, formatDateTime, renameDocument, reparseDocument, setDocumentGlobal } from "../lib/desktop-api";
 import { documentStatusLabel } from "../lib/labels";
+import { documentResult, documentScopeLabel } from "../lib/document-result";
 import type { DesktopDocument } from "../types";
 
 const STATUS_DOT: Record<string, string> = {
@@ -53,7 +54,7 @@ export default function DocumentRow({
   };
 
   return (
-    <li className="mt-card flex flex-col gap-3 p-4">
+    <li id={`document-${document.document_id}`} tabIndex={-1} className="mt-card flex flex-col gap-3 p-4">
       {scopeError ? <p role="alert" className="text-sm text-[var(--destructive)]">{scopeError}</p> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
@@ -71,7 +72,7 @@ export default function DocumentRow({
               <span>{document.chunk_count} 个分块</span>
               <span>{formatBytes(document.size_bytes)}</span>
               <span>{formatDateTime(document.created_at)}</span>
-              {document.is_global ? <span>所有对话可检索</span> : document.conversation_ids?.length ? <span>关联 {document.conversation_ids.length} 个对话</span> : <span>未关联对话</span>}
+              <span>{documentScopeLabel(document)}</span>
             </p>
           </div>
         </div>
@@ -106,6 +107,8 @@ export default function DocumentRow({
           </button>
         </div>
       </div>
+
+      <p className="text-sm text-[var(--muted-foreground)]">{documentResult(document).description}</p>
 
       {document.error && (
         <p className="mt-note mt-note-danger flex items-start gap-2 px-3 py-2 text-sm">

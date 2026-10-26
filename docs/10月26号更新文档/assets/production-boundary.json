@@ -1,0 +1,12 @@
+{
+  "browser": "Chromium",
+  "server": "Next production",
+  "env": {
+    "NODE_ENV": "production",
+    "MATHTUTOR_BROWSER_DEV": "1",
+    "MATHTUTOR_ENVIRONMENT": "development"
+  },
+  "authStatus": 403,
+  "automaticRetriesAfterRejection": 0,
+  "source": "frontend proxy rejection"
+}
