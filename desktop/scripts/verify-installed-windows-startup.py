@@ -55,11 +55,44 @@ def probe(python, data, code):
     return json.loads(result.stdout.decode('utf-8'))
 
 
-def local_api(base, path, *, method='GET', payload=None, file=None, operation_id=None, expected_status=200):
+def loopback_origin(value):
+    match = re.fullmatch(r'http://127\.0\.0\.1:([0-9]{1,5})', value)
+    assert match and 0 < int(match[1]) <= 65535, 'exact loopback origin required'
+    return value
+
+
+def frontend_origin(startup_text, backend):
+    """Read Next's Local URL even when log timestamps split a pipe chunk."""
+    loopback_origin(backend)
+    text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', startup_text)
+    text = re.sub(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z[ \t]*', '', text)
+    text = re.sub(r'\[child\][ \t]*', '', text)
+    matches = re.findall(r'^\s*-\s*Local:\s*(\S+)', text, re.MULTILINE)
+    assert matches, 'frontend Local URL missing from startup log'
+    origins = {loopback_origin(value) for value in matches}
+    assert len(origins) == 1, 'ambiguous frontend Local URLs'
+    origin, = origins
+    assert origin != backend, 'frontend Local URL must differ from backend'
+    return origin
+
+
+def local_read(base, path, *, origin):
+    """Native acceptance requests use the GUI's allowed origin, without its secret."""
+    loopback_origin(base)
+    loopback_origin(origin)
+    assert path in ('/api/v2/math-tutor/desktop/readiness', '/version')
+    request = urllib.request.Request(base + path, headers={'Origin': origin})
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(request, timeout=5) as response:
+        return json.loads(response.read(256 * 1024).decode('utf-8'))
+
+
+def local_api(base, path, *, origin, method='GET', payload=None, file=None, operation_id=None, expected_status=200):
     """Only call this GUI instance's loopback API; never a provider endpoint."""
-    assert re.fullmatch(r'http://127\.0\.0\.1:[0-9]+', base), 'loopback API required'
+    loopback_origin(base)
+    loopback_origin(origin)
     assert path.startswith('/api/v2/math-tutor/desktop/community/plugins'), 'plugin API required'
-    headers = {'Origin': base}
+    headers = {'Origin': origin, 'X-MathTutor-CSRF': '1'}
     body = None
     if file is not None:
         filename, source = file
@@ -110,7 +143,7 @@ export function run(request: Input) {
 '''
 
 
-def verify_code_plugins(base, python, executable, data, *, environment):
+def verify_code_plugins(base, python, executable, data, *, environment, origin):
     """Real raw-source import/consent/process/replay, with no model request."""
     expected_path = [str(Path(os.environ['SystemRoot']) / 'System32'), str(Path(os.environ['SystemRoot']))]
     assert environment['PATH'].split(';') == expected_path, 'GUI smoke PATH contains non-system runtimes'
@@ -124,7 +157,7 @@ def verify_code_plugins(base, python, executable, data, *, environment):
             ('typescript', 'ts', TYPESCRIPT_PLUGIN, executable)):
         marker = root / f'{runtime}-executions.txt'
         assert not marker.exists(), 'fresh code plugin marker already exists'
-        receipt = local_api(base, prefix + '/import', method='POST',
+        receipt = local_api(base, prefix + '/import', origin=origin, method='POST',
             file=(f'{runtime}_acceptance.{suffix}', source), operation_id=f'startup-import-{runtime}')
         assert receipt['kind'] == 'plugin', receipt
         record = receipt['plugin']
@@ -137,14 +170,14 @@ def verify_code_plugins(base, python, executable, data, *, environment):
         run_body = {'text': '中文插件验收🙂', 'config': {'marker': str(marker)},
                     'operation_id': f'startup-code-{runtime}-once'}
         assert not marker.exists(), 'import unexpectedly ran code'
-        local_api(base, path + '/run', method='POST', payload=run_body, expected_status=409)
+        local_api(base, path + '/run', origin=origin, method='POST', payload=run_body, expected_status=409)
         assert not marker.exists(), 'disabled plugin unexpectedly ran code'
-        enabled = local_api(base, path + '/enabled', method='PUT',
+        enabled = local_api(base, path + '/enabled', origin=origin, method='PUT',
                             payload={'enabled': True, 'consent_permissions': ['execute_local_code']})
         assert enabled['enabled'] and enabled['consented_permissions'] == ['execute_local_code'], enabled
         assert not marker.exists(), 'enable unexpectedly ran code'
-        first = local_api(base, path + '/run', method='POST', payload=run_body)
-        repeated = local_api(base, path + '/run', method='POST', payload=run_body)
+        first = local_api(base, path + '/run', origin=origin, method='POST', payload=run_body)
+        repeated = local_api(base, path + '/run', origin=origin, method='POST', payload=run_body)
         assert repeated == first, 'same operation did not replay its original receipt'
         actual = first['data']
         assert actual['text'] == run_body['text'] and actual['answer'] == 42 and actual['executions'] == 1, actual
@@ -177,7 +210,7 @@ def verify_code_plugins(base, python, executable, data, *, environment):
         result['cases'].append(evidence)
         # Leave the disposable fresh profile safe for its subsequent relaunch;
         # disabling does not erase evidence or reset the execution ledger.
-        disabled = local_api(base, path + '/enabled', method='PUT', payload={'enabled': False})
+        disabled = local_api(base, path + '/enabled', origin=origin, method='PUT', payload={'enabled': False})
         assert disabled['enabled'] is False
     return result
 
@@ -230,19 +263,18 @@ def run_gui(executable, python, data, output, name, *, expect_failure=False):
                     assert duplicate_started and first.poll() is None
                     port = re.search(r'backend: .*--port (\d+)', text).group(1)
                     base = f'http://127.0.0.1:{port}'
-                    with urllib.request.urlopen(base + '/api/v2/math-tutor/desktop/readiness', timeout=5) as response:
-                        readiness = json.load(response)
+                    origin = frontend_origin(text, base)
+                    readiness = local_read(base, '/api/v2/math-tutor/desktop/readiness', origin=origin)
                     migration = readiness['checks']['migrations']
                     assert migration == 'ok', readiness
-                    with urllib.request.urlopen(base + '/version', timeout=5) as response:
-                        version = json.load(response)
+                    version = local_read(base, '/version', origin=origin)
                     assert version['version'] == EXPECTED_VERSION, version
                     ready_seconds = round(time.monotonic() - started, 3)
                     result = dict(case=name, seconds=ready_seconds,
                                   duplicate_exit=second.returncode, migration=migration,
                                   version=version['version'], databases=probe(python, data, SNAPSHOT))
                     if name == 'fresh_unicode':
-                        result['code_plugins'] = verify_code_plugins(base, python, executable, data, environment=env)
+                        result['code_plugins'] = verify_code_plugins(base, python, executable, data, environment=env, origin=origin)
                     return result
                 assert first.poll() is None, f'first instance exited: {first.returncode}'
                 time.sleep(.2)

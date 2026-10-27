@@ -47,7 +47,8 @@ def test_code_smoke_validates_explicit_consent_replay_and_install_runtime(tmp_pa
         (python.parent / "python312._pth").write_text("\n".join(lines) + "\n", encoding="ascii")
     rows, receipts, calls = {}, {}, []
 
-    def local_api(base, path, *, method="GET", payload=None, file=None, operation_id=None, expected_status=200):
+    def local_api(base, path, *, origin, method="GET", payload=None, file=None, operation_id=None, expected_status=200):
+        assert base == "http://127.0.0.1:8001" and origin == "http://127.0.0.1:8000"
         calls.append((path, method, deepcopy(payload), file, operation_id, expected_status))
         if path.endswith("/import"):
             filename, source = file
@@ -91,9 +92,9 @@ def test_code_smoke_validates_explicit_consent_replay_and_install_runtime(tmp_pa
     monkeypatch.setattr(acceptance, "local_api", local_api)
     if failure:
         with pytest.raises(AssertionError):
-            acceptance.verify_code_plugins("http://127.0.0.1:8001", python, executable, tmp_path / "data", environment=environment)
+            acceptance.verify_code_plugins("http://127.0.0.1:8001", python, executable, tmp_path / "data", environment=environment, origin="http://127.0.0.1:8000")
     else:
-        result = acceptance.verify_code_plugins("http://127.0.0.1:8001", python, executable, tmp_path / "data", environment=environment)
+        result = acceptance.verify_code_plugins("http://127.0.0.1:8001", python, executable, tmp_path / "data", environment=environment, origin="http://127.0.0.1:8000")
         assert result["status"] == "PASS" and result["provider_calls"] == 0
         assert {row["runtime"] for row in result["cases"]} == {"python", "typescript"}
         assert all(row["packaged_runtime"] and row["executions_after_replay"] == 1 for row in result["cases"])
@@ -112,7 +113,7 @@ def test_startup_elapsed_is_captured_before_additional_code_smoke(tmp_path, monk
     data, output = tmp_path / "data", tmp_path / "output"
     (data / "logs").mkdir(parents=True)
     output.mkdir()
-    (data / "logs/startup.log").write_text("backend: python --port 8001\nstartup: ready\n", encoding="utf-8")
+    (data / "logs/startup.log").write_text("backend: python --port 8001\n- Local: http://127.0.0.2026-10-27T14:04:57.037Z 1:8000\nstartup: ready\n", encoding="utf-8")
     clock, processes, smoke_calls = [10.0], [], []
 
     class Process:
@@ -124,9 +125,10 @@ def test_startup_elapsed_is_captured_before_additional_code_smoke(tmp_path, monk
             self.returncode = 0
             return 0
 
-    def urlopen(url, timeout=None):
-        payload = {"checks": {"migrations": "ok"}} if url.endswith("readiness") else {"version": acceptance.EXPECTED_VERSION}
-        return io.BytesIO(json.dumps(payload).encode())
+    def local_read(base, path, *, origin):
+        assert base == "http://127.0.0.1:8001" and origin == "http://127.0.0.1:8000"
+        payload = {"checks": {"migrations": "ok"}} if path.endswith("readiness") else {"version": acceptance.EXPECTED_VERSION}
+        return payload
 
     def code_smoke(*args, **kwargs):
         smoke_calls.append(kwargs)
@@ -135,7 +137,7 @@ def test_startup_elapsed_is_captured_before_additional_code_smoke(tmp_path, monk
 
     monkeypatch.setattr(acceptance.subprocess, "Popen", Process)
     monkeypatch.setattr(acceptance, "kill_tree", lambda process: None)
-    monkeypatch.setattr(acceptance.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(acceptance, "local_read", local_read)
     monkeypatch.setattr(acceptance.time, "monotonic", lambda: clock[0])
     monkeypatch.setattr(acceptance, "probe", lambda *args: {"math_tutor.db": {"revisions": [["024"]]}})
     monkeypatch.setattr(acceptance, "verify_code_plugins", code_smoke)
@@ -144,6 +146,7 @@ def test_startup_elapsed_is_captured_before_additional_code_smoke(tmp_path, monk
     assert len(processes) == 2 and result["duplicate_exit"] == 0
     if name == "fresh_unicode":
         assert smoke_calls and result["code_plugins"]["status"] == "PASS" and clock[0] == 40.0
+        assert smoke_calls[0]["origin"] == "http://127.0.0.1:8000"
     else:
         assert not smoke_calls and "code_plugins" not in result and clock[0] == 10.0
 
@@ -163,13 +166,103 @@ def test_local_api_sends_utf8_file_origin_and_disables_proxy(tmp_path, monkeypat
 
     monkeypatch.setattr(acceptance.urllib.request, "build_opener", build_opener)
     result = acceptance.local_api("http://127.0.0.1:8001", "/api/v2/math-tutor/desktop/community/plugins/import",
-        method="POST", file=("python_acceptance.py", 'def run(request):\n    return {"text":"中文🙂"}\n'), operation_id="once")
+        origin="http://127.0.0.1:8000", method="POST", file=("python_acceptance.py", 'def run(request):\n    return {"text":"中文🙂"}\n'), operation_id="once")
     request, timeout = calls[0]
     assert result["kind"] == "plugin" and timeout == 20
-    assert request.get_header("Origin") == "http://127.0.0.1:8001"
+    assert request.get_header("Origin") == "http://127.0.0.1:8000"
+    assert request.get_header("X-mathtutor-csrf") == "1"
     assert "multipart/form-data" in request.get_header("Content-type")
     assert b'name="file"; filename="python_acceptance.py"' in request.data
     assert '中文🙂'.encode() in request.data and b'name="operation_id"' in request.data
     assert handlers[0].proxies == {}
     with pytest.raises(AssertionError):
-        acceptance.local_api("https://provider.example", "/api/v2/math-tutor/desktop/community/plugins/import")
+        acceptance.local_api("https://provider.example", "/api/v2/math-tutor/desktop/community/plugins/import", origin="http://127.0.0.1:8000")
+
+
+@pytest.mark.parametrize("text", [
+    "2026-10-27T14:04:57.035Z ▲ Next.js\n- Local: http://127.0.0.1:60050\n",
+    "2026-10-27T14:04:57.035Z ▲ Next.js\n- Local: http://127.0.0.2026-10-27T14:04:57.037Z 1:60050\n- Network: http://12026-10-27T14:05:04.883Z startup: ready\n",
+    "\x1b[32m- Local:\x1b[0m http://127.0.[child] 0.1:60050\n",
+])
+def test_frontend_origin_recovers_exact_next_local_url_across_logged_chunks(text):
+    assert acceptance.frontend_origin(text, "http://127.0.0.1:60049") == "http://127.0.0.1:60050"
+
+
+@pytest.mark.parametrize("text", [
+    "startup: ready", "- Network: http://127.0.0.1:60050\n", "- Local: https://provider.example\n",
+    "- Local: http://localhost:60050\n", "- Local: http://127.0.0.1:0\n", "- Local: http://127.0.0.1:65536\n",
+    "- Local: http://127.0.0.1:60049\n", "- Local: http://127.0.0.1:60050@provider.example\n",
+    "- Local: http://127.0.0.1:60050/path\n", "- Local: http://127.0.0.1:60050\n- Local: http://127.0.0.1:60051\n",
+])
+def test_frontend_origin_refuses_missing_ambiguous_backend_or_nonloopback_url(text):
+    with pytest.raises(AssertionError):
+        acceptance.frontend_origin(text, "http://127.0.0.1:60049")
+
+
+def test_local_reads_require_explicit_origin_and_disable_proxy(monkeypatch):
+    calls, handlers = [], []
+
+    def build_opener(handler):
+        handlers.append(handler)
+        def open(request, timeout=None):
+            calls.append((request, timeout))
+            return io.BytesIO(b'{"ok":true}')
+        return SimpleNamespace(open=open)
+
+    monkeypatch.setattr(acceptance.urllib.request, "build_opener", build_opener)
+    for path in ("/api/v2/math-tutor/desktop/readiness", "/version"):
+        assert acceptance.local_read("http://127.0.0.1:8001", path, origin="http://127.0.0.1:8000") == {"ok": True}
+    assert len(calls) == 2 and all(timeout == 5 for _, timeout in calls)
+    assert all(request.get_header("Origin") == "http://127.0.0.1:8000" for request, _ in calls)
+    assert all(handler.proxies == {} for handler in handlers)
+    with pytest.raises(TypeError):
+        acceptance.local_read("http://127.0.0.1:8001", "/version")
+    with pytest.raises(AssertionError):
+        acceptance.local_read("http://127.0.0.1:8001", "/version", origin="https://provider.example")
+    with pytest.raises(AssertionError):
+        acceptance.local_read("https://provider.example", "/version", origin="http://127.0.0.1:8000")
+    with pytest.raises(TypeError):
+        acceptance.local_api("http://127.0.0.1:8001", "/api/v2/math-tutor/desktop/community/plugins/import")
+
+
+@pytest.mark.asyncio
+async def test_acceptance_headers_pass_real_boundary_without_exporting_bridge_secret(monkeypatch):
+    from mathtutor.api.local_boundary import LocalBoundaryMiddleware
+    from mathtutor.security.settings import MathTutorSecuritySettings
+
+    requests = []
+    class Response(io.BytesIO):
+        code = 200
+
+    def build_opener(handler):
+        assert handler.proxies == {}
+        def open(request, timeout=None):
+            requests.append(request)
+            return Response(b'{"ok":true}')
+        return SimpleNamespace(open=open)
+
+    monkeypatch.setattr(acceptance.urllib.request, "build_opener", build_opener)
+    base, origin = "http://127.0.0.1:8001", "http://127.0.0.1:8000"
+    acceptance.local_read(base, "/api/v2/math-tutor/desktop/readiness", origin=origin)
+    acceptance.local_read(base, "/version", origin=origin)
+    acceptance.local_api(base, "/api/v2/math-tutor/desktop/community/plugins/run", origin=origin, method="POST", payload={"text": "fixture"})
+
+    async def status(request, omit=None):
+        messages = []
+        async def business(scope, receive, send):
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+        async def receive(): return {"type": "http.request", "body": b""}
+        async def send(message): messages.append(message)
+        headers = [(b"host", b"127.0.0.1:8001")]
+        headers += [(name.lower().encode(), value.encode()) for name, value in request.header_items() if name.lower() != omit]
+        assert not any(name == b"x-mathtutor-bridge" for name, _ in headers)
+        boundary = LocalBoundaryMiddleware(business, MathTutorSecuritySettings(
+            allowed_hosts=("127.0.0.1:8001",), allowed_origins=(origin,), bridge_secret="private-fixture-not-exported"))
+        await boundary({"type": "http", "method": request.get_method(), "headers": headers}, receive, send)
+        return messages[0]["status"]
+
+    for request in requests:
+        assert await status(request) == 200
+        assert await status(request, "origin") == 403
+    assert await status(requests[-1], "x-mathtutor-csrf") == 403
