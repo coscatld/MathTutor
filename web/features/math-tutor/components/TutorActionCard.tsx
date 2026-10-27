@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { AlertCircle } from "lucide-react";
 import BrandMark from "@/components/common/BrandMark";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
@@ -13,6 +13,26 @@ import SceneCanvas from "./SceneCanvas";
 import { FIGURE_ACTION, GRAPH_ACTION, splitGraphMessage } from "../lib/function-graph";
 import { splitSceneBlocks } from "../lib/scene-eval";
 import { splitVerificationNotice } from "../lib/verification-notice";
+
+function TutorMessageContent({ messageId, action, body }: { messageId: string; action: string; body: string }) {
+  // Keep parsing out of unrelated parent updates. SceneCanvas also owns a
+  // content-based session boundary, so correctness does not depend on this cache.
+  const scenes = useMemo(() => action === GRAPH_ACTION || action === FIGURE_ACTION ? splitSceneBlocks(body) : null, [action, body]);
+  const graph = useMemo(() => action === GRAPH_ACTION && !scenes ? splitGraphMessage(body) : null, [action, body, scenes]);
+  if (scenes) return <>
+    {scenes.parts.map((part, index) => <Fragment key={index}>
+      {part.before ? <MarkdownRenderer content={part.before} enableMath /> : null}
+      <SceneCanvas scene={part.scene} sceneId={JSON.stringify([messageId, index])} />
+    </Fragment>)}
+    {scenes.after ? <MarkdownRenderer content={scenes.after} enableMath /> : null}
+  </>;
+  if (graph?.spec) return <>
+    {graph.before ? <MarkdownRenderer content={graph.before} enableMath /> : null}
+    <FunctionGraph spec={graph.spec} />
+    {graph.after ? <MarkdownRenderer content={graph.after} enableMath /> : null}
+  </>;
+  return <MarkdownRenderer content={body} enableMath />;
+}
 
 /**
  * One tutor message. Shows the student-facing message plus the current
@@ -43,8 +63,6 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
   const scope = message.verificationNotice?.trim() || legacyScope;
   // Only the server sets SHOW_GRAPH and TUTOR_CHAT_FIGURE (scenes it built from
   // draw_scene calls); graph and scene blocks in any other message stay plain text.
-  const scenes = message.action === GRAPH_ACTION || message.action === FIGURE_ACTION ? splitSceneBlocks(body) : null;
-  const graph = message.action === GRAPH_ACTION && !scenes ? splitGraphMessage(body) : null;
   const level = normalizeAssistanceLevel(message.assistanceLevel);
 
   return (
@@ -59,17 +77,7 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
           {level > 0 && <span className="mt-chip mt-chip-warn">已展示：{supportExposureLabel(level)}</span>}
         </div>
         <div className="mt-answer-text">
-          {scenes ? <>
-            {scenes.parts.map((part, index) => <Fragment key={index}>
-              {part.before ? <MarkdownRenderer content={part.before} enableMath /> : null}
-              <SceneCanvas scene={part.scene} />
-            </Fragment>)}
-            {scenes.after ? <MarkdownRenderer content={scenes.after} enableMath /> : null}
-          </> : graph?.spec ? <>
-            {graph.before ? <MarkdownRenderer content={graph.before} enableMath /> : null}
-            <FunctionGraph spec={graph.spec} />
-            {graph.after ? <MarkdownRenderer content={graph.after} enableMath /> : null}
-          </> : <MarkdownRenderer content={body} enableMath />}
+          <TutorMessageContent messageId={message.id} action={message.action} body={body} />
           {message.status === "PARTIAL" && <div role="status" className="mt-3 border-l-2 border-[var(--border)] pl-3 text-sm leading-6 text-[var(--muted-foreground)]">这段还没讲完，末尾的公式和结论可能不完整。{onContinue ? <button type="button" className="ml-2 min-h-9 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>继续讲完</button> : "请接着查看后续回复。"}</div>}
           {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-[var(--primary-text)] underline underline-offset-2" onClick={onRecover}>重新同步</button>}
         </div>

@@ -1,0 +1,43 @@
+
+> mathtutor-web@0.7.0 build
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.js took 11ms
+- Experiments (use with caution):
+  ⨯ isrFlushToDisk
+  · proxyClientMaxBodySize: 35651584
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1275ms
+  Running TypeScript ...
+  Finished TypeScript in 1462ms ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/16) ...
+  Generating static pages using 9 workers (4/16)
+  Generating static pages using 9 workers (8/16)
+  Generating static pages using 9 workers (12/16)
+✓ Generating static pages using 9 workers (16/16) in 168ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /login
+├ ○ /math-tutor
+├ ○ /math-tutor/community
+├ ○ /math-tutor/documents
+├ ○ /math-tutor/knowledge
+├ ○ /math-tutor/memory
+├ ○ /math-tutor/offers
+├ ○ /math-tutor/profile
+├ ○ /math-tutor/question-bank
+├ ○ /math-tutor/settings
+├ ○ /onboarding/assessment
+├ ○ /onboarding/provider
+└ ○ /register
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)  prerendered as static content

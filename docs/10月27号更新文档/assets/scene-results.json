@@ -1,0 +1,152 @@
+{
+  "result": "PASS",
+  "checks": [
+    "actual chat: opening teaching panel and appending a message preserve pause",
+    "actual chat: 320/375/768 CSS px + CSS 200% zoom; long labels/readouts wrap, ranges >=120px, keyboard and touch endpoints",
+    "direct React StrictMode: new equal scene objects preserve paused/slider state and canvas across parent rebuild and append",
+    "true scene-content change resets initial values, trail canvas and autoplay intent; foreground gate delays execution",
+    "native Chromium CPU profiles capture sampling while visible and no sampled scene evaluation/sampling stacks while all scenes are offscreen",
+    "native IntersectionObserver: offscreen values/draws stop, visible scene advances, only intended playback resumes; simulated document visibility gates all",
+    "StrictMode/unmount releases observers and rAF; reduced motion suppresses autoplay and preference changes stop motion"
+  ],
+  "layout": [
+    {
+      "width": 320,
+      "cssZoom": 1,
+      "ranges": [
+        {
+          "width": 142,
+          "min": "0",
+          "max": "6.28"
+        },
+        {
+          "width": 142,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 142,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 210,
+          "min": "-10000000000000000000",
+          "max": "10000000000000000000"
+        }
+      ],
+      "visibleText": true,
+      "figureWidth": 236,
+      "overflow": false
+    },
+    {
+      "width": 375,
+      "cssZoom": 1,
+      "ranges": [
+        {
+          "width": 197,
+          "min": "0",
+          "max": "6.28"
+        },
+        {
+          "width": 197,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 197,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 265,
+          "min": "-10000000000000000000",
+          "max": "10000000000000000000"
+        }
+      ],
+      "visibleText": true,
+      "figureWidth": 291,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "cssZoom": 1,
+      "ranges": [
+        {
+          "width": 334.671875,
+          "min": "0",
+          "max": "6.28"
+        },
+        {
+          "width": 334.671875,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 334.671875,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 402.671875,
+          "min": "-10000000000000000000",
+          "max": "10000000000000000000"
+        }
+      ],
+      "visibleText": true,
+      "figureWidth": 642,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "cssZoom": 2,
+      "ranges": [
+        {
+          "width": 206,
+          "min": "0",
+          "max": "6.28"
+        },
+        {
+          "width": 206,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 206,
+          "min": "-10",
+          "max": "10"
+        },
+        {
+          "width": 274,
+          "min": "-10000000000000000000",
+          "max": "10000000000000000000"
+        }
+      ],
+      "visibleText": true,
+      "figureWidth": 600,
+      "overflow": false
+    }
+  ],
+  "profiles": {
+    "visible": {
+      "samples": 398,
+      "sampledStacksContaining": {
+        "sampleFunction": 3,
+        "marchingSquares": 53,
+        "sampleGrid": 51,
+        "evaluate": 33
+      }
+    },
+    "offscreen": {
+      "samples": 402,
+      "sampledStacksContaining": {
+        "sampleFunction": 0,
+        "marchingSquares": 0,
+        "sampleGrid": 0,
+        "evaluate": 0
+      }
+    }
+  },
+  "screenshots": "Local temporary output directory omitted from publication; retained evidence is linked in the accompanying report.",
+  "boundary": "Native Chromium layout, range/touch/keyboard, canvas, CPU profiles and IntersectionObserver. document.hidden and visibilitychange are deterministic browser probes; CSS zoom 2 is layout stress, not a claim of native browser toolbar zoom. Draw counts and short synthetic CPU profiles are execution checks, not frame-rate or power measurements."
+}

@@ -10,7 +10,9 @@
 
 MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**当前正式版本：0.7.0**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) · [macOS Apple Silicon DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) · [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe)。r3 修复普通数学提问被内部作图内容占满预算、未调用模型就失败的问题，并显示真实失败原因；更新构建还开放已保存讨论题的提示、讲解、示例和完整解答按钮。Mac 使用完整本地 ad-hoc 签名，仍无 Developer ID、未公证，首次使用见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。见 [0.7.0 更新说明](docs/RELEASE_0.7.0.md)。
+**当前正式版本：0.7.1**：[发布页与下载](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1) · [更新说明](docs/RELEASE_0.7.1.md)。本版汇总近期的学习证据、资料检索、本地服务和交互修复：删除失败保留草稿，图形状态随内容保持，函数支持数值查询，离屏动画停止计算。各平台安装文件及其独立验收记录以发布页资产为准。
+
+**历史安装包（0.7.0 r3）**：[macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) · [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe) · [历史更新说明](docs/RELEASE_0.7.0.md)。这些文件保留其原构建内容，不包含 0.7.1 的后续修复。Mac 的 ad-hoc 签名与首次使用说明见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。
 
 **此前已发布的 0.6.5**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.6.5) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.6.5/MathTutor-0.6.5-win-x64.exe) · [更新说明](docs/RELEASE_0.6.5.md)
 
@@ -18,7 +20,7 @@ MathTutor 把题目解析、受限求解与验证、分级提示、作答证据�
 
 | 你想做什么 | 从这里开始 |
 |---|---|
-| 安装使用 | [0.7.0 安装包与 SHA-256](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)，内置 Python / Node，无需另装开发环境 |
+| 安装使用 | [0.7.1 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1)，查看实际安装文件、校验摘要及平台验收记录；桌面包内置 Python / Node |
 | 了解或复现评测 | [Hugging Face 评测工具与阶段结果](https://huggingface.co/datasets/coscatld/mathtutor)及下文的指标说明 |
 | 导入自己的资料和插件 | [社区使用指南](docs/COMMUNITY.md)，资料和插件分别导入，代码插件需明确确认信任 |
 | 贡献题库或插件 | [贡献指南](CONTRIBUTING.md)、[题库投稿](docs/QUESTION_PACK_CONTRIBUTION.md)、[插件快速入门](docs/PLUGIN_QUICKSTART.md) |
@@ -70,7 +72,7 @@ flowchart LR
 | 费用与预算 | 按自填单价估算每轮费用，可设每日费用或 token 预算，超出后当天改用本地模板教学 |
 | 本地数据管理 | 管理个人记忆、聊天历史、资料和备份，支持已有的备份验证与恢复流程 |
 
-初评采用可解释的规则题组给出练习起点。学习画像以已记录的学习证据为主：独立、受助、看答案后的作答分开统计，阅读、收藏或一句“懂了”只作为自我报告。
+初评采用可解释的规则题组给出练习起点。学习画像以已记录的学习证据为主：独立、受助、看答案后的作答分开统计，阅读、收藏或一句“懂了”只作为自我报告。未能定位具体技能的多技能错误保留为整题观察，可回到原作答查证；新题邀请核对完整保留历史，复习重做单独标明。
 
 ## 差异化亮点
 
@@ -100,7 +102,7 @@ flowchart LR
 
 ## Benchmark 与当前结果
 
-评测工具与阶段结果同时发布在 **[Hugging Face：coscatld/mathtutor](https://huggingface.co/datasets/coscatld/mathtutor)**，包含四基准适配、运行与评分工具、离线复现说明、费用控制及 Matplotlib 折线图。该仓库明确保留历史被测提交和未完成范围，不能当作 0.7.0 的全量成绩；原始第三方题库未重新分发，来源和许可见其仓库说明。
+评测工具与阶段结果同时发布在 **[Hugging Face：coscatld/mathtutor](https://huggingface.co/datasets/coscatld/mathtutor)**，包含四基准适配、运行与评分工具、离线复现说明、费用控制及 Matplotlib 折线图。该仓库明确保留历史被测提交和未完成范围，不能当作 0.7.1 的全量成绩；原始第三方题库未重新分发，来源和许可见其仓库说明。
 
 2026-10-16新增K12内部基准：192道题，开发与封存测试各96道。同一DeepSeek模型经真实产品入口完成两轮agent改进后，封存测试严格答案通过率从87/96（90.6%）升至93/96（96.9%），高中从35/42（83.3%）升至40/42（95.2%）。初中有1题回退，保留全部失败与评分争议。指标包含所求量和格式约定，有限样本不代表所有年级或高考题的通用表现；方法与边界见[K12基准记录](docs/K12_BENCHMARK_20261016.md)。
 
@@ -138,7 +140,7 @@ flowchart LR
 | Citation attribution | 4 claim cases / 5 links | Precision 0.875、Recall 1.000 | 衡量引用归属到正确来源 |
 | Historical receipts | 1 合法 / 4 非法探针 | 合法读取 1/1；未授权拒绝 4/4 | 分别验证可用性与拒绝能力 |
 | Knowledge old vs new | 5 queries | 三组命中均为 4/5；旧链读取 0、保存 0，新链两种协议均读取 2 个来源并新增 1 篇笔记 | 新链完成「检索—读原文—保存笔记」完整工具闭环 |
-| 固定多轮辅导评测 | 15 个多轮场景 / 184 项检查 | 模板教学 15/15 通过，六个维度（数学正确、目标相关、学生证据、可执行性、适配、连贯）均为 1.0，发布门通过 | 规则与本地验证器自动评分，覆盖答案边界、证据分流、算式核验和状态机；`--mode live` 可对任意模型跑同一套门。见 [评测说明](docs/eval/TUTOR_MULTITURN_EVAL.md) |
+| 固定多轮辅导评测 | 16 个多轮场景 / 236 项检查 | 2026-10-24 模板教学 16/16 通过，六个维度（数学正确、目标相关、学生证据、可执行性、适配、连贯）均为 1.0，完整覆盖发布门通过 | 规则与本地验证器自动评分，覆盖答案边界、证据分流、算式核验和状态机；见 [本次报告](docs/10月24号更新文档/assets/003-multiturn-template.md)与 [评测说明](docs/eval/TUTOR_MULTITURN_EVAL.md) |
 
 Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料本身的 4-gram 重复。检索指标、引用合法性、来源支持和数学正确性分四个维度分别评测。
 
@@ -146,7 +148,17 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 版本与发布状态
 
-当前正式版本为 **0.7.0**，提供 Windows x64 EXE 和 macOS Apple Silicon DMG（均为 **r3**）。两个安装包来自修复提交 `060847e`，修复普通数学提问失败，并保留题目、作图和可重试错误信息。[三平台源码 CI](https://github.com/coscatld/MathTutor/actions/runs/39047530788)与[Windows 安装启动验收](https://github.com/coscatld/MathTutor/actions/runs/39045989345)记录对应本次构建。Mac 使用本地 ad-hoc 签名，仍无 Developer ID、未公证，首次使用需明确允许；见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。Windows 包未使用 Authenticode 发行证书签名。数据库 migration head 保持 **024**。
+当前正式版本为 **0.7.1**，完整升级内容见 [发布说明](docs/RELEASE_0.7.1.md)。下载时核对 [0.7.1 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1) 的实际资产与平台记录；源码检查、安装启动和发行证书分别验收。已有 Mac 发行方式使用本地 ad-hoc 签名，无 Developer ID、未公证；Windows 未使用 Authenticode 发行证书。首次使用见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。数据库 migration head 保持 **024**。
+
+### 0.7.1：图形交互、草稿保护与近期可靠性修复
+
+- **删除与草稿**：取消或删除失败保留文字、图片和当前页面；成功后才清理。等待期间新输入的草稿和新改的资料范围继续保留。
+- **函数与动画**：函数图提供带标签的 x 输入、读取按钮和多曲线结果表；读数按采样点线性插值，分段空缺显示“无定义”。相同图形内容刷新时保留参数与暂停状态，内容改变才重置；图形离屏或页面隐藏时暂停动画计算。窄屏控件可换行，保留 44px 操作高度。
+- **启动、练习与资料**：开发启动器显式配置本机浏览器模式；403 显示配置问题并停止重试。练习邀请覆盖完整异步流程并防止重复接受；导入成功后的归属失败可单独重试，解析状态区分可检索、警告、需 OCR 和失败。
+- **学习证据与检索**：整题错误不再分摊成未经定位的技能错误，新题发布核对保留历史；修复重解析后的向量失效、证据包总预算和每日用量统计。备份保留、PDF 标题与最终评测门禁同步修复。
+- **本地服务与开发者工具**：统一 HTTP／WebSocket 的来源、Host、CSRF 与桌面凭证检查；上传按实际字节限额，解析和备份任务受队列及生命周期管理。插件开发 CLI、明确范围的 TypeScript 工具适配和原生 TypeScript CI 验证补齐。
+
+本轮界面验收为 macOS Chromium 中的隔离测试，涵盖桌面、窄屏、深色、减少动态效果和实际交互。真实读屏器与浏览器原生 200% 缩放仍需单独验收；CSS 缩放压力测试的范围见 [10 月 27 日记录](docs/10月27号更新文档/001-图形交互与删除草稿修复.md)。各日改进与证据详见 [10 月 24 日](docs/10月24号更新文档/003-教学证据与迁移题可靠性.md)、[10 月 25 日](docs/10月25号更新文档/001-本地服务安全与资源边界.md)及 [10 月 26 日](docs/10月26号更新文档/001-启动与学习交互修复.md)。历史模型分数与学习收益结论保持原评测范围。
 
 ### 0.7.0：资料库、社区与创作者接口
 
@@ -205,6 +217,7 @@ DKT 的当前技能预测与独立作答证据现在共同影响普通聊天的�
 
 | 版本 | 内容 | 安装包 | SHA-256 |
 |---|---|---|---|
+| [`v0.7.1`](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1) | 图形状态、函数读数、离屏动画、删除草稿，以及近期教学证据、检索与本地服务修复 | [发布页实际资产](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1) | 随发布页各平台资产提供 |
 | [`v0.7.0`](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0) | 对话资料、可编辑知识库、社区导入与插件斜杠命令；r3 修复普通提问与讨论题教学按钮 | [macOS arm64 DMG（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) / [Windows x64 EXE（r3）](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe) | [Mac 校验](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-mac-r3.txt) / [Windows 校验](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/SHA256SUMS-0.7.0-win-r3.txt) |
 | [`v0.6.2`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.2) | 标准曲线示例、作图上下文续接与主动配图 | [`MathTutor-0.6.2-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/MathTutor-0.6.2-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.2/SHA256SUMS-windows.txt) |
 | [`v0.6.1`](https://github.com/coscatld/MathTutor/releases/tag/v0.6.1) | 修复并发启动、迁移异常恢复与启动日志 | [`MathTutor-0.6.1-win-x64.exe`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/MathTutor-0.6.1-win-x64.exe) | [`SHA256SUMS-windows.txt`](https://github.com/coscatld/MathTutor/releases/download/v0.6.1/SHA256SUMS-windows.txt) |
@@ -214,7 +227,7 @@ DKT 的当前技能预测与独立作答证据现在共同影响普通聊天的�
 | [`v0.4.5`](https://github.com/coscatld/MathTutor/releases/tag/v0.4.5) | 页面风格与视觉焕新，不改教学策略 | `MathTutor-0.4.5-mac-arm64.dmg` | `f0f8e7f7c1d37ac57a9143fe59494c29c9433a5ca14cddb3634e119d573003ff` |
 | | | `MathTutor-0.4.5-win-x64.exe` | `b20771b1aa7a591d70a77cb122e0bb592d822074dd27844058fcad4abd37c14e` |
 
-macOS 安装包发布前都通过打包后冒烟测试（启动、作答、重启、备份恢复、退出清理）；Windows 安装包由 GitHub Actions 构建。macOS 首次打开时在「系统设置 → 隐私与安全性」中点「仍要打开」，Windows 出现 SmartScreen 提示时选「仍要运行」。
+各安装包的启动、作答、重启、备份恢复和退出清理范围，以对应版本的发布说明及随附验收记录为准。macOS 首次使用请按 [Mac 安装说明](docs/MACOS_INSTALLATION.md)核验文件并明确允许；Windows 出现 SmartScreen 提示时先核对来源与摘要。
 
 ### 更早的版本
 
@@ -240,7 +253,7 @@ MathTutor 采用 Apache-2.0 许可证。可以通过 Pull Request 贡献题库�
 
 - 开发系统：Windows、macOS 或 Linux。
 - Python：建议使用 **3.12**；项目声明支持 `>=3.11,<3.14`。
-- Node.js 与 npm：本地 Windows 打包已验证 **Node.js 24.19.0**；现有源码 CI 使用 Node.js 20。安装依赖使用仓库锁文件和 `npm ci`。
+- Node.js 与 npm：本地 Windows 打包已验证 **Node.js 24.19.0**；现有源码 CI 使用 **Node.js 24**，并实际执行带类型注解的 TypeScript 插件预检。安装依赖使用仓库锁文件和 `npm ci`。
 
 在项目根目录创建 Python 虚拟环境：
 
@@ -336,7 +349,7 @@ python -m pip install -e ".[pdf-rich]"
 - 桌面版使用独立的用户数据目录，退出应用会停止本地子进程，并保留学习资料和历史。
 - API Key 通过 `SecretStore` 管理；macOS 使用 Keychain，Windows 使用 Credential Manager。
 - 数据库加密可选（默认关闭）：在「设置 → 高级 → 数据加密」开启后，下次启动时把本机数据库转换为 SQLCipher 加密库，转换前后都做完整性和行数校验，失败保持原样。密钥只存在系统钥匙串 / 凭据管理器中。只要系统密钥存储可用，备份文件始终加密；请在同一处「显示恢复密钥」并妥善保存，钥匙串条目丢失时恢复备份需要它。导入的资料原文件保存在数据目录，建议同时开启系统全盘加密（FileVault / BitLocker）。不要把凭据、私人配置、用户数据库或原始模型请求日志提交到仓库。
-- 0.5.0 的数据库 migration head 为 **023**（自 0.4.2 起未变）。升级前使用应用内备份功能创建并验证备份，再正常退出应用。
+- 当前数据库 migration head 为 **024**，0.7.1 未新增结构迁移。升级前使用应用内备份功能创建并验证备份，再正常退出应用；社区与插件配置仍需单独保存。
 - 恢复旧备份可能缺少之后产生的新资料和聊天，请先保存当前数据。代码回滚不会自动恢复数据库；不要手动删除活跃数据库的 WAL/SHM 文件。
 
 ## 开发与测试
@@ -381,13 +394,13 @@ npm run package:win
 脚本构建 Next.js standalone 前端，准备并验证独立 Python 运行时，然后生成 NSIS 安装器：
 
 ```text
-desktop/dist/MathTutor-0.7.0-win-x64.exe
+desktop/dist/MathTutor-0.7.1-win-x64.exe
 ```
 
 使用 Node.js 22 时，项目路径含中文等非 ASCII 字符会让运行时校验中的 `fs.cpSync` 崩溃（无错误输出）。请从纯英文路径构建，或向 `desktop/scripts/build-windows.ps1` 传入英文路径的 `-RuntimePath`，或改用已验证的 Node.js 24.19.0。下载后可检查摘要：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\MathTutor-0.7.0-win-x64.exe
+Get-FileHash -Algorithm SHA256 .\MathTutor-0.7.1-win-x64.exe
 ```
 
 ### macOS（Apple 芯片）
@@ -400,7 +413,7 @@ export MATHTUTOR_PYTHON_RUNTIME=$PWD/.runtime/<python-runtime-dir>
 npm ci --prefix desktop
 npm run package:mac:unsigned --prefix desktop
 npm run smoke:packaged:mac --prefix desktop
-shasum -a 256 desktop/dist/MathTutor-0.7.0-mac-arm64.dmg
+shasum -a 256 desktop/dist/MathTutor-0.7.1-mac-arm64.dmg
 ```
 
 普通虚拟环境不可重定位，不能作为打包运行时。下载 Electron 较慢时，可设置 `ELECTRON_MIRROR` 与 `ELECTRON_BUILDER_BINARIES_MIRROR` 使用镜像。
@@ -410,6 +423,7 @@ shasum -a 256 desktop/dist/MathTutor-0.7.0-mac-arm64.dmg
 | 文档 | 内容 |
 |---|---|
 | [CHANGELOG](CHANGELOG.md) | 各版本改动与升级说明 |
+| [0.7.1 发布说明](docs/RELEASE_0.7.1.md) | 近期升级、图形与草稿修复、数据与验收范围 |
 | [固定多轮辅导评测](docs/eval/TUTOR_MULTITURN_EVAL.md) | 自动评分的多轮场景、六维度、发布门与最近结果 |
 | [初评与选择题](docs/INITIAL_ASSESSMENT.md) | 首次评估、跳过与恢复、练习起点的含义 |
 | [RAG 架构](docs/RAG_ARCHITECTURE.md) | 共享检索、上下文与证据工具路径 |

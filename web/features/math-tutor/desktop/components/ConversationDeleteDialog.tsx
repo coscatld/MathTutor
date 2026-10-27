@@ -3,24 +3,35 @@
 import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 
+export type ConversationDeleteResult = "deleted" | "cancelled";
+
 export default function ConversationDeleteDialog({ title, permanent = false, onCancel, onConfirm }: {
-  title: string; permanent?: boolean; onCancel: () => void; onConfirm: () => Promise<void>;
+  title: string; permanent?: boolean; onCancel: () => void; onConfirm: () => Promise<ConversationDeleteResult>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.showModal();
-    return () => { if (previous?.isConnected) previous.focus(); };
+    const node = dialog.current;
+    // Native initial focus chooses the first button (Cancel), after saving its opener.
+    node?.showModal();
+    return () => { node?.close(); if (previous?.isConnected) previous.focus(); };
   }, []);
   async function confirm() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true); setError("");
-    try { await onConfirm(); }
-    catch (e) { setError(e instanceof Error ? e.message : "操作失败，请重试。"); setBusy(false); }
+    try {
+      const result = await onConfirm();
+      if (result === "cancelled") setError("");
+    }
+    catch (e) { setError(e instanceof Error ? e.message : "操作失败，请重试。"); }
+    finally { inFlight.current = false; setBusy(false); }
   }
   return <dialog ref={dialog} aria-labelledby="delete-conversation-title" aria-describedby="delete-conversation-copy"
-    onCancel={e => { e.preventDefault(); if (!busy) onCancel(); }}
+    onCancel={e => { e.preventDefault(); if (!inFlight.current) onCancel(); }}
     className="mt-card m-auto w-[calc(100%-2rem)] max-w-md p-6 text-[var(--foreground)] shadow-xl backdrop:bg-black/35">
     <Trash2 aria-hidden="true" className="mb-4 h-6 w-6 text-[var(--muted-foreground)]" />
     <h2 id="delete-conversation-title" className="text-lg font-semibold">{permanent ? "彻底删除此对话？" : "将此对话移入垃圾桶？"}</h2>
@@ -36,7 +47,7 @@ export default function ConversationDeleteDialog({ title, permanent = false, onC
     </div>
     {error ? <p role="alert" className="mt-3 text-sm text-[var(--destructive)]">{error}</p> : null}
     <div className="mt-6 flex justify-end gap-3">
-      <button autoFocus type="button" disabled={busy} onClick={onCancel} className="mt-btn min-h-11 px-4">取消</button>
+      <button type="button" disabled={busy} onClick={() => { if (!inFlight.current) onCancel(); }} className="mt-btn min-h-11 px-4">取消</button>
       <button type="button" disabled={busy} onClick={() => void confirm()} className="mt-btn mt-btn-danger-solid min-h-11 px-4">{busy ? "处理中…" : permanent ? "彻底删除" : "移入垃圾桶"}</button>
     </div>
   </dialog>;

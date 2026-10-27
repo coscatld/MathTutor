@@ -10,6 +10,7 @@ import {
 } from "../features/math-tutor/lib/scene-eval";
 import type { ExprAst, Scene } from "../features/math-tutor/lib/scene-types";
 import type { TutorMessage } from "../features/math-tutor/types";
+import { sceneSessionKey } from "../features/math-tutor/lib/scene-identity";
 
 const num = (v: number): ExprAst => ({ k: "num", v });
 const v = (n: string): ExprAst => ({ k: "var", n });
@@ -39,6 +40,19 @@ const fixture = {
 };
 const clone = () => JSON.parse(JSON.stringify(fixture));
 const scene = parseScene(fixture) as Scene;
+
+test("scene sessions follow message/block identity and definition content, including fresh object copies", () => {
+  const identity = JSON.stringify(["message-a", 0]);
+  const key = sceneSessionKey(scene, identity);
+  const rebuilt = JSON.parse(JSON.stringify(scene)) as Scene;
+  assert.notEqual(rebuilt, scene);
+  assert.equal(sceneSessionKey(rebuilt, identity), key);
+  assert.equal(sceneSessionKey(Object.fromEntries(Object.entries(rebuilt).reverse()) as unknown as Scene, identity), key);
+  assert.notEqual(sceneSessionKey(scene, JSON.stringify(["message-b", 0])), key);
+  assert.notEqual(sceneSessionKey(scene, JSON.stringify(["message-a", 1])), key);
+  assert.notEqual(sceneSessionKey({ ...scene, params: [{ ...scene.params[0], value: 1.2 }] }, identity), key);
+  assert.notEqual(sceneSessionKey({ ...scene, objects: scene.objects.slice(1) }, identity), key);
+});
 
 test("parseScene accepts the fixture and rejects malformed scenes", () => {
   assert.ok(scene);

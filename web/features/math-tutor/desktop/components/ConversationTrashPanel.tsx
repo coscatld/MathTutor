@@ -49,6 +49,7 @@ export default function ConversationTrashPanel() {
       await conversationAction(target.conversation_id, "purge");
       setItems(rows => rows.filter(row => row.conversation_id !== target.conversation_id));
       setTarget(null); setStatus("对话已彻底删除。");
+      return "deleted";
     }} /> : null}
   </section>;
 }

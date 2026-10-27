@@ -6,12 +6,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, apiUrl } from "@/lib/api";
 import { makeSessionId } from "../../lib/protocol";
-import { requestTutorNavigation } from "../../lib/navigation-guard";
+import { commitTutorNavigation, requestTutorNavigation, requestTutorNavigationPermission } from "../../lib/navigation-guard";
 import ConversationDeleteDialog from "./ConversationDeleteDialog";
 import { conversationAction } from "../lib/conversation-trash";
 import Tooltip from "./Tooltip";
 import BrandMark from "@/components/common/BrandMark";
 import ThemeQuickSwitch from "@/components/common/ThemeQuickSwitch";
+import { useToast } from "./ToastProvider";
 
 type Conversation = { conversation_id: string; title?: string; updated_at?: string };
 const NAV_ITEMS = [
@@ -29,6 +30,7 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const search = useSearchParams();
+  const toast = useToast();
   const [collapsed, setCollapsed] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -85,11 +87,17 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
     </aside>
     <main id="workspace-content" className={`min-h-0 min-w-0 flex-1 ${inTutor || pathname.startsWith("/math-tutor/settings") ? "overflow-hidden" : "overflow-y-auto"}`}>{children}</main>
     {deleteTarget ? <ConversationDeleteDialog title={deleteTarget.title || "对话"} onCancel={() => setDeleteTarget(null)} onConfirm={async () => {
-      if (selected === deleteTarget.conversation_id && !requestTutorNavigation()) return;
+      const operation = {};
+      const permission = inTutor && selected === deleteTarget.conversation_id ? requestTutorNavigationPermission(operation) : undefined;
+      if (permission === null) return "cancelled";
       await conversationAction(deleteTarget.conversation_id, "trash");
       setConversations(rows => rows.filter(row => row.conversation_id !== deleteTarget.conversation_id));
-      if (selected === deleteTarget.conversation_id) router.push(`/math-tutor?session=${encodeURIComponent(makeSessionId())}`);
+      if (permission) {
+        if (commitTutorNavigation(permission, operation)) router.push(`/math-tutor?session=${encodeURIComponent(makeSessionId())}`);
+        else toast({ title: "对话已移入垃圾桶，新的草稿与当前页面已保留。", tone: "info" });
+      }
       setDeleteTarget(null);
+      return "deleted";
     }} /> : null}
   </div>;
 }

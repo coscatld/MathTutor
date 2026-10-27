@@ -1,0 +1,20 @@
+{
+  "visible": {
+    "samples": 398,
+    "sampledStacksContaining": {
+      "sampleFunction": 3,
+      "marchingSquares": 53,
+      "sampleGrid": 51,
+      "evaluate": 33
+    }
+  },
+  "offscreen": {
+    "samples": 402,
+    "sampledStacksContaining": {
+      "sampleFunction": 0,
+      "marchingSquares": 0,
+      "sampleGrid": 0,
+      "evaluate": 0
+    }
+  }
+}

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import FunctionGraph from "../features/math-tutor/components/FunctionGraph";
 import TutorActionCard from "../features/math-tutor/components/TutorActionCard";
 import StudentNextStep from "../features/math-tutor/components/StudentNextStep";
 import { niceStep, parseGraphSpec, splitGraphMessage, valueAt } from "../features/math-tutor/lib/function-graph";
@@ -31,6 +32,38 @@ test("split keeps the prose around the graph block", () => {
   assert.equal(valueAt(split.spec!.series[0], 0), 1);
   assert.equal(valueAt(split.spec!.series[0], 9), null);
   assert.equal(niceStep(10, 8), 1);
+});
+
+test("sampled lookup includes endpoints without interpolating across segment gaps", () => {
+  const series = { label: "分段函数", segments: [[[-4, -8], [-2, -4]], [[2, 4], [6, 12]]] as [number, number][][] };
+  assert.equal(valueAt(series, -4), -8);
+  assert.equal(valueAt(series, 6), 12);
+  assert.equal(valueAt(series, 3), 6);
+  assert.equal(valueAt(series, 0), null);
+  assert.equal(valueAt(series, -5), null);
+  assert.equal(valueAt(series, 7), null);
+  assert.equal(valueAt(series, Number.NaN), null);
+  assert.equal(valueAt(series, Number.POSITIVE_INFINITY), null);
+  assert.equal(valueAt(series, Number.NEGATIVE_INFINITY), null);
+  const huge = Number.MAX_VALUE;
+  const extreme = { label: "有限大数", segments: [[[-huge, huge], [huge, -huge]]] as [number, number][][] };
+  assert.equal(valueAt(extreme, -huge), huge);
+  assert.equal(valueAt(extreme, 0), 0);
+  assert.equal(valueAt(extreme, huge), -huge);
+});
+
+test("graphs expose a labelled bounded keyboard lookup and describe sampled values", () => {
+  const graph = renderToStaticMarkup(<FunctionGraph spec={parseGraphSpec(spec)!} />);
+  const inputId = /<input id="([^"]+)"/.exec(graph)?.[1];
+  assert.ok(inputId);
+  assert.ok(graph.includes(`for="${inputId}"`));
+  assert.match(graph, /type="number" min="-4" max="6" step="any" required=""/);
+  assert.match(graph, /<button type="submit"[^>]*>读取<\/button>/);
+  assert.doesNotMatch(graph, /输入后按 Enter|选择“读取”/);
+  assert.match(graph, /采样点作线性插值/);
+  assert.match(graph, /不跨段插值/);
+  assert.match(graph, /role="status" aria-live="polite" aria-atomic="true"><\/p>/);
+  assert.doesNotMatch(graph, /<table/);
 });
 
 test("only a server SHOW_GRAPH message renders a canvas", () => {

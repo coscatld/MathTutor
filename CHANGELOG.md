@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.1 — Graph interaction, draft safety and reliability
+
+- Preserve typed text, images and conversation scope when deletion is cancelled or fails. Clear the original draft only after success; protect new edits made while the delete request is pending.
+- Keep scene parameters and pause state across identical-content rerenders and new messages. Reset only when scene content changes; stop animation work outside the chat viewport or while the page is hidden, and clean up observers and animation frames on unmount.
+- Add a labelled, keyboard-operable x lookup with per-curve results to sampled function graphs. Validate finite values and inclusive bounds, explain linear interpolation and segment gaps, and update polite announcements only on submission. Wrap graph controls and long labels in narrow containers, retaining 44px controls and existing pointer readouts.
+- Repair browser-development startup, practice-accept lifecycles and draft navigation guards. Classify permanent 403 configuration failures separately from retryable startup errors; preserve successful document imports when scope assignment or list refresh fails, with specific recovery actions and accurate parsing/retrieval states.
+- Unify independent, assisted and answer-exposed evidence. Preserve unlocalized multi-skill errors as item observations, and check the student's retained problem history before publishing a new transfer-practice invitation. Review invitations explicitly allow repetition.
+- Invalidate derived vectors atomically during document reparse, bound final evidence packs, preserve structured problem-and-solution groups and sum daily costs across the full UTC day. Reserve final answer/check/repair steps and reject tool execution after the tool phase closes.
+- Repair backup retention accounting and move backup file I/O into managed workers. Bound upload bytes, parsing admission and document assets; publish document metadata, chunks, full-text indexes and vector invalidation in one transaction. Add shared HTTP/WebSocket Host, Origin, CSRF and per-launch desktop credential checks.
+- Add developer CLI templates and packaging checks for Python/TypeScript plugins, plus an explicitly supported TypeScript tool adapter. Require actual native TypeScript execution in source CI; preserve local-code consent, plugin data permissions and execution limits.
+- Fix PDF heading classification with character-weighted font sizes, strengthen evaluation coverage gates, and emit Chinese CLI reports as UTF-8 across platforms. Refresh bilingual website and product guides; retain the recorded deployment and platform evidence for each corresponding commit.
+- Keep database migration head at `024`. This release includes no model training, new weights, paid model evaluation or historical benchmark re-scoring. Source checks, browser fixtures and installer acceptance have separate scopes; see [0.7.1 release notes](docs/RELEASE_0.7.1.md).
+
 ## 0.7.0 r2 — Desktop distribution repair
 
 - Replace the incomplete Electron linker signature with full ad-hoc application and bundled-runtime signatures. Fail packaging on a missing resource seal, tampered resource or invalid native signature; inspect the final readonly DMG independently. Developer ID/notarization remain required for default Gatekeeper approval.

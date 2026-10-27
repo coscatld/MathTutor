@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "cancelled leave makes zero DELETE requests, preserves multiline/image/cursor, unlocks both buttons, Escape/Cancel restore opener focus",
+    "HTTP 500 and network failure keep current session/text/image and leave dialog retry/cancel usable",
+    "successful deletion alone clears/revokes once and navigates; duplicate clicks stay one request and busy Escape cannot interrupt",
+    "late success cannot clear or unmount a newer text/image draft; deleted result is disclosed while the draft stays usable",
+    "message and scope share one confirmation; a newer scope configuration invalidates old permission even when its warning text is unchanged"
+  ],
+  "errors": [],
+  "requests": 5,
+  "confirmations": 8
+}

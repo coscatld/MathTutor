@@ -1,0 +1,42 @@
+{
+  "result": "PASS",
+  "metrics": {
+    "header": {
+      "x": 256,
+      "y": 0,
+      "width": 1024,
+      "height": 56
+    },
+    "log": {
+      "x": 256,
+      "y": 56,
+      "width": 1024,
+      "height": 614
+    },
+    "composer": {
+      "x": 256,
+      "y": 670,
+      "width": 1024,
+      "height": 130
+    },
+    "sidebar": {
+      "x": 0,
+      "y": 0,
+      "width": 256,
+      "height": 800
+    }
+  },
+  "screenshots": "Local temporary output directory omitted from publication; retained evidence is linked in the accompanying report.",
+  "checks": [
+    "reading-space",
+    "floating-context",
+    "Escape-focus",
+    "composer-autosize",
+    "tool-width",
+    "history-across-routes",
+    "documents-scroll",
+    "responsive-3-sizes",
+    "dark-reduced-motion",
+    "no-page-errors"
+  ]
+}

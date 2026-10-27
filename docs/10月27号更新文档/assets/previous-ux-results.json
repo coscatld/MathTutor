@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "403 classified, no automatic retry",
+    "temporary service failure retries and recovers",
+    "draft guard: session/new/question bank, failed send, one combined dialog, cancel preserves cursor/image, discard revokes once",
+    "old cycle/revision draft cannot submit to the new problem; empty draft navigation needs no confirmation",
+    "offer: duplicate click lock through GET/WS/child GET, single child lookup, late timeout isolation, public error termination, GET abort/unmount cleanup, sync failure classification, successful child navigation",
+    "documents: 422 never reopens picker, 501 fallback, scope failure preserves row, retry only PATCHes",
+    "native import success with failed refresh remains saved and visible",
+    "ready/warnings/OCR/failed/disabled/unassigned feedback matches rows; toast focuses recovery controls"
+  ],
+  "errors": []
+}

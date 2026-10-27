@@ -8,6 +8,7 @@ import {
   sampleFunction, sampleParametric, sampleRegion, type EvalEnv, type Point2,
 } from "../lib/scene-eval";
 import type { ExprAst, Scene, SceneObject } from "../lib/scene-types";
+import { sceneSessionKey } from "../lib/scene-identity";
 
 const HEIGHT = 320;
 const PAD = { left: 40, right: 16, top: 14, bottom: 28 };
@@ -78,8 +79,16 @@ function describe(object: SceneObject, env: EvalEnv): string {
 }
 
 /** Interactive canvas for a server-compiled Scene v2: the app evaluates and draws every definition. */
-export default function SceneCanvas({ scene }: { scene: Scene }) {
+export default function SceneCanvas({ scene, sceneId = "standalone" }: { scene: Scene; sceneId?: string }) {
+  // A genuine definition change starts a new interaction session. This boundary
+  // remains correct when callers rebuild equal objects or React discards a memo.
+  return <SceneCanvasSession key={sceneSessionKey(scene, sceneId)} initialScene={scene} />;
+}
+
+function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
+  const [scene] = useState(initialScene);
   const uid = useId();
+  const figure = useRef<HTMLElement>(null);
   const wrapper = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const trails = useRef<Record<string, Point2[]>>({});
@@ -88,6 +97,8 @@ export default function SceneCanvas({ scene }: { scene: Scene }) {
   const [dark, setDark] = useState(false);
   const [values, setValues] = useState<Record<string, number>>(() => paramValues(scene));
   const [playing, setPlaying] = useState<Record<string, boolean>>({});
+  const [foreground, setForeground] = useState(false);
+  const [inView, setInView] = useState(false);
   const [trailVersion, setTrailVersion] = useState(0);
   const [hover, setHover] = useState<{ px: number; py: number } | null>(null);
 
@@ -112,19 +123,40 @@ export default function SceneCanvas({ scene }: { scene: Scene }) {
     return () => { resize.disconnect(); themeWatch.disconnect(); };
   }, []);
 
-  // Autoplay animated params unless the reader prefers reduced motion; stop when the tab hides.
+  // Initialise autoplay once per scene version. Visibility only gates execution;
+  // it must never overwrite the reader's play/pause choice.
   useEffect(() => {
-    const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduced && !document.hidden) {
+    const media = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+    if (!media?.matches) {
       const auto = Object.fromEntries(scene.params.filter(param => param.animate).map(param => [param.name, true]));
       if (Object.keys(auto).length) setPlaying(auto);
     }
-    const onVisibility = () => { if (document.hidden) setPlaying({}); };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
+    const onMotion = () => { if (media?.matches) setPlaying({}); };
+    media?.addEventListener("change", onMotion);
+    return () => media?.removeEventListener("change", onMotion);
   }, [scene]);
 
   useEffect(() => {
+    const onVisibility = () => setForeground(!document.hidden);
+    onVisibility();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  useEffect(() => {
+    const element = figure.current;
+    if (!element) return;
+    if (typeof IntersectionObserver !== "function") { setInView(true); return; }
+    const root = element.closest<HTMLElement>("[data-chat-scroll-root]");
+    const observer = new IntersectionObserver(([entry]) => {
+      setInView(entry.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0);
+    }, { root, threshold: 0 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!foreground || !inView) return;
     const active = scene.params.filter(param => playing[param.name]);
     if (!active.length) return;
     let frame = 0;
@@ -146,7 +178,7 @@ export default function SceneCanvas({ scene }: { scene: Scene }) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, scene]);
+  }, [playing, scene, foreground, inView]);
 
   // Record traced point positions as params change (runs before the draw effect).
   useEffect(() => {
@@ -466,7 +498,7 @@ export default function SceneCanvas({ scene }: { scene: Scene }) {
   const hoverDigits = Math.max(0, Math.min(4, Math.ceil(-Math.log10((view.x[1] - view.x[0]) / 100))));
 
   return (
-    <figure className="my-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+    <figure ref={figure} className="mt-scene my-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
       {scene.source === "model" ? <p role="note" className="mb-2 text-xs leading-5 text-[var(--muted-foreground)]">{MODEL_NOTICE}</p> : null}
       {legend.length >= 2 ? (
         <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]" aria-label="图例">
@@ -474,8 +506,8 @@ export default function SceneCanvas({ scene }: { scene: Scene }) {
             const slot = slots.get(object.id) ?? null;
             const color = slotColor(slot, dark, "var(--primary)", "var(--muted-foreground)");
             const dash = slot === null ? OVERFLOW_DASH : DASHES[slot];
-            return <li key={object.id} className="flex items-center gap-1.5">
-              <svg width="18" height="6" aria-hidden="true"><line x1="1" y1="3" x2="17" y2="3" stroke={color} strokeWidth="2" strokeDasharray={dash.length ? dash.map(v => Math.max(1, Math.round(v * 0.7))).join(" ") : undefined} strokeLinecap="round" /></svg>
+            return <li key={object.id} className="flex min-w-0 items-center gap-1.5">
+              <svg width="18" height="6" className="shrink-0" aria-hidden="true"><line x1="1" y1="3" x2="17" y2="3" stroke={color} strokeWidth="2" strokeDasharray={dash.length ? dash.map(v => Math.max(1, Math.round(v * 0.7))).join(" ") : undefined} strokeLinecap="round" /></svg>
               {object.label}
             </li>;
           })}
@@ -496,26 +528,30 @@ export default function SceneCanvas({ scene }: { scene: Scene }) {
             const value = values[param.name] ?? param.value;
             const shown = formatNumber(value, stepDigits(param.step));
             const on = !!playing[param.name];
-            return <div key={param.name} className="flex items-center gap-2">
-              <label htmlFor={id} className="min-w-8 shrink-0">{param.label}</label>
+            return <div key={param.name} className="mt-scene-param">
+              <div className="mt-scene-param-meta">
+                <label htmlFor={id}>{param.label}</label>
+                <output htmlFor={id} className="tabular-nums text-[var(--muted-foreground)]">{shown}</output>
+              </div>
+              <div className="mt-scene-param-controls">
               <input id={id} type="range" min={param.min} max={param.max} step={param.step} value={value}
-                aria-valuetext={`${param.label} = ${shown}`} className="min-w-0 flex-1 accent-[var(--primary)]"
+                aria-valuetext={`${param.label} = ${shown}`} className="accent-[var(--primary)]"
                 onChange={event => setParam(param.name, Number(event.currentTarget.value))} />
-              <output htmlFor={id} className="w-16 shrink-0 text-right tabular-nums text-[var(--muted-foreground)]">{shown}</output>
               {param.animate ? <button type="button" aria-pressed={on} aria-label={`${on ? "暂停" : "播放"} ${param.label} 动画`}
-                className="flex min-h-8 items-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs"
+                className="flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs"
                 onClick={() => setPlaying(previous => ({ ...previous, [param.name]: !on }))}>
                 {on ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}{on ? "暂停" : "播放"}
               </button> : null}
+              </div>
             </div>;
           })}
           {traced ? <div><button type="button" onClick={clearTrails}
-            className="flex min-h-8 items-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs">
+            className="flex min-h-11 items-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs">
             <Eraser className="h-3.5 w-3.5" aria-hidden="true" />清除轨迹</button></div> : null}
         </div>
       ) : null}
       {readouts.length ? (
-        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm text-[var(--foreground)]" aria-label="读数">
+        <dl className="mt-scene-readouts mt-2 grid gap-x-3 gap-y-0.5 text-sm text-[var(--foreground)]" aria-label="读数">
           {readouts.map((readout, index) => <div key={index} className="contents">
             <dt className="text-[var(--muted-foreground)]">{readout.label}</dt>
             <dd className="tabular-nums">{readout.value}</dd>

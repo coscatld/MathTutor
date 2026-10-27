@@ -100,7 +100,7 @@ export function useConversationReferenceScope(sessionId: string) {
   }, [sessionId, draftKey, savedKey, dirty, draft, saved]);
 
   useUnsavedNavigation(saving || unconfirmed ? "资料范围正在保存或等待确认。"
-    : dirty ? "对话资料的参考范围尚未应用，草案会在本次使用中保留。" : "");
+    : dirty ? "对话资料的参考范围尚未应用，草案会在本次使用中保留。" : "", undefined, JSON.stringify([sessionId, draftKey, saving, unconfirmed]));
 
   const edit = (value: Mount) => {
     if (savingRef.current || unconfirmed || status !== "ready") return;

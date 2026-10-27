@@ -86,11 +86,21 @@ export function niceStep(span: number, target = 8): number {
 
 /** Linear interpolation of a series at x; null in gaps (asymptotes, domain holes). */
 export function valueAt(series: GraphSeries, x: number): number | null {
+  if (!Number.isFinite(x)) return null;
   for (const segment of series.segments) {
     for (let i = 1; i < segment.length; i += 1) {
       const [x0, y0] = segment[i - 1];
       const [x1, y1] = segment[i];
-      if (x >= x0 && x <= x1) return x1 === x0 ? y0 : y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+      if (x >= x0 && x <= x1) {
+        if (x === x0) return y0;
+        if (x === x1) return y1;
+        const span = x1 - x0;
+        const ratio = x1 === x0 ? 0 : Number.isFinite(span) ? (x - x0) / span : (x / 2 - x0 / 2) / (x1 / 2 - x0 / 2);
+        const delta = y1 - y0;
+        // Weight the endpoints when subtracting large opposite y values overflows.
+        const value = Number.isFinite(delta) ? y0 + delta * ratio : y0 * (1 - ratio) + y1 * ratio;
+        return Number.isFinite(value) ? value : null;
+      }
     }
   }
   return null;

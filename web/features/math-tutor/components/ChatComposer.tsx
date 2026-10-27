@@ -40,7 +40,8 @@ export default function ChatComposer({ busy, disabled, onSend, onSendAttempt, at
   }, [text, images.attachments.length, attemptMode, draftProblem, problemKey]);
   const staleAttempt = draftProblem !== null && draftProblem !== problemKey;
   const discard = () => { setText(""); images.clearAttachments(); setDraftProblem(null); };
-  useUnsavedNavigation(text.trim() || images.attachments.length ? "有未发送的文字或图片，离开将丢弃这份草稿。" : "", discard);
+  const draftVersion = JSON.stringify([text, images.attachments.map(attachment => attachment.id), draftProblem, problemKey, attemptMode]);
+  useUnsavedNavigation(text.trim() || images.attachments.length ? "有未发送的文字或图片，离开将丢弃这份草稿。" : "", discard, draftVersion);
   const exitAttempt = () => { setDraftProblem(null); onExitAttempt?.(); };
   const toast = useToast();
   const locked = busy || sending || disabled;

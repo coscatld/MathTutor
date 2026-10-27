@@ -50,7 +50,7 @@ class ReleaseConfig:
 
 
 RELEASE_CONFIG = ReleaseConfig(
-    app_version="0.7.0",
+    app_version="0.7.1",
     schema_version=SCHEMA_VERSION,
     migration_head=MIGRATION_HEAD,
     curriculum_active_version=StaticCurriculumProvider.VERSION_CODE,
