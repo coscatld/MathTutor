@@ -4,7 +4,12 @@
 
 0.7.1 汇总 0.7.0 之后的可靠性升级，并修复图形交互与删除草稿问题。学生输入在失败后保留，图形在聊天刷新时保持操作状态，学习记录、资料来源和本地服务继续按明确的证据与权限边界工作。
 
-下载、平台文件与对应验收记录见 [0.7.1 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1)。历史 0.7.0 r3 文件继续保留其原构建内容，各版本资产分别对应自己的源码与验收记录。
+下载与校验文件见 [0.7.1 发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1)。本次重新构建 macOS Apple Silicon DMG 与 Windows x64 EXE；历史 0.7.0 r3 文件继续对应原构建。
+
+| 平台 | 安装包 | 校验文件 |
+| --- | --- | --- |
+| macOS Apple Silicon | [DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-mac-arm64.dmg) | [SHA-256](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/SHA256SUMS-0.7.1-mac.txt) |
+| Windows x64 | [EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-win-x64.exe) | [SHA-256](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/SHA256SUMS-windows.txt) |
 
 ## 本次图形与草稿修复
 
@@ -63,3 +68,13 @@ macOS 的本地 ad-hoc 签名、Developer ID 和公证是不同验收项；Windo
 320px、375px、768px 窄屏与长内容布局已检查；200% 项为 CSS 布局缩放压力测试。polite 状态节点和键盘交互已验证，真实读屏器播报、浏览器工具栏原生缩放和其他浏览器仍需相应验收。短时 CPU profile 与绘制计数用于确认离屏时停止计算，其范围不延伸到帧率、能耗或学习效果结论。
 
 完整源码检查入口为 `python scripts/check.py`。各日测试数与三平台历史 CI 见对应记录；0.7.1 的最终安装包、源码 CI 与分发证据以本次发布页随附记录为准。
+
+### 0.7.1 发布检查
+
+- 发布前本地 Python／桌面测试：**3405 通过、22 跳过**；跳过项依赖可选的 PyMuPDF、Torch 或专用 sqlite-vec 探针。Web 测试 **276 通过**，0.7.1 前端生产构建通过。
+- Windows 安装验收脚本按实际前端来源发送读取请求，并为修改请求带上 CSRF 标记；覆盖日志分块中的动态端口解析，使用真实来源中间件验证允许与拒绝路径。**62 项针对性检查通过**。脚本更新不改变应用运行代码。
+- Mac 新包通过运行时搬移、完整 ad-hoc 签名、只读 DMG 完整性、应用及 DMG 的 17/17 流程、系统凭据存储与可写目录启动验收。文件为 **187,466,529 字节**，SHA-256 为 `c204829ca840b1c0b8983566cd746c344c68f34f3f2d1c2aa08565eb5ab8d606`。见 [Mac 验收记录](https://github.com/coscatld/MathTutor/blob/v0.7.1/docs/10月27号更新文档/assets/macos-0.7.1-verification.json)。
+- Windows 构建与原生安装验收由 [本次工作流](https://github.com/coscatld/MathTutor/actions/runs/40519149066)执行，包含中文路径、重复启动、版本恢复与 Python／TypeScript 插件。结果、资产摘要与源码 CI 汇总在发布页的 [版本验收清单](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/release-verification-0.7.1.json)中。
+- 官网中英文版本、下载入口、安装说明、FAQ 与开发者打包说明同步到 0.7.1；本地完成 56 页构建、类型检查与 304 个导出文件验证。
+
+Mac 应用源码基线为 `dfbcd30137357cd61262387660b54f1b36219488`，Windows 安装验收脚本基线为 `e814401d0371205ce05bd5cd8a4da3ff4d18899e`。后续发布提交更新文档、官网和验收证据；包内应用文件与这两个基线一致，具体来源与摘要保留在各平台验收文件中。

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Apple, Monitor } from 'lucide-react';
-import { CURRENT_ASSETS, CURRENT_VERSION, LINUX_STATUS, RELEASE_URL } from '@/lib/releases';
+import { CURRENT_ASSETS, CURRENT_VERSION, LINUX_STATUS, RELEASE_TAG, RELEASE_URL } from '@/lib/releases';
 import { t } from '@/lib/messages';
 import { absUrl, isLocale, type Locale } from '@/lib/site';
 
@@ -78,10 +78,10 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
             </li>
             <li>
               <a
-                href="https://github.com/coscatld/MathTutor/blob/main/docs/RELEASE_0.7.0.md"
+                href={`https://github.com/coscatld/MathTutor/blob/${RELEASE_TAG}/docs/RELEASE_${CURRENT_VERSION}.md`}
                 className="underline"
               >
-                Release Notes 0.7.0
+                {locale === 'zh' ? '更新说明' : 'Release Notes'} {CURRENT_VERSION}
               </a>
             </li>
           </ul>

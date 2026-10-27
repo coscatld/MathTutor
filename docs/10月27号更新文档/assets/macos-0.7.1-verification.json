@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-27T14:01:19.398992+00:00",
+  "application_version": "0.7.1",
+  "source_commit": "dfbcd30137357cd61262387660b54f1b36219488",
+  "platform": "macOS Apple Silicon arm64",
+  "artifact": {
+    "name": "MathTutor-0.7.1-mac-arm64.dmg",
+    "bytes": 187466529,
+    "sha256": "c204829ca840b1c0b8983566cd746c344c68f34f3f2d1c2aa08565eb5ab8d606"
+  },
+  "build_method": "package:mac:unsigned; complete local ad-hoc signing",
+  "runtime": {
+    "directory": ".runtime/python-mac-arm64-064",
+    "python_version": "3.11.17",
+    "target_runtime_relocation": "PASS"
+  },
+  "desktop_contracts": {
+    "passed": 56,
+    "skipped": 2,
+    "failed": 0
+  },
+  "signature_and_disk_image": {
+    "schema_version": 1,
+    "generated_at": "2026-10-27T13:58:43.314Z",
+    "artifact": "MathTutor-0.7.1-mac-arm64.dmg",
+    "sha256": "c204829ca840b1c0b8983566cd746c344c68f34f3f2d1c2aa08565eb5ab8d606",
+    "disk_image_integrity": "PASS",
+    "readonly_dmg": true,
+    "signature": {
+      "status": "PASS",
+      "identity": "AD_HOC",
+      "native_resources_verified": 55
+    },
+    "gatekeeper": {
+      "status": "FAIL",
+      "exit_code": 3,
+      "diagnostic": "MathTutor.app: rejected"
+    }
+  },
+  "packaged_smoke": {
+    "schema_version": 2,
+    "started_at": "2026-10-27T13:58:58.170Z",
+    "completed_at": "2026-10-27T13:59:26.291Z",
+    "platform": "darwin",
+    "arch": "arm64",
+    "artifact": "dist/mac-arm64/MathTutor.app/Contents/MacOS/MathTutor",
+    "dmg_artifact": "dist/MathTutor-0.7.1-mac-arm64.dmg",
+    "dmg_size_bytes": 187466529,
+    "dmg_sha256": "c204829ca840b1c0b8983566cd746c344c68f34f3f2d1c2aa08565eb5ab8d606",
+    "packaged_migration_head": "024",
+    "packaged_migration_file": "Contents/Resources/python-app/mathtutor/infrastructure/migrations/versions/024_turn_traces.py",
+    "runner_isolation": {
+      "cwd_outside_checkout": true,
+      "inherited_pythonpath": false,
+      "inherited_conda_or_virtualenv": false
+    },
+    "consecutive_runs": 1,
+    "consecutive_run_results": [
+      {
+        "started_at": "2026-10-27T13:58:58.170Z",
+        "completed_at": "2026-10-27T13:59:26.291Z",
+        "macos_keychain_sentinel": {
+          "cleanup_complete": true,
+          "operations": {
+            "available": true,
+            "delete": true,
+            "finally_delete": true,
+            "missing_after_delete": true,
+            "missing_after_finally": true,
+            "put": true,
+            "read_match": true
+          },
+          "packaged_store_import": true,
+          "plaintext_fallback": false,
+          "platform": "Darwin",
+          "schema_version": 1,
+          "secret_in_argv": false,
+          "secret_transport": "stdin_only",
+          "service": "com.mathtutor.product",
+          "status": "PASS",
+          "store": "macOS Keychain",
+          "exit_code": 0
+        },
+        "app_production_launch": {
+          "exit_code": 0,
+          "signal": null,
+          "auth_on_register_login_readiness": true,
+          "backend_ready_ms": 2181,
+          "frontend_ready_ms": 2202,
+          "self_contained_import": true
+        },
+        "app_full_smoke": {
+          "exit_code": 0,
+          "signal": null,
+          "backend_ready_ms": 2182,
+          "frontend_ready_ms": 2202,
+          "smoke_steps": [
+            17,
+            17
+          ],
+          "self_contained_import": true,
+          "local_provider": true
+        },
+        "dmg_readonly_mount_full_smoke": {
+          "exit_code": 0,
+          "signal": null,
+          "backend_ready_ms": 2182,
+          "frontend_ready_ms": 2203,
+          "smoke_steps": [
+            17,
+            17
+          ],
+          "self_contained_import": true,
+          "local_provider": true
+        },
+        "release_log_audit": {
+          "status": "PASS",
+          "checked_streams": [
+            "keychain_sentinel",
+            "app_production",
+            "app_full",
+            "dmg_full"
+          ],
+          "forbidden_matches": [],
+          "keychain_value_not_logged": true,
+          "installer_log": "NOT_APPLICABLE_DMG_NO_INSTALLER_LOG"
+        }
+      }
+    ],
+    "app_production_launch": {
+      "exit_code": 0,
+      "signal": null,
+      "auth_on_register_login_readiness": true,
+      "backend_ready_ms": 2181,
+      "frontend_ready_ms": 2202,
+      "self_contained_import": true
+    },
+    "app_full_smoke": {
+      "exit_code": 0,
+      "signal": null,
+      "backend_ready_ms": 2182,
+      "frontend_ready_ms": 2202,
+      "smoke_steps": [
+        17,
+        17
+      ],
+      "self_contained_import": true,
+      "local_provider": true
+    },
+    "dmg_readonly_mount_full_smoke": {
+      "exit_code": 0,
+      "signal": null,
+      "backend_ready_ms": 2182,
+      "frontend_ready_ms": 2203,
+      "smoke_steps": [
+        17,
+        17
+      ],
+      "self_contained_import": true,
+      "local_provider": true
+    },
+    "release_log_audit": {
+      "status": "PASS",
+      "checked_streams": [
+        "keychain_sentinel",
+        "app_production",
+        "app_full",
+        "dmg_full"
+      ],
+      "forbidden_matches": [],
+      "keychain_value_not_logged": true,
+      "installer_log": "NOT_APPLICABLE_DMG_NO_INSTALLER_LOG"
+    },
+    "keychain_sentinel": {
+      "cleanup_complete": true,
+      "operations": {
+        "available": true,
+        "delete": true,
+        "finally_delete": true,
+        "missing_after_delete": true,
+        "missing_after_finally": true,
+        "put": true,
+        "read_match": true
+      },
+      "packaged_store_import": true,
+      "plaintext_fallback": false,
+      "platform": "Darwin",
+      "schema_version": 1,
+      "secret_in_argv": false,
+      "secret_transport": "stdin_only",
+      "service": "com.mathtutor.product",
+      "status": "PASS",
+      "store": "macOS Keychain",
+      "exit_code": 0
+    },
+    "performance_claim": "Each run is n=1; observed values are not a percentile distribution."
+  },
+  "writable_copy_startup": {
+    "schema_version": 1,
+    "status": "PASS",
+    "checks": {
+      "business_smoke": "PASS",
+      "signature_after_python_import_and_business": "PASS",
+      "launchservices_after_explicit_per_app_trust": "PASS",
+      "signature_after_launchservices": "PASS",
+      "packaged_page_requests": "PASS",
+      "signature_after_page_requests": "PASS"
+    },
+    "writable_copy": true,
+    "chinese_install_directory": true,
+    "inherited_python_flags": false,
+    "global_gatekeeper_settings_changed": false,
+    "default_gatekeeper_approval": false,
+    "trust_action": "REMOVE_QUARANTINE_FROM_VERIFIED_DISPOSABLE_APP_ONLY",
+    "paid_model_calls": 0
+  },
+  "package_source_verification": {
+    "python_files_matching_checked_out_source": 261,
+    "frontend_static_files_matching_fresh_build": 93,
+    "desktop_shell_and_runtime_files_matching_source": 6,
+    "packaged_info_plist_version": "0.7.1",
+    "packaged_asar_package_version": "0.7.1"
+  },
+  "developer_id": "NOT_CONFIGURED",
+  "notarization": "NOT_PERFORMED",
+  "default_gatekeeper_approval": false,
+  "explicit_per_app_trust_required": true,
+  "paid_model_calls": 0
+}

@@ -29,8 +29,8 @@ export const roadmap: {
   },
   {
     status: 'completed',
-    zh: 'Windows x64 与 macOS arm64 0.7.0 r3 安装包及跨平台源码 CI。',
-    en: 'Windows x64 and macOS arm64 0.7.0 r3 installers, plus cross-platform source CI.',
+    zh: 'Windows x64 与 macOS arm64 0.7.1 安装包及跨平台源码 CI。',
+    en: 'Windows x64 and macOS arm64 0.7.1 installers, plus cross-platform source CI.',
   },
   {
     status: 'in-progress',

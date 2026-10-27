@@ -10,7 +10,7 @@
 
 MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**当前正式版本：0.7.1**：[发布页与下载](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1) · [更新说明](docs/RELEASE_0.7.1.md)。本版汇总近期的学习证据、资料检索、本地服务和交互修复：删除失败保留草稿，图形状态随内容保持，函数支持数值查询，离屏动画停止计算。各平台安装文件及其独立验收记录以发布页资产为准。
+**当前正式版本：0.7.1**：[发布页](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1) · [macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-mac-arm64.dmg) · [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-win-x64.exe) · [更新说明](docs/RELEASE_0.7.1.md)。本版汇总近期的学习证据、资料检索、本地服务和交互修复：删除失败保留草稿，图形状态随内容保持，函数支持数值查询，离屏动画停止计算。各平台安装文件及其独立验收记录以发布页资产为准。
 
 **历史安装包（0.7.0 r3）**：[macOS Apple Silicon DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg) · [Windows x64 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe) · [历史更新说明](docs/RELEASE_0.7.0.md)。这些文件保留其原构建内容，不包含 0.7.1 的后续修复。Mac 的 ad-hoc 签名与首次使用说明见 [Mac 安装说明](docs/MACOS_INSTALLATION.md)。
 

@@ -1,10 +1,10 @@
 /**
- * Verified public installers for MathTutor 0.7.0.
- * Source: GitHub Releases API + docs/RELEASE_0.7.0.md.
+ * Current MathTutor release downloads.
+ * Source: GitHub Releases + docs/RELEASE_0.7.1.md.
  * Linux is intentionally omitted: no verified public artifact.
  */
-export const CURRENT_VERSION = '0.7.0';
-export const RELEASE_TAG = 'v0.7.0';
+export const CURRENT_VERSION = '0.7.1';
+export const RELEASE_TAG = 'v0.7.1';
 export const RELEASE_URL = `https://github.com/coscatld/MathTutor/releases/tag/${RELEASE_TAG}`;
 
 export type PlatformId = 'windows-x64' | 'macos-arm64';
@@ -22,8 +22,8 @@ export type ReleaseAsset = {
 export const CURRENT_ASSETS: ReleaseAsset[] = [
   {
     id: 'windows-x64',
-    filename: 'MathTutor-0.7.0-win-x64-r3.exe',
-    url: 'https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-win-x64-r3.exe',
+    filename: 'MathTutor-0.7.1-win-x64.exe',
+    url: 'https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-win-x64.exe',
     os: 'Windows 10/11',
     arch: 'x64',
     notes: 'NSIS 安装包，无 Authenticode 发行证书签名。SmartScreen 可能提示“仍要运行”。',
@@ -32,14 +32,14 @@ export const CURRENT_ASSETS: ReleaseAsset[] = [
   },
   {
     id: 'macos-arm64',
-    filename: 'MathTutor-0.7.0-mac-arm64-r3.dmg',
-    url: 'https://github.com/coscatld/MathTutor/releases/download/v0.7.0/MathTutor-0.7.0-mac-arm64-r3.dmg',
+    filename: 'MathTutor-0.7.1-mac-arm64.dmg',
+    url: 'https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-mac-arm64.dmg',
     os: 'macOS',
     arch: 'Apple Silicon',
     notes:
-      'r3 使用完整本地 ad-hoc 签名，无 Developer ID、未公证。Gatekeeper 默认拒绝，需在“隐私与安全性”中允许。原始 Mac 包已撤回。',
+      '使用完整本地 ad-hoc 签名，无 Developer ID、未公证。Gatekeeper 默认拒绝，需在“隐私与安全性”中明确允许。',
     notesEn:
-      'r3 is fully ad-hoc signed locally. No Developer ID and not notarized. Gatekeeper rejects it by default. The original Mac build was withdrawn.',
+      'Fully ad-hoc signed locally, without Developer ID or notarization. Gatekeeper rejects it by default; explicitly allow it under Privacy & Security.',
   },
 ];
 

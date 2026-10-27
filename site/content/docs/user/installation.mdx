@@ -1,16 +1,18 @@
 ---
 title: 安装
-description: Windows 与 macOS 0.7.0 r3 安装包与首次打开说明。
+description: Windows 与 macOS 0.7.1 安装包、升级与首次打开说明。
 ---
 
-当前正式版本 **0.7.0**。请使用 r3 安装包。
+当前正式版本 **0.7.1**，包含近期图形交互、草稿保护、学习证据、资料检索和本地服务修复。
 
 | 系统 | 文件 |
 |---|---|
-| Windows 10/11 x64 | `MathTutor-0.7.0-win-x64-r3.exe` |
-| macOS Apple Silicon | `MathTutor-0.7.0-mac-arm64-r3.dmg` |
+| Windows 10/11 x64 | `MathTutor-0.7.1-win-x64.exe` |
+| macOS Apple Silicon | `MathTutor-0.7.1-mac-arm64.dmg` |
 
-发布页：[v0.7.0 Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.0)
+发布页：[v0.7.1 Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1)。文件摘要和分平台验收记录随发布资产提供。
+
+升级前创建并验证应用内备份，正常退出旧版，再安装新版。数据库 migration head 保持 **024**，本版未新增结构迁移；社区与插件配置需要单独保存。
 
 ## Windows
 
@@ -20,7 +22,7 @@ description: Windows 与 macOS 0.7.0 r3 安装包与首次打开说明。
 
 ## macOS
 
-原始 Mac 包因资源签名不完整已撤回，请改用 r3。r3 是完整本地 ad-hoc 签名，**没有 Developer ID、未公证**，Gatekeeper 默认拒绝。
+0.7.1 使用完整本地 ad-hoc 签名，**没有 Developer ID、未公证**，Gatekeeper 默认拒绝。请先核对文件来源与摘要，再明确允许打开。
 
 步骤见仓库 [docs/MACOS_INSTALLATION.md](https://github.com/coscatld/MathTutor/blob/main/docs/MACOS_INSTALLATION.md)：把应用拖入“应用程序”，必要时在“隐私与安全性”中允许。
 

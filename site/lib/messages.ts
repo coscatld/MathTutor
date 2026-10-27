@@ -20,7 +20,7 @@ export const messages = {
     langSwitch: '切换语言',
     search: '搜索文档',
     hero: {
-      eyebrow: '开源数学智能辅导系统 · 0.7.0',
+      eyebrow: '开源数学智能辅导系统 · 0.7.1',
       title: '让每一步推理，都有迹可循。',
       subtitle:
         '从自己尝试一道题开始，在需要时获得提示，再用一道新题检验理解。MathTutor 把数学辅导、参考资料和作答证据放进同一个本地学习工作台。',
@@ -46,7 +46,7 @@ export const messages = {
     ],
     screenshotCaption: '真实 0.7.x 产品界面截图，不是示意稿。',
     ctaTitle: '从安装包或源码开始',
-    ctaBody: 'Windows x64 与 macOS Apple Silicon 提供 0.7.0 r3 安装包。开发者可按文档在本地运行 Python 服务与 Next.js 工作台。',
+    ctaBody: 'Windows x64 与 macOS Apple Silicon 提供 0.7.1 安装包。开发者可按文档在本地运行 Python 服务与 Next.js 工作台。',
     footer: {
       license: 'Apache-2.0',
       deeptutor: '在 DeepTutor 基础上二次开发，保留上游 Apache-2.0 与 HKU Data Intelligence Lab 版权声明。',
@@ -58,14 +58,14 @@ export const messages = {
     },
     downloadPage: {
       title: '下载 MathTutor',
-      intro: '当前正式版本 0.7.0。请使用修复普通数学提问与讨论题教学按钮的 r3 安装包。',
+      intro: '当前正式版本 0.7.1，汇总图形交互、草稿保护、学习证据、资料检索与本地服务的近期修复。',
       notes: '安装说明',
       releases: 'GitHub Releases',
       macGuide: 'macOS 安装说明',
       linuxTitle: 'Linux',
       unsignedTitle: '签名与公证状态',
       unsignedBody:
-        '两个当前安装包都没有发行证书签名。Mac r3 为本地 ad-hoc 签名且未公证；Windows 可能出现 SmartScreen。这不代表安装包未构建或未做启动验收。',
+        '两个当前安装包都没有发行证书签名。Mac 为完整本地 ad-hoc 签名且未公证，首次打开需明确允许；Windows 可能出现 SmartScreen。安装验收记录见发布页。',
     },
     architecturePage: {
       title: '系统架构',
@@ -73,7 +73,7 @@ export const messages = {
     },
     roadmapPage: {
       title: '路线图',
-      intro: '状态与仓库当前研发一致。完成项来自已发布的 0.7.0；进行中与规划来自社区路线图与学生模型文档。',
+      intro: '状态与仓库当前研发一致。完成项覆盖 0.7.1；进行中与规划来自社区路线图与学生模型文档。',
       completed: '已完成',
       inProgress: '进行中',
       planned: '规划中',
@@ -105,7 +105,7 @@ export const messages = {
     langSwitch: 'Switch language',
     search: 'Search docs',
     hero: {
-      eyebrow: 'Open-source math tutoring · 0.7.0',
+      eyebrow: 'Open-source math tutoring · 0.7.1',
       title: 'MathTutor — Beyond Answers, Toward Real Understanding.',
       subtitle:
         'Verifiable math reasoning, graded Socratic guidance, learning-process evidence, independent transfer practice, and a local-first open-source desktop app. The model writes; the product owns permissions, evidence, answer disclosure, and data boundaries.',
@@ -131,7 +131,7 @@ export const messages = {
     ],
     screenshotCaption: 'Screenshots from the real 0.7.x app, not mockups.',
     ctaTitle: 'Start from an installer or from source',
-    ctaBody: '0.7.0 r3 installers are published for Windows x64 and macOS Apple Silicon. Developers can run the Python service and Next.js workbench locally.',
+    ctaBody: '0.7.1 installers are available for Windows x64 and macOS Apple Silicon. Developers can run the Python service and Next.js workbench locally.',
     footer: {
       license: 'Apache-2.0',
       deeptutor: 'Derived from DeepTutor. Upstream Apache-2.0 and the HKU Data Intelligence Lab copyright notice are preserved.',
@@ -143,14 +143,14 @@ export const messages = {
     },
     downloadPage: {
       title: 'Download MathTutor',
-      intro: 'Current release: 0.7.0. Use the r3 installers, which fix ordinary math questions and enable teaching help for saved discussions.',
+      intro: 'Current release: 0.7.1, with recent fixes for graph interaction, draft protection, learning evidence, retrieval, and local services.',
       notes: 'Install notes',
       releases: 'GitHub Releases',
       macGuide: 'macOS install guide',
       linuxTitle: 'Linux',
       unsignedTitle: 'Signing status',
       unsignedBody:
-        'Neither current installer uses a release certificate. The Mac r3 build is locally ad-hoc signed and not notarized; Windows may show SmartScreen. That is separate from build and launch verification.',
+        'Neither current installer uses a release certificate. The Mac build is fully ad-hoc signed locally and not notarized; first launch requires explicit approval. Windows may show SmartScreen. See the release page for installer acceptance records.',
     },
     architecturePage: {
       title: 'Architecture',
@@ -158,7 +158,7 @@ export const messages = {
     },
     roadmapPage: {
       title: 'Roadmap',
-      intro: 'Aligned with the current repository. Completed items shipped in 0.7.0. In-progress and planned items come from the community roadmap and student-model docs.',
+      intro: 'Aligned with the current repository. Completed items cover 0.7.1. In-progress and planned items come from the community roadmap and student-model docs.',
       completed: 'Completed',
       inProgress: 'In progress',
       planned: 'Planned',
