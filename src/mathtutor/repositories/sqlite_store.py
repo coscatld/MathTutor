@@ -395,6 +395,8 @@ class SQLiteSessionStore:
         parent_transition: Any,
         child: Any,
         outbox_events: list[dict[str, Any]] = (),
+        *, teaching_context: dict[str, Any] | None = None,
+        learning_events: tuple[Any, ...] = (),
     ) -> None:
         """Accept ONE practice offer in ONE short transaction (§7.7/§7.10):
 
@@ -449,6 +451,10 @@ class SQLiteSessionStore:
                 )
             await rt.set_cycle_focus(conn, student_id=student_id,
                 client_session_id=client_session_id, cycle_id=child.cycle.cycle_id)
+            if teaching_context is not None:
+                await self.teaching.save(student_id, child.cycle.cycle_id, teaching_context, conn=conn)
+            for event in learning_events:
+                await self.student_state.append_event(event, conn=conn)
             if outbox_events:
                 await append_outbox_events(conn, list(outbox_events))
 

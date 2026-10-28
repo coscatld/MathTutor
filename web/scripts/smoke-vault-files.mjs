@@ -59,7 +59,7 @@ await page.route("**/api/**", async route => {
       assert.ok(doc.paths.includes(input.previous_relative_path));
       doc.paths = doc.paths.map(relative => relative === input.previous_relative_path ? input.relative_path : relative);
       doc.body = input.body; doc.title = input.title; doc.tags = input.tags; doc.version++;
-      mutations.push({ kind: "save", ...input }); body = { document_id: doc.document_id };
+      mutations.push({ kind: "save", ...input }); body = { document_id: doc.document_id, version: doc.version, relative_path: input.relative_path };
     } else body = byLibrary(id).map(projection);
   } else if (/\/knowledge\/sources\/[^/]+$/.test(pathname)) {
     const doc = [shared, derivative, imported].find(item => item.document_id === pathname.split("/").at(-1));
@@ -118,7 +118,7 @@ try {
   await page.getByRole("textbox", { name: "Markdown 正文", exact: true }).fill(edited);
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "保存新版本", exact: true }).click();
-  await page.getByText("笔记已保存，可在显式挂载此库的会话中检索。", { exact: true }).waitFor();
+  await page.getByText(`笔记已保存为 v${shared.version}，可在显式挂载此库的会话中检索。`, { exact: true }).waitFor();
   assert.deepEqual(shared.paths, ["高一/函数.md", "归档/函数复习.md"]);
   assert.equal(shared.body, edited); assert.equal(mutations.filter(item => item.kind === "save").length, 1);
   console.log("checked alias-move-and-shared-body-save");

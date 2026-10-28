@@ -47,7 +47,7 @@ async def session_contract(store, owner_id, session, *, processing=False):
         allowed = list(dict.fromkeys([*allowed, *TEACHING_COMMANDS]))
     # Offer lifecycle is independent: buttons require a real ACTIVE resource.
     allowed = [x for x in allowed if x not in {"accept_practice_offer", "decline_practice_offer",
-        "request_practice", "request_foundation", "request_review", "resume_problem", "start_diagnostic", "skip_diagnostic", "end_problem"}]
+        "request_practice", "request_foundation", "request_review", "resume_problem", "start_diagnostic", "skip_diagnostic", "end_problem", "request_options"}]
     if not processing:
         allowed = [x for x in allowed if x != "cancel_turn"]
     active_offer = None
@@ -61,7 +61,10 @@ async def session_contract(store, owner_id, session, *, processing=False):
             recommendation = await practice.recommendation_for_offer(owner_id, offer.offer_id)
             from mathtutor.domain.practice_recommendation import PURPOSE_LABELS
             purpose = recommendation.purpose if recommendation else "D"
-            active_offer = {"offer_id": str(offer.offer_id), "title": PURPOSE_LABELS[purpose], "purpose": purpose, "status": "ACTIVE"}
+            mode = recommendation.response_mode if recommendation else "single_choice"
+            active_offer = {"offer_id": str(offer.offer_id), "title": PURPOSE_LABELS[purpose] if mode == "free_response" else "选择题诊断练习",
+                "purpose": purpose, "status": "ACTIVE", "response_mode": mode,
+                "observation_kind": recommendation.observation_kind if recommendation else "diagnostic"}
             allowed.extend(["accept_practice_offer", "decline_practice_offer"])
     context = await store.teaching.load(owner_id, session.cycle.cycle_id) if session else None
     from mathtutor.application.discussion_notebook import public_discussion
@@ -69,6 +72,9 @@ async def session_contract(store, owner_id, session, *, processing=False):
     if discussion and not valid:
         allowed.extend(TEACHING_COMMANDS)
     if context and valid and session.state != CycleState.CLOSED:
+        if (context.get("response_mode") == "free_response" and not context.get("choices")
+                and "submit_attempt" in allowed):
+            allowed.append("request_options")
         allowed.extend(["request_practice", "end_problem"])
         from mathtutor.application.evidence_projection import prerequisite_gap, review_due
         if prerequisite_gap(context):

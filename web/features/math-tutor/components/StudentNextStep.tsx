@@ -35,6 +35,7 @@ const controls = [
   { command: "request_hint", label: "提示", Icon: Lightbulb },
   { command: "submit_attempt", label: "我来写", Icon: PencilLine },
   { command: "request_example", label: "看一步", Icon: Shapes },
+  { command: "request_options", label: "显示选项（转为诊断）", Icon: Shapes },
   { command: "request_practice", label: "再来一道", Icon: ArrowRight },
 ] as const;
 
@@ -85,7 +86,7 @@ export default function StudentNextStep({ context, plan, evidence, offer, action
     </div>
     {unavailable.length ? <p id="next-step-unavailable" className="mt-3 text-xs leading-5 text-[var(--muted-foreground)]">{unavailable.join(" ")}</p> : null}
     {validOffer ? <div className="mt-inline-practice" aria-label="下一道练习">
-      <div><p className="text-sm font-semibold">{offerPurposeLabel(offer.purpose)}</p><p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{offer.title || "用一道新题继续练习。"}</p></div>
+      <div><p className="text-sm font-semibold">{offer.response_mode === "single_choice" ? "选择题诊断练习" : offerPurposeLabel(offer.purpose)}</p><p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{offer.title || "用一道新题继续练习。"}</p></div>
       <div className="mt-student-step-actions">
         {hasAction("accept_practice_offer") ? <button type="button" className="mt-step-button mt-step-button-primary" disabled={!enabled("accept_practice_offer")} onClick={() => { if (enabled("accept_practice_offer")) onCommand("accept_practice_offer", { offer_id: offer.offer_id }); }}>开始这道练习<ArrowRight className="h-4 w-4" aria-hidden="true" /></button> : null}
         {hasAction("decline_practice_offer") ? <button type="button" className="mt-step-button" disabled={!enabled("decline_practice_offer")} onClick={() => { if (enabled("decline_practice_offer")) onCommand("decline_practice_offer", { offer_id: offer.offer_id }); }}>先留在这题</button> : null}

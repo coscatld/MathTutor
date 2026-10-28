@@ -23,6 +23,9 @@ export function projectProblemContext(value: unknown): ProblemContext | null {
   const subgoal = record(raw.current_subgoal);
   const choices = projectChoices(raw.choices);
   return { problem_id: text(raw.problem_id), display_text: text(raw.display_text), skill_ids: strings(raw.skill_ids),
+    ...(raw.response_mode === "free_response" || raw.response_mode === "single_choice" ? { response_mode: raw.response_mode } : {}),
+    ...(raw.observation_kind === "independent_transfer" || raw.observation_kind === "diagnostic" ? { observation_kind: raw.observation_kind } : {}),
+    ...(typeof raw.options_exposed === "boolean" ? { options_exposed: raw.options_exposed } : {}),
     lifecycle: text(raw.lifecycle), ...(typeof raw.understanding_check === "boolean" ? { understanding_check: raw.understanding_check } : {}), ...(typeof raw.graphable === "boolean" ? { graphable: raw.graphable } : {}), ...(choices ? {choices} : {}), current_subgoal: subgoal ? { id: text(subgoal.id), prompt_target: text(subgoal.prompt_target), status: text(subgoal.status) } : null };
 }
 
@@ -44,7 +47,9 @@ export function projectEvidenceSummary(value: unknown): EvidenceSummary | null {
 export function projectActiveOffer(value: unknown): ActiveOffer | null {
   const raw = record(value);
   if (!raw || !text(raw.offer_id).trim()) return null;
-  return { offer_id: text(raw.offer_id), title: text(raw.title), purpose: text(raw.purpose), status: text(raw.status) };
+  return { offer_id: text(raw.offer_id), title: text(raw.title), purpose: text(raw.purpose), status: text(raw.status),
+    ...(raw.response_mode === "free_response" || raw.response_mode === "single_choice" ? {response_mode: raw.response_mode} : {}),
+    ...(raw.observation_kind === "independent_transfer" || raw.observation_kind === "diagnostic" ? {observation_kind: raw.observation_kind} : {}) };
 }
 
 export function projectDiagnosis(value: unknown): DiagnosisSummary | null {

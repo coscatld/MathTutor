@@ -1,0 +1,80 @@
+{
+  "status": "PASS",
+  "mocked_traffic": true,
+  "paid_model_calls": 0,
+  "mutations": [
+    {
+      "kind": "save",
+      "title": "函数.md",
+      "body": "# 函数复习\n先检查定义域，再讨论单调性。",
+      "tags": [
+        "函数"
+      ],
+      "operation_id": "a0731d8c-8614-46df-9c05-590eaaa8f867",
+      "document_id": "shared-function",
+      "expected_version": 2,
+      "relative_path": "归档/函数复习.md",
+      "previous_relative_path": "复习/函数.md"
+    },
+    {
+      "kind": "retrieval",
+      "id": "shared-function",
+      "enabled": false
+    },
+    {
+      "kind": "retrieval",
+      "id": "shared-function",
+      "enabled": true
+    },
+    {
+      "kind": "export",
+      "id": "fixture-vault",
+      "paths": [
+        "高一/函数.md",
+        "归档/函数复习.md",
+        "高二/导数.md"
+      ]
+    },
+    {
+      "kind": "import"
+    },
+    {
+      "kind": "export",
+      "id": "fixture-shared",
+      "paths": [
+        "题目/加法.md"
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "empty-desktop-aligned",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "name": "empty-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "vault-editor-mobile",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      }
+    },
+    {
+      "name": "vault-import-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    }
+  ],
+  "page_errors": []
+}

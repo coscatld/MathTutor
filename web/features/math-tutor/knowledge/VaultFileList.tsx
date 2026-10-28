@@ -3,7 +3,7 @@
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import type { Note } from "./api";
 
-export type VaultNote = Note & { provenance?: { relative_path?: string; relative_paths?: string[]; origin?: string } };
+export type VaultNote = Note & { provenance?: { relative_path?: string; relative_paths?: string[]; library_paths?: Array<{ path: string; title: string; tags: string[] }>; origin?: string } };
 
 export function vaultPath(note: VaultNote): string {
   const value = note.provenance?.relative_path || note.title;
@@ -13,6 +13,10 @@ export function vaultPath(note: VaultNote): string {
 
 /** A document may have several imported locations sharing one body and version. */
 export function vaultLocations(note: VaultNote): VaultNote[] {
+  if (note.provenance?.library_paths?.length) {
+    return note.provenance.library_paths.map(location => ({ ...note, title: location.title, tags: location.tags,
+      provenance: { ...note.provenance, relative_path: location.path, relative_paths: note.provenance!.library_paths!.map(item => item.path) } }));
+  }
   const paths = note.provenance?.relative_paths?.length ? note.provenance.relative_paths : [vaultPath(note)];
   const unique = [...new Set(paths.map(path => vaultPath({ ...note, provenance: { ...note.provenance, relative_path: path } })))];
   return unique.map(path => ({ ...note, provenance: { ...note.provenance, relative_path: path, relative_paths: unique } }));

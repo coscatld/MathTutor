@@ -36,6 +36,9 @@ class PracticeRecommendation(BaseModel):
     parent_cycle_id: UUID
     purpose: PracticePurpose
     target_revision: str
+    # Missing fields in historical invitations retain their original choice mode.
+    response_mode: Literal["free_response", "single_choice"] = "single_choice"
+    observation_kind: Literal["independent_transfer", "diagnostic"] = "diagnostic"
     target_skill_ids: tuple[str, ...]
     status: RecommendationStatus = "PREPARING"
     offer_id: UUID | None = None

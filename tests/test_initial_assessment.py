@@ -140,7 +140,11 @@ def test_practice_choices_bind_and_roundtrip_without_answer_key(tmp_path):
             _send(ws, "submit_attempt", {"answer": "2"})
             _collect(ws)
             offer = client.get("/api/v2/math-tutor/offers").json()[0]
+            # Exercise the explicit option-exposure branch; new transfer
+            # invitations now begin as free response.
             _send(ws, "accept_practice_offer", {"offer_id": offer["offer_id"]})
+            _collect(ws)
+            _send(ws, "request_options", {})
             _collect(ws)
             session = client.get("/api/v2/math-tutor/sessions/e2e-1").json()
             choices = session["problem_context"]["choices"]

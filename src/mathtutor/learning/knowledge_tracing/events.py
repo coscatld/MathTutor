@@ -31,6 +31,7 @@ class LearningEvent(BaseModel):
         "attempt_assessed", "help_requested", "help_committed",
         "help_possibly_exposed", "help_presented", "self_explanation",
         "evidence_invalidated", "problem_started", "problem_ended", "attempt_submitted",
+        "options_exposed",
     ]
     occurred_at: str = Field(default_factory=utcnow)
     problem_id: str
@@ -44,6 +45,7 @@ class LearningEvent(BaseModel):
     attempt_id: str = ""
     response_fingerprint: str = Field(default="", max_length=128)
     response_format: Literal["free_response", "single_choice"] = "free_response"
+    options_exposed: bool = False
     duplicate_response: bool = False
     prior_task_attempt: bool = False
     submission_event_id: str = ""
@@ -100,6 +102,7 @@ class LearningEvent(BaseModel):
             and self.completion_scope == "full_problem"
             and self.task_purpose not in {"diagnostic", "error_analysis"}
             and self.response_format == "free_response"
+            and not self.options_exposed
             and bool(self.skill_ids)
             and not self.provenance_uncertain
             and not self.duplicate_response
@@ -116,12 +119,14 @@ def ordered_attempts(events: Sequence[LearningEvent]) -> list[LearningEvent]:
     """
     # A raw submission and its assessment occupy ONE position, not two.
     # Unassessed submissions (including judge failures) still reserve a slot.
-    seen, assessed_submissions, unique, result = {}, set(), set(), []
+    seen, assessed_submissions, unique, result, options_seen = {}, set(), set(), [], set()
     for event in sorted(events, key=lambda e: (e.event_seq, e.occurred_at, e.event_id)):
         identity = (event.student_id, event.event_id)
         if identity in unique:
             continue
         unique.add(identity)
+        if event.event_type == "options_exposed":
+            options_seen.add((event.student_id, event.problem_revision))
         if event.event_type == "attempt_submitted":
             key = (event.student_id, event.problem_revision)
             seen.setdefault(key, ("submission", event.event_id))
@@ -131,7 +136,8 @@ def ordered_attempts(events: Sequence[LearningEvent]) -> list[LearningEvent]:
             binding = (event.student_id, event.submission_event_id)
             repeated_binding = bool(event.submission_event_id) and binding in assessed_submissions
             event = event.model_copy(update={"prior_task_attempt": event.prior_task_attempt
-                or (key in seen and seen[key] != slot) or repeated_binding})
+                or (key in seen and seen[key] != slot) or repeated_binding,
+                "options_exposed": event.options_exposed or key in options_seen})
             seen.setdefault(key, slot)
             if event.submission_event_id:
                 assessed_submissions.add(binding)
@@ -160,6 +166,7 @@ def evidence_category(event: LearningEvent) -> str | None:
         return "unknown"
     if (event.task_purpose in {"diagnostic", "error_analysis"}
             or event.response_format == "single_choice"
+            or event.options_exposed
             or event.completion_scope != "full_problem" or event.correctness == "partial"):
         return "diagnostic"
     if event.target_answer_exposed_before_attempt:

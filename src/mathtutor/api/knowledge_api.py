@@ -1,5 +1,4 @@
 """Owner-authenticated knowledge UI operations; no raw filesystem paths."""
-from pathlib import PurePosixPath
 from typing import Literal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
@@ -10,11 +9,10 @@ from sqlalchemy.exc import IntegrityError
 
 from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.product_state import get_product_state
-from mathtutor.application.knowledge import KnowledgeError
+from mathtutor.application.knowledge import KnowledgeError, normalize_note_path
 from mathtutor.application.knowledge_tools import Strict, KnowledgeTools, Save
 from mathtutor.security.scopes import StudentOwnerScope
 from mathtutor.infrastructure.knowledge_schema import drafts
-from mathtutor.infrastructure.document_storage import sanitize_filename
 
 router = APIRouter(prefix="/knowledge")
 
@@ -123,14 +121,11 @@ async def notes(sid: str, owner: StudentOwnerScope = Depends(require_student_own
 
 @router.post("/libraries/{sid}/notes")
 async def save_note(sid: str, body: NoteInput, owner: StudentOwnerScope = Depends(require_student_owner)):
-    relative_path = body.relative_path.replace("\\", "/")
-    previous_path = body.previous_relative_path.replace("\\", "/") if body.previous_relative_path is not None else None
-    for value in (relative_path, previous_path):
-        path = PurePosixPath(value or "")
-        if value and (path.is_absolute() or ":" in value or any(ord(c) < 32 for c in value)
-                      or any(p in {"", ".", ".."} or p.startswith(".") for p in value.split("/"))
-                      or path.suffix.lower() not in {".md", ".markdown", ".txt"}):
-            raise HTTPException(422, "仅保存明确选择的 Markdown 或 TXT 文本；隐藏目录、插件和越界路径不会保存。")
+    try:
+        relative_path = normalize_note_path(body.relative_path)
+        previous_path = normalize_note_path(body.previous_relative_path) if body.previous_relative_path is not None else None
+    except KnowledgeError as exc:
+        raise HTTPException(422, str(exc)) from exc
     path_intent = {}
     if "relative_path" in body.model_fields_set:
         path_intent["relative_path"] = relative_path
@@ -150,18 +145,6 @@ async def save_note(sid: str, body: NoteInput, owner: StudentOwnerScope = Depend
         provenance["origin"] = "user"
         if "relative_path" in body.model_fields_set or "relative_path" not in provenance:
             provenance["relative_path"] = relative_path
-            paths = provenance.get("vault_paths", {}).get(sid)
-            if paths:
-                target = previous_path if previous_path is not None else paths[0]["path"]
-                index = next((i for i, entry in enumerate(paths) if entry["path"] == target), None)
-                if index is None:
-                    raise KnowledgeError("文件路径已变化，请重新打开后保存。")
-                path = relative_path or sanitize_filename(body.title.removesuffix(".md") + ".md")
-                if any(i != index and entry["path"].casefold() == path.casefold() for i, entry in enumerate(paths)):
-                    raise KnowledgeError("该资料已在目标路径中，请选择其他路径。")
-                updated = [{**entry, "path": path} if i == index else entry for i, entry in enumerate(paths)]
-                provenance["vault_paths"] = {**provenance["vault_paths"], sid: updated}
-                provenance["relative_path"] = updated[0]["path"]
         return await s.knowledge.save_markdown(o, sid,
             title=body.title, body=body.body, tags=body.tags, operation_id=body.operation_id,
             document_id=str(body.document_id) if body.document_id else None, expected_version=body.expected_version,

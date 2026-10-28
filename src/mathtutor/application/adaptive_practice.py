@@ -348,6 +348,8 @@ class AdaptivePracticeService:
         recommendation = PracticeRecommendation(
             student_id=student_uuid(student_id), parent_cycle_id=parent_cycle_id,
             purpose=purpose, target_revision=resolved_revision, basis=basis,
+            response_mode="free_response" if purpose in {"A1", "A2", "B"} else "single_choice",
+            observation_kind="independent_transfer" if purpose in {"A1", "A2", "B"} else "diagnostic",
             target_skill_ids=targets, resume_parent_cycle_id=parent_cycle_id if purpose == "C" else None,
         )
         recommendation, claimed = await repository.begin_recommendation(recommendation)
@@ -397,8 +399,9 @@ class AdaptivePracticeService:
                         if chain.problem.content_hash in used_revisions:
                             chain = None
                             continue
-                    from mathtutor.application.multiple_choice import make_choices
-                    make_choices(chain.problem, chain.candidate, salt=str(chain.release.release_id))
+                    if recommendation.response_mode == "single_choice":
+                        from mathtutor.application.multiple_choice import make_choices
+                        make_choices(chain.problem, chain.candidate, salt=str(chain.release.release_id))
                     break
                 except (ReleaseDeniedError, ValueError):
                     chain = None

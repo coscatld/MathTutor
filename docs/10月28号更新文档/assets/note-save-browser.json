@@ -1,0 +1,431 @@
+{
+  "checks": [
+    "existing note: delayed POST and read preserve all newer fields, dirty badge/navigation/unload guard; next save advances CAS/path with a new operation",
+    "successful write plus failed source/list reads keeps the confirmed version; refresh only reads and cannot discard later edits",
+    "new note keeps its acknowledged identity through read failure and later edits; retry updates one document instead of creating another",
+    "network loss, HTTP 500 and missing-version receipts replay the original immutable request, preserve newer edits, then save them without duplicate notes",
+    "explicit write rejection preserves dirty input and permits a corrected snapshot with a new operation",
+    "a newer server read never advances the acknowledged CAS baseline; conflicting local edits remain protected",
+    "late completion after a source URL change cannot replace or clear another document's editor",
+    "ordinary folder import reports input files/unique bodies/retained positions, preserves both paths on reimport, and opens each location with its own title/tags",
+    "switching libraries for the same shared document waits for destination aliases and never reuses the previous library's title, tags or path"
+  ],
+  "errors": [],
+  "writes": [
+    {
+      "title": "标题 A",
+      "body": "提交 A\n完整推导",
+      "tags": [
+        "函数",
+        "A"
+      ],
+      "operation_id": "14f61a1e-92c8-4612-9995-1cd465d235af",
+      "document_id": "old",
+      "expected_version": 1,
+      "relative_path": "A/提交.md",
+      "previous_relative_path": "old.md"
+    },
+    {
+      "title": "标题 B",
+      "body": "后续 C\n读取期间继续编辑",
+      "tags": [
+        "导数",
+        "B"
+      ],
+      "operation_id": "60266327-eb70-4fc1-b70e-e81cd71d760b",
+      "document_id": "old",
+      "expected_version": 2,
+      "relative_path": "B/新位置.md",
+      "previous_relative_path": "A/提交.md"
+    },
+    {
+      "title": "已保存 D",
+      "body": "保存成功，读取失败",
+      "tags": [
+        "D"
+      ],
+      "operation_id": "5b995407-6426-4c02-8931-785cadb91bf8",
+      "document_id": "old",
+      "expected_version": 3,
+      "relative_path": "D.md",
+      "previous_relative_path": "B/新位置.md"
+    },
+    {
+      "title": "已保存 D",
+      "body": "读取失败之后新增 E",
+      "tags": [
+        "D"
+      ],
+      "operation_id": "ed77ded0-dfd3-454b-accd-15ca7cfcd5c7",
+      "document_id": "old",
+      "expected_version": 4,
+      "relative_path": "D.md",
+      "previous_relative_path": "D.md"
+    },
+    {
+      "title": "新笔记 A",
+      "body": "新建原稿 A",
+      "tags": [
+        "新建 A"
+      ],
+      "operation_id": "3f1906d3-f776-40b4-87aa-e1542fff85da",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "新建/A.md"
+    },
+    {
+      "title": "新笔记 B",
+      "body": "新建后续 B",
+      "tags": [
+        "新建 B"
+      ],
+      "operation_id": "6cddeaad-878e-4d49-9fb0-b7fc887920d5",
+      "document_id": "new-1",
+      "expected_version": 1,
+      "relative_path": "新建/B.md",
+      "previous_relative_path": "新建/A.md"
+    },
+    {
+      "title": "未知 network",
+      "body": "最初提交 network",
+      "tags": [
+        "最初"
+      ],
+      "operation_id": "fe7aecb1-488b-4b09-bf53-d684b7dbb4fe",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "network/A.md"
+    },
+    {
+      "title": "未知 network",
+      "body": "最初提交 network",
+      "tags": [
+        "最初"
+      ],
+      "operation_id": "fe7aecb1-488b-4b09-bf53-d684b7dbb4fe",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "network/A.md"
+    },
+    {
+      "title": "继续 network",
+      "body": "后续内容 network",
+      "tags": [
+        "后续"
+      ],
+      "operation_id": "3c938b40-66fc-4472-a6a9-df8402604529",
+      "document_id": "new-2",
+      "expected_version": 1,
+      "relative_path": "network/B.md",
+      "previous_relative_path": "network/A.md"
+    },
+    {
+      "title": "未知 500",
+      "body": "最初提交 500",
+      "tags": [
+        "最初"
+      ],
+      "operation_id": "3e28418b-fc68-4ad7-bf09-dd0a8baae6d2",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "500/A.md"
+    },
+    {
+      "title": "未知 500",
+      "body": "最初提交 500",
+      "tags": [
+        "最初"
+      ],
+      "operation_id": "3e28418b-fc68-4ad7-bf09-dd0a8baae6d2",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "500/A.md"
+    },
+    {
+      "title": "继续 500",
+      "body": "后续内容 500",
+      "tags": [
+        "后续"
+      ],
+      "operation_id": "2419f9ca-9ee8-4a98-b8ac-5e9bada4b8df",
+      "document_id": "new-3",
+      "expected_version": 1,
+      "relative_path": "500/B.md",
+      "previous_relative_path": "500/A.md"
+    },
+    {
+      "title": "未知 missing",
+      "body": "最初提交 missing",
+      "tags": [
+        "最初"
+      ],
+      "operation_id": "ddf78e00-fd57-4fff-a5fb-413ae23bc314",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "missing/A.md"
+    },
+    {
+      "title": "未知 missing",
+      "body": "最初提交 missing",
+      "tags": [
+        "最初"
+      ],
+      "operation_id": "ddf78e00-fd57-4fff-a5fb-413ae23bc314",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "missing/A.md"
+    },
+    {
+      "title": "继续 missing",
+      "body": "后续内容 missing",
+      "tags": [
+        "后续"
+      ],
+      "operation_id": "1d1284f7-14f6-4124-bd00-1aaf47af4cb9",
+      "document_id": "new-4",
+      "expected_version": 1,
+      "relative_path": "missing/B.md",
+      "previous_relative_path": "missing/A.md"
+    },
+    {
+      "title": "继续 missing",
+      "body": "明确拒绝的内容",
+      "tags": [
+        "后续"
+      ],
+      "operation_id": "e58198eb-7723-4e95-8f6e-174450d5ea1d",
+      "document_id": "new-4",
+      "expected_version": 2,
+      "relative_path": "missing/B.md",
+      "previous_relative_path": "missing/B.md"
+    },
+    {
+      "title": "继续 missing",
+      "body": "修正后的内容",
+      "tags": [
+        "后续"
+      ],
+      "operation_id": "5ab9a6df-242e-46cc-9a76-2e7d320328b7",
+      "document_id": "new-4",
+      "expected_version": 2,
+      "relative_path": "missing/B.md",
+      "previous_relative_path": "missing/B.md"
+    },
+    {
+      "title": "继续 missing",
+      "body": "本次确认的提交",
+      "tags": [
+        "后续"
+      ],
+      "operation_id": "3ae9f9bd-edc0-42cd-acad-9da7391d4618",
+      "document_id": "new-4",
+      "expected_version": 3,
+      "relative_path": "missing/B.md",
+      "previous_relative_path": "missing/B.md"
+    },
+    {
+      "title": "继续 missing",
+      "body": "外部更新时保留的本地推导",
+      "tags": [
+        "后续"
+      ],
+      "operation_id": "10c8c2f0-db1c-4d80-822e-d8f73e0a8d54",
+      "document_id": "new-4",
+      "expected_version": 4,
+      "relative_path": "missing/B.md",
+      "previous_relative_path": "missing/B.md"
+    },
+    {
+      "title": "切换测试",
+      "body": "准备切换测试",
+      "tags": [],
+      "operation_id": "f071a068-ac9e-4d6c-9c41-c22a00cea2b6",
+      "document_id": null,
+      "expected_version": null,
+      "relative_path": "切换.md"
+    },
+    {
+      "title": "切换测试",
+      "body": "切换前提交",
+      "tags": [],
+      "operation_id": "24ab54e8-11e5-4cd4-80ad-b7a6f87e879d",
+      "document_id": "new-5",
+      "expected_version": 1,
+      "relative_path": "切换.md",
+      "previous_relative_path": "切换.md"
+    },
+    {
+      "title": "other.md",
+      "body": "另一份文档的新输入",
+      "tags": [
+        "另一个标签"
+      ],
+      "operation_id": "7a1747df-cfb0-4607-a3ed-e41cf2f042d8",
+      "document_id": "other",
+      "expected_version": 1,
+      "relative_path": "other.md",
+      "previous_relative_path": "other.md"
+    },
+    {
+      "title": "甲.md",
+      "body": "两份路径共用同一份正文",
+      "tags": [],
+      "operation_id": "3b7fdfe7-1d8c-4351-b08f-3728398644c3",
+      "relative_path": "导入文件夹/一章/甲.md",
+      "document_id": null,
+      "expected_version": null
+    },
+    {
+      "title": "乙.md",
+      "body": "两份路径共用同一份正文",
+      "tags": [],
+      "operation_id": "c7594fc7-78c7-4ee3-be43-28d524f3c7ae",
+      "relative_path": "导入文件夹/二章/乙.md",
+      "document_id": null,
+      "expected_version": null
+    },
+    {
+      "title": "甲.md",
+      "body": "两份路径共用同一份正文",
+      "tags": [
+        "甲的标签"
+      ],
+      "operation_id": "f4ff6b59-1bfc-4a7c-b295-b296bfc44e6a",
+      "document_id": "new-6",
+      "expected_version": 1,
+      "relative_path": "导入文件夹/一章/甲.md",
+      "previous_relative_path": "导入文件夹/一章/甲.md"
+    },
+    {
+      "title": "乙.md",
+      "body": "两份路径共用同一份正文",
+      "tags": [
+        "乙的标签"
+      ],
+      "operation_id": "efc92538-026d-4cc2-a27d-d61c651de541",
+      "document_id": "new-6",
+      "expected_version": 2,
+      "relative_path": "导入文件夹/二章/乙.md",
+      "previous_relative_path": "导入文件夹/二章/乙.md"
+    }
+  ],
+  "documents": [
+    {
+      "id": "old",
+      "version": 5,
+      "body": "读取失败之后新增 E",
+      "paths": [
+        {
+          "path": "D.md",
+          "title": "已保存 D.md",
+          "tags": [
+            "D"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "version": 2,
+      "body": "另一份文档的新输入",
+      "paths": [
+        {
+          "path": "other.md",
+          "title": "other.md",
+          "tags": [
+            "另一个标签"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new-1",
+      "version": 2,
+      "body": "新建后续 B",
+      "paths": [
+        {
+          "path": "新建/B.md",
+          "title": "新笔记 B.md",
+          "tags": [
+            "新建 B"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new-2",
+      "version": 2,
+      "body": "后续内容 network",
+      "paths": [
+        {
+          "path": "network/B.md",
+          "title": "继续 network.md",
+          "tags": [
+            "后续"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new-3",
+      "version": 2,
+      "body": "后续内容 500",
+      "paths": [
+        {
+          "path": "500/B.md",
+          "title": "继续 500.md",
+          "tags": [
+            "后续"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new-4",
+      "version": 5,
+      "body": "另一客户端提交的新内容",
+      "paths": [
+        {
+          "path": "missing/B.md",
+          "title": "继续 missing.md",
+          "tags": [
+            "后续"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new-5",
+      "version": 2,
+      "body": "切换前提交",
+      "paths": [
+        {
+          "path": "切换.md",
+          "title": "切换测试.md",
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "new-6",
+      "version": 3,
+      "body": "两份路径共用同一份正文",
+      "paths": [
+        {
+          "path": "导入文件夹/一章/甲.md",
+          "title": "甲.md",
+          "tags": [
+            "甲的标签"
+          ]
+        },
+        {
+          "path": "导入文件夹/二章/乙.md",
+          "title": "乙.md",
+          "tags": [
+            "乙的标签"
+          ]
+        }
+      ]
+    }
+  ]
+}

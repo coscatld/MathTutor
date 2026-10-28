@@ -23,6 +23,18 @@ test("vault search includes paths and tags across folders without changing selec
   assert.equal(vaultPath({ ...notes[0], provenance: { relative_path: "../unsafe.md" } }), notes[0].title);
 });
 
+test("each retained location uses its own title and tags, including search", () => {
+  const note = { ...notes[0], title: "别的库标题.md", tags: ["别的库标签"], provenance: { library_paths: [
+    { path: "一章/甲.md", title: "甲.md", tags: ["甲标签"] },
+    { path: "二章/乙.md", title: "乙.md", tags: ["乙标签"] },
+  ] } };
+  const first = vaultEntries([note], "一章", "").files[0];
+  assert.equal(first.title, "甲.md"); assert.deepEqual(first.tags, ["甲标签"]);
+  const results = vaultEntries([note], "", "乙标签").files;
+  assert.equal(results.length, 1); assert.equal(vaultPath(results[0]), "二章/乙.md");
+  assert.equal(vaultEntries([note], "", "别的库标签").files.length, 0);
+});
+
 test("vault exposes each shared location and selects only the opened alias", () => {
   const shared = { ...notes[0], provenance: { ...notes[0].provenance, relative_paths: ["高二/函数/导数.md", "复习/导数复习.md"] } };
   assert.deepEqual(vaultEntries([shared], "复习", "").files.map(vaultPath), ["复习/导数复习.md"]);

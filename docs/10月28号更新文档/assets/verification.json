@@ -1,0 +1,82 @@
+{
+  "status": "PASS",
+  "date": "2026-10-28T11:56:10.225044+08:00",
+  "source": {
+    "base_commit": "eb5683cf221d5dcfb8d80904c1e7d6671b949a04",
+    "scope": "unreleased working tree; existing v0.7.1 artifacts are unchanged",
+    "sha256": {
+      "src/mathtutor/api/knowledge_api.py": "d0905c7b0c3bde7170af6d5a99b9617ad5694ebb8bbd04b0b27489571e6d6b1c",
+      "src/mathtutor/api/learning_profile_api.py": "6b027d4450ab692d7d9e7b34b196c15290bb5abef2d2cc77b95b106fdb376a6f",
+      "src/mathtutor/application/adaptive_practice.py": "6578cc2f506ac59042e4f5a101470416b074df7c5136757d940352047b56f855",
+      "src/mathtutor/application/controller.py": "1d4316c109b9880d0ec15578879eaac3bb4c4b6cba0a3cac2ed470e454a5ded7",
+      "src/mathtutor/application/initial_assessment.py": "e693c81aed7a53800761be677296edd246ed1cc44b31dc76dc40e488e563bf69",
+      "src/mathtutor/application/knowledge.py": "81a8ef0a76f74c096978a6e0d8c5b4f50270488b63bf1c346a44fc252ed2e1ba",
+      "src/mathtutor/application/practice_offer_view.py": "bac87268c5bcefdb69603d2a866622bf8ce5f6703a6c4987db608d466dd03c1f",
+      "src/mathtutor/application/question_packs.py": "d62e64789718592364555315c4cff779888f7fa31deebf523e6a72a720b0760e",
+      "src/mathtutor/application/student_contract.py": "44afed4ebb23fbb6541237d89a876173d2e7bc474ba9afc804db07a602542b67",
+      "src/mathtutor/domain/practice_recommendation.py": "323ca377c37f0fa11c78ef5af07fad13a7019f009f4e5ba624f5e9f14414ce06",
+      "src/mathtutor/learning/knowledge_tracing/events.py": "bd98384a98e30c7b039cd2299080ae2d5cb3d9bad6074c1a165fc1fcde872f45",
+      "src/mathtutor/learning/knowledge_tracing/service.py": "0c2ac9d16fdecaa2c7762a9ef1051effc474264ea4a9ecbd816f45c577c74761",
+      "src/mathtutor/pedagogy/teaching_plan.py": "a59c4a4089561a0e6cb54bdd0000e16a33cb750523dd311e0ac79c2548d95112",
+      "src/mathtutor/repositories/session_store.py": "7e04dee580168fda08d78d863c39a3da1fbcf0c639b31ef604ca8912c6dfb66e",
+      "src/mathtutor/repositories/sqlite_store.py": "b010a36ecccd9685ae6586298d7daad5eef98a0d6aab3128dd97b391fa2c605e",
+      "tests/test_initial_assessment.py": "49fe473f009e061a2d74484e4b3e2efb41b13c1a64c71e11621e09b56d07e351",
+      "tests/test_initial_assessment_resume.py": "fce644e79f44651ea3641154d292d1f845854b069e80bfddd626145a4fa666fe",
+      "tests/test_knowledge_path_aliases.py": "04ecd33dc1f34e0d54cf91437264bb93aab82f5ba35b226f9247ba6508f65228",
+      "tests/test_practice_options_atomic.py": "f67e3d326a3a5ea312953b0e9255f7315b8fa9d91bd7a6809168f4a3d57acde1",
+      "tests/test_practice_response_modes.py": "29ed513d5670f14f19439a3b4d96b67ca2fbc0c843204c424b1c5df1f791b645",
+      "tests/test_product_app.py": "e5b28760234251a8bbf20866797e45b022dc36704d1b56db000f8633f48f0503",
+      "web/features/math-tutor/components/MathTutorPage.tsx": "3abad16688363ceebe1a1b21d31076e43d12d6846d6bcbde20a6400cb32baae6",
+      "web/features/math-tutor/components/StudentNextStep.tsx": "6d2f556a3f8e1ec574f617f36628cefc8c8a97bd3ce891daf61a28352068228e",
+      "web/features/math-tutor/desktop/components/InitialAssessmentPage.tsx": "c3ff01741471ddb056c9670e4cf30c28718d89051ae78b4dfdba440e2fcd2a1d",
+      "web/features/math-tutor/desktop/components/PracticeOfferCard.tsx": "b75a70a1d29d6763430402fd73b524bcce588b329dc838075bc857cbc5938727",
+      "web/features/math-tutor/desktop/lib/initial-assessment.ts": "48c53c9d44a3706440b5b0b0840395f406592657b860a3dffb121d3e99f2aa1b",
+      "web/features/math-tutor/desktop/types.ts": "2be9ac711aaa36cfb7b9030aa1da3cdf1f2c6a1683c72b636ca89ed24ee74b62",
+      "web/features/math-tutor/knowledge/KnowledgeWorkbench.tsx": "479160db420fca30665710b016632ba745cc1a6f5fff080c6fb5f0758701b617",
+      "web/features/math-tutor/knowledge/VaultFileList.tsx": "a394cdce4e62d7f30b01b473a3684c203b349fb04157dcc85d00c8aa481fc627",
+      "web/features/math-tutor/knowledge/note-save.ts": "0ca9de53cfe492121e222864505407edf5a4c3e7a1f6630b68b8a3d597c730b0",
+      "web/features/math-tutor/lib/protocol.ts": "f0f2322f655527703980396894f5a2d6142ffab659ebec73eeaa194d9c9e82ff",
+      "web/features/math-tutor/lib/teaching-contract.ts": "e6e88b3aa4e3a2de50e12698ff0ec3163226c28f5a3008e132ebb03092ae7e1f",
+      "web/features/math-tutor/types.ts": "d52463b25a582a9eeda7353b7d3154b429aa2b259d2397c9b2da8e46a355ed45",
+      "web/scripts/smoke-initial-assessment-resume.mjs": "b55f803965f71ed801054c226da8a119221924cb555671ad713ae535c7c3bfdc",
+      "web/scripts/smoke-note-save.mjs": "df451a31a3984574becbd559378a4102c0eda83e6aba909a59e8a0ed86a87e80",
+      "web/scripts/smoke-practice-response-modes.mjs": "7419e93a0e2351c2c57173e4887c2186293d7029a676a8abb84271680a8207ac",
+      "web/scripts/smoke-vault-files.mjs": "1f6ff8b26567ddc3c0666b11cff1c663a6db93449c1127f7c429dadcb87e6cd6",
+      "web/tests/math-tutor-note-save.test.ts": "17d536f3c091db45cd9ae78e15fb1ea1b802c54209763ba7a90d8abb6f2e60f4",
+      "web/tests/math-tutor-response-mode.test.tsx": "c9aeaeeb824e27db0485e79a8ecf8ef64c5ea7788520cd34c20b064b70bfe3ce",
+      "web/tests/math-tutor-vault.test.tsx": "a7fcb2711d578755696f4dd31be291826e8b82c1c5476a7baa9e0d027eb748b7"
+    }
+  },
+  "python_full_suite": {
+    "passed": 3444,
+    "skipped": 22,
+    "failed": 0,
+    "seconds": 235.1,
+    "skip_categories": [
+      "optional PyMuPDF rich parsing",
+      "Torch",
+      "dedicated sqlite-vec probe"
+    ]
+  },
+  "web_unit_tests": {
+    "passed": 287,
+    "failed": 0,
+    "skipped": 0
+  },
+  "web_production_build": "PASS",
+  "browser_groups": {
+    "practice-response-browser.json": 3,
+    "note-save-browser.json": 9,
+    "initial-assessment-browser.json": 6
+  },
+  "existing_vault_browser_regression": "PASS",
+  "independent_reviews": [
+    "choice exposure write failure is atomic with acceptance; cross-cycle canonical exposure stays diagnostic",
+    "cross-library shared-document editor loads destination alias metadata"
+  ],
+  "limits": [
+    "synthetic API/SQLite data and browser REST/WebSocket fixtures",
+    "macOS Chromium UI; no new installer/platform-native or screen-reader acceptance in this round",
+    "no real student data, paid model calls, training or learning-effect measurement"
+  ]
+}

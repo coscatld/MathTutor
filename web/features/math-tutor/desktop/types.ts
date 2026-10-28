@@ -166,6 +166,8 @@ export interface PracticeOffer {
   title?: string;
   reason?: string;
   observation_goal?: string;
+  response_mode?: "free_response" | "single_choice";
+  observation_kind?: "independent_transfer" | "diagnostic";
   question_count?: number;
   display_status?: "pending" | "in_progress" | "completed" | "later" | "history";
   feedback?: "later" | "not_relevant" | null;
@@ -173,7 +175,7 @@ export interface PracticeOffer {
   evidence_href?: string;
   update_reason?: string | null;
   evidence_ids?: string[];
-  result_summary?: { independent_correct: number; helped: number; observations: number } | null;
+  result_summary?: { independent_correct: number; first_free_response?: number; diagnostic_correct?: number; helped: number; observations: number } | null;
 }
 
 export type OfferAcceptState = "idle" | "connecting" | "accepting" | "accepted" | "error";

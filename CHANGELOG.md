@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 2026-10-28
+
+- Start new A1/A2/B transfer invitations with free responses and no option payload. Preserve historical choice invitations, persist explicit option exposure before publication, and report diagnostic choice successes separately from first independent free responses and assisted work.
+- Confirm note saves against their immutable editor revision. Keep later edits dirty, advance the confirmed server version even when refresh fails, and retry unknown write outcomes with the original operation and content.
+- Preserve library-local paths, titles and tags when ordinary folder imports reuse an existing body. Share transactional alias registration with ZIP imports, retain compare-and-swap conflict checks, and distinguish imported files, unique bodies and retained positions.
+- Allow students to resume a compatible deferred initial assessment at its saved position. Preserve the run, answers and other learning history; completed runs keep their result, and incompatible versions retain their records with an explicit explanation.
+
 ## 0.7.1 — Graph interaction, draft safety and reliability
 
 - Preserve typed text, images and conversation scope when deletion is cancelled or fails. Clear the original draft only after success; protect new edits made while the delete request is pending.

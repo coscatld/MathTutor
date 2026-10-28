@@ -135,6 +135,8 @@ class SessionStoreProtocol(Protocol):
         parent_transition: CycleTransition,
         child: TutoringSession,
         outbox_events: list[dict[str, Any]] = (),
+        *, teaching_context: dict[str, Any] | None = None,
+        learning_events: tuple[Any, ...] = (),
     ) -> None:
         """Consume the offer + close the parent + create the child cycle.
 
@@ -320,6 +322,8 @@ class InMemorySessionStore:
         parent_transition: CycleTransition,
         child: TutoringSession,
         outbox_events: list[dict[str, Any]] = (),
+        *, teaching_context: dict[str, Any] | None = None,
+        learning_events: tuple[Any, ...] = (),
     ) -> None:
         """Register the accepted offer + child cycle (in-memory).
 
@@ -331,11 +335,15 @@ class InMemorySessionStore:
         """
         if self.practice_repository is None:
             raise PracticeOfferAcceptError("practice repository 未配置")
+        for event in learning_events:
+            await self.student_state.append_event(event)
         accepted = await self.practice_repository.accept_offer(student_id, offer_id)
         if not accepted:
             raise PracticeOfferAcceptError("offer 不是 ACTIVE 或已过期")
         self._sessions[(student_id, client_session_id)] = child
         self._cycle_archive[(student_id, str(child.cycle.cycle_id))] = child
+        if teaching_context is not None:
+            await self.teaching.save(student_id, child.cycle.cycle_id, teaching_context)
 
     async def load_child_cycle_for_offer(
         self, student_id: str, offer_id: UUID

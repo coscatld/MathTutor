@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "checks": [
+    "three answers survive deferral and reopening; startup does not force resume",
+    "existing learning-profile entry exposes voluntary resume and keeps progress visible",
+    "failed resume retains progress; duplicate clicks send once; late sync cannot reset the resumed view; fourth question survives reload",
+    "completion stays completed after reload without retest controls or overwritten first choices",
+    "incompatible version explains preservation and keeps learning available; no privacy reset",
+    "incompatible active run can defer and enter learning without a startup redirect loop"
+  ],
+  "errors": [],
+  "scope": "Actual browser UI with synthetic durable API fixtures; real API/SQLite ownership is separately tested in pytest."
+}

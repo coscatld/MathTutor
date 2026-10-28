@@ -11,6 +11,7 @@ import io
 import json
 from pathlib import PurePosixPath
 import re
+import unicodedata
 from uuid import UUID, uuid4, uuid5, NAMESPACE_URL
 import zipfile
 
@@ -57,6 +58,31 @@ def markdown_fingerprint(sid, title, body, tags, document_id, expected_version, 
     if path_intent:
         value.append({"path_intent": path_intent})
     return digest(value)
+
+
+def vault_path_key(path):
+    return unicodedata.normalize("NFC", path).casefold()
+
+
+def normalize_note_path(value):
+    value = unicodedata.normalize("NFC", value.replace("\\", "/"))
+    if value and (len(value) > 512 or value.startswith("/") or ":" in value
+                  or any(ord(char) < 32 for char in value)
+                  or any(part in {"", ".", ".."} or part.startswith(".") for part in value.split("/"))
+                  or PurePosixPath(value).suffix.lower() not in {".md", ".markdown", ".txt"}):
+        raise KnowledgeError("仅保存明确选择的 Markdown 或 TXT 文本；隐藏目录、插件和越界路径不会保存。")
+    return value
+
+
+def library_aliases(provenance, sid, title, tags, *, legacy=True):
+    paths = provenance.get("vault_paths", {}).get(sid)
+    if paths:
+        return [{"path": entry["path"], "title": entry.get("title", title),
+                 "tags": list(entry.get("tags", tags))} for entry in paths]
+    if legacy:
+        path = provenance.get("relative_path") or sanitize_filename(title).removesuffix(".md") + ".md"
+        return [{"path": path, "title": title, "tags": list(tags)}]
+    return []
 
 
 class KnowledgeService:
@@ -314,8 +340,9 @@ class KnowledgeService:
                 if paths:
                     provenance["relative_path"] = paths[0]["path"]
                     provenance["relative_paths"] = [path["path"] for path in paths]
-                rows.append({"document_id": did, "title": v["title"], "version": v["version"],
-                    "tags": v["tags"], "links": v["links"], "retrieval_enabled": doc.retrieval_enabled,
+                    provenance["library_paths"] = paths
+                rows.append({"document_id": did, "title": paths[0].get("title", v["title"]) if paths else v["title"], "version": v["version"],
+                    "tags": paths[0].get("tags", v["tags"]) if paths else v["tags"], "links": v["links"], "retrieval_enabled": doc.retrieval_enabled,
                     "editable": v["provenance"].get("format") == "markdown", "provenance": provenance})
         return rows
 
@@ -337,6 +364,84 @@ class KnowledgeService:
                 metadata_json={"version": version, "start": start, "end": end}, fts_text=build_fts_text(text)))
             start = end
         return chunks
+
+    async def register_markdown_path(self, db, owner, sid, did, *, current, provenance, title, tags,
+                                     safe_title, already_member=False, editing=False, path_intent=None):
+        """Register one library-local name in the same transaction as its body.
+
+        A reused document's global provenance is not an import's display name.
+        In particular, joining a new library must never adopt another library's
+        paths merely because both libraries explicitly imported the same bytes.
+        """
+        intent = path_intent or {}
+        stored = dict(current["provenance"]) if current else {}
+        paths = library_aliases(stored, sid, current["title"], current["tags"], legacy=already_member) if current else []
+        explicit = "relative_path" in intent or (not editing and bool((provenance or {}).get("relative_path")))
+        previous_path = intent.get("previous_relative_path")
+        if previous_path is not None and not editing:
+            raise KnowledgeError("修改已有路径须重新打开笔记并确认当前版本。")
+        index = None
+        if editing and paths:
+            target = previous_path if previous_path is not None else paths[0]["path"]
+            index = next((i for i, entry in enumerate(paths) if vault_path_key(entry["path"]) == vault_path_key(target)), None)
+            if index is None:
+                raise KnowledgeError("文件路径已变化，请重新打开后保存。")
+        elif editing and previous_path is not None:
+            raise KnowledgeError("文件路径已变化，请重新打开后保存。")
+        requested = intent.get("relative_path", (provenance or {}).get("relative_path", ""))
+        if editing and not explicit and index is not None:
+            requested = paths[index]["path"]
+        path = normalize_note_path(requested or safe_title)
+        key = vault_path_key(path)
+
+        # A path belongs to exactly one shared body in this owner/library. The
+        # generation guard has already acquired the transaction's write lock.
+        rows = (await db.execute(select(versions).join(members,
+            (versions.c.student_id == members.c.student_id) & (versions.c.document_id == members.c.document_id)).where(
+                versions.c.student_id == owner, members.c.space_id == sid).order_by(versions.c.version.desc()))).mappings()
+        seen, occupied = set(), set()
+        for row in rows:
+            other = row["document_id"]
+            if other in seen or other == did:
+                continue
+            seen.add(other)
+            occupied.update(vault_path_key(entry["path"]) for entry in library_aliases(
+                row["provenance"], sid, row["title"], row["tags"]))
+        if key in occupied:
+            if explicit:
+                raise KnowledgeError("目标路径已有不同正文，请重新打开该位置并确认当前版本后保存。")
+            # Historic generated notes did not require unique user-chosen file
+            # paths. Keep both notes, with a stable generated name on collision.
+            path, count = f"{did[:12]}-{safe_title}", 2
+            while vault_path_key(path) in occupied:
+                path, count = f"{did[:12]}-{count}-{safe_title}", count + 1
+            path = normalize_note_path(path)
+            key = vault_path_key(path)
+        other_index = next((i for i, entry in enumerate(paths) if vault_path_key(entry["path"]) == key), None)
+        alias = {"path": path, "title": title, "tags": list(dict.fromkeys(tags))}
+        added = False
+        if editing and index is not None:
+            if other_index is not None and other_index != index:
+                raise KnowledgeError("该资料已在目标路径中，请选择其他路径。")
+            paths[index] = alias
+        elif other_index is not None:
+            existing = paths[other_index]
+            if existing["title"] != title or existing["tags"] != alias["tags"]:
+                raise KnowledgeError("该路径的标题或标签已存在，请重新打开笔记并确认当前版本后修改。")
+            path = existing["path"]
+        else:
+            paths.append(alias)
+            added = True
+        # Source-level metadata survives, while only this library's alias list
+        # changes. Shared bodies still update together when explicitly edited.
+        updated = dict(provenance or {}) if not current else stored
+        if editing:
+            updated.update({name: value for name, value in (provenance or {}).items()
+                            if name not in {"vault_paths", "relative_path"}})
+        updated["vault_paths"] = {**updated.get("vault_paths", {}), sid: paths}
+        if not current or (editing and already_member and index == 0):
+            updated["relative_path"] = paths[0]["path"]
+        return updated, path, added
 
     async def markdown_operation_receipt(self, owner, sid, *, title, body, tags=(), operation_id,
                                          document_id=None, expected_version=None, path_intent=None):
@@ -367,6 +472,14 @@ class KnowledgeService:
         generation = await self.generation(owner) if expected_generation is None else expected_generation
         fingerprint = markdown_fingerprint(sid, title, body, tags, document_id, expected_version, path_intent)
         content_hash = sha256(body.encode("utf-8")).hexdigest()
+        requested_path = (path_intent or {}).get("relative_path", (provenance or {}).get("relative_path", ""))
+        text_note = PurePosixPath(str(requested_path)).suffix.lower() == ".txt"
+        title_suffix = PurePosixPath(title).suffix
+        if text_note:
+            stem = title[:-len(title_suffix)] if title_suffix.lower() in {".txt", ".md", ".markdown"} else title
+            safe_title = sanitize_filename(stem + ".txt")
+        else:
+            safe_title = sanitize_filename(title.removesuffix(".md") + ".md")
         did = document_id or str(uuid4())
         stored_ref = None
         old_ref = None
@@ -407,22 +520,37 @@ class KnowledgeService:
                     doc = await sd.find_user_document_by_hash(db, student_id=owner, content_hash=content_hash)
                     if doc:
                         did = str(doc.document_id)
-                        previous = (await db.execute(select(versions.c.version).where(versions.c.student_id == owner,
-                            versions.c.document_id == did).order_by(versions.c.version.desc()).limit(1))).scalar_one_or_none()
-                        version = previous or 1
+                        previous = (await db.execute(select(versions).where(versions.c.student_id == owner,
+                            versions.c.document_id == did).order_by(versions.c.version.desc()).limit(1))).mappings().first()
+                        if previous is None:
+                            # A pre-existing raw TXT import can share these bytes.
+                            # Retain its extracted/read-only identity, not a second
+                            # hash-identical document or a fabricated Markdown type.
+                            extracted = "\n".join(chunk.text for chunk in await sd.list_document_chunks(
+                                db, student_id=owner, document_id=UUID(did)))
+                            previous = dict(student_id=owner, document_id=did, version=1, body=extracted,
+                                body_hash=digest(extracted), title=doc.filename, tags=[], links=[],
+                                provenance={"format": "extracted", "source_file_hash": doc.content_hash}, created_at=now())
+                            await db.execute(versions.insert().values(**previous))
+                        version = previous["version"]
+                        member = (await db.execute(select(members.c.document_id).where(members.c.student_id == owner,
+                            members.c.space_id == sid, members.c.document_id == did))).first()
+                        registered, relative_path, path_added = await self.register_markdown_path(db, owner, sid, did,
+                            current=previous, provenance=provenance, title=title, tags=tags, safe_title=safe_title,
+                            already_member=bool(member), path_intent=path_intent)
+                        await db.execute(versions.update().where(versions.c.student_id == owner,
+                            versions.c.document_id == did, versions.c.version == version).values(provenance=registered))
                         await db.execute(insert(members).values(student_id=owner, space_id=sid, document_id=did).on_conflict_do_nothing())
-                        result = {"document_id": did, "version": version, "space_id": sid, "deduplicated": True}
+                        result = {"document_id": did, "version": version, "space_id": sid, "deduplicated": True,
+                            "relative_path": relative_path, "path_added": path_added, "input_file_count": 1,
+                            "unique_body_count": 1, "retained_path_count": 1, "created_document_count": 0}
                         await db.execute(operations.insert().values(student_id=owner, operation_id=operation_id,
                             fingerprint=fingerprint, payload=result, generation=generation))
                         return result
                     version = 1
-                text_note = PurePosixPath(str((provenance or {}).get("relative_path", ""))).suffix.lower() == ".txt"
-                title_suffix = PurePosixPath(title).suffix
-                if text_note:
-                    stem = title[:-len(title_suffix)] if title_suffix.lower() in {".txt", ".md", ".markdown"} else title
-                    safe_title = sanitize_filename(stem + ".txt")
-                else:
-                    safe_title = sanitize_filename(title.removesuffix(".md") + ".md")
+                provenance, relative_path, path_added = await self.register_markdown_path(db, owner, sid, did,
+                    current=previous if document_id else None, provenance=provenance, title=title, tags=tags,
+                    safe_title=safe_title, already_member=bool(document_id), editing=bool(document_id), path_intent=path_intent)
                 stored_ref = self.state.document_storage.ref_for(student_uuid(owner), UUID(did), f"v{version}-{safe_title}")
                 await self.state.document_storage.store_bytes(stored_ref, body.encode())
                 chunks = self.markdown_chunks(owner, did, version, body)
@@ -442,7 +570,9 @@ class KnowledgeService:
                     links=list(dict.fromkeys(re.findall(r"\[\[([^\]\n]{1,120})\]\]", body)))[:128],
                     provenance={**(provenance or {}), "format": "markdown"}, created_at=now()))
                 await db.execute(insert(members).values(student_id=owner, space_id=sid, document_id=did).on_conflict_do_nothing())
-                result = {"document_id": did, "version": version, "space_id": sid, "deduplicated": False}
+                result = {"document_id": did, "version": version, "space_id": sid, "deduplicated": False,
+                    "relative_path": relative_path, "path_added": path_added, "input_file_count": 1,
+                    "unique_body_count": 1, "retained_path_count": 1, "created_document_count": int(not document_id)}
                 await db.execute(operations.insert().values(student_id=owner, operation_id=operation_id,
                     fingerprint=fingerprint, payload=result, generation=generation))
         except BaseException:
@@ -484,6 +614,8 @@ class KnowledgeService:
         if row and row["body_hash"] == digest(body) and row["title"] == doc.filename:
             return dict(row)
         next_version = row["version"] + 1 if row else 1
+        locations = {key: row["provenance"][key] for key in ("vault_paths", "relative_path")
+                     if row and key in row["provenance"]}
         row = dict(student_id=owner, document_id=did, version=next_version, body=body, body_hash=digest(body),
             # D8: two different hashes, named so they cannot be confused.
             # `source_file_hash` covers the imported BYTES; `body_hash` (the
@@ -491,7 +623,7 @@ class KnowledgeService:
             # differ whenever chunking is lossy, and calling both "the hash"
             # made a mismatch unreadable.
             title=doc.filename, tags=[], links=[],
-            provenance={"format": "extracted", "source_file_hash": doc.content_hash},
+            provenance={**locations, "format": "extracted", "source_file_hash": doc.content_hash},
             created_at=now())
         async with self.engine.begin() as db:
             await self.guard_generation(db, owner, generation)
@@ -645,7 +777,7 @@ class KnowledgeService:
                 total += len(row["body"].encode())
                 if total > 64 * 1024 * 1024:
                     raise KnowledgeError("单次导出正文最多 64 MiB，请分库导出。")
-                archive.writestr(note["document_id"] + "-" + sanitize_filename(row["title"]).removesuffix(".md") + ".md", row["body"])
+                archive.writestr(note["document_id"] + "-" + sanitize_filename(note["title"]).removesuffix(".md") + ".md", row["body"])
             archive.writestr("manifest.json", json.dumps(notes, ensure_ascii=False, indent=2))
         return stream.getvalue()
 

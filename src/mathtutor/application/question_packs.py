@@ -12,7 +12,6 @@ import io
 import json
 from pathlib import PurePosixPath
 import stat
-import unicodedata
 from uuid import uuid4
 import zipfile
 import zlib
@@ -20,7 +19,7 @@ import zlib
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import delete, or_, select
 
-from mathtutor.application.knowledge import KnowledgeError
+from mathtutor.application.knowledge import KnowledgeError, library_aliases, vault_path_key
 from mathtutor.infrastructure.document_storage import sanitize_filename
 from mathtutor.infrastructure.knowledge_schema import members, operations, spaces, versions
 from mathtutor.infrastructure.schema import (
@@ -129,7 +128,7 @@ def _path(value, *, directory=False):
 
 
 def _key(path):
-    return unicodedata.normalize("NFC", path).casefold()
+    return vault_path_key(path)
 
 
 def _note(path, title, body, tags=(), provenance=None):
@@ -307,16 +306,6 @@ class QuestionPackService:
                         **(note.provenance or {}), "origin": "shared_reference", "relative_path": note.path,
                     })
                 aliases.setdefault(result["document_id"], []).append({"path": note.path, "title": note.title, "tags": list(note.tags)})
-            # Per-library paths preserve aliases when the ordinary content-hash
-            # contract reuses identical bytes from this owner. Bodies stay exact.
-            async with self.knowledge.engine.begin() as db:
-                for did, paths in aliases.items():
-                    row = (await db.execute(select(versions).where(versions.c.student_id == owner,
-                        versions.c.document_id == did).order_by(versions.c.version.desc()).limit(1))).mappings().one()
-                    provenance = dict(row["provenance"])
-                    provenance["vault_paths"] = {**provenance.get("vault_paths", {}), sid: paths}
-                    await db.execute(versions.update().where(versions.c.student_id == owner,
-                        versions.c.document_id == did, versions.c.version == row["version"]).values(provenance=provenance))
         except BaseException:
             await self._cleanup(owner, sid, existing_ids, operation_prefix)
             raise
@@ -324,6 +313,8 @@ class QuestionPackService:
         if len(aliases) != len(pack.notes) or any(did in existing_ids for did in aliases):
             warnings.append("相同正文复用了已有资料；本库文件路径已保留，编辑同一资料会更新所有引用它的库。")
         return {"space_id": sid, "name": pack.name, "imported_count": len(pack.notes),
+                "input_file_count": len(pack.notes), "unique_body_count": len(aliases),
+                "retained_path_count": len(pack.notes), "created_document_count": len(set(aliases) - existing_ids),
                 "warnings": warnings, "format": pack.format}
 
     async def rollback_import(self, owner, sid, existing_ids):
@@ -387,10 +378,7 @@ class QuestionPackService:
                 if not source["body"].strip():
                     raise QuestionPackError("知识库含尚未提取到文字的资料，请先处理或移出后再导出 Markdown 资料库。")
                 provenance = source["provenance"]
-                aliases = provenance.get("vault_paths", {}).get(sid) or [{
-                    "path": provenance.get("relative_path") or sanitize_filename(source["title"]).removesuffix(".md") + ".md",
-                    "title": source["title"], "tags": source["tags"],
-                }]
+                aliases = library_aliases(provenance, sid, source["title"], source["tags"])
                 for alias in aliases:
                     path = alias["path"]
                     try:
@@ -424,7 +412,7 @@ class QuestionPackService:
                     # re-importable under the archive bomb ratio guard.
                     highly_compressible = len(content) > 65536 and len(content) > max(1, len(zlib.compress(content))) * 180
                     archive.writestr(path, content, compress_type=zipfile.ZIP_STORED if highly_compressible else zipfile.ZIP_DEFLATED)
-                    files.append({"path": path, "title": source["title"], "tags": source["tags"],
+                    files.append({"path": path, "title": alias["title"], "tags": alias["tags"],
                         "sha256": sha256(content).hexdigest(), "source_format": provenance.get("source_format", provenance.get("format", "extracted"))})
             archive.writestr("manifest.json", json.dumps({"format": VAULT_FORMAT, "name": library["name"], "files": files},
                 ensure_ascii=False, indent=2))

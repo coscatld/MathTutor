@@ -117,6 +117,7 @@ USER_COMMANDS: dict[str, CycleCommand] = {
     "end_problem": CycleCommand.CANCEL_TURN,
     "start_diagnostic": CycleCommand.REQUEST_HINT,
     "skip_diagnostic": CycleCommand.REQUEST_HINT,
+    "request_options": CycleCommand.REQUEST_HINT,
 }
 
 # Legacy protocol (no version / v1) only. Remove after v1 clients retire.
@@ -378,7 +379,8 @@ class MathTutorController:
             student_id=owner_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
             event_type=event_type, problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
             item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem),
-            eligible_cycle=task_purpose != "diagnostic", task_purpose=task_purpose, lifecycle_status=lifecycle_status))
+            eligible_cycle=task_purpose != "diagnostic", task_purpose=task_purpose, lifecycle_status=lifecycle_status,
+            options_exposed=event_type == "options_exposed"))
 
     # ------------------------------------------------------------- run entry
 
@@ -1517,7 +1519,9 @@ class MathTutorController:
         assistance: CycleAssistance,
         stream: MathTutorEventSink,
     ) -> None:
-        if command in {"request_practice", "request_foundation", "request_review"}:
+        if command == "request_options":
+            await self._request_options(session, owner_id, verified, stream)
+        elif command in {"request_practice", "request_foundation", "request_review"}:
             if not verified:
                 await stream.error("请先提供一道题，明确要练习的知识点。", source=self.manifest.name)
                 return
@@ -1917,6 +1921,7 @@ class MathTutorController:
             factual_level = max(factual_level, exposure["assistance_level"])
             actual_assistance = CycleAssistance(max_level_issued=factual_level)
             context["legacy_provenance_uncertain"] |= exposure["provenance_uncertain"]
+            context["options_exposed"] = context.get("options_exposed", False) or exposure["options_exposed"]
         prediction_id = f"prediction:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
         submission_event_id = ""
         if tracking is not None:
@@ -2106,7 +2111,7 @@ class MathTutorController:
                 "assessment_id": str(student_attempt.attempt_id), "attempt_id": str(student_attempt.attempt_id),
                 "correctness": assessment.correctness.value, "prediction_id": prediction_id,
                 "submission_event_id": submission_event_id,
-                "response_format": "single_choice" if context.get("choices") else "free_response",
+                "response_format": "single_choice" if context.get("choices") or context.get("options_exposed") else "free_response",
                 "completion_scope": "full_problem" if assessment.correctness is Correctness.CORRECT else "subgoal" if assessment.correctness is Correctness.PARTIAL else "full_problem",
                 "subgoal_id": current_subgoal(context)["id"],
                 "provenance_uncertain": context.get("legacy_provenance_uncertain", False),
@@ -3080,12 +3085,16 @@ class MathTutorController:
             )
             return
         problem, _candidate, _ref = exact
-        from mathtutor.application.multiple_choice import make_choices
-        try:
-            choices = make_choices(problem, _candidate, salt=str(release.release_id))
-        except ValueError:
-            await stream.error("这道旧练习暂不支持选择题，请重新邀请练习。", source=self.manifest.name)
-            return
+        recommendation = await self.practice.recommendation_for_offer(owner_id, offer_id)
+        response_mode = recommendation.response_mode if recommendation else "single_choice"
+        choices = None
+        if response_mode == "single_choice":
+            from mathtutor.application.multiple_choice import make_choices
+            try:
+                choices = make_choices(problem, _candidate, salt=str(release.release_id))
+            except ValueError:
+                await stream.error("这道旧练习暂不支持选择题，请重新邀请练习。", source=self.manifest.name)
+                return
 
         # 6/7. Parent closes (in memory); the child is a NEW TutoringCycle in
         # the SAME session + SAME state machine (§7.8), practice-bound only
@@ -3099,6 +3108,20 @@ class MathTutorController:
         child.step(CycleCommand.SUBMIT_PROBLEM)
         child.step(CycleCommand.GROUNDING_OK)
         child.step(CycleCommand.VERIFICATION_VERIFIED)
+        from mathtutor.pedagogy.teaching_plan import initial_context
+        child_context = initial_context(problem, _candidate, verified_solution_ref=_ref, cycle_id=child.cycle.cycle_id)
+        child_context.update(resume_parent_cycle_id=str(session.cycle.cycle_id),
+            client_session_id=client_session_id, choices=choices, response_mode=response_mode,
+            observation_kind=recommendation.observation_kind if recommendation else "diagnostic",
+            options_exposed=choices is not None)
+        choice_events = ()
+        if choices and getattr(self.sessions, "student_state", None) is not None:
+            from mathtutor.learning.knowledge_tracing.events import LearningEvent
+            from mathtutor.learning.skill_graph import skills_for_problem
+            choice_events = (LearningEvent(event_id=f"options_exposed:{child.cycle.cycle_id}",
+                student_id=owner_id, session_id=str(child.session_id), cycle_id=str(child.cycle.cycle_id),
+                event_type="options_exposed", problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
+                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem), options_exposed=True),)
         await self._prepare_presentation(owner_id, child, exact)
         parent_transition = session.step(
             CycleCommand.ACCEPT_PRACTICE_OFFER,
@@ -3140,17 +3163,14 @@ class MathTutorController:
             parent_transition,
             child,
             outbox_events,
+            teaching_context=child_context,
+            learning_events=choice_events,
         )
         # Restart-safe verified chain for the child (SQLite: no-op — the DB
         # resolves the exact snapshot; in-memory: cached per cycle).
         await self.sessions.store_verified(
             owner_id, child.cycle.cycle_id, exact
         )
-        child_context = await self._teaching_context(owner_id, child, exact)
-        child_context["resume_parent_cycle_id"] = str(session.cycle.cycle_id)
-        child_context["choices"] = choices
-        await self.sessions.teaching.save(owner_id, child.cycle.cycle_id, child_context)
-        recommendation = await self.practice.recommendation_for_offer(owner_id, offer_id)
         await self._cycle_fact(owner_id, child, exact, "problem_started",
             task_purpose="transfer" if recommendation and recommendation.purpose in {"A1", "A2", "B"} else "practice")
         await self._emit(
@@ -3166,6 +3186,30 @@ class MathTutorController:
                 "problem_type": problem.problem_type,
             },
         )
+
+    async def _request_options(self, session, owner_id, verified, stream):
+        """Persist exposure before returning options; typed answers cannot undo it."""
+        from mathtutor.application.student_contract import session_contract
+        contract = await session_contract(self.sessions, owner_id, session)
+        context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
+        if not verified or not context or context.get("response_mode") != "free_response":
+            await stream.error("当前题目没有可切换的选项。", source=self.manifest.name)
+            return
+        if "submit_attempt" not in contract["allowed_next_inputs"]:
+            await stream.error("当前阶段不能查看选项。", source=self.manifest.name)
+            return
+        if not context.get("choices"):
+            from mathtutor.application.multiple_choice import make_choices
+            try:
+                choices = make_choices(verified[0], verified[1], salt=str(session.cycle.cycle_id))
+            except ValueError:
+                await stream.error("这道题暂不支持选项，可以继续自由作答或请求提示。", source=self.manifest.name)
+                return
+            # An exposure fact is conservative if delivery is interrupted.
+            await self._cycle_fact(owner_id, session, verified, "options_exposed")
+            context.update(choices=choices, options_exposed=True, observation_kind="diagnostic")
+            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
+        await self._dialogue(stream, session, "已显示选项，本题后续作答记为诊断观察。要检查独立迁移，可以再做一道未见新题。", "SHOW_OPTIONS")
 
     async def _decline_practice_offer(
         self,

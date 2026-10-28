@@ -6,6 +6,9 @@ export interface InitialAssessment {
   run_id?: string;
   total: number;
   answered: number;
+  assessment_version?: string;
+  can_resume?: boolean;
+  compatibility_notice?: string | null;
   question?: {index: number; skill_label: string; statement: string; choices: ChoiceSet} | null;
   result?: {notice: string; skills: {skill_id: string; label: string; observed: number; correct: number; unknown: number; starting_difficulty: number; observation: string}[]} | null;
 }

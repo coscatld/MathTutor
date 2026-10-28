@@ -46,6 +46,17 @@ function TutorConversation({ sessionId, launch = null, onLaunched, initialPanel 
   const busy = state.pendingCommand !== null;
   const connected = state.connectionStatus === "connected" && !referenceScope.blocking;
   const attemptMode = attemptBindingIsCurrent(attemptBinding, state);
+  const freeAttemptCycle = useRef("");
+  useEffect(() => {
+    if (state.problemContext?.response_mode === "free_response" && !state.problemContext.choices
+        && state.cycleId !== freeAttemptCycle.current) {
+      const binding = currentAttemptBinding(state);
+      if (binding) {
+        freeAttemptCycle.current = state.cycleId;
+        setAttemptBinding(binding);
+      }
+    }
+  }, [state]);
   useEffect(() => { if (attemptBinding && !attemptMode) setAttemptBinding(null); }, [attemptBinding, attemptMode]);
   // Send a question-bank launch exactly once into an empty conversation, then strip the query so a refresh does not resend.
   const launched = useRef(false);
@@ -79,7 +90,7 @@ function TutorConversation({ sessionId, launch = null, onLaunched, initialPanel 
         <div ref={scroll.content} className="mt-reading-width flex flex-col gap-7">
           {state.messages.length === 0 ? <TutorWelcome disabled={busy || !connected} onChoose={text => send("send_message", { text })} /> : state.messages.map((message) => <TutorActionCard key={message.id} message={message} onRecover={message.id === state.messages[state.messages.length - 1]?.id && !state.pendingCommand && !referenceScope.blocking ? recover : undefined} onContinue={message.id === state.messages[state.messages.length - 1]?.id && !state.pendingCommand && !referenceScope.blocking ? () => send("send_message", { text: "继续" }) : undefined} />)}
           {busy ? <div className="mt-thinking"><span className="mt-thinking-dots" aria-hidden="true"><i /><i /><i /></span>Tutor 正在思考下一步…</div> : null}
-          {state.problemContext?.choices && state.allowedNextInputs.includes("submit_attempt") && <section ref={choices} aria-label="选择题练习" className="mt-card mt-rise p-5"><h2 className="mb-3 text-base font-semibold">选择题练习</h2><p className="mb-4 break-words">{state.problemContext.display_text}</p><ChoiceQuestion key={`${state.cycleId}:${state.problemContext.choices.version}`} choices={state.problemContext.choices} busy={busy || !connected} onSubmit={choice_id => send("submit_attempt", {choice_id, choice_version: state.problemContext?.choices?.version ?? ""})} /></section>}
+          {state.problemContext?.choices && state.allowedNextInputs.includes("submit_attempt") && <section ref={choices} aria-label="选择题诊断" className="mt-card mt-rise p-5"><h2 className="mb-3 text-base font-semibold">选择题诊断</h2><p className="mb-4 break-words">{state.problemContext.display_text}</p>{state.problemContext.options_exposed && state.problemContext.response_mode === "free_response" ? <p className="mb-4 text-sm leading-6">已查看选项，本题后续作答记为诊断。独立迁移需要再尝试一道未见新题。</p> : null}<ChoiceQuestion key={`${state.cycleId}:${state.problemContext.choices.version}`} choices={state.problemContext.choices} busy={busy || !connected} onSubmit={choice_id => send("submit_attempt", {choice_id, choice_version: state.problemContext?.choices?.version ?? ""})} /></section>}
           {state.messages.length > 0 ? <StudentNextStep context={state.problemContext} plan={state.teachingPlan} evidence={state.evidenceSummary} offer={state.activeOffer} actions={state.allowedActions} allowed={state.allowedNextInputs} busy={busy} disabled={!connected} onCommand={(command, payload) => send(command, payload)} onWrite={() => { if (state.problemContext?.choices) choices.current?.querySelector<HTMLInputElement>('input[type="radio"]:not(:disabled)')?.focus(); else { setAttemptBinding(currentAttemptBinding(state)); setComposeFocus(current => current + 1); } }} /> : null}
           <NearbyPractice problem={state.recoveryProblem} disabled={busy || !connected} onChoose={text => send("send_message", { text })} />
         </div>

@@ -32,6 +32,8 @@ async def enrich_offer(state, practice, sid, offer, public, *, history, feedback
     recommendation = await practice.recommendation_for_offer(sid, offer.offer_id)
     purpose = recommendation.purpose if recommendation else None
     basis = recommendation.basis if recommendation else None
+    mode = recommendation.response_mode if recommendation else "single_choice"
+    observation = recommendation.observation_kind if recommendation else "diagnostic"
     reason = "生成时的学习依据已不可用。"
     if basis:
         reason = ("根据已经核验的错误记录，先练习仍不稳定的步骤。" if basis.reason_code == "verified_error_history"
@@ -41,10 +43,14 @@ async def enrich_offer(state, practice, sid, offer, public, *, history, feedback
             reason += "难度参考初评练习起点，并结合后续首次独立作答调整。"
     if purpose == "E":
         reason = "到期复习允许重做旧题，用再次作答观察保持情况；这不代表新题迁移已通过。"
+    elif mode == "single_choice":
+        reason = "用选择题观察当前知识点的作答情况；这类记录用于诊断，不作为首次独立自由作答。"
     public.update({"purpose": purpose, "title": PURPOSE_LABELS.get(purpose, "相关练习"),
         "reason": reason,
+        "response_mode": mode, "observation_kind": observation,
         "observation_goal": ("观察复习时能否再次完成，以及哪些步骤仍需帮助。" if purpose == "E" else
-            "观察新题是否能独立完成，以及哪些步骤仍需帮助。"),
+            "观察新题是否能独立完成，以及哪些步骤仍需帮助。" if mode == "free_response" else
+            "记录选择题诊断结果，以及哪些步骤仍需帮助。"),
         "evidence_ids": list(basis.evidence_ids) if basis else [], "question_count": 1,
         "history_cutoff_seq": basis.history_cutoff_seq if basis else None,
         "basis": basis.model_dump(mode="json") if basis else None,
@@ -53,11 +59,15 @@ async def enrich_offer(state, practice, sid, offer, public, *, history, feedback
         "update_reason": "这条建议需要重新评估。" if public["status"] in {"EXPIRED", "REVOKED"} else None})
     if public["feedback"] and public["status"] == "ACTIVE":
         public["display_status"] = "later" if public["feedback"] == "later" else "history"
+    if mode == "single_choice" and purpose in {"A1", "A2", "B"}:
+        public["title"] = "选择题诊断练习"
     if public["status"] == "ACCEPTED":
         child = await state.store.load_child_cycle_for_offer(sid, offer.offer_id)
         if child:
             cycle_id = str(child.cycle.cycle_id)
             child_context = await state.store.teaching.load(sid, cycle_id) or {}
+            public["response_mode"] = "single_choice" if child_context.get("choices") else child_context.get("response_mode", mode)
+            public["observation_kind"] = child_context.get("observation_kind", observation)
             rows = [e for e in valid_events(history) if e.cycle_id == cycle_id and e.event_type == "attempt_assessed" and not e.duplicate_response]
             completed = child.state.value.upper() == "SOLVED" or any(t.to_state.upper() == "SOLVED" for t in child.transitions)
             completed = completed or any(e.cycle_id == cycle_id and e.event_type == "problem_ended" and e.lifecycle_status == "completed" for e in history)
@@ -70,5 +80,9 @@ async def enrich_offer(state, practice, sid, offer, public, *, history, feedback
                 display_status="completed" if completed else "in_progress" if available and active else "history")
             public["evidence_href"] = "/math-tutor/profile?" + urlencode({"cycle": cycle_id})
             public["result_summary"] = {"independent_correct": sum(e.independent_target and e.correctness == "correct" for e in rows),
+                "first_free_response": sum(e.independent_target for e in rows),
+                "diagnostic_correct": sum((e.response_format == "single_choice" or e.options_exposed) and e.correctness == "correct" for e in rows),
                 "helped": sum(e.evidence_kind in {"assisted", "post_solution"} for e in rows), "observations": len(rows)}
+            if public["observation_kind"] == "diagnostic":
+                public["observation_goal"] = "本题按诊断记录；独立迁移需要再尝试一道未见新题。"
     return public

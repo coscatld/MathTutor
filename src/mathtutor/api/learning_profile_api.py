@@ -24,6 +24,10 @@ class InitialRun(BaseModel):
     run_id: str = Field(min_length=1, max_length=64)
 
 
+class InitialResume(InitialRun):
+    version: str = Field(min_length=1, max_length=128)
+
+
 @router.get("/initial-assessment")
 async def initial_assessment(owner: StudentOwnerScope = Depends(require_student_owner)):
     service = tracking_state().initial_assessment
@@ -53,6 +57,16 @@ async def skip_initial_assessment(body: InitialRun, owner: StudentOwnerScope = D
     async with state.turn_requests.owner(owner.student_id):
         try:
             return await state.initial_assessment.skip(owner.student_id, body.run_id)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/initial-assessment/resume")
+async def resume_initial_assessment(body: InitialResume, owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = tracking_state()
+    async with state.turn_requests.owner(owner.student_id):
+        try:
+            return await state.initial_assessment.resume(owner.student_id, **body.model_dump())
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 

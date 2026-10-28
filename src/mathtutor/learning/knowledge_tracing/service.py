@@ -105,6 +105,8 @@ class StudentStateService:
         history = await self.events(str(student_id), conn=conn)
         helps, uncertain, exposed = self._exposure_facts(history, problem_revision)
         return {"problem_revision": str(problem_revision), "target_answer_exposed": exposed,
+                "options_exposed": any(x.event_type == "options_exposed" and x.problem_revision == str(problem_revision)
+                                       for x in history),
                 "help_exposed": bool(helps), "provenance_uncertain": uncertain,
                 "assistance_level": 5 if exposed else 1 if helps else 0,
                 "prior_help_event_ids": [x.event_id for x in helps]}
@@ -305,6 +307,8 @@ class StudentStateService:
                 misconception_codes=tuple(misconception_codes), verified_error_skill_ids=tuple(verified_error_skill_ids),
                 task_purpose=task_purpose, graph_version=graph_version,
                 response_format=response_format,
+                options_exposed=any(x.event_type == "options_exposed" and x.problem_revision == str(problem_revision)
+                                    for x in history),
             ))
             # Label is associated only after the immutable pre-outcome forecast.
             presentation_id = f"presentation:{cycle_id}"

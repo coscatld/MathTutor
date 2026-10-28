@@ -1,5 +1,7 @@
 """Owner-scoped placement facts. This rule policy is NOT a DKT ability score."""
 from datetime import datetime, timezone
+import hashlib
+import json
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -27,6 +29,19 @@ ITEMS = (
     (SKILL_QUADRATIC_EQUATION, "x^2 - 6x + 9 = 0"), (SKILL_QUADRATIC_EQUATION, "x^2 - 6x + 8 = 0"),
     (SKILL_LINEAR_SYSTEM, "x+y=7; x-y=1"), (SKILL_LINEAR_SYSTEM, "2x+y=11; x-y=1"),
 )
+ASSESSMENT_VERSION = hashlib.sha256(json.dumps({"policy": POLICY, "items": ITEMS},
+    ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+# Runs saved before resumable placement did not store the item-set fingerprint.
+# Only the exact original v1 policy/items may adopt those existing runs.
+LEGACY_V1_VERSION = "f8734067330d1230437d4dea78123cecd0f2268ebc5a845d007c69cf5007825b"
+
+
+def assessment_version(payload):
+    return payload.get("assessment_version", LEGACY_V1_VERSION if payload.get("policy_version") == "placement_start_v1" else "")
+
+
+def compatible(payload):
+    return payload.get("policy_version") == POLICY and assessment_version(payload) == ASSESSMENT_VERSION
 
 
 def item_at(index, run_id):
@@ -74,7 +89,8 @@ class InitialAssessmentService:
         sid = str(sid)
         async with self.engine.begin() as conn:
             await ensure_student(conn, student_id=sid)
-            payload = {"run_id": str(uuid4()), "status": "pending", "answers": [], "policy_version": POLICY}
+            payload = {"run_id": str(uuid4()), "status": "pending", "answers": [], "policy_version": POLICY,
+                "assessment_version": ASSESSMENT_VERSION}
             await conn.execute(insert(initial_assessments).values(student_id=str(sid), payload=payload).on_conflict_do_nothing())
             return self.public(await self.read(sid, conn))
 
@@ -83,7 +99,9 @@ class InitialAssessmentService:
             return {"status": "not_started", "total": len(ITEMS), "answered": 0}
         status, index = payload["status"], len(payload["answers"])
         return {"run_id": payload["run_id"], "status": status, "total": len(ITEMS), "answered": index,
-            "question": item_at(index, payload["run_id"])[0] if status in {"pending", "in_progress"} and index < len(ITEMS) else None,
+            "assessment_version": assessment_version(payload), "can_resume": status == "skipped" and compatible(payload),
+            "compatibility_notice": None if compatible(payload) else "这份初评的题目或规则版本已更新，暂不能续做。已有作答保留，可继续学习。",
+            "question": item_at(index, payload["run_id"])[0] if compatible(payload) and status in {"pending", "in_progress"} and index < len(ITEMS) else None,
             "result": result_for(payload) if status == "completed" else None}
 
     async def submit(self, sid, *, run_id, index, option_id, version):
@@ -92,6 +110,8 @@ class InitialAssessmentService:
             payload = await self.read(sid, conn)
             if not payload or run_id != payload["run_id"]:
                 raise ValueError("初评已失效或已删除，请重新打开初评页面。")
+            if not compatible(payload):
+                raise ValueError("这份初评的题目或规则版本已更新，已有作答保留，请重新同步进度。")
             answers = payload["answers"]
             if index < len(answers):
                 old = answers[index]
@@ -128,9 +148,30 @@ class InitialAssessmentService:
             payload = await self.read(sid, conn)
             if not payload or payload["run_id"] != run_id:
                 raise ValueError("初评已失效，请刷新后继续。")
-            if payload["status"] != "completed":
-                await conn.execute(initial_assessments.update().where(initial_assessments.c.student_id == str(sid), initial_assessments.c.payload == payload).values(payload={**payload, "status": "skipped"}))
+            if payload["status"] not in {"completed", "skipped"}:
+                changed = await conn.execute(initial_assessments.update().where(initial_assessments.c.student_id == str(sid), initial_assessments.c.payload == payload).values(payload={**payload, "status": "skipped"}))
+                if changed.rowcount != 1:
+                    raise ValueError("初评进度已更新，请刷新后继续。")
         return {"ok": True}
+
+    async def resume(self, sid, *, run_id, version):
+        sid = str(sid)
+        async with self.engine.begin() as conn:
+            payload = await self.read(sid, conn)
+            if not payload or payload["run_id"] != run_id:
+                raise ValueError("初评已失效或不属于当前学生，请重新打开初评页面。")
+            if not compatible(payload) or version != assessment_version(payload):
+                raise ValueError("这份初评的题目或规则版本已更新，已有作答保留，请重新同步进度。")
+            if payload["status"] in {"pending", "in_progress", "completed"}:
+                return self.public(payload)
+            if payload["status"] != "skipped":
+                raise ValueError("初评进度已更新，请刷新后继续。")
+            updated = {**payload, "status": "in_progress" if payload["answers"] else "pending"}
+            changed = await conn.execute(initial_assessments.update().where(initial_assessments.c.student_id == sid,
+                initial_assessments.c.payload == payload).values(payload=updated))
+            if changed.rowcount != 1:
+                raise ValueError("初评进度已更新，请刷新后继续。")
+            return self.public(updated)
 
     async def starting_difficulty(self, sid, skills):
         payload = await self.read(sid)

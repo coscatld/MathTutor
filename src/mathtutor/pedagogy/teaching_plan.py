@@ -334,6 +334,9 @@ def assessment_feedback(record):
 
 def public_context(context):
     result = {key: deepcopy(context[key]) for key in ("problem_id", "display_text", "skill_ids", "lifecycle")} | {"current_subgoal": current_subgoal(context), "choices": deepcopy(context.get("choices"))}
+    for key in ("response_mode", "observation_kind", "options_exposed"):
+        if key in context:
+            result[key] = context[key]
     if context.get("understanding_check"):
         result["understanding_check"] = True
     return result

@@ -1,0 +1,9 @@
+{
+  "checks": [
+    "new transfer opens in bound free-response mode without option payload or radios",
+    "explicit options request and reload preserve diagnostic explanation and choices",
+    "completed card shows diagnostic success and next step across narrow widths"
+  ],
+  "errors": [],
+  "scope": "macOS Chromium, isolated REST/WS fixtures"
+}

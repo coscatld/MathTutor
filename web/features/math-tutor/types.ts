@@ -89,7 +89,8 @@ export type MathTutorCommand =
   | "resume_problem"
   | "end_problem"
   | "start_diagnostic"
-  | "skip_diagnostic";
+  | "skip_diagnostic"
+  | "request_options";
 
 /** Envelope sent to the WS (allowlist: command/payload/cycle/session/idempotency keys). */
 export interface ClientEnvelope {
@@ -127,6 +128,9 @@ export interface TeachingPlan {
 }
 
 export interface ProblemContext {
+  response_mode?: "free_response" | "single_choice";
+  observation_kind?: "independent_transfer" | "diagnostic";
+  options_exposed?: boolean;
   understanding_check?: boolean;
   graphable?: boolean;
   choices?: ChoiceSet | null;
@@ -153,6 +157,8 @@ export interface EvidenceSummary {
 }
 
 export interface ActiveOffer {
+  response_mode?: "free_response" | "single_choice";
+  observation_kind?: "independent_transfer" | "diagnostic";
   offer_id: string;
   title: string;
   purpose: string;
