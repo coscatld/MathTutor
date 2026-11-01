@@ -1,5 +1,6 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Eraser, Pause, Play } from "lucide-react";
 import { formatTick, niceStep } from "../lib/function-graph";
@@ -63,16 +64,16 @@ function stepDigits(step: number): number {
   return Math.max(0, Math.min(6, Math.ceil(-Math.log10(step) - 1e-9)));
 }
 
-function describe(object: SceneObject, env: EvalEnv): string {
+function describe(object: SceneObject, env: EvalEnv, t: (message: string, params?: Record<string, string | number>) => string): string {
   const name = object.label || object.id;
-  const kind = KIND_NAMES[object.type];
-  const coord = (value: Point2 | null | undefined) => (value ? `(${formatNumber(value[0], 2)}, ${formatNumber(value[1], 2)})` : "（无定义）");
+  const kind = t(KIND_NAMES[object.type]);
+  const coord = (value: Point2 | null | undefined) => (value ? `(${formatNumber(value[0], 2)}, ${formatNumber(value[1], 2)})` : t("（无定义）"));
   switch (object.type) {
     case "point": return `${kind} ${name} ${coord(env.points[object.id])}`;
     case "segment": case "line": case "ray": case "vector": return `${kind} ${object.label || `${object.from}${object.to}`}`;
     case "polygon": return `${kind} ${object.label || object.points.join("")}`;
-    case "circle": return `${kind} ${object.label ? `${object.label}，` : ""}圆心 ${object.center}，半径 ${formatNumber(evaluate(object.radius, env), 2)}`;
-    case "tangent": return `${kind} ${object.label ? `${object.label}，` : ""}${object.of} 在 x = ${formatNumber(evaluate(object.at, env), 2)} 处`;
+    case "circle": return t("{kind} {label}圆心 {center}，半径 {radius}",{kind,label: object.label ? `${object.label}, ` : "",center:object.center,radius:formatNumber(evaluate(object.radius, env), 2)});
+    case "tangent": return t("{kind} {label}{object} 在 x = {x} 处",{kind,label:object.label ? `${object.label}, ` : "",object:object.of,x:formatNumber(evaluate(object.at, env), 2)});
     case "text": return `${kind}：${object.text}`;
     default: return `${kind} ${name}`;
   }
@@ -86,6 +87,7 @@ export default function SceneCanvas({ scene, sceneId = "standalone" }: { scene: 
 }
 
 function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
+  const {t} = useI18n();
   const [scene] = useState(initialScene);
   const uid = useId();
   const figure = useRef<HTMLElement>(null);
@@ -501,7 +503,7 @@ function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
     <figure ref={figure} className="mt-scene my-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
       {scene.source === "model" ? <p role="note" className="mb-2 text-xs leading-5 text-[var(--muted-foreground)]">{MODEL_NOTICE}</p> : null}
       {legend.length >= 2 ? (
-        <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]" aria-label="图例">
+        <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]" aria-label={t("图例")}>
           {legend.map(object => {
             const slot = slots.get(object.id) ?? null;
             const color = slotColor(slot, dark, "var(--primary)", "var(--muted-foreground)");
@@ -514,7 +516,7 @@ function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
         </ul>
       ) : null}
       <div ref={wrapper} className="relative">
-        <canvas ref={canvas} role="img" aria-label={summary || "数形结合图"} style={{ width: "100%", height: HEIGHT, touchAction: "pan-y" }}
+        <canvas ref={canvas} role="img" aria-label={summary || t("数形结合图")} style={{ width: "100%", height: HEIGHT, touchAction: "pan-y" }}
           onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)} />
         {hover && hoverPoint ? <div className="pointer-events-none absolute top-1 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs text-[var(--foreground)] shadow-[var(--shadow-xs)]"
           style={hover.px > width / 2 ? { right: width - hover.px + 8 } : { left: hover.px + 8 }}>
@@ -537,37 +539,37 @@ function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
               <input id={id} type="range" min={param.min} max={param.max} step={param.step} value={value}
                 aria-valuetext={`${param.label} = ${shown}`} className="accent-[var(--primary)]"
                 onChange={event => setParam(param.name, Number(event.currentTarget.value))} />
-              {param.animate ? <button type="button" aria-pressed={on} aria-label={`${on ? "暂停" : "播放"} ${param.label} 动画`}
+              {param.animate ? <button type="button" aria-pressed={on} aria-label={`${on ? t("暂停") : t("播放")} ${param.label} 动画`}
                 className="flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs"
                 onClick={() => setPlaying(previous => ({ ...previous, [param.name]: !on }))}>
-                {on ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}{on ? "暂停" : "播放"}
+                {on ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}{on ? t("暂停") : t("播放")}
               </button> : null}
               </div>
             </div>;
           })}
           {traced ? <div><button type="button" onClick={clearTrails}
             className="flex min-h-11 items-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs">
-            <Eraser className="h-3.5 w-3.5" aria-hidden="true" />清除轨迹</button></div> : null}
+            <Eraser className="h-3.5 w-3.5" aria-hidden="true" />{t("清除轨迹")}</button></div> : null}
         </div>
       ) : null}
       {readouts.length ? (
-        <dl className="mt-scene-readouts mt-2 grid gap-x-3 gap-y-0.5 text-sm text-[var(--foreground)]" aria-label="读数">
+        <dl className="mt-scene-readouts mt-2 grid gap-x-3 gap-y-0.5 text-sm text-[var(--foreground)]" aria-label={t("读数")}>
           {readouts.map((readout, index) => <div key={index} className="contents">
             <dt className="text-[var(--muted-foreground)]">{readout.label}</dt>
-            <dd className="tabular-nums">{readout.value}</dd>
+            <dd className="tabular-nums">{t(readout.value)}</dd>
           </div>)}
         </dl>
       ) : null}
       {scene.note ? <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{scene.note}</p> : null}
       <figcaption className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
-        {scene.marks.length ? <div><span className="sr-only">图上标出的点：</span>{scene.marks.map(mark => mark.label).join(" · ")}</div> : null}
+        {scene.marks.length ? <div><span className="sr-only">{t("图上标出的点：")}</span>{scene.marks.map(mark => mark.label).join(" · ")}</div> : null}
         <details>
-          <summary className="cursor-pointer">图中对象</summary>
+          <summary className="cursor-pointer">{t("图中对象")}</summary>
           <ul className="mt-1 list-disc pl-5">
             {scene.title ? <li>{scene.title}</li> : null}
-            {visible.map(object => <li key={object.id}>{describe(object, env)}</li>)}
-            {scene.marks.map((mark, index) => <li key={`mark-${index}`}>标注 {mark.label}</li>)}
-            {readouts.map((readout, index) => <li key={`readout-${index}`}>{readout.label} = {readout.value}</li>)}
+            {visible.map(object => <li key={object.id}>{describe(object, env, t)}</li>)}
+            {scene.marks.map((mark, index) => <li key={`mark-${index}`}>{t("标注")}{mark.label}</li>)}
+            {readouts.map((readout, index) => <li key={`readout-${index}`}>{readout.label} = {t(readout.value)}</li>)}
           </ul>
         </details>
       </figcaption>

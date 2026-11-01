@@ -1,0 +1,48 @@
+{
+  "checks": [
+    "dirty fields/filter preserved",
+    "no locale-triggered requests",
+    "one save retains original CAS/path/data",
+    "English confirm and receipt",
+    "switch back preserves content"
+  ],
+  "reads": [
+    "/api/v2/auth/status",
+    "/api/v2/auth/status",
+    "/api/v2/math-tutor/desktop/bootstrap",
+    "/api/v2/math-tutor/desktop/settings",
+    "/api/v2/math-tutor/desktop/bootstrap",
+    "/api/v2/math-tutor/desktop/settings",
+    "/api/v2/math-tutor/desktop/knowledge/libraries",
+    "/api/v2/math-tutor/desktop/knowledge/drafts",
+    "/api/v2/math-tutor/desktop/knowledge/sources/note",
+    "/api/v2/math-tutor/sessions",
+    "/api/v2/math-tutor/desktop/knowledge/libraries",
+    "/api/v2/math-tutor/desktop/knowledge/drafts",
+    "/api/v2/math-tutor/desktop/knowledge/sources/note",
+    "/api/v2/math-tutor/sessions",
+    "/api/v2/math-tutor/desktop/knowledge/libraries/lib/notes",
+    "/api/v2/math-tutor/desktop/knowledge/libraries/lib/notes",
+    "/api/v2/math-tutor/desktop/knowledge/sources/note",
+    "/api/v2/math-tutor/desktop/knowledge/libraries/lib/notes"
+  ],
+  "writes": [
+    {
+      "title": "知识库 保存：我的标题",
+      "body": "未保存：保存 删除 x²，用户正文保持原样",
+      "tags": [
+        "删除",
+        "English tag"
+      ],
+      "operation_id": "2bfd4420-6505-43c8-a07c-92ccdd077911",
+      "document_id": "note",
+      "expected_version": 1,
+      "relative_path": "第一章/保存.md",
+      "previous_relative_path": "原路径.md"
+    }
+  ],
+  "confirms": [
+    "Save as v2? Previous versions are kept, and a version conflict prevents overwriting."
+  ],
+  "errors": []
+}

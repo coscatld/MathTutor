@@ -27,6 +27,7 @@ Enforcement rules implemented HERE (design §21):
 from __future__ import annotations
 
 import json
+from time import perf_counter
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Mapping, Protocol, Sequence
 from uuid import UUID
@@ -59,6 +60,8 @@ from mathtutor.application.memory_context import (
     MAX_MEMORY_ENTRIES,
     TRUSTED_MEMORY_SOURCES,
     select_memory_context,
+    MemoryContextSelector,
+    MemorySelectionStats,
 )
 
 DEFAULT_TOKEN_BUDGET = 4000
@@ -90,6 +93,7 @@ class LoadOutcome:
     empty_data: bool = False
     disabled_by_user: bool = False
     detail: str = ""
+    selection_stats: MemorySelectionStats | None = None
 
 
 def estimate_text_tokens(text: str) -> int:
@@ -368,38 +372,51 @@ class PersonalMemorySourceProvider(BaseContextSourceProvider):
 
     source = RetrievalSource.PERSONAL_MEMORY
 
-    def __init__(self, repository: MemoryRepository) -> None:
+    def __init__(self, repository: MemoryRepository, *, page_size: int = 32, max_candidates: int = 256) -> None:
+        if not 1 <= page_size <= max_candidates <= 256:
+            raise ValueError("memory selection requires 1 <= page_size <= max_candidates <= 256")
         self._repo = repository
+        self._page_size = page_size
+        self._max_candidates = max_candidates
 
-    async def load(
-        self,
-        *,
-        student_id: str,
-        intent: RetrievalIntent,
-        node_ids: Sequence[str] | None = None,
-        query_hint: str = "",
-    ) -> LoadOutcome:
+    async def load(self, *, student_id: str, intent: RetrievalIntent,
+                   node_ids: Sequence[str] | None = None, query_hint: str = "") -> LoadOutcome:
         return await self.load_for_tutor(student_id=student_id)
 
     async def load_for_tutor(self, *, student_id: str) -> LoadOutcome:
-        """Read the shared projection without resolving a retrieval matrix.
-
-        Chat/teaching outputs use this directly. ContextAssembler enters
-        through ``load`` only after its own source-policy decision.
-        """
-        nodes = await self._repo.list_retrievable(
-            student_id, source_types=TRUSTED_MEMORY_SOURCES
-        )
-        if not nodes:
-            live = await self._repo.list_nodes(student_id)
-            if live and not any(node.retrieval_enabled for node in live):
-                return LoadOutcome(disabled_by_user=True, detail="retrieval disabled by user")
-            if live:
-                return LoadOutcome(empty_data=True, detail="no user-authored or confirmed memories")
-            return LoadOutcome(empty_data=True, detail="no personal memories")
-        context = select_memory_context(nodes)
-        detail = f"selected {len(context.entries)} of {len(nodes)} eligible memories; recent edits first, whole-record budget"
-        return LoadOutcome(payload=context, detail=detail)
+        """Read bounded recent-update candidates; diagnostics contain no body."""
+        counts = await self._repo.retrieval_counts(student_id, source_types=TRUSTED_MEMORY_SOURCES)
+        selector = MemoryContextSelector()
+        rows_read = pages = 0
+        selection_ms = 0.0
+        before = None
+        exhausted = counts.eligible == 0
+        while not exhausted and not selector.full and rows_read < self._max_candidates:
+            limit = min(self._page_size, self._max_candidates - rows_read)
+            page = await self._repo.list_recent_retrievable(student_id, source_types=TRUSTED_MEMORY_SOURCES,
+                                                           limit=limit, before=before)
+            pages += 1
+            rows_read += len(page)
+            started = perf_counter()
+            selector.consider(page)
+            selection_ms += (perf_counter() - started) * 1000
+            exhausted = len(page) < limit
+            if page:
+                last = page[-1]
+                before = (last.updated_at, last.created_at, last.memory_id)
+        limited = (rows_read == self._max_candidates and counts.eligible > rows_read
+                   and not exhausted and not selector.full)
+        context = selector.context()
+        stats = MemorySelectionStats(counts.live, counts.enabled, counts.eligible, rows_read, pages,
+                                     len(context.entries), selection_ms, limited)
+        if not counts.eligible:
+            if counts.live and not counts.enabled:
+                return LoadOutcome(disabled_by_user=True, detail="retrieval disabled by user", selection_stats=stats)
+            detail = "no user-authored or confirmed memories" if counts.live else "no personal memories"
+            return LoadOutcome(empty_data=True, detail=detail, selection_stats=stats)
+        detail = (f"selected {len(context.entries)} of {counts.eligible} eligible memories; recent edits first, whole-record budget; "
+                  f"rows_read={rows_read}, pages={pages}, selection_ms={selection_ms:.3f}, selection_scan_limited={limited}")
+        return LoadOutcome(payload=context, detail=detail, selection_stats=stats)
 
 
 class UserDocumentsSourceProvider(BaseContextSourceProvider):

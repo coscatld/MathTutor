@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n, type MessageParams } from "@/lib/i18n";
+
 import { BrainCircuit, DatabaseZap, Download, FileText, Loader2, LockKeyhole, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -26,23 +28,23 @@ import { evidenceStatusLabel, projectEvidenceSummary } from "../../lib/teaching-
  * Show observed evidence, not an uncalibrated legacy mastery percentage.
  */
 export function PrivacySummary({ summary }: { summary: StudentSummary }) {
+  const { t } = useI18n();
   return (
-    <div className="flex flex-col gap-3" aria-label="学习模型摘要">
+    <div className="flex flex-col gap-3" aria-label={t("学习模型摘要")}>
       <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
-        根据已经验证的作答记录生成。独立、受助和看答案后的作答分别记录，不把帮助次数当作掌握增长。
-      </p>
+        {t("根据已经验证的作答记录生成。独立、受助和看答案后的作答分别记录，不把帮助次数当作掌握增长。")}</p>
       <dl className="grid grid-cols-2 gap-2">
         <div className="flex flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-          <dt className="text-xs text-[var(--muted-foreground)]">累计练习次数</dt>
+          <dt className="text-xs text-[var(--muted-foreground)]">{t("累计练习次数")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">{summary.total_attempts}</dd>
         </div>
         <div className="flex flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-          <dt className="text-xs text-[var(--muted-foreground)]">活跃错误概念</dt>
+          <dt className="text-xs text-[var(--muted-foreground)]">{t("活跃错误概念")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">{summary.active_misconceptions}</dd>
         </div>
       </dl>
       {summary.skills.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">还没有练习记录，暂无知识点证据。</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{t("还没有练习记录，暂无知识点证据。")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {summary.skills.map((skill) => {
@@ -55,12 +57,12 @@ export function PrivacySummary({ summary }: { summary: StudentSummary }) {
               <span className="flex min-w-0 flex-col">
                 <span className="text-sm font-medium text-[var(--foreground)]">{skill.label}</span>
                 {skill.grade_band ? (
-                  <span className="text-xs text-[var(--muted-foreground)]">学段：{skill.grade_band}</span>
+                  <span className="text-xs text-[var(--muted-foreground)]">{t("学段：")}{t(skill.grade_band)}</span>
                 ) : null}
               </span>
               <span className="flex flex-col items-end gap-1 text-xs leading-5 text-[var(--muted-foreground)]">
-                <span>{evidence ? evidenceStatusLabel(skill.evidence_status || evidence.status) : "仍需独立检测"}</span>
-                {evidence ? <><span>独立 {evidence.independent} 次 · 受助 {evidence.assisted} 次</span><span>看答案后 {evidence.post_solution} 次 · 暂无法判断 {evidence.ungradable} 次</span></> : <span>旧记录不足以区分作答前的帮助</span>}
+                <span>{evidence ? t(evidenceStatusLabel(skill.evidence_status || evidence.status)) : t("仍需独立检测")}</span>
+                {evidence ? <><span>{t("独立 {independent} 次 · 受助 {assisted} 次", {independent: evidence.independent, assisted: evidence.assisted})}</span><span>{t("看答案后 {postSolution} 次 · 暂无法判断 {ungradable} 次", {postSolution: evidence.post_solution, ungradable: evidence.ungradable})}</span></> : <span>{t("旧记录不足以区分作答前的帮助")}</span>}
               </span>
             </li>
           ); })}
@@ -92,10 +94,11 @@ export function ConfirmableDelete({
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
 }) {
+  const { t } = useI18n();
   if (confirming) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-medium text-[var(--destructive)]">确认删除「{title}」？此操作无法撤销。</span>
+        <span className="text-sm font-medium text-[var(--destructive)]">{t("确认删除「{title}」？此操作无法撤销。", {title})}</span>
         <span className="flex items-center gap-2">
           <button
             type="button"
@@ -103,8 +106,7 @@ export function ConfirmableDelete({
             disabled={busy}
             className="mt-btn"
           >
-            取消
-          </button>
+            {t("取消")}</button>
           <button
             type="button"
             onClick={onConfirmDelete}
@@ -112,8 +114,7 @@ export function ConfirmableDelete({
             className="mt-btn mt-btn-danger-solid"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
-            确认删除
-          </button>
+            {t("确认删除")}</button>
         </span>
       </div>
     );
@@ -128,12 +129,11 @@ export function ConfirmableDelete({
         type="button"
         onClick={onAskDelete}
         disabled={busy}
-        aria-label={`删除 ${title}`}
+        aria-label={t("删除 {title}", {title: title})}
         className="mt-btn mt-btn-danger"
       >
         <Trash2 className="h-4 w-4" aria-hidden="true" />
-        删除
-      </button>
+        {t("删除")}</button>
     </div>
   );
 }
@@ -175,6 +175,7 @@ export default function PrivacyPanel({
   onClose,
   embedded = false,
 }: Props) {
+  const { t } = useI18n();
   const [memories, setMemories] = useState<DesktopMemory[]>([]);
   const [documents, setDocuments] = useState<DesktopDocument[]>([]);
   const [summary, setSummary] = useState<StudentSummary | null>(null);
@@ -183,7 +184,7 @@ export default function PrivacyPanel({
   const [confirmMemoryId, setConfirmMemoryId] = useState<string | null>(null);
   const [confirmDocId, setConfirmDocId] = useState<string | null>(null);
   const [confirmDanger, setConfirmDanger] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string; params?: MessageParams } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -233,7 +234,7 @@ export default function PrivacyPanel({
       await deleteDocumentFn(doc.document_id);
       setDocuments((list) => list.filter((d) => d.document_id !== doc.document_id));
       setConfirmDocId(null);
-      setMessage({ kind: "ok", text: `已删除「${doc.filename}」` });
+      setMessage({ kind: "ok", text: "已删除「{filename}」", params: {filename: doc.filename} });
     } catch (err) {
       setMessage({
         kind: "error",
@@ -269,10 +270,8 @@ export default function PrivacyPanel({
       const rebuilt = Object.values(result.documents).filter((d) => d.status === "rebuilt").length;
       setMessage({
         kind: "ok",
-        text:
-          rebuilt > 0
-            ? `已重建 ${rebuilt} 份资料的检索索引。`
-            : "当前未配置向量模型，检索索引暂不可用（词法检索不受影响）。",
+        text: rebuilt > 0 ? "已重建 {rebuilt} 份资料的检索索引。" : "当前未配置向量模型，检索索引暂不可用（词法检索不受影响）。",
+        params: {rebuilt},
       });
     } catch (err) {
       setMessage({
@@ -322,17 +321,16 @@ export default function PrivacyPanel({
       <div className={embedded ? "flex w-full flex-col" : "flex max-h-[calc(100vh-4rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xl"}>
         <header className={embedded ? "flex items-start justify-between gap-2" : "flex items-center justify-between gap-2 border-b border-[var(--border)] px-5 py-3.5"}>
           {embedded ? <div>
-            <h1 id="privacy-title" className="text-xl font-bold tracking-tight text-[var(--foreground)]">数据与隐私</h1>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">查看、导出或删除保存在这台电脑上的记忆、资料与学习记录。</p>
+            <h1 id="privacy-title" className="text-xl font-bold tracking-tight text-[var(--foreground)]">{t("数据与隐私")}</h1>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">{t("查看、导出或删除保存在这台电脑上的记忆、资料与学习记录。")}</p>
           </div> : <h1 id="privacy-title" className="flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">
             <ShieldCheck className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
-            数据与隐私
-          </h1>}
+            {t("数据与隐私")}</h1>}
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              aria-label="关闭"
+              aria-label={t("关闭")}
               className="mt-btn mt-btn-ghost justify-center"
             >
               <X className="h-4 w-4" aria-hidden="true" />
@@ -350,57 +348,53 @@ export default function PrivacyPanel({
                   : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
               }`}
             >
-              {message.text}
+              {t(message.text, message.params)}
             </p>
           )}
 
           {loading ? (
             <p className="flex items-center gap-2 py-8 text-sm text-[var(--muted-foreground)]">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              正在加载数据管理…
-            </p>
+              {t("正在加载数据管理…")}</p>
           ) : (
             <>
               {/* Profile — read-only display */}
-              {!embedded && <section className="flex flex-col gap-2" aria-label="我的资料">
+              {!embedded && <section className="flex flex-col gap-2" aria-label={t("我的资料")}>
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                   <UserRound className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
-                  我的资料
-                </h2>
+                  {t("我的资料")}</h2>
                 <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <div className="flex flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-                    <dt className="text-xs text-[var(--muted-foreground)]">学段</dt>
-                    <dd className="text-sm font-medium text-[var(--foreground)]">{gradeBand ?? "—"}</dd>
+                    <dt className="text-xs text-[var(--muted-foreground)]">{t("学段")}</dt>
+                    <dd className="text-sm font-medium text-[var(--foreground)]">{gradeBand ? t(gradeBand) : "—"}</dd>
                   </div>
                   <div className="flex flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-                    <dt className="text-xs text-[var(--muted-foreground)]">累计练习次数</dt>
+                    <dt className="text-xs text-[var(--muted-foreground)]">{t("累计练习次数")}</dt>
                     <dd className="text-sm font-medium text-[var(--foreground)]">{summary?.total_attempts ?? 0}</dd>
                   </div>
                   <div className="flex flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-                    <dt className="text-xs text-[var(--muted-foreground)]">活跃错误概念</dt>
+                    <dt className="text-xs text-[var(--muted-foreground)]">{t("活跃错误概念")}</dt>
                     <dd className="text-sm font-medium text-[var(--foreground)]">{summary?.active_misconceptions ?? 0}</dd>
                   </div>
                 </dl>
                 <p className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
                   <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
-                  以上资料由系统自动生成，只读展示。
-                </p>
+                  {t("以上资料由系统自动生成，只读展示。")}</p>
               </section>}
 
               {/* Memories — delete with double confirm */}
-              <section className="flex flex-col gap-2" aria-label="我的记忆">
+              <section className="flex flex-col gap-2" aria-label={t("我的记忆")}>
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                   <BrainCircuit className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
-                  我的记忆
-                </h2>
+                  {t("我的记忆")}</h2>
                 {memories.length === 0 ? (
-                  <p className="text-sm text-[var(--muted-foreground)]">还没有记忆。</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">{t("还没有记忆。")}</p>
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {memories.map((memory) => (
                       <li key={memory.memory_id} className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5">
                         <ConfirmableDelete
-                          title={`${MEMORY_TYPE_LABELS[memory.memory_type] ?? memory.memory_type}：${memory.predicate}`}
+                          title={`${t(MEMORY_TYPE_LABELS[memory.memory_type] ?? memory.memory_type)}: ${memory.predicate}`}
                           detail={memoryObjectText(memory)}
                           confirming={confirmMemoryId === memory.memory_id}
                           busy={busyId === memory.memory_id}
@@ -415,20 +409,19 @@ export default function PrivacyPanel({
               </section>
 
               {/* Documents — delete with double confirm */}
-              <section className="flex flex-col gap-2" aria-label="我的资料文档">
+              <section className="flex flex-col gap-2" aria-label={t("我的资料文档")}>
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                   <FileText className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
-                  我的资料文档
-                </h2>
+                  {t("我的资料文档")}</h2>
                 {documents.length === 0 ? (
-                  <p className="text-sm text-[var(--muted-foreground)]">还没有学习资料。</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">{t("还没有学习资料。")}</p>
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {documents.map((doc) => (
                       <li key={doc.document_id} className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5">
                         <ConfirmableDelete
                           title={doc.filename}
-                          detail={`${DOCUMENT_STATUS_LABELS[doc.status] ?? doc.status} · ${formatBytes(doc.size_bytes)}`}
+                          detail={`${t(DOCUMENT_STATUS_LABELS[doc.status] ?? doc.status)} · ${formatBytes(doc.size_bytes)}`}
                           confirming={confirmDocId === doc.document_id}
                           busy={busyId === doc.document_id}
                           onAskDelete={() => setConfirmDocId(doc.document_id)}
@@ -442,20 +435,18 @@ export default function PrivacyPanel({
               </section>
 
               {/* Student model summary — strictly read-only */}
-              {!embedded && <section className="flex flex-col gap-2" aria-label="学习模型摘要">
+              {!embedded && <section className="flex flex-col gap-2" aria-label={t("学习模型摘要")}>
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                   <ShieldCheck className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
-                  学习模型摘要
-                </h2>
+                  {t("学习模型摘要")}</h2>
                 {summary ? <PrivacySummary summary={summary} /> : null}
               </section>}
 
               {/* Data tools — non-destructive */}
-              <section className="flex flex-col gap-2" aria-label="数据工具">
+              <section className="flex flex-col gap-2" aria-label={t("数据工具")}>
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                   <DatabaseZap className="h-4 w-4 text-[var(--primary-text)]" aria-hidden="true" />
-                  数据工具
-                </h2>
+                  {t("数据工具")}</h2>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -464,8 +455,7 @@ export default function PrivacyPanel({
                     className="mt-btn"
                   >
                     {busyId === "rebuild-indexes" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <DatabaseZap className="h-4 w-4" aria-hidden="true" />}
-                    重建检索索引
-                  </button>
+                    {t("重建检索索引")}</button>
                   <button
                     type="button"
                     onClick={handleExport}
@@ -473,26 +463,23 @@ export default function PrivacyPanel({
                     className="mt-btn"
                   >
                     {busyId === "export" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
-                    导出我的数据
-                  </button>
+                    {t("导出我的数据")}</button>
                 </div>
                 <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
-                  导出内容只包含你自己的资料、记忆与学习摘要，不含任何密钥或系统内部数据。
-                </p>
+                  {t("导出内容只包含你自己的资料、记忆与学习摘要，不含任何密钥或系统内部数据。")}</p>
               </section>
 
-              <section aria-label="学习画像重算" className="rounded-xl border border-[var(--border)] p-4"><h2 className="font-medium">重新计算学习画像</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">根据有效学习事件重新计算画像与个人状态。检索索引重建只影响资料搜索。</p><button type="button" disabled={busyId !== null} className="mt-3 min-h-11 rounded-lg border border-[var(--border)] px-4 text-sm disabled:opacity-50" onClick={async () => { setBusyId("recompute"); try { await recomputeLearningProfile(); await load(); setMessage({kind:"ok", text:"已根据有效记录重新计算学习画像。"}); } catch { setMessage({kind:"error",text:"画像重算未完成，请稍后重试。"}); } finally {setBusyId(null);} }}>{busyId === "recompute" ? "正在计算…" : "重新计算学习画像"}</button></section>
+              <section aria-label={t("学习画像重算")} className="rounded-xl border border-[var(--border)] p-4"><h2 className="font-medium">{t("重新计算学习画像")}</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{t("根据有效学习事件重新计算画像与个人状态。检索索引重建只影响资料搜索。")}</p><button type="button" disabled={busyId !== null} className="mt-3 min-h-11 rounded-lg border border-[var(--border)] px-4 text-sm disabled:opacity-50" onClick={async () => { setBusyId("recompute"); try { await recomputeLearningProfile(); await load(); setMessage({kind:"ok", text:"已根据有效记录重新计算学习画像。"}); } catch { setMessage({kind:"error",text:"画像重算未完成，请稍后重试。"}); } finally {setBusyId(null);} }}>{busyId === "recompute" ? t("正在计算…") : t("重新计算学习画像")}</button></section>
 
               {/* Danger zone — every action confirms twice before sending */}
-              <section className="flex flex-col gap-2" aria-label="危险操作">
+              <section className="flex flex-col gap-2" aria-label={t("危险操作")}>
                 <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--destructive)]">
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  危险操作
-                </h2>
+                  {t("危险操作")}</h2>
                 <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50/60 p-3 dark:border-red-950 dark:bg-red-950/20">
                   <ConfirmableDelete
-                    title="清空全部资料文档"
-                    detail="删除你导入的所有学习资料及其内容，无法撤销。"
+                    title={t("清空全部资料文档")}
+                    detail={t("删除你导入的所有学习资料及其内容，无法撤销。")}
                     confirming={confirmDanger === "purge-documents"}
                     busy={busyId === "purge-documents"}
                     onAskDelete={() => setConfirmDanger("purge-documents")}
@@ -508,8 +495,8 @@ export default function PrivacyPanel({
                     }
                   />
                   <ConfirmableDelete
-                    title="清空全部记忆"
-                    detail="删除你的全部个人记忆，无法撤销。"
+                    title={t("清空全部记忆")}
+                    detail={t("删除你的全部个人记忆，无法撤销。")}
                     confirming={confirmDanger === "purge-memory"}
                     busy={busyId === "purge-memory"}
                     onAskDelete={() => setConfirmDanger("purge-memory")}
@@ -525,8 +512,8 @@ export default function PrivacyPanel({
                     }
                   />
                   <ConfirmableDelete
-                    title="删除学习记录"
-                    detail="将删除学习证据及其生成的画像和个性化状态。会话内容保留，但不会自动恢复已删除的画像。备份中的旧记录需要单独管理。"
+                    title={t("删除学习记录")}
+                    detail={t("将删除学习证据及其生成的画像和个性化状态。会话内容保留，但不会自动恢复已删除的画像。备份中的旧记录需要单独管理。")}
                     confirming={confirmDanger === "educational-history"}
                     busy={busyId === "educational-history"}
                     onAskDelete={() => setConfirmDanger("educational-history")}

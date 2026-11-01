@@ -1,5 +1,6 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import { useState } from "react";
 import { Eye, Loader2, Send } from "lucide-react";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
@@ -21,6 +22,7 @@ export default function ProblemComposer({
   busy,
   onSubmit,
 }: ProblemComposerProps) {
+  const {t} = useI18n();
   const [text, setText] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
@@ -44,12 +46,10 @@ export default function ProblemComposer({
   return (
     <section
       className="mt-card p-4 sm:p-5"
-      aria-label="输入题目"
+      aria-label={t("输入题目")}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[var(--foreground)]">
-          输入你的题目
-        </h2>
+        <h2 className="text-sm font-semibold text-[var(--foreground)]">{t("输入你的题目")}</h2>
         <button
           type="button"
           onClick={() => setShowPreview((value) => !value)}
@@ -57,13 +57,11 @@ export default function ProblemComposer({
           className="mt-btn"
         >
           <Eye className="h-4 w-4" aria-hidden="true" />
-          {showPreview ? "收起预览" : "预览"}
+          {showPreview ? t("收起预览") : t("预览")}
         </button>
       </div>
 
-      <label htmlFor="math-tutor-problem-input" className="sr-only">
-        题目内容
-      </label>
+      <label htmlFor="math-tutor-problem-input" className="sr-only">{t("题目内容")}</label>
       <textarea
         id="math-tutor-problem-input"
         value={text}
@@ -71,15 +69,13 @@ export default function ProblemComposer({
         onKeyDown={handleKeyDown}
         rows={3}
         disabled={disabled || busy}
-        placeholder="输入一道数学题，例如：2x + 3 = 7（支持 LaTeX，如 \\frac{1}{2}）"
+        placeholder={t("输入一道数学题，例如：2x + 3 = 7（支持 LaTeX，如 \\\\frac{1}{2}）")}
         className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--background)] px-3.5 py-2.5 text-[15px] leading-relaxed text-[var(--foreground)] outline-none transition-colors duration-200 placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--ring)]/30 disabled:opacity-60"
       />
 
       {showPreview && text.trim() && (
         <div className="mt-3 rounded-xl border border-dashed border-[var(--border)] bg-[var(--muted)]/40 px-3.5 py-2.5">
-          <div className="mb-1 text-xs font-medium text-[var(--muted-foreground)]">
-            预览
-          </div>
+          <div className="mb-1 text-xs font-medium text-[var(--muted-foreground)]">{t("预览")}</div>
           <div className="overflow-x-auto font-serif text-base text-[var(--foreground)]">
             <MarkdownRenderer content={wrapLatexForDisplay(text)} enableMath />
           </div>
@@ -87,9 +83,7 @@ export default function ProblemComposer({
       )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
-          提交后，辅导老师会先检查题目，再引导你自己解出答案。
-        </p>
+        <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">{t("提交后，辅导老师会先检查题目，再引导你自己解出答案。")}</p>
         <button
           type="button"
           onClick={submit}
@@ -101,7 +95,7 @@ export default function ProblemComposer({
           ) : (
             <Send className="h-4 w-4" aria-hidden="true" />
           )}
-          {busy ? "正在检查题目…" : "提交题目"}
+          {busy ? t("正在检查题目…") : t("提交题目")}
         </button>
       </div>
     </section>

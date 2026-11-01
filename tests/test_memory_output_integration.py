@@ -97,7 +97,7 @@ def test_inference_is_not_used_until_confirmed_and_reaches_structured_writer(tmp
                 object_json={"text": "other-owner-inference"})
             return own, other
         own, other = asyncio.run(seed())
-        assert client.post(f"{MEMORY}/{other.memory_id}/confirm").status_code == 409
+        assert client.post(f"{MEMORY}/{other.memory_id}/confirm").status_code == 404
         p = Replies("Equality means the same value.")
         chat(client, p, "unconfirmed")
         assert memory_messages(p) == []

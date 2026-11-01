@@ -160,9 +160,11 @@ class _StubProviderGateway:
 
     def __init__(self, error: Exception) -> None:
         self._error = error
+        from types import SimpleNamespace
+        self._provider = SimpleNamespace(model="", provider_id="test-provider")
         self.register_calls: list[tuple] = []
 
-    async def resolve_model(self, provider_id: str) -> str:
+    async def resolve_model(self, provider_id: str, **kwargs) -> str:
         raise self._error
 
     async def fetch_models(self, provider_id: str) -> list[str]:
@@ -172,7 +174,7 @@ class _StubProviderGateway:
         self.register_calls.append((args, kwargs))
 
     def provider_for(self, role):
-        return None
+        return self._provider
 
     def configured_roles(self) -> list:
         return []
@@ -274,11 +276,13 @@ def test_model_test_endpoint_friendly_copy() -> None:
         body = client.post(
             "/api/v2/math-tutor/desktop/model/test", json={}
         ).json()
-    assert body == {
+    assert {key: body[key] for key in ("ok", "error_kind", "message")} == {
         "ok": False,
         "error_kind": "gateway_disabled",
         "message": "尚未配置模型提供商，请先保存 API Key。",
     }
+    assert body["accepted"] is True and body["revision"] == body["current_revision"]
+    assert body["epoch"] and body["operation_id"]
     reset_product_state()
 
 

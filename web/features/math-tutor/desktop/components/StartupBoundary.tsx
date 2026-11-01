@@ -1,7 +1,10 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
+
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import BrandMark from "@/components/common/BrandMark";
+import LanguagePicker from "@/components/common/LanguagePicker";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fetchAuthStatus } from "@/lib/auth";
@@ -19,14 +22,17 @@ interface Props {
  * auth-on server deployments retain their explicit login route.
  */
 export default function StartupBoundary({ children, entry = false }: Props) {
+  const {t} = useI18n();
   const router = useRouter();
   const pathname = usePathname() || "/";
   const [decision, setDecision] = useState<StartupDecision>("waiting");
   const [reason, setReason] = useState("");
+  const [reasonStatus, setReasonStatus] = useState(0);
 
   const check = useCallback(async () => {
     setDecision("waiting");
     setReason("");
+    setReasonStatus(0);
     try {
       const auth = await fetchAuthStatus({ throwHttpErrors: true });
       if (!auth) {
@@ -47,9 +53,10 @@ export default function StartupBoundary({ children, entry = false }: Props) {
     } catch (error) {
       if (error instanceof ApiError && error.status && error.status >= 400 && error.status < 500) {
         setDecision("blocked");
+        setReasonStatus(error.status);
         setReason(error.status === 403
           ? "访问被来源校验拒绝（403）。浏览器开发请在 web 目录运行 npm run dev，并使用 README 中的本机地址；桌面或服务器部署请检查来源与认证配置。"
-          : `启动请求被拒绝（${error.status}），请检查服务配置后重新检查。`);
+          : "启动请求被拒绝（{status}），请检查服务配置后重新检查。");
       } else setReason("本地 MathTutor 服务还没有准备好。");
     }
   }, []);
@@ -82,6 +89,7 @@ export default function StartupBoundary({ children, entry = false }: Props) {
   return (
     <main className="mt-standalone">
       <div className="mt-standalone-field mt-paper" aria-hidden="true" />
+      <div className="absolute right-6 top-4 z-10"><LanguagePicker compact /></div>
       <section className="mt-rise relative w-full max-w-sm text-center" aria-live="polite">
         <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${blocked ? "bg-[var(--warning-soft)] text-[var(--warning)]" : "mt-empty-mark"}`}>
           {blocked ? (
@@ -91,12 +99,12 @@ export default function StartupBoundary({ children, entry = false }: Props) {
           )}
         </div>
         <h1 className="mt-6 text-2xl font-bold tracking-tight text-[var(--foreground)]">
-          {blocked ? "MathTutor 需要你的协助" : "正在启动 MathTutor"}
+          {blocked ? t("MathTutor 需要你的协助") : t("正在启动 MathTutor")}
         </h1>
         <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
           {blocked
-            ? reason || "本地学习环境未能完成初始化。"
-            : reason || "正在加载本地学习数据与课程资源…"}
+            ? (reason ? t(reason, {status: reasonStatus}) : t("本地学习环境未能完成初始化。"))
+            : (reason ? t(reason, {status: reasonStatus}) : t("正在加载本地学习数据与课程资源…"))}
         </p>
         {(blocked || reason) && (
           <button
@@ -105,8 +113,7 @@ export default function StartupBoundary({ children, entry = false }: Props) {
             className="mt-btn mt-btn-primary mt-6 min-h-[44px] px-5"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            重新检查
-          </button>
+            {t("重新检查")}</button>
         )}
       </section>
     </main>

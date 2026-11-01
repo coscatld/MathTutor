@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { normalizeMath } from "./math-normalization";
+import {useI18n} from "@/lib/i18n";
 
 export interface MarkdownRendererProps {
   content: string;
@@ -28,9 +29,10 @@ function isFormulaLine(node?: HastNode): boolean {
 
 /** Narrow standalone renderer for the MathTutor student surface. */
 export default function MarkdownRenderer({ content, className = "", enableMath = true }: MarkdownRendererProps) {
+  const {t} = useI18n();
   return (
     <div className={`markdown-message ${className}`}>
-      <ReactMarkdown skipHtml components={{img: ({alt}) => <span>[图片未自动加载：{alt || "外部图片"}]</span>, p: ({node, children}) => <p className={isFormulaLine(node as HastNode | undefined) ? "math-line" : undefined}>{children}</p>}} remarkPlugins={enableMath ? [remarkGfm, remarkMath] : [remarkGfm]} rehypePlugins={enableMath ? [[rehypeKatex, { strict: false, trust: false, throwOnError: false }]] : []}>{enableMath ? normalizeMath(content) : content}</ReactMarkdown>
+      <ReactMarkdown skipHtml components={{img: ({alt}) => <span>{t("[图片未自动加载：{alt}]",{alt:alt || t("外部图片")})}</span>, p: ({node, children}) => <p className={isFormulaLine(node as HastNode | undefined) ? "math-line" : undefined}>{children}</p>}} remarkPlugins={enableMath ? [remarkGfm, remarkMath] : [remarkGfm]} rehypePlugins={enableMath ? [[rehypeKatex, { strict: false, trust: false, throwOnError: false }]] : []}>{enableMath ? normalizeMath(content) : content}</ReactMarkdown>
     </div>
   );
 }

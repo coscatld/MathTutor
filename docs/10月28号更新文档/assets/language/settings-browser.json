@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "checks": [
+    "English switch preserves unsaved API key/model/address, does not reload settings or write API/storage credentials",
+    "English advanced model form fits 375px without horizontal overflow",
+    "Switching back restores Chinese UI and keeps the draft",
+    "Tutor, costs, stage, privacy, encryption, backups and trash confirmations show English UI while retaining user names and enum values"
+  ],
+  "settingsReads": 4,
+  "writes": [],
+  "errors": []
+}

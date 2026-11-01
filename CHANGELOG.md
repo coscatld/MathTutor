@@ -1,7 +1,29 @@
 # Changelog
 
-## Unreleased — 2026-10-28
+## Unreleased — 2026-11-01
 
+- Fail closed on corrupt, malformed or initialized-but-missing authentication stores. Preserve legacy owner IDs, durably record initialization, and serialize account and signing-secret writes across processes with unique atomic temporary files.
+- Bound authentication work with two dedicated workers, retain running capacity after caller cancellation, and apply process/local-peer attempt budgets. Keep the default bcrypt cost and reject unsupported stored cost or oversized writes before computation/publication.
+- Check mathematical text, tokens, recursive depth, literal digits and exact-number growth before parsing and constant folding. Return stable resource-limit outcomes through constraints, solving and WebSocket delivery; preserve exact school-maths arithmetic within the budget.
+- Keep cancellation reachable when the bounded WebSocket input queue is full. Explicitly reject unstarted excess requests, discard queued work for the stopped conversation, preserve other conversations, and bound both producer events and the single outbound writer with cancellation-safe closure and send limits. Handle correlated pre-start rejection without completing another UI request.
+- Replace shared RAG turn flags with explicitly passed response-attempt scopes. Commit each scope once on success, failure or cancellation; preserve aggregate fields with versioned turn semantics and prevent journal replay from inflating response counts.
+
+- Share first independent opportunity eligibility between learning events and product metrics. Exclude choice and option-exposed answers from independent and transfer success, preserve started-cycle and unknown-outcome denominators, and version the funnel with separate diagnostic and retry completion counts.
+- Separate mathematical validity from new teaching progress. Retain valid restatements and their audit history without clearing no-progress counters; record semantic progress kinds, preserve alternative verified routes and restore progress evidence after restart.
+- Report verified, refuted and unchecked maths with explicit coverage in multi-turn evaluation. Treat plain prompts as not applicable, require checkable content only on configured turns, and publish versioned scores alongside the legacy no-refutation metric while preserving historical results.
+
+- Bind workspace writes to immutable host-owned intents for the current owner, conversation, request, workspace, target path and create/update mode. Read requests, quoted instructions and tool results cannot grant write access; discovery and execution share the captured intent and recheck active grants.
+- Separate memory content edits, inference confirmation and retrieval toggles. Use exact `updated_at` compare-and-swap checks, return owner-scoped 409 conflict projections, and keep drafts while users review the latest content. Confirmation never enables retrieval implicitly.
+- Apply cumulative token limits to maths, drawing and extension loops with or without an extension executor. Estimate history, schemas and native tool arguments when usage is absent; pass the authenticated current session through continuation without restoring prior write intent.
+- Bound model-memory candidate reads with recent-update keyset pages, aggregate empty-state checks and non-content selection statistics. Preserve complete records and report scan limits; add reproducible synthetic 10,000-record capacity comparisons without introducing a vector database or schema migration.
+
+- Align relay integration tests with bounded shutdown: prove eventual dispatch while running and durable pending delivery after restart separately. Scan retry candidates using bounded keyset pages and a retained cursor, keeping backoff attempts unchanged until eligible.
+- Own backup restore from maintenance admission through file work, rollback and runtime rebuild. Join in-flight workers before propagating caller cancellation, preserve the protection copy on failed rollback, and keep admission closed when file state cannot be confirmed. Require pending encryption changes to finish before a restore.
+- Add a durable database-conversion journal, verified recovery copy and target fingerprint. Recover interrupted encrypt/decrypt swaps before committing the encryption marker; use the original credential only and keep conversion plus migration under one startup writer lock.
+- Bind model probes to an immutable provider snapshot and configuration revision. Reject stale probe results after saves or credential deletion, and distinguish runtime application from durable configuration persistence in API and bilingual settings feedback.
+- Replace configuration JSON atomically after flushing a sibling temporary file. Keep the last valid configuration on write/replace failure and return an explicit persistence receipt for retry.
+
+- Add a Chinese/English interface preference under Settings → General. Apply it immediately, retain it on the device, synchronize open tabs, and update accessible labels and document language. Keep drafts, model configuration and original learning content intact; explain session-only behavior when preference storage is unavailable.
 - Start new A1/A2/B transfer invitations with free responses and no option payload. Preserve historical choice invitations, persist explicit option exposure before publication, and report diagnostic choice successes separately from first independent free responses and assisted work.
 - Confirm note saves against their immutable editor revision. Keep later edits dirty, advance the confirmed server version even when refresh fails, and retry unknown write outcomes with the original operation and content.
 - Preserve library-local paths, titles and tags when ordinary folder imports reuse an existing body. Share transactional alias registration with ZIP imports, retain compare-and-swap conflict checks, and distinguish imported files, unique bodies and retained positions.

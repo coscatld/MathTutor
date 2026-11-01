@@ -1,3 +1,6 @@
+import {readLocale} from "@/lib/i18n/storage";
+import {translate} from "@/lib/i18n/messages";
+
 export const BEFORE_TUTOR_NAVIGATION = "mathtutor-before-navigation";
 
 type Guard = { message: () => string; discard?: () => void; version?: () => unknown };
@@ -13,8 +16,8 @@ const permissions = new WeakMap<TutorNavigationPermission, { href: string; snaps
 export function requestTutorNavigationPermission(operation: object): TutorNavigationPermission | null {
   if (!window.dispatchEvent(new Event(BEFORE_TUTOR_NAVIGATION, { cancelable: true }))) return null;
   const snapshots = [...guards].map(guard => ({ guard, message: guard.message(), version: guard.version?.(), discard: guard.discard }));
-  const message = [...new Set(snapshots.map(snapshot => snapshot.message).filter(Boolean))].join("\n");
-  if (message && !window.confirm(`${message}\n确认离开？`)) { previousFocus?.focus({ preventScroll: true }); return null; }
+  const message = [...new Set(snapshots.map(snapshot => snapshot.message).filter(Boolean))].map(value => translate(readLocale(), value)).join("\n");
+  if (message && !window.confirm(`${message}\n${translate(readLocale(), "确认离开？")}`)) { previousFocus?.focus({ preventScroll: true }); return null; }
   const permission = Object.freeze({ operation });
   permissions.set(permission, { href: window.location.href, snapshots });
   return permission;

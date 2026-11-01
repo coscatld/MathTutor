@@ -22,10 +22,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from mathtutor.domain.memory import PersonalMemoryEdge, PersonalMemoryNode
+from mathtutor.domain.memory import MemoryConflictError, PersonalMemoryEdge, PersonalMemoryNode, confirm_inference
+from mathtutor.repositories.memory_repository import MemoryCounts, MemoryCursor
 from mathtutor.infrastructure.schema import (
     personal_memory_edges,
     personal_memory_nodes,
@@ -67,10 +68,10 @@ async def _next_updated_at(
         .values(updated_at=personal_memory_nodes.c.updated_at)
     )
     rows = await conn.execute(
-        select(personal_memory_nodes.c.updated_at, personal_memory_nodes.c.created_at)
+        select(func.max(personal_memory_nodes.c.updated_at), func.max(personal_memory_nodes.c.created_at))
         .where(personal_memory_nodes.c.student_id == student_id)
     )
-    previous = [_parse_dt(value) for row in rows for value in row if value]
+    previous = [_parse_dt(value) for value in rows.one() if value]
     timestamp = datetime.fromisoformat(_now())
     if not_before is not None:
         timestamp = max(timestamp, datetime.fromisoformat(not_before))
@@ -138,34 +139,61 @@ async def insert_personal_memory_node(
     return node.memory_id
 
 
-async def update_personal_memory_node(
-    conn: AsyncConnection, *, student_id: str, node: PersonalMemoryNode
-) -> PersonalMemoryNode | None:
-    """Owner-scoped full update (bumps updated_at). Returns the new state."""
+def _version(value: datetime) -> str:
+    return (value.astimezone(timezone.utc) if value.tzinfo is not None else value).isoformat()
+
+
+def _live_node(student_id: str, memory_id: UUID):
+    return (personal_memory_nodes.c.student_id == student_id,
+            personal_memory_nodes.c.memory_id == str(memory_id),
+            personal_memory_nodes.c.deleted_at.is_(None))
+
+
+async def _cas_result(conn, student_id, memory_id, result):
+    latest = await select_personal_memory_node(conn, student_id=student_id, memory_id=memory_id)
+    if result.rowcount == 0 and latest is not None:
+        raise MemoryConflictError(latest)
+    return latest
+
+
+async def update_personal_memory_node(conn: AsyncConnection, *, student_id: str,
+                                      node: PersonalMemoryNode) -> PersonalMemoryNode | None:
+    """Compatibility surface: never write permission/source/identity fields."""
+    return await patch_personal_memory_node(conn, student_id=student_id, memory_id=node.memory_id,
+        expected_updated_at=node.updated_at, object_json=node.object_json,
+        predicate=node.predicate, confidence=node.confidence)
+
+
+async def patch_personal_memory_node(conn: AsyncConnection, *, student_id: str, memory_id: UUID,
+                                    expected_updated_at: datetime, object_json: dict | None = None,
+                                    predicate: str | None = None, confidence: float | None = None
+                                    ) -> PersonalMemoryNode | None:
     updated_at = await _next_updated_at(conn, student_id)
-    result = await conn.execute(
-        personal_memory_nodes.update()
-        .where(
-            personal_memory_nodes.c.memory_id == str(node.memory_id),
-            personal_memory_nodes.c.student_id == student_id,
-            personal_memory_nodes.c.deleted_at.is_(None),
-        )
-        .values(
-            memory_type=node.memory_type,
-            subject=node.subject,
-            predicate=node.predicate,
-            object_json=node.object_json,
-            source_type=node.source_type,
-            confidence=node.confidence,
-            retrieval_enabled=1 if node.retrieval_enabled else 0,
-            updated_at=updated_at,
-        )
-    )
-    if result.rowcount == 0:
+    fields = {key: value for key, value in {"object_json": object_json, "predicate": predicate,
+                                           "confidence": confidence}.items() if value is not None}
+    if confidence is not None and not 0 <= confidence <= 1:
+        raise ValueError("confidence must be between 0 and 1")
+    result = await conn.execute(personal_memory_nodes.update().where(
+        *_live_node(student_id, memory_id),
+        personal_memory_nodes.c.updated_at == _version(expected_updated_at),
+    ).values(**fields, updated_at=updated_at))
+    return await _cas_result(conn, student_id, memory_id, result)
+
+
+async def confirm_personal_memory_node(conn: AsyncConnection, *, student_id: str, memory_id: UUID,
+                                      expected_updated_at: datetime) -> PersonalMemoryNode | None:
+    updated_at = await _next_updated_at(conn, student_id)
+    current = await select_personal_memory_node(conn, student_id=student_id, memory_id=memory_id)
+    if current is None:
         return None
-    return await select_personal_memory_node(
-        conn, student_id=student_id, memory_id=node.memory_id
-    )
+    if confirm_inference(current) is current:
+        return current  # already confirmed; no timestamp/permission/content writes
+    result = await conn.execute(personal_memory_nodes.update().where(
+        *_live_node(student_id, memory_id),
+        personal_memory_nodes.c.updated_at == _version(expected_updated_at),
+        personal_memory_nodes.c.source_type == "MODEL_INFERRED",
+    ).values(source_type="USER_CONFIRMED", updated_at=updated_at))
+    return await _cas_result(conn, student_id, memory_id, result)
 
 
 async def soft_delete_personal_memory_node(
@@ -183,24 +211,15 @@ async def soft_delete_personal_memory_node(
     return result.rowcount > 0
 
 
-async def set_memory_retrieval_enabled(
-    conn: AsyncConnection, *, student_id: str, memory_id: UUID, enabled: bool
-) -> PersonalMemoryNode | None:
+async def set_memory_retrieval_enabled(conn: AsyncConnection, *, student_id: str,
+                                      memory_id: UUID, enabled: bool,
+                                      expected_updated_at: datetime | None = None) -> PersonalMemoryNode | None:
     updated_at = await _next_updated_at(conn, student_id)
-    result = await conn.execute(
-        personal_memory_nodes.update()
-        .where(
-            personal_memory_nodes.c.memory_id == str(memory_id),
-            personal_memory_nodes.c.student_id == student_id,
-            personal_memory_nodes.c.deleted_at.is_(None),
-        )
-        .values(retrieval_enabled=1 if enabled else 0, updated_at=updated_at)
-    )
-    if result.rowcount == 0:
-        return None
-    return await select_personal_memory_node(
-        conn, student_id=student_id, memory_id=memory_id
-    )
+    stmt = personal_memory_nodes.update().where(*_live_node(student_id, memory_id))
+    if expected_updated_at is not None:
+        stmt = stmt.where(personal_memory_nodes.c.updated_at == _version(expected_updated_at))
+    result = await conn.execute(stmt.values(retrieval_enabled=int(enabled), updated_at=updated_at))
+    return await _cas_result(conn, student_id, memory_id, result)
 
 
 async def insert_personal_memory_edge(
@@ -289,6 +308,37 @@ async def list_retrievable_personal_memory_nodes(
     return [_node_from_row(row) for row in rows]
 
 
+async def personal_memory_retrieval_counts(conn: AsyncConnection, *, student_id: str,
+                                          source_types: Sequence[str]) -> MemoryCounts:
+    enabled = personal_memory_nodes.c.retrieval_enabled == 1
+    eligible = and_(enabled, personal_memory_nodes.c.source_type.in_(list(source_types)))
+    row = (await conn.execute(select(
+        func.count(), func.coalesce(func.sum(case((enabled, 1), else_=0)), 0),
+        func.coalesce(func.sum(case((eligible, 1), else_=0)), 0),
+    ).select_from(personal_memory_nodes).where(personal_memory_nodes.c.student_id == student_id,
+                                             personal_memory_nodes.c.deleted_at.is_(None)))).one()
+    return MemoryCounts(*map(int, row))
+
+
+async def list_recent_retrievable_memories(conn: AsyncConnection, *, student_id: str,
+                                         source_types: Sequence[str], limit: int,
+                                         before: MemoryCursor | None = None) -> list[PersonalMemoryNode]:
+    if limit < 1:
+        raise ValueError("memory page limit must be positive")
+    table = personal_memory_nodes.c
+    stmt = select(personal_memory_nodes).where(table.student_id == student_id,
+        table.retrieval_enabled == 1, table.deleted_at.is_(None), table.source_type.in_(list(source_types)))
+    if before is not None:
+        updated, created, memory_id = before
+        stmt = stmt.where(or_(table.updated_at < _version(updated),
+            and_(table.updated_at == _version(updated), table.created_at < _version(created)),
+            and_(table.updated_at == _version(updated), table.created_at == _version(created),
+                 table.memory_id < str(memory_id))))
+    rows = (await conn.execute(stmt.order_by(table.updated_at.desc(), table.created_at.desc(),
+                                           table.memory_id.desc()).limit(limit))).all()
+    return [_node_from_row(row) for row in rows]
+
+
 async def list_personal_memory_edges(
     conn: AsyncConnection, *, student_id: str, include_deleted: bool = False
 ) -> list[PersonalMemoryEdge]:
@@ -312,4 +362,8 @@ __all__ = [
     "set_memory_retrieval_enabled",
     "soft_delete_personal_memory_node",
     "update_personal_memory_node",
+    "patch_personal_memory_node",
+    "confirm_personal_memory_node",
+    "personal_memory_retrieval_counts",
+    "list_recent_retrievable_memories",
 ]

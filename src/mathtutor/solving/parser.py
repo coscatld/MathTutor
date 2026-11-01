@@ -33,8 +33,8 @@ from fractions import Fraction
 from typing import Any, Literal
 
 from mathtutor.solving import nodes as n
+from mathtutor.solving.budget import MAX_TOKENS, ParseBudget, check_power
 
-MAX_TOKENS = 256
 ProblemType = Literal["arithmetic", "polynomial", "linear", "quadratic", "linear_system", "linear_inequality",
                       "quadratic_inequality"]
 ParseKind = Literal["parsed", "ambiguous", "unsupported", "unparseable"]
@@ -69,6 +69,7 @@ class ParseOutcome:
     kind: ParseKind
     problem: ParsedProblem | None = None
     reason: str = ""
+    code: str = ""
 
     @classmethod
     def ok(cls, problem: ParsedProblem) -> "ParseOutcome":
@@ -79,8 +80,8 @@ class ParseOutcome:
         return cls("ambiguous", None, reason)
 
     @classmethod
-    def unsupported(cls, reason: str) -> "ParseOutcome":
-        return cls("unsupported", None, reason)
+    def unsupported(cls, reason: str, *, code: str = "") -> "ParseOutcome":
+        return cls("unsupported", None, reason, code)
 
     @classmethod
     def unparseable(cls, reason: str) -> "ParseOutcome":
@@ -100,16 +101,15 @@ class _Token:
 
 
 class _Tokenizer:
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str, budget: ParseBudget | None = None) -> None:
+        self.budget = budget or ParseBudget()
+        self.budget.check_text(text)
         self.text = text
         self.pos = 0
         self.tokens: list[_Token] = []
-        self.count = 0
 
     def _push(self, token: _Token) -> None:
-        self.count += 1
-        if self.count > MAX_TOKENS:
-            raise UnsupportedError(f"输入超出记号预算（{MAX_TOKENS}）")
+        self.budget.token()
         self.tokens.append(token)
 
     def tokenize(self) -> list[_Token]:
@@ -125,39 +125,39 @@ class _Tokenizer:
                 self._number()
                 continue
             if "a" <= ch.lower() <= "z":
-                self.tokens.append(_Token("var", ch, self.pos))
+                self._push(_Token("var", ch, self.pos))
                 self.pos += 1
                 continue
             if ch == "+":
-                self.tokens.append(_Token("plus", pos=self.pos))
+                self._push(_Token("plus", pos=self.pos))
                 self.pos += 1
                 continue
             if ch in {"-", "\u2212"}:
-                self.tokens.append(_Token("minus", pos=self.pos))
+                self._push(_Token("minus", pos=self.pos))
                 self.pos += 1
                 continue
             if ch in {"*", "\u00d7", "\u00b7", "\u22c5"}:
-                self.tokens.append(_Token("star", pos=self.pos))
+                self._push(_Token("star", pos=self.pos))
                 self.pos += 1
                 continue
             if ch in {"/", "\u00f7"}:
-                self.tokens.append(_Token("slash", pos=self.pos))
+                self._push(_Token("slash", pos=self.pos))
                 self.pos += 1
                 continue
             if ch == "^":
-                self.tokens.append(_Token("caret", pos=self.pos))
+                self._push(_Token("caret", pos=self.pos))
                 self.pos += 1
                 continue
             if ch == "=":
-                self.tokens.append(_Token("equals", pos=self.pos))
+                self._push(_Token("equals", pos=self.pos))
                 self.pos += 1
                 continue
             if ch == "(":
-                self.tokens.append(_Token("lparen", pos=self.pos))
+                self._push(_Token("lparen", pos=self.pos))
                 self.pos += 1
                 continue
             if ch == ")":
-                self.tokens.append(_Token("rparen", pos=self.pos))
+                self._push(_Token("rparen", pos=self.pos))
                 self.pos += 1
                 continue
             raise ParseError(f"无法识别的字符 {ch!r}（位置 {self.pos}）")
@@ -175,8 +175,10 @@ class _Tokenizer:
                 digits += 1
             if digits == 0:
                 raise ParseError(f"小数格式不完整（位置 {start}）")
+            self.budget.literal(self.pos - start - 1)
             value = Fraction(int(self.text[start : self.pos].replace(".", "")), 10**digits)
         else:
+            self.budget.literal(self.pos - start)
             value = Fraction(int(self.text[start : self.pos]), 1)
         self._push(_Token("number", value, start))
 
@@ -195,9 +197,9 @@ class _Tokenizer:
             radicand_tokens = self._braced_tokens()
             self._push(_Token("sqrt", radicand_tokens, start))
         elif command in ("cdot", "times"):
-            self.tokens.append(_Token("star", pos=start))
+            self._push(_Token("star", pos=start))
         elif command == "div":
-            self.tokens.append(_Token("slash", pos=start))
+            self._push(_Token("slash", pos=start))
         else:
             raise ParseError(f"不支持的 LaTeX 命令 \\{command}（位置 {start}）")
 
@@ -220,8 +222,8 @@ class _Tokenizer:
             self.pos += 1
         if depth != 0:
             raise ParseError(f"括号不匹配（位置 {self.pos}）")
-        sub = _Tokenizer(body)
-        return sub.tokenize()
+        with self.budget.nested():
+            return _Tokenizer(body, self.budget).tokenize()
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +232,8 @@ class _Tokenizer:
 
 
 class _Parser:
-    def __init__(self, tokens: list[_Token]) -> None:
+    def __init__(self, tokens: list[_Token], budget: ParseBudget | None = None) -> None:
+        self.budget = budget or ParseBudget()
         self.tokens = tokens
         self.pos = 0
 
@@ -301,6 +304,11 @@ class _Parser:
         return False
 
     def parse_factor(self) -> n.Node:
+        """Check recursion before descending into signs, groups or exponents."""
+        with self.budget.nested():
+            return self._parse_factor()
+
+    def _parse_factor(self) -> n.Node:
         """Unary signs, then power: exponentiation binds tighter than '-'."""
         token = self.peek()
         if token is None:
@@ -319,11 +327,15 @@ class _Parser:
             if not isinstance(exponent, n.Num) or exponent.value.d != 1:
                 raise UnsupportedError("仅支持整数指数")
             exp = exponent.value.n
+            check_power(1, exp)  # bound exponent magnitude even for symbolic bases
             if exp < 2:
                 raise UnsupportedError("指数必须 ≥ 2（MVP）")
             if isinstance(base, n.Num):
+                check_power(base.value.n, exp)
+                check_power(base.value.d, exp)
                 return n.Num(base.value**exp)
             if isinstance(base, n.Pow):
+                check_power(1, base.exp * exp)
                 return n.pow(base.base, base.exp * exp)
             return n.pow(base, exp)
         return base
@@ -348,7 +360,7 @@ class _Parser:
         raise ParseError(f"意外的记号 {token.kind}（位置 {token.pos}）")
 
     def _parse_sublist(self, tokens: list[_Token]) -> n.Node:
-        inner = _Parser(tokens)
+        inner = _Parser(tokens, self.budget)
         node = inner.parse_expression()
         if not inner.at_end():
             raise ParseError("\\frac 内部存在多余的记号")
@@ -427,27 +439,35 @@ def stored_math_ast(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-def parse_problem(text: str) -> ParseOutcome:
-    """Parse a single problem text into a canonical problem (or fail closed)."""
+def parse_problem(text: str, *, budget: ParseBudget | None = None) -> ParseOutcome:
+    """One bounded parse, including reductions and nested/system subparsers."""
     from mathtutor.solving.extended_text import compile_extended, parse_inequality_text
-    compiled = compile_extended(text, _parse_core)
-    if compiled is not None:
-        return compiled
-    inequality = parse_inequality_text(text, _parse_core)
-    if inequality is not None:
-        return inequality
-    return _parse_core(text)
+    text = str(text or "")
+    budget = budget or ParseBudget()
+    try:
+        budget.check_text(text)
+        parse_core = lambda value: _parse_core(value, budget)
+        compiled = compile_extended(text, parse_core)
+        if compiled is not None:
+            return compiled
+        inequality = parse_inequality_text(text, parse_core)
+        if inequality is not None:
+            return inequality
+        return parse_core(text)
+    except n.MathComplexityError as exc:
+        return ParseOutcome.unsupported(str(exc), code="resource_limit")
 
 
-def _parse_core(text: str) -> ParseOutcome:
+def _parse_core(text: str, budget: ParseBudget | None = None) -> ParseOutcome:
     """Grammar for the original equation and expression families."""
+    budget = budget or ParseBudget()
     system_text = str(text or "").strip().replace(r"\begin{cases}", "").replace(r"\end{cases}", "").replace(r"\\", ";")
     if system_text.count("=") >= 2 and re.search(r"[;；,，\n]", system_text):
-        return _parse_linear_system(system_text)
+        return _parse_linear_system(system_text, budget)
     text = normalize_math_problem_text(text)
     try:
-        tokens = _Tokenizer(text).tokenize()
-        parser = _Parser(tokens)
+        tokens = _Tokenizer(text, budget).tokenize()
+        parser = _Parser(tokens, budget)
         lhs = parser.parse_expression()
         equals = parser.peek()
         if equals is not None and equals.kind == "equals":
@@ -472,7 +492,7 @@ def _parse_core(text: str) -> ParseOutcome:
     except n.MathDomainError as exc:
         return ParseOutcome.unsupported(str(exc))
     except n.MathComplexityError as exc:
-        return ParseOutcome.unsupported(str(exc))
+        return ParseOutcome.unsupported(str(exc), code="resource_limit")
 
     if isinstance(classified, str):
         return ParseOutcome.unsupported(classified)
@@ -511,7 +531,7 @@ def _arithmetic_surface(tokens: list[_Token]) -> str:
     return " ".join(result)
 
 
-def _parse_linear_system(text: str) -> ParseOutcome:
+def _parse_linear_system(text: str, budget: ParseBudget) -> ParseOutcome:
     from mathtutor.solving.linear_system import system_rows
     parts = [part.strip() for part in re.split(r"[;；,，\n]", text) if part.strip()]
     if len(parts) != 2:
@@ -521,10 +541,8 @@ def _parse_linear_system(text: str) -> ParseOutcome:
     equations = []
     try:
         for part in parts:
-            tokens = _Tokenizer(normalize_math_problem_text(part)).tokenize()
-            if len(tokens) > MAX_TOKENS:
-                raise UnsupportedError("方程组超出记号预算")
-            parser = _Parser(tokens)
+            tokens = _Tokenizer(normalize_math_problem_text(part), budget).tokenize()
+            parser = _Parser(tokens, budget)
             lhs = parser.parse_expression()
             parser.expect("equals")
             rhs = parser.parse_expression()
@@ -538,18 +556,21 @@ def _parse_linear_system(text: str) -> ParseOutcome:
         return ParseOutcome.ambiguous(str(exc))
     except ParseError as exc:
         return ParseOutcome.unparseable(str(exc))
-    except (UnsupportedError, n.MathDomainError, n.MathComplexityError) as exc:
+    except n.MathComplexityError as exc:
+        return ParseOutcome.unsupported(str(exc), code="resource_limit")
+    except (UnsupportedError, n.MathDomainError) as exc:
         return ParseOutcome.unsupported(str(exc))
 
 
 def parse_linear_equation_fragment(text: str) -> ParseOutcome:
     """Attempt-only parser for a single affine system step; never a solvable new task."""
     from mathtutor.solving.linear_system import equation_row
+    text = str(text or "")
+    budget = ParseBudget()
     try:
-        tokens = _Tokenizer(normalize_math_problem_text(text)).tokenize()
-        if len(tokens) > MAX_TOKENS:
-            raise UnsupportedError("作答超出记号预算")
-        parser = _Parser(tokens)
+        budget.check_text(text)
+        tokens = _Tokenizer(normalize_math_problem_text(text), budget).tokenize()
+        parser = _Parser(tokens, budget)
         lhs = parser.parse_expression()
         parser.expect("equals")
         rhs = parser.parse_expression()
@@ -561,7 +582,9 @@ def parse_linear_equation_fragment(text: str) -> ParseOutcome:
             return ParseOutcome.unsupported("需要二元一次式")
         equation_row(ast, variables)
         return ParseOutcome.ok(ParsedProblem("linear_system", ast, n.to_dict(ast), n.to_latex(ast), None))
-    except (AmbiguityError, ParseError, UnsupportedError, n.MathDomainError, n.MathComplexityError) as exc:
+    except n.MathComplexityError as exc:
+        return ParseOutcome.unsupported(str(exc), code="resource_limit")
+    except (AmbiguityError, ParseError, UnsupportedError, n.MathDomainError) as exc:
         return ParseOutcome.unsupported(str(exc))
 
 

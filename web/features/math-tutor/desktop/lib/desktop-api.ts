@@ -25,6 +25,8 @@ import type {
   EducationalHistoryResult,
   ModelErrorKind,
   ModelTestResult,
+  ConfigurationOperation,
+  ConfigurationReceipt,
   PracticeOffer,
   ProviderPreset,
   PurgeDocumentsResult,
@@ -70,6 +72,27 @@ export async function sendOfferFeedback(offerId: string, kind: "later" | "not_re
 
 export class DesktopApiError extends ApiError {}
 
+export class MemoryConflictError extends DesktopApiError {
+  constructor(public readonly latest: DesktopMemory) {
+    super("这条记忆已在其他位置更新。", 409, "memory_conflict");
+  }
+}
+
+/** Accept only the public projection for the same requested memory. */
+export function projectMemoryConflict(value: unknown, memoryId: string): DesktopMemory | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (row.memory_id !== memoryId || !["USER_EXPLICIT", "MODEL_INFERRED", "USER_CONFIRMED"].includes(String(row.source_type))
+    || typeof row.retrieval_enabled !== "boolean" || typeof row.confidence !== "number" || !Number.isFinite(row.confidence)
+    || row.confidence < 0 || row.confidence > 1 || !row.object_json || typeof row.object_json !== "object" || Array.isArray(row.object_json)
+    || !["memory_type", "subject", "predicate", "created_at", "updated_at"].every(key => typeof row[key] === "string")
+    || !Number.isFinite(Date.parse(row.updated_at as string))) return null;
+  return {memory_id: memoryId, memory_type: row.memory_type as string, subject: row.subject as string,
+    predicate: row.predicate as string, object_json: row.object_json as Record<string, unknown>,
+    source_type: row.source_type as DesktopMemory["source_type"], confidence: row.confidence,
+    retrieval_enabled: row.retrieval_enabled, created_at: row.created_at as string, updated_at: row.updated_at as string};
+}
+
 async function desktopError(res: Response, fallback: string): Promise<DesktopApiError> {
   const error = await responseError(res, fallback);
   return new DesktopApiError(error.message, error.status, error.code);
@@ -102,6 +125,9 @@ export async function fetchPresets(): Promise<ProviderPreset[]> {
 }
 
 export async function saveSettings(input: {
+  expected_revision?: number;
+  expected_epoch?: string;
+  operation_id?: string;
   vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
   api_key?: string;
@@ -114,26 +140,27 @@ export async function saveSettings(input: {
   });
 }
 
-export async function skipProviderOnboarding(): Promise<{
+export async function skipProviderOnboarding(operation: ConfigurationOperation = {}): Promise<ConfigurationReceipt & {
   ok: boolean;
   onboarding_completed: boolean;
 }> {
   return desktopFetch("/settings/onboarding/skip", {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(operation),
   });
 }
 
-export async function removeApiKey(): Promise<DesktopSettings> {
+export async function removeApiKey(operation: ConfigurationOperation = {}): Promise<DesktopSettings> {
   return desktopFetch<DesktopSettings>("/settings/api-key", {
     method: "DELETE",
+    body: JSON.stringify(operation),
   });
 }
 
-export async function testConnection(): Promise<TestConnectionResult> {
+export async function testConnection(operation: ConfigurationOperation = {}): Promise<TestConnectionResult> {
   return desktopFetch<TestConnectionResult>("/settings/test-connection", {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(operation),
   });
 }
 
@@ -217,10 +244,10 @@ export async function fetchBootstrap(): Promise<BootstrapPayload> {
  * contract — the UI additionally maps ``error_kind`` onto distinct copy.
  * Never renders raw HTTP detail / Authorization headers / key material.
  */
-export async function testModelConnection(): Promise<ModelTestResult> {
+export async function testModelConnection(operation: ConfigurationOperation = {}): Promise<ModelTestResult> {
   return desktopFetch<ModelTestResult>("/model/test", {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(operation),
   });
 }
 
@@ -401,6 +428,19 @@ export async function reparseDocument(documentId: string): Promise<DesktopDocume
 // Memory — personal memory KG
 // ---------------------------------------------------------------------------
 
+async function mutateMemory(memoryId: string, suffix: string, init: RequestInit): Promise<DesktopMemory> {
+  const response = await apiFetch(`${DESKTOP_PREFIX}/memory/${encodeURIComponent(memoryId)}${suffix}`, {
+    ...init, headers: {"Content-Type": "application/json", ...init.headers},
+  });
+  if (response.status === 409) {
+    const body = await response.clone().json().catch(() => null);
+    const latest = body?.code === "memory_conflict" ? projectMemoryConflict(body.latest, memoryId) : null;
+    if (latest) throw new MemoryConflictError(latest);
+  }
+  if (!response.ok) throw await desktopError(response, "暂时无法更新记忆，请稍后再试。");
+  return response.json() as Promise<DesktopMemory>;
+}
+
 export async function fetchMemories(): Promise<DesktopMemory[]> {
   return desktopFetch<DesktopMemory[]>("/memory");
 }
@@ -419,9 +459,9 @@ export async function createMemory(input: {
 
 export async function updateMemory(
   memoryId: string,
-  input: { predicate?: string; object_json?: Record<string, unknown> },
+  input: { predicate?: string; object_json?: Record<string, unknown>; expected_updated_at?: string },
 ): Promise<DesktopMemory> {
-  return desktopFetch<DesktopMemory>(`/memory/${memoryId}`, {
+  return mutateMemory(memoryId, "", {
     method: "PUT",
     body: JSON.stringify(input),
   });
@@ -436,17 +476,18 @@ export async function deleteMemory(memoryId: string): Promise<void> {
 export async function toggleMemoryRetrieval(
   memoryId: string,
   enabled: boolean,
+  expected_updated_at?: string,
 ): Promise<DesktopMemory> {
-  return desktopFetch<DesktopMemory>(`/memory/${memoryId}/retrieval`, {
+  return mutateMemory(memoryId, "/retrieval", {
     method: "PATCH",
-    body: JSON.stringify({ enabled }),
+    body: JSON.stringify({ enabled, expected_updated_at }),
   });
 }
 
-export async function confirmMemory(memoryId: string): Promise<DesktopMemory> {
-  return desktopFetch<DesktopMemory>(`/memory/${memoryId}/confirm`, {
+export async function confirmMemory(memoryId: string, expected_updated_at?: string): Promise<DesktopMemory> {
+  return mutateMemory(memoryId, "/confirm", {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify({expected_updated_at}),
   });
 }
 

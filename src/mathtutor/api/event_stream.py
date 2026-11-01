@@ -10,17 +10,25 @@ from mathtutor.application.controller import (
     MathTutorEventType,
 )
 
+EVENT_STREAM_CAPACITY = 32
+
 
 class MathTutorEventStream:
     """Single-turn typed sink/iterator with no generic runtime event surface."""
 
-    def __init__(self) -> None:
-        self._queue: asyncio.Queue[MathTutorEvent | None] = asyncio.Queue()
+    def __init__(self, capacity: int = EVENT_STREAM_CAPACITY) -> None:
+        if capacity < 1:
+            raise ValueError("event stream capacity must be positive")
+        self._queue: asyncio.Queue[MathTutorEvent] = asyncio.Queue(maxsize=capacity)
+        self._condition = asyncio.Condition()
         self._closed = False
 
     async def emit(self, event: MathTutorEvent) -> None:
-        if not self._closed:
-            await self._queue.put(event)
+        async with self._condition:
+            await self._condition.wait_for(lambda: self._closed or not self._queue.full())
+            if not self._closed:
+                self._queue.put_nowait(event)
+                self._condition.notify_all()
 
     async def content(
         self,
@@ -55,15 +63,21 @@ class MathTutorEventStream:
         )
 
     async def close(self) -> None:
-        if not self._closed:
+        # Closing never waits for capacity. A cancelled producer must be able
+        # to wake the consumer even when its queue is full, and a disconnected
+        # consumer must not leave another producer stuck on a sentinel slot.
+        async with self._condition:
             self._closed = True
-            await self._queue.put(None)
+            self._condition.notify_all()
 
     async def subscribe(self) -> AsyncIterator[MathTutorEvent]:
         while True:
-            event = await self._queue.get()
-            if event is None:
-                return
+            async with self._condition:
+                await self._condition.wait_for(lambda: self._closed or not self._queue.empty())
+                if self._queue.empty():
+                    return
+                event = self._queue.get_nowait()
+                self._condition.notify_all()
             yield event
 
 

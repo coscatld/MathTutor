@@ -8,6 +8,7 @@ from uuid import UUID
 import pytest
 
 from mathtutor.api.product_state import get_product_state, reset_product_state
+from mathtutor.learning.knowledge_tracing.product_metrics import product_funnel
 from mathtutor.security.scopes import DEV_STUDENT_ID
 from test_phase5_e2e_offer_flow import _client, _send, _collect
 
@@ -84,6 +85,12 @@ def test_unseen_transfer_has_no_options_and_first_correct_is_independent_after_r
         summary = completed_offer(client, offer)["result_summary"]
         assert summary["independent_correct"] == summary["first_free_response"] == 1
         assert summary["diagnostic_correct"] == summary["helped"] == 0
+        async def history():
+            return await get_product_state().student_state.events(DEV_STUDENT_ID)
+        funnel = product_funnel(client.portal.call(history))
+        assert funnel["transfer_success"]["numerator"] == funnel["transfer_success"]["denominator"] == 1
+        assert funnel["solving_breakdown"]["solved_independent"] == 1 + int(help_kind is None)
+        assert funnel["solving_breakdown"]["solved_diagnostic"] == 0
 
 
 @pytest.mark.parametrize("typed", [True, False])
@@ -116,6 +123,14 @@ def test_requesting_options_is_sticky_diagnostic_for_typed_and_selected_answers(
         facts = client.portal.call(history)
         assert sum(e.event_type == "options_exposed" for e in facts) == 1
         assert facts[-1].student_id == DEV_STUDENT_ID
+        funnel = product_funnel(facts)
+        assert funnel["transfer_success"]["numerator"] == 0
+        assert funnel["transfer_success"]["denominator"] == 1
+        # Only the independently solved parent task remains in these counts.
+        assert funnel["first_independent_correct"]["numerator"] == 1
+        assert funnel["first_independent_correct"]["denominator"] == 1
+        assert funnel["solving_breakdown"]["solved_independent"] == 1
+        assert funnel["solving_breakdown"]["solved_diagnostic"] == 1
 
 
 def test_legacy_invitation_keeps_choice_semantics_without_rewriting_history(tmp_path):
@@ -178,10 +193,16 @@ def test_showing_options_cannot_be_reset_by_reopening_same_task_in_another_cycle
             assert not any(f["event_type"] == "turn_error" for f in _collect(ws))
         async def history():
             return await get_product_state().student_state.events(DEV_STUDENT_ID)
-        assessment = next(e for e in reversed(client.portal.call(history)) if e.event_type == "attempt_assessed")
+        facts = client.portal.call(history)
+        assessment = next(e for e in reversed(facts) if e.event_type == "attempt_assessed")
         assert assessment.problem_revision == exposed["problem_revision"]
         assert assessment.options_exposed and not assessment.independent_target
         assert assessment.response_format == "single_choice"
+        funnel = product_funnel(facts)
+        assert funnel["transfer_success"]["numerator"] == 0
+        assert funnel["transfer_success"]["denominator"] == 1
+        assert funnel["solving_breakdown"]["solved_diagnostic"] == 1
+        assert funnel["solving_breakdown"]["solved_independent"] == 1
 
 
 def test_stale_or_foreign_context_cannot_expose_transfer_options(tmp_path, monkeypatch):

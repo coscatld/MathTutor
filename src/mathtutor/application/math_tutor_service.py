@@ -46,6 +46,7 @@ class SubmitProblemResult:
     decision: VerificationDecision | None = None
     verified_ref: VerifiedSolutionRef | None = None
     reason: str = ""
+    code: str = ""
 
 
 class MathTutorApplicationService:
@@ -74,7 +75,7 @@ class MathTutorApplicationService:
         if outcome.kind == "unparseable":
             return SubmitProblemResult("unparseable", reason=outcome.reason)
         if outcome.kind == "unsupported":
-            return SubmitProblemResult("unsupported", reason=outcome.reason)
+            return SubmitProblemResult("unsupported", reason=outcome.reason, code=outcome.code)
         parsed = outcome.problem
         assert parsed is not None
 
@@ -89,7 +90,7 @@ class MathTutorApplicationService:
 
         solved = solve_problem(problem, parsed)
         if solved.kind == "unsupported":
-            return SubmitProblemResult("unsupported", problem=problem, reason=solved.reason)
+            return SubmitProblemResult("unsupported", problem=problem, reason=solved.reason, code=solved.code)
         candidate = solved.candidate
         assert candidate is not None
 

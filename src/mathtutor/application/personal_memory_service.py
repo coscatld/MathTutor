@@ -20,14 +20,15 @@ in-memory for tests, SQLite-backed for the product.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Sequence
 from uuid import UUID
 
 from mathtutor.domain.memory import (
+    MemoryNotFoundError,
     PersonalMemoryEdge,
     PersonalMemoryNode,
     assert_memory_writable,
-    confirm_inference,
 )
 from mathtutor.repositories.memory_repository import MemoryRepository
 from mathtutor.security.scopes import student_uuid
@@ -91,51 +92,31 @@ class PersonalMemoryService:
         )
         return await self._repo.add_node(student_id, node)
 
-    async def confirm(self, student_id: str, memory_id: UUID) -> PersonalMemoryNode:
-        """User confirms a MODEL_INFERRED memory → USER_CONFIRMED.
-
-        Raises ValueError when the memory is not MODEL_INFERRED (a
-        USER_EXPLICIT memory is already user truth and needs no
-        confirmation).
-        """
+    async def confirm(self, student_id: str, memory_id: UUID, *,
+                      expected_updated_at: datetime | None = None) -> PersonalMemoryNode:
+        """Confirm only the source, with no implicit retrieval authorization."""
         node = await self._repo.get_node(student_id, memory_id)
         if node is None:
-            raise ValueError(f"memory not found: {memory_id}")
-        confirmed = confirm_inference(node)
-        if confirmed is node:
-            return node  # already USER_CONFIRMED — idempotent
-        updated = await self._repo.update_node(student_id, confirmed)
-        if updated is None:
-            raise ValueError(f"memory not updatable: {memory_id}")
-        return updated
-
-    async def update(
-        self,
-        student_id: str,
-        memory_id: UUID,
-        *,
-        object_json: dict | None = None,
-        predicate: str | None = None,
-        confidence: float | None = None,
-    ) -> PersonalMemoryNode:
-        """Edit a user memory's content (never its source_type)."""
-        node = await self._repo.get_node(student_id, memory_id)
-        if node is None:
-            raise ValueError(f"memory not found: {memory_id}")
-        updated = node.model_copy(
-            update={
-                key: value
-                for key, value in {
-                    "object_json": object_json,
-                    "predicate": predicate,
-                    "confidence": confidence,
-                }.items()
-                if value is not None
-            }
-        )
-        result = await self._repo.update_node(student_id, updated)
+            raise MemoryNotFoundError(f"memory not found: {memory_id}")
+        result = await self._repo.confirm_node(student_id, memory_id,
+            expected_updated_at=expected_updated_at if expected_updated_at is not None else node.updated_at)
         if result is None:
-            raise ValueError(f"memory not updatable: {memory_id}")
+            raise MemoryNotFoundError(f"memory not found: {memory_id}")
+        return result
+
+    async def update(self, student_id: str, memory_id: UUID, *,
+                     object_json: dict | None = None, predicate: str | None = None,
+                     confidence: float | None = None,
+                     expected_updated_at: datetime | None = None) -> PersonalMemoryNode:
+        """Patch content fields only; stale snapshots never restore permission."""
+        node = await self._repo.get_node(student_id, memory_id)
+        if node is None:
+            raise MemoryNotFoundError(f"memory not found: {memory_id}")
+        result = await self._repo.patch_node(student_id, memory_id,
+            expected_updated_at=expected_updated_at if expected_updated_at is not None else node.updated_at,
+            object_json=object_json, predicate=predicate, confidence=confidence)
+        if result is None:
+            raise MemoryNotFoundError(f"memory not found: {memory_id}")
         return result
 
     async def delete(self, student_id: str, memory_id: UUID) -> bool:
@@ -143,11 +124,12 @@ class PersonalMemoryService:
         return await self._repo.soft_delete_node(student_id, memory_id)
 
     async def set_retrieval_enabled(
-        self, student_id: str, memory_id: UUID, enabled: bool
+        self, student_id: str, memory_id: UUID, enabled: bool, *, expected_updated_at: datetime | None = None
     ) -> PersonalMemoryNode:
-        node = await self._repo.set_retrieval_enabled(student_id, memory_id, enabled)
+        node = await self._repo.set_retrieval_enabled(student_id, memory_id, enabled,
+                                                       expected_updated_at=expected_updated_at)
         if node is None:
-            raise ValueError(f"memory not found: {memory_id}")
+            raise MemoryNotFoundError(f"memory not found: {memory_id}")
         return node
 
     async def relate(

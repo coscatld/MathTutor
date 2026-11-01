@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { renderComponentTree } from "./helpers/render-component";
 import ActionBar from "../features/math-tutor/components/ActionBar";
 import TutorActionCard from "../features/math-tutor/components/TutorActionCard";
 import HintLadder from "../features/math-tutor/components/HintLadder";
@@ -97,7 +98,7 @@ test("authoritative null snapshot can still clear a consumed offer and finished 
 test("icon-only Tutor tools have persistent accessible names without relying on tooltip hover", () => {
   const source = fs.readFileSync(path.resolve(process.cwd(), "features/math-tutor/components/MathTutorPage.tsx"), "utf8");
   for (const label of ["当前教学支持与可用操作", "当前对话的学习资料", "查看 Tutor 使用的学习记忆"]) {
-    assert.ok(source.includes(`<button type="button" aria-label="${label}"`));
+    assert.ok(source.includes(`<button type="button" aria-label={t("${label}")}`));
   }
   assert.ok(!source.includes("收起右侧工具"));
 });
@@ -184,7 +185,7 @@ test("new learning lifecycle actions display Chinese labels without exposing int
 
 test("the actual action button passes the active offer id, not an empty request", () => {
   let sent: {command: MathTutorCommand; payload?: Record<string, string>} | undefined;
-  const element = ActionBar({offer, actions: [capability("accept_practice_offer")], allowed: [], busy: false, disabled: false, onCommand: (command, payload) => { sent = {command, payload}; }});
+  const element = renderComponentTree(ActionBar, {offer, actions: [capability("accept_practice_offer")], allowed: [], busy: false, disabled: false, onCommand: (command, payload) => { sent = {command, payload}; }});
   const visit = (node: React.ReactNode): void => { React.Children.forEach(node, child => {
     if (!React.isValidElement<{children?: React.ReactNode; onClick?: () => void}>(child)) return;
     if (child.type === "button") child.props.onClick?.(); else visit(child.props.children);

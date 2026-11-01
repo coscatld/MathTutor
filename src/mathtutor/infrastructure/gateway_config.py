@@ -25,18 +25,24 @@ missing secret can never break the teaching flow.
 
 from __future__ import annotations
 
+import asyncio
+from copy import copy, deepcopy
+from dataclasses import dataclass
 import json
 import logging
 import os
+import tempfile
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
 
 from mathtutor.infrastructure.generative_gateway import (
     GenerativeConfigError,
     GenerativeModelGateway,
+    GenerativeModelProvider,
     ModelRole,
     PRESETS,
 )
@@ -126,6 +132,29 @@ class GatewayConnectionResult(BaseModel):
     message: str = ""
     resolved_model: str = ""
     error_kind: ModelErrorKind | None = None
+    epoch: str = ""
+    revision: int = 0
+    current_revision: int = 0
+    operation_id: str = ""
+    provider_id: str = ""
+    accepted: bool = True
+    persisted: bool = False
+    persistence_error: str | None = None
+
+
+class GatewayRevisionConflict(GenerativeConfigError):
+    """The caller is attempting to replace a newer configuration."""
+
+
+@dataclass(frozen=True)
+class _ProbeSnapshot:
+    revision: int
+    operation_id: str
+    provider_id: str
+    model: str
+    provider: GenerativeModelProvider | None
+    bindings: tuple
+    mutation: int
 
 
 class GatewayConfigService:
@@ -148,6 +177,12 @@ class GatewayConfigService:
         self._provider_id: str | None = None
         self._config: dict = {}
         self._connection_status = "unconfigured"
+        self._revision = 0
+        self._epoch = str(uuid4())
+        self._persisted = False
+        self._persistence_error: str | None = "persistence_unavailable" if config_path is None else None
+        self._mutation_lock = asyncio.Lock()
+        self._mutation_generation = 0
         if config_path is not None and config_path.is_file():
             self._restore(config_path)
 
@@ -191,36 +226,89 @@ class GatewayConfigService:
             self._config["provider_configs"] = profiles
         return profiles
 
-    def _persist(self, config: dict) -> None:
-        """Best-effort write of the NON-sensitive config (0600 when possible).
+    def _persist(self, config: dict) -> bool:
+        """Commit a non-secret JSON through a closed, fsynced sibling file.
 
-        Never called with a key value in ``config``. A persistence failure
-        is not fatal: registration is the source of truth for this process.
+        A write/fsync/replace failure keeps the previous JSON intact. This
+        does not promise directory-entry durability across arbitrary power loss.
+        Runtime registration remains usable when persistence is unavailable.
         """
+        self._persisted = False
         if self._config_path is None:
-            return
-        payload = json.dumps(config, ensure_ascii=False, indent=2) + "\n"
+            self._persistence_error = "persistence_unavailable"
+            return False
+        temporary: str | None = None
         try:
-            fd = os.open(
-                self._config_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+            payload = json.dumps(config, ensure_ascii=False, indent=2) + "\n"
+            fd, temporary = tempfile.mkstemp(
+                dir=self._config_path.parent, prefix=f".{self._config_path.name}.", suffix=".tmp"
             )
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            # Close the temporary handle before replacing (also on Windows).
+            os.replace(temporary, self._config_path)
+            temporary = None
         except OSError:
-            try:
-                self._config_path.write_text(payload, encoding="utf-8")
-            except OSError:
-                logger.warning(
-                    "GatewayConfigService: config persistence failed (best-effort)",
-                    exc_info=True,
-                )
-            return
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-        except OSError:
-            logger.warning(
-                "GatewayConfigService: config persistence failed (best-effort)",
-                exc_info=True,
+            self._persistence_error = "config_write_failed"
+            logger.warning("GatewayConfigService: runtime config active; JSON commit failed")
+            return False
+        finally:
+            if temporary is not None:
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    logger.warning("GatewayConfigService: temporary config cleanup failed")
+        self._persisted = True
+        self._persistence_error = None
+        return True
+
+    def revision(self) -> int:
+        return self._revision
+
+    def _advance_revision(self) -> None:
+        self._revision += 1
+        self._mutation_generation += 1
+        self._config["revision"] = self._revision
+        self._connection_status = "configured" if self._gateway.provider_for(ModelRole.TUTOR_WRITER) else "unconfigured"
+        self._persisted = False
+
+    def _check_revision(self, expected_revision: int | None, expected_epoch: str | None = None) -> None:
+        if (expected_epoch is not None and expected_epoch != self._epoch) or (expected_revision is not None and expected_revision != self._revision):
+            raise GatewayRevisionConflict("configuration revision changed")
+
+    async def _capture_probe(self, operation_id: str | None) -> tuple[_ProbeSnapshot, str | None]:
+        async with self._mutation_lock:
+            provider = self._gateway.provider_for(ModelRole.TUTOR_WRITER)
+            snapshot = _ProbeSnapshot(
+                self._revision, operation_id or str(uuid4()), self._provider_id or "",
+                str(self._config.get("model") or ""), copy(provider) if provider else None,
+                tuple((role, self._gateway.provider_for(role)) for role in ALL_ROLES), self._mutation_generation,
             )
+            secret = None
+            if snapshot.provider_id:
+                try:
+                    secret = await self._secret_store.get(secret_key_name(snapshot.provider_id))
+                except Exception:
+                    pass
+            # This short-lived copy must not resolve a later rotated key.
+            # No credential is written to config, a result, a log, or a provider value field.
+            if snapshot.provider is not None and hasattr(snapshot.provider, "_api_key_resolver"):
+                async def captured_secret():
+                    return secret
+                snapshot.provider._api_key_resolver = captured_secret
+            return snapshot, secret
+
+    def _probe_current(self, snapshot: _ProbeSnapshot) -> bool:
+        return (snapshot.mutation == self._mutation_generation and snapshot.revision == self._revision and snapshot.provider_id == (self._provider_id or "")
+                and all(self._gateway.provider_for(role) is provider for role, provider in snapshot.bindings))
+
+    def _probe_fields(self, snapshot: _ProbeSnapshot) -> dict:
+        return {"epoch": self._epoch, "revision": snapshot.revision, "current_revision": self._revision,
+                "operation_id": snapshot.operation_id, "provider_id": snapshot.provider_id,
+                "accepted": self._probe_current(snapshot), "persisted": self._persisted,
+                "persistence_error": self._persistence_error}
 
     def _restore(self, path: Path) -> None:
         """Re-register providers from a persisted JSON (never reads keys)."""
@@ -230,6 +318,12 @@ class GatewayConfigService:
             return  # corrupt/unreadable → start unconfigured (fail closed)
         if not isinstance(data, dict):
             return
+        try:
+            self._revision = max(0, int(data.get("revision", 0)))
+        except (TypeError, ValueError):
+            self._revision = 0
+        self._persisted = True
+        self._persistence_error = None
         onboarding_completed = bool(data.get("onboarding_completed", False))
         preset_id = data.get("preset_id")
         preset = PRESETS.get(preset_id)
@@ -319,18 +413,20 @@ class GatewayConfigService:
             message = message.replace(secret, "[REDACTED]")
         return message
 
-    async def _error_result(self, message: str) -> GatewayConnectionResult:
+    async def _error_result(self, message: str, snapshot: _ProbeSnapshot | None = None, secret: str | None = None) -> GatewayConnectionResult:
         """Redacted error result with the desktop error-kind classification.
 
         Classification runs on the REDACTED message only — the kind is a
         shape decision, never derived from a key value.
         """
-        redacted = await self._redact(message)
-        self._connection_status = "failure"
+        redacted = message.replace(secret, "[REDACTED]") if secret else await self._redact(message)
+        if snapshot is None or self._probe_current(snapshot):
+            self._connection_status = "failure"
         return GatewayConnectionResult(
             status="error",
             message=redacted,
             error_kind=classify_gateway_error(redacted),
+            **(self._probe_fields(snapshot) if snapshot else {}),
         )
 
     # --------------------------------------------------------- public API
@@ -343,6 +439,9 @@ class GatewayConfigService:
         base_url: str = "",
         model: str = "",
         vision_mode: Literal["auto", "enabled", "disabled"] | None = None,
+        expected_revision: int | None = None,
+        expected_epoch: str | None = None,
+        operation_id: str | None = None,
     ) -> dict:
         """Apply a provider preset and bind every product role to it.
 
@@ -352,123 +451,117 @@ class GatewayConfigService:
         - a non-empty ``api_key`` goes ONLY into the SecretStore;
         - the persisted JSON carries policy fields only — never the key.
         """
-        preset = PRESETS.get(preset_id)
-        if preset is None:
-            raise GenerativeConfigError(f"unknown provider preset {preset_id!r}")
-        base_url = base_url.strip()
-        model = model.strip()
-        profiles = self._profiles()
-        prior = profiles.get(preset_id, {})
-        if preset.custom:
-            if not base_url:
-                raise GenerativeConfigError(
-                    "the 'custom' preset requires base_url"
-                )
-            effective_base_url = base_url
-        elif preset.local:
-            effective_base_url = base_url or str(prior.get("base_url") or "") or preset.base_url
-            if not self._valid_ollama_url(effective_base_url):
-                raise GenerativeConfigError("Ollama base_url must be a loopback HTTP URL")
-        else:
-            effective_base_url = base_url or str(prior.get("base_url") or "") or preset.base_url
-        effective_model = model or preset.default_model
-        if vision_mode is None:
-            vision_mode = prior.get("vision_mode", "auto") if effective_model == prior.get("model") else "auto"
-        if vision_mode not in {"auto", "enabled", "disabled"}:
-            raise GenerativeConfigError("invalid vision mode")
-        if api_key and preset.requires_api_key:
-            await self._secret_store.put(secret_key_name(preset_id), api_key)
-        self._register(
-            preset_id=preset_id,
-            base_url=effective_base_url,
-            model=effective_model,
-            vision_mode=vision_mode,
-        )
-        self._provider_id = preset_id
-        self._connection_status = "configured"
-        profiles[preset_id] = {
-            "model": effective_model,
-            "base_url": effective_base_url,
-        }
-        if vision_mode != "auto":
-            profiles[preset_id]["vision_mode"] = vision_mode
-        self._config = {
-            "preset_id": preset_id,
-            "model": effective_model,
-            "base_url": effective_base_url,
-            "roles": [role.value for role in ALL_ROLES],
-            "provider_configs": profiles,
-            "onboarding_completed": True,
-            "config_version": CONFIG_VERSION,
-        }
-        self._persist(self._config)
-        return dict(self._config)
+        async with self._mutation_lock:
+            preset = PRESETS.get(preset_id)
+            if preset is None:
+                raise GenerativeConfigError(f"unknown provider preset {preset_id!r}")
+            base_url = base_url.strip()
+            model = model.strip()
+            profiles = deepcopy(self._profiles())
+            prior = profiles.get(preset_id, {})
+            if preset.custom:
+                if not base_url:
+                    raise GenerativeConfigError(
+                        "the 'custom' preset requires base_url"
+                    )
+                effective_base_url = base_url
+            elif preset.local:
+                effective_base_url = base_url or str(prior.get("base_url") or "") or preset.base_url
+                if not self._valid_ollama_url(effective_base_url):
+                    raise GenerativeConfigError("Ollama base_url must be a loopback HTTP URL")
+            else:
+                effective_base_url = base_url or str(prior.get("base_url") or "") or preset.base_url
+            effective_model = model or preset.default_model
+            if vision_mode is None:
+                vision_mode = prior.get("vision_mode", "auto") if effective_model == prior.get("model") else "auto"
+            if vision_mode not in {"auto", "enabled", "disabled"}:
+                raise GenerativeConfigError("invalid vision mode")
+            self._check_revision(expected_revision, expected_epoch)
+            self._mutation_generation += 1
+            self._connection_status = "configured" if self._provider_id else "unconfigured"
+            if api_key and preset.requires_api_key:
+                await self._secret_store.put(secret_key_name(preset_id), api_key)
+            self._advance_revision()
+            self._register(
+                preset_id=preset_id,
+                base_url=effective_base_url,
+                model=effective_model,
+                vision_mode=vision_mode,
+            )
+            self._provider_id = preset_id
+            self._connection_status = "configured"
+            profiles[preset_id] = {
+                "model": effective_model,
+                "base_url": effective_base_url,
+            }
+            if vision_mode != "auto":
+                profiles[preset_id]["vision_mode"] = vision_mode
+            self._config = {
+                "preset_id": preset_id,
+                "model": effective_model,
+                "base_url": effective_base_url,
+                "roles": [role.value for role in ALL_ROLES],
+                "provider_configs": profiles,
+                "onboarding_completed": True,
+                "config_version": CONFIG_VERSION,
+            }
+            self._config["revision"] = self._revision
+            self._persist(self._config)
+            return {**self.current_config(), "operation_id": operation_id or str(uuid4())}
 
     async def discover_models(self) -> list[str] | GatewayConnectionResult:
-        """System-side model discovery; never a user chore.
-
-        Success → sorted model ids. Failure → a ``GatewayConnectionResult``
-        with status "error" whose message is redacted (never a key value).
-        The underlying provider error is NOT swallowed at the gateway level:
-        ``gateway.fetch_models`` still raises for direct callers.
-        """
-        provider_id = self._provider_id
-        if provider_id is None:
-            return await self._error_result("no provider configured")
+        """Read models from a captured provider; stale errors cannot alter status."""
+        snapshot, secret = await self._capture_probe(None)
+        if snapshot.provider is None or not snapshot.provider_id:
+            return await self._error_result("no provider configured", snapshot, secret)
         try:
-            return await self._gateway.fetch_models(provider_id)
+            models = await snapshot.provider.fetch_models()
+            if not self._probe_current(snapshot):
+                return await self._error_result("configuration changed during discovery", snapshot, secret)
+            return models
         except Exception as error:
-            return await self._error_result(str(error))
+            return await self._error_result(str(error), snapshot, secret)
 
-    async def test_connection(self) -> GatewayConnectionResult:
-        """Resolve the concrete model and report connectivity.
-
-        On success the resolved model is materialized on the registered
-        providers (the system's model-resolution job) and persisted — so a
-        restart can restore a fully-configured gateway without discovery.
-        """
-        provider_id = self._provider_id
-        if provider_id is None:
-            return await self._error_result("no provider configured")
+    async def test_connection(self, *, expected_revision: int | None = None, expected_epoch: str | None = None, operation_id: str | None = None) -> GatewayConnectionResult:
+        """Probe one isolated provider snapshot, publishing only to its revision."""
+        snapshot, secret = await self._capture_probe(operation_id)
+        if (expected_epoch is not None and expected_epoch != self._epoch) or (expected_revision is not None and expected_revision != snapshot.revision):
+            return GatewayConnectionResult(status="error", message="configuration revision changed",
+                                           **{**self._probe_fields(snapshot), "accepted": False})
+        if snapshot.provider is None or not snapshot.provider_id:
+            return await self._error_result("no provider configured", snapshot, secret)
         self._connection_status = "connecting"
         try:
-            preset = PRESETS.get(provider_id)
+            preset = PRESETS.get(snapshot.provider_id)
             if preset is not None and preset.local:
-                models = await self._gateway.fetch_models(provider_id)
-                configured = str(self._config.get("model") or "")
-                model_aliases = {name.removesuffix(":latest") for name in models}
-                if configured and configured not in models and configured not in model_aliases:
-                    return await self._error_result(
-                        f"provider 'ollama' model unavailable: {configured}"
-                    )
-            resolved = await self._gateway.resolve_model(provider_id)
-        except Exception as error:
-            return await self._error_result(str(error))
-        if self._config.get("model", "") != resolved:
-            self._config["model"] = resolved
-            self._profiles().setdefault(provider_id, {})["model"] = resolved
-            self._persist(self._config)
-        try:
-            await self._gateway.complete(
-                ModelRole.TUTOR_WRITER,
-                [{"role": "user", "content": "只回复：连接成功"}],
-                temperature=0,
-                max_tokens=128,
-                max_retries=0,
-                connection_probe=True,
-            )
+                models = await snapshot.provider.fetch_models()
+                aliases = {name.removesuffix(":latest") for name in models}
+                if snapshot.model and snapshot.model not in models and snapshot.model not in aliases:
+                    return await self._error_result(f"provider 'ollama' model unavailable: {snapshot.model}", snapshot, secret)
+            resolved = await self._gateway.resolve_model(snapshot.provider_id, provider=snapshot.provider, materialize=False)
+            if not self._probe_current(snapshot):
+                return GatewayConnectionResult(status="error", message="configuration revision changed", **self._probe_fields(snapshot))
+            snapshot.provider.set_model(resolved)
+            await self._gateway.probe_provider(snapshot.provider, [{"role": "user", "content": "只回复：连接成功"}])
         except TimeoutError:
-            return await self._error_result("connection probe timeout")
+            return await self._error_result("connection probe timeout", snapshot, secret)
         except Exception as error:
-            return await self._error_result(str(error))
-        self._connection_status = "success"
-        preset = PRESETS.get(provider_id)
+            return await self._error_result(str(error), snapshot, secret)
+        if self._probe_current(snapshot):
+            for _role, bound in snapshot.bindings:
+                if bound is not None:
+                    bound.set_model(resolved)
+            if self._config.get("model", "") != resolved:
+                self._config["model"] = resolved
+                self._profiles().setdefault(snapshot.provider_id, {})["model"] = resolved
+                self._persist(self._config)
+            self._connection_status = "success"
         message = "已连接到本地 Ollama。" if preset is not None and preset.local else "模型已响应，配置可以使用。"
-        return GatewayConnectionResult(status="ok", message=message, resolved_model=resolved)
+        return GatewayConnectionResult(status="ok", message=message, resolved_model=resolved, **self._probe_fields(snapshot))
 
     def current_config(self) -> dict:
         """Non-sensitive config snapshot (no key, no key name)."""
-        return dict(self._config)
+        return {**deepcopy(self._config), "epoch": self._epoch, "revision": self._revision, "persisted": self._persisted, "persistence_error": self._persistence_error}
 
     def provider_profiles(self) -> dict[str, dict[str, str]]:
         """All saved non-sensitive provider profiles for UI switching."""
@@ -500,24 +593,32 @@ class GatewayConfigService:
         """Whether first-run provider onboarding was configured or skipped."""
         return bool(self._config.get("onboarding_completed", False))
 
-    def mark_onboarding_completed(self) -> dict:
-        """Persist an explicit template-only onboarding choice."""
-        self._config["onboarding_completed"] = True
-        self._config.setdefault("config_version", CONFIG_VERSION)
-        self._persist(self._config)
-        return self.current_config()
+    async def mark_onboarding_completed(self, *, expected_revision: int | None = None, expected_epoch: str | None = None, operation_id: str | None = None) -> dict:
+        """Persist an explicit template-only choice with the same commit receipt."""
+        async with self._mutation_lock:
+            self._check_revision(expected_revision, expected_epoch)
+            self._advance_revision()
+            self._config["onboarding_completed"] = True
+            self._config.setdefault("config_version", CONFIG_VERSION)
+            self._persist(self._config)
+            return {**self.current_config(), "operation_id": operation_id or str(uuid4())}
 
-    async def remove_api_key(self) -> dict:
-        """Delete the current credential and leave template mode usable."""
-        if self._provider_id is not None:
-            await self._secret_store.delete(secret_key_name(self._provider_id))
-        for role in ALL_ROLES:
-            self._gateway.unregister(role)
-        self._connection_status = "unconfigured"
-        self._config["onboarding_completed"] = True
-        self._config.setdefault("config_version", CONFIG_VERSION)
-        self._persist(self._config)
-        return self.current_config()
+    async def remove_api_key(self, *, expected_revision: int | None = None, expected_epoch: str | None = None, operation_id: str | None = None) -> dict:
+        """Invalidate in-flight probes before deleting a credential."""
+        async with self._mutation_lock:
+            self._check_revision(expected_revision, expected_epoch)
+            self._mutation_generation += 1
+            self._connection_status = "configured" if self._provider_id else "unconfigured"
+            if self._provider_id is not None:
+                await self._secret_store.delete(secret_key_name(self._provider_id))
+            self._advance_revision()
+            for role in ALL_ROLES:
+                self._gateway.unregister(role)
+            self._connection_status = "unconfigured"
+            self._config["onboarding_completed"] = True
+            self._config.setdefault("config_version", CONFIG_VERSION)
+            self._persist(self._config)
+            return {**self.current_config(), "operation_id": operation_id or str(uuid4())}
 
     async def is_ready(self) -> bool:
         provider = self._gateway.provider_for(ModelRole.TUTOR_WRITER)

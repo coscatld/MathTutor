@@ -99,6 +99,18 @@ class PersonalMemoryNode(BaseModel):
         return self.retrieval_enabled and self.deleted_at is None
 
 
+class MemoryNotFoundError(ValueError):
+    """The requested owner-scoped live memory does not exist."""
+
+
+class MemoryConflictError(ValueError):
+    """A stale write; latest is always the same owner's live record."""
+
+    def __init__(self, latest: PersonalMemoryNode):
+        super().__init__("memory changed since it was read")
+        self.latest = latest
+
+
 class PersonalMemoryEdge(BaseModel):
     """Optional relation between two memory nodes (owner-scoped).
 
@@ -138,6 +150,8 @@ def confirm_inference(node: PersonalMemoryNode) -> PersonalMemoryNode:
 __all__ = [
     "FORBIDDEN_MEMORY_TYPES",
     "MemorySourceType",
+    "MemoryConflictError",
+    "MemoryNotFoundError",
     "MemoryType",
     "PersonalMemoryEdge",
     "PersonalMemoryNode",

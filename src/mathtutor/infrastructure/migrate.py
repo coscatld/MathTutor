@@ -120,12 +120,13 @@ def _recover_concurrent_heads(path: Path, key: str | None, backup: Path) -> None
 
 
 def upgrade_db(db_path: str | None = None) -> None:
-    """Serialize startup migrations, back up upgrades and recover the known race."""
+    """One startup writer covers encryption recovery, conversion and migration."""
     from mathtutor.infrastructure import db_crypto
     from mathtutor.infrastructure.db import resolve_db_path
 
     path = Path(db_path).resolve() if db_path else resolve_db_path().resolve()
     with migration_lock(path):
+        db_crypto._apply_pending_locked(path)
         if path.exists() and path.stat().st_size:
             key = db_crypto.db_key(path)
             with closing(db_crypto.connect(path, key=key, readonly=True)) as source:

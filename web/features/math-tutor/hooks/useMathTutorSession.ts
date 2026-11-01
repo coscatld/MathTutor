@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { apiFetch, apiUrl, wsUrl } from "@/lib/api";
 import type { ConnectionStatus, MathTutorCommand, SessionSummary } from "../types";
-import { buildEnvelope, makeSessionId, projectStudentFrame } from "../lib/protocol";
+import { buildEnvelope, makeSessionId, projectStudentFrame, isUnstartedRequestRejection, rejectionMatchesRequest } from "../lib/protocol";
 import {
   initialMathTutorState,
   mathTutorReducer,
@@ -216,6 +216,12 @@ export function useMathTutorSession(explicitSessionId?: string) {
       }
       const frame = projectStudentFrame(raw as never);
       if (!frame || (frame.payload.conversation_id && frame.payload.conversation_id !== sessionIdRef.current)) return;
+      const rejected = rejectionMatchesRequest(frame, unacknowledgedRef.current?.id);
+      // A queued request rejected elsewhere on this connection must not
+      // finish this hook's active turn. An explicit rejection is not replayed
+      // automatically; the existing error surface lets the user retry.
+      if (isUnstartedRequestRejection(frame) && !rejected) return;
+      if (rejected) sendInFlightRef.current = false;
       const presentation = presentationFromFrame(frame);
       if (presentation) presentationsRef.current.set(presentation.deliveryId, presentation);
       dispatch({ type: "frame", frame });
@@ -236,7 +242,14 @@ export function useMathTutorSession(explicitSessionId?: string) {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event: CloseEvent) => {
+      if (event.code === 1009) {
+        unacknowledgedRef.current = null;
+        dispatch({ type: "frame", frame: {
+          event_type: "turn_error", cycle_state: "", cycle_state_version: 0, allowed_next_inputs: [],
+          payload: { error: "消息过长，请缩短后重新发送。", error_code: "REQUEST_TOO_LARGE", conversation_id: sessionIdRef.current },
+        } });
+      }
       completionRef.current?.resolve(false); completionRef.current = null;
       sendInFlightRef.current = false;
       if (wsRef.current === ws) wsRef.current = null;

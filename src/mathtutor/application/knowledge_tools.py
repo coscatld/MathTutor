@@ -125,10 +125,11 @@ DESCRIPTIONS = {
 
 class KnowledgeTools:
     def __init__(self, state, owner, cid, *, generation, save_space="", allow_save=False,
-                 practice=None, synthesize=False):
+                 practice=None, synthesize=False, retrieval_turn=None):
         self.state, self.knowledge, self.owner, self.cid = state, state.knowledge, owner, cid
         self.generation, self.save_space, self.allow_save = generation, save_space, allow_save
         self.practice, self.synthesize = practice, synthesize
+        self.retrieval_turn = retrieval_turn
         self.plan, self.searched_sections = [], set()
         self.search_hits, self.reads, self.receipts = {}, {}, []
         self.saved, self.draft_results = [], []
@@ -179,7 +180,8 @@ class KnowledgeTools:
         if metrics is None:
             return
         try:
-            metrics.record_tool_call(str(name))
+            turn = getattr(self, "retrieval_turn", None)
+            metrics.record_tool_call(str(name), **({"turn_stats": turn} if turn is not None else {}))
         except Exception:
             # Telemetry is never allowed to break a tool call.
             pass

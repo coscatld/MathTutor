@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n, type MessageParams } from "@/lib/i18n";
+
 import { Archive, BadgeCheck, DatabaseBackup, Loader2, RotateCcw, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -7,7 +9,6 @@ import {
   DesktopApiError,
   fetchBackups,
   formatBytes,
-  formatDateTime,
   restoreBackup,
   sortBackups,
   verifyBackup,
@@ -39,6 +40,7 @@ export function RestoreConfirmDialog({
   onConfirm: (recoveryKey?: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [recoveryKey, setRecoveryKey] = useState("");
   return (
     <div
@@ -51,16 +53,12 @@ export function RestoreConfirmDialog({
       <div className="mt-card flex w-full max-w-md flex-col gap-3 p-5 shadow-xl">
         <h2 id="restore-confirm-title" className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
           <ShieldAlert className="h-5 w-5 text-[var(--destructive)]" aria-hidden="true" />
-          确认恢复备份？
-        </h2>
+          {t("确认恢复备份？")}</h2>
         <p id="restore-confirm-desc" className="text-sm leading-relaxed text-[var(--foreground)]">
-          将用备份「{backup.path}」恢复数据。恢复会<strong>覆盖当前数据</strong>，且恢复完成后
-          <strong>应用将重新启动</strong>。此操作无法撤销。
-        </p>
+          {t("将用备份「{path}」恢复数据。恢复会", {path: backup.path})}<strong>{t("覆盖当前数据")}</strong>{t("，且恢复完成后")}<strong>{t("应用将重新启动")}</strong>{t("。此操作无法撤销。")}</p>
         <label className="block text-xs text-[var(--muted-foreground)]">
-          恢复密钥（只有提示「需要恢复密钥」时才填写）
-          <input value={recoveryKey} onChange={event => setRecoveryKey(event.target.value.trim())} disabled={busy}
-            className="mt-input mt-1 font-mono text-xs" placeholder="不填" autoComplete="off" spellCheck={false} />
+          {t("恢复密钥（只有提示「需要恢复密钥」时才填写）")}<input value={recoveryKey} onChange={event => setRecoveryKey(event.target.value.trim())} disabled={busy}
+            className="mt-input mt-1 font-mono text-xs" placeholder={t("不填")} autoComplete="off" spellCheck={false} />
         </label>
         <div className="flex flex-wrap justify-end gap-2">
           <button
@@ -69,8 +67,7 @@ export function RestoreConfirmDialog({
             disabled={busy}
             className="mt-btn"
           >
-            取消
-          </button>
+            {t("取消")}</button>
           <button
             type="button"
             onClick={() => onConfirm(recoveryKey || undefined)}
@@ -78,7 +75,7 @@ export function RestoreConfirmDialog({
             className="mt-btn mt-btn-danger-solid"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}
-            {busy ? "恢复中…" : "确认恢复"}
+            {busy ? t("恢复中…") : t("确认恢复")}
           </button>
         </div>
       </div>
@@ -98,12 +95,13 @@ export default function BackupPanel({
   verifyBackupFn = verifyBackup,
   restoreBackupFn = restoreBackup,
 }: Props) {
+  const { locale, t } = useI18n();
   const [list, setList] = useState<BackupsList | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"backup" | "verify" | "restore" | null>(null);
   const [busyPath, setBusyPath] = useState<string | null>(null);
   const [confirmRestore, setConfirmRestore] = useState<BackupRecord | null>(null);
-  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string; params?: MessageParams } | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -125,6 +123,7 @@ export default function BackupPanel({
 
   const backups = useMemo(() => (list ? sortBackups(list.backups) : []), [list]);
   const latest = backups.length > 0 ? backups[0] : null;
+  const backupDate = (value: string) => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString(locale) : "—";
 
   const handleBackup = async () => {
     setBusy("backup");
@@ -132,7 +131,7 @@ export default function BackupPanel({
     try {
       const result = await createBackupFn();
       if (result.ok) {
-        setMessage({ kind: "ok", text: `备份完成：${result.backup.path}` });
+        setMessage({ kind: "ok", text: "备份完成：{path}", params: {path: result.backup.path} });
       } else {
         setMessage({ kind: "error", text: result.message });
       }
@@ -154,7 +153,7 @@ export default function BackupPanel({
     try {
       const result = await verifyBackupFn(backup.path);
       if (result.ok) {
-        setMessage({ kind: "ok", text: `备份「${backup.path}」校验通过。` });
+        setMessage({ kind: "ok", text: "备份「{path}」校验通过。", params: {path: backup.path} });
       } else {
         setMessage({ kind: "error", text: result.message });
       }
@@ -180,7 +179,7 @@ export default function BackupPanel({
         setConfirmRestore(null);
         setMessage({
           kind: "ok",
-          text: result.message || `恢复完成，应用即将重新启动。`,
+          text: result.message || "恢复完成，应用即将重新启动。",
         });
       } else {
         setConfirmRestore(null);
@@ -197,16 +196,14 @@ export default function BackupPanel({
   };
 
   return (
-    <section className="mt-card flex flex-col gap-4 p-5" aria-label="数据备份">
+    <section className="mt-card flex flex-col gap-4 p-5" aria-label={t("数据备份")}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
             <DatabaseBackup className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
-            数据备份
-          </h2>
+            {t("数据备份")}</h2>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            备份保存在本机应用数据目录中，可用于恢复练习记录、学习资料与记忆。
-          </p>
+            {t("备份保存在本机应用数据目录中，可用于恢复练习记录、学习资料与记忆。")}</p>
         </div>
         <button
           type="button"
@@ -215,36 +212,35 @@ export default function BackupPanel({
           className="mt-btn mt-btn-primary"
         >
           {busy === "backup" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />}
-          {busy === "backup" ? "备份中…" : "立即备份"}
+          {busy === "backup" ? t("备份中…") : t("立即备份")}
         </button>
       </div>
 
       {/* Status summary */}
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-          <dt className="text-xs text-[var(--muted-foreground)]">上次备份</dt>
+          <dt className="text-xs text-[var(--muted-foreground)]">{t("上次备份")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">
-            {latest ? formatDateTime(latest.created_at) : "暂无备份"}
+            {latest ? backupDate(latest.created_at) : t("暂无备份")}
           </dd>
         </div>
         <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-          <dt className="text-xs text-[var(--muted-foreground)]">备份状态</dt>
+          <dt className="text-xs text-[var(--muted-foreground)]">{t("备份状态")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">
-            {latest ? BACKUP_INTEGRITY_LABELS[latest.integrity] ?? latest.integrity : "—"}
+            {latest ? t(BACKUP_INTEGRITY_LABELS[latest.integrity] ?? latest.integrity) : "—"}
           </dd>
         </div>
         <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-          <dt className="text-xs text-[var(--muted-foreground)]">备份目录</dt>
+          <dt className="text-xs text-[var(--muted-foreground)]">{t("备份目录")}</dt>
           <dd className="break-all text-sm font-medium text-[var(--foreground)]">{list?.backup_dir ?? "—"}</dd>
         </div>
         <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-          <dt className="text-xs text-[var(--muted-foreground)]">保留策略</dt>
+          <dt className="text-xs text-[var(--muted-foreground)]">{t("保留策略")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">
-            {list ? `自动保留最近 ${list.policy.retention_limit} 份` : "—"}
+            {list ? t("自动保留最近 {retention_limit} 份", {retention_limit: list.policy.retention_limit}) : "—"}
           </dd>
           <dd className="text-xs leading-relaxed text-[var(--muted-foreground)]">
-            检测到近期备份异常时，会额外保留较早的备份，实际数量可能超过设置值。恢复前请先校验。
-          </dd>
+            {t("检测到近期备份异常时，会额外保留较早的备份，实际数量可能超过设置值。恢复前请先校验。")}</dd>
         </div>
       </dl>
 
@@ -257,19 +253,17 @@ export default function BackupPanel({
               : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
           }`}
         >
-          {message.text}
+          {t(message.text, message.params)}
         </p>
       )}
 
       {loading ? (
         <p className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          正在加载备份…
-        </p>
+          {t("正在加载备份…")}</p>
       ) : backups.length === 0 ? (
         <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
-          还没有备份。点击「立即备份」创建第一份数据备份。
-        </p>
+          {t("还没有备份。点击「立即备份」创建第一份数据备份。")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {backups.map((backup) => (
@@ -288,11 +282,11 @@ export default function BackupPanel({
                     }`}
                   >
                     <BadgeCheck className="h-3 w-3" aria-hidden="true" />
-                    {BACKUP_INTEGRITY_LABELS[backup.integrity] ?? backup.integrity}
+                    {t(BACKUP_INTEGRITY_LABELS[backup.integrity] ?? backup.integrity)}
                   </span>
                 </span>
                 <span className="text-xs text-[var(--muted-foreground)]">
-                  {formatDateTime(backup.created_at)} · {formatBytes(backup.size_bytes)} · 校验值 {backup.sha256_prefix}…
+                  {backupDate(backup.created_at)} · {formatBytes(backup.size_bytes)} {t("· 校验值")} {backup.sha256_prefix}…
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -303,8 +297,7 @@ export default function BackupPanel({
                   className="mt-btn"
                 >
                   {busy === "verify" && busyPath === backup.path ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <BadgeCheck className="h-4 w-4" aria-hidden="true" />}
-                  验证
-                </button>
+                  {t("验证")}</button>
                 <button
                   type="button"
                   onClick={() => setConfirmRestore(backup)}
@@ -312,8 +305,7 @@ export default function BackupPanel({
                   className="mt-btn mt-btn-danger"
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  恢复
-                </button>
+                  {t("恢复")}</button>
               </div>
             </li>
           ))}

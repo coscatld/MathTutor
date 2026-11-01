@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "checks": [
+    "first-run language switch updates English UI without reloading settings, saving secrets or replacing the model/key draft",
+    "assessment language and progress survive reload; resume errors translate; switching preserves selected response and raw question text",
+    "question-bank controls and fixed classifications are English; original curriculum, problem, reference and explanation remain unchanged",
+    "blocked startup exposes language selection and translates the fixed 403 recovery message"
+  ],
+  "errors": [],
+  "scope": "Actual browser with synthetic API fixtures; verifies UI and unchanged request data, not live model/provider behavior."
+}

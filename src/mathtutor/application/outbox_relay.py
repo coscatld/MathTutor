@@ -97,10 +97,10 @@ MAX_ATTEMPTS: int = 20
 DEFAULT_BATCH_SIZE: int = 100
 #: Default idle poll interval (seconds) when the queue is drained.
 DEFAULT_IDLE_SECONDS: float = 1.0
-#: Candidate SELECT window = batch limit × this factor, so that rows whose
-#: backoff has not opened yet can never starve younger eligible rows at the
-#: tail of the queue (the time gate is applied per row in Python).
-_CANDIDATE_WINDOW_FACTOR = 4
+#: Per-batch page budget; each keyset page contains at most batch limit rows.
+#: A cursor survives batches, and a fixed sweep watermark prevents new events
+#: from keeping the cursor away from older retries indefinitely.
+DEFAULT_MAX_SCAN_PAGES = 4
 
 
 class DispatchSink(Protocol):
@@ -180,6 +180,7 @@ class OutboxRelayService:
         base_backoff: float = RETRY_BASE_SECONDS,
         max_backoff: float = RETRY_MAX_SECONDS,
         max_attempts: int = MAX_ATTEMPTS,
+        max_scan_pages: int = DEFAULT_MAX_SCAN_PAGES,
     ) -> None:
         self.uow = uow
         self.sink = sink or LoggingDispatchSink()
@@ -191,6 +192,11 @@ class OutboxRelayService:
         self.base_backoff = base_backoff
         self.max_backoff = max_backoff
         self.max_attempts = max_attempts
+        if max_scan_pages < 1:
+            raise ValueError("max_scan_pages must be positive")
+        self.max_scan_pages = max_scan_pages
+        self._candidate_after: tuple[str, str] | None = None
+        self._scan_end: tuple[str, str] | None = None
         # 循环状态（进程内；新实例天然安全）。
         self._task: asyncio.Task[Any] | None = None
         self._stop_event = asyncio.Event()
@@ -228,15 +234,27 @@ class OutboxRelayService:
         ``idle_seconds`` — the wake is an accelerator, polling is the
         correctness floor.
         """
+        # Product UoW also notifies after our candidate reads/receipts. Ignore
+        # resident self-notifications so a gated batch cannot bypass idle.
+        # Productive batches already loop immediately; other tasks still wake us.
+        if self._task is not None:
+            try:
+                if asyncio.current_task() is self._task:
+                    return
+            except RuntimeError:  # sync caller outside an event loop
+                pass
         self._wake_event.set()
 
     async def stop(self, timeout: float = 5.0) -> None:
         """Graceful bounded shutdown (spec 5.1).
 
         Sets the stop flag, wakes the loop, then waits up to ``timeout``
-        for the CURRENT batch (one short transaction) to finish. On timeout
-        the task is force-cancelled; ``CancelledError`` is swallowed so an
-        app shutdown can never hang ("app 关不掉" cannot happen). Idempotent.
+        for the CURRENT batch to finish, without starting a queue-wide drain
+        or another batch. An idle loop exits without fetching newly pending
+        rows. On timeout the task is cancelled, with at most 5s extra for
+        cancellation cleanup; a non-cooperative owner raises rather than
+        leaving shutdown waiting indefinitely. Undelivered rows remain
+        durable for restart. Idempotent.
         """
         self._stop_event.set()
         self.wake()
@@ -334,64 +352,79 @@ class OutboxRelayService:
         *,
         now_provider: Callable[[], str] | None = None,
     ) -> dict[str, int]:
-        """Dispatch up to ``limit`` eligible events; returns counts.
+        """Dispatch up to ``limit`` eligible events outside read transactions.
 
-        Eligible = outbox rows with NO ledger row (immediately eligible),
-        or whose ledger row still has ``last_error`` AND whose derived
-        retry window has opened
-        (``now >= dispatched_at + min(max_backoff, base_backoff * 2**attempts)``;
-        spec 5.3). Rows whose window has not opened are SKIPPED this batch
-        (counted in ``skipped``) and re-examined later. Rows with
-        ``attempts >= max_attempts`` are parked permanently (never selected).
+        Each call examines at most ``max_scan_pages * limit`` candidates.
+        The keyset cursor survives batches, so a gated prefix cannot hide
+        younger healthy events. A sweep fixes its tail watermark, returning
+        to older retries even while new events keep arriving. Cursor state
+        is only an optimization; restart reconstructs eligibility from the
+        durable ledger. Attempt-cap rows stay parked; backoff is unchanged.
 
-        ``now_provider`` overrides the instance clock for this call
-        (returns an ISO UTC string). ``pending`` counts the candidate rows
-        examined this batch (dispatched + failed + skipped); the queue-lag
-        metric remains :meth:`pending_count` (all not-yet-succeeded rows).
+        ``pending`` counts examined candidates (dispatched + failed + skipped),
+        unlike ``pending_count`` which counts all not-yet-succeeded rows.
         """
+        if limit <= 0:
+            return {"pending": 0, "dispatched": 0, "failed": 0, "skipped": 0}
         now = self._resolve_now(now_provider)
         now_dt = _parse_iso_utc(now)
         if now_dt is None:
             raise ValueError(f"now_provider 返回了不可解析的时间戳: {now!r}")
-        dispatched = 0
-        failed = 0
-        skipped = 0
-        async with self.uow.transaction() as conn:
-            rows = (
-                await conn.execute(
-                    self._candidate_select().limit(limit * _CANDIDATE_WINDOW_FACTOR)
-                )
-            ).all()
-        # Dispatch outside the read transaction: consumers may write projections.
-        # At-least-once delivery requires each sink to be idempotent.
-        for row in rows:
-            if dispatched + failed >= limit:
-                break
-            if not self._row_eligible(row, now_dt):
-                skipped += 1
-                continue
-            event = {
-                "outbox_id": row.outbox_id,
-                "aggregate_type": row.aggregate_type,
-                "aggregate_id": row.aggregate_id,
-                "aggregate_version": row.aggregate_version,
-                "event_sequence": row.event_sequence,
-                "event_type": row.event_type,
-                "audience": row.audience,
-                "payload": row.payload,
-                "created_at": row.created_at,
-            }
-            error: str | None = None
-            try:
-                await self.sink.dispatch(event)
-                dispatched += 1
-            except Exception as exc:  # noqa: BLE001 - isolate failing consumers
-                failed += 1
-                error = str(exc)[:_MAX_ERROR_LEN]
-                if self._next_attempts(row.ledger_attempts) >= self.max_attempts:
-                    error = f"attempt limit exceeded: {error}"
+        dispatched = failed = skipped = 0
+        if self._scan_end is None:
             async with self.uow.transaction() as conn:
-                await self._record_dispatch(conn, event, dispatched_at=now, error=error)
+                tail = (await conn.execute(self._candidate_select().with_only_columns(
+                    domain_outbox.c.created_at, domain_outbox.c.outbox_id
+                ).order_by(None).order_by(
+                    domain_outbox.c.created_at.desc(), domain_outbox.c.outbox_id.desc()
+                ).limit(1))).first()
+            if tail is not None:
+                self._scan_end = (tail.created_at, tail.outbox_id)
+        for _ in range(self.max_scan_pages):
+            if self._scan_end is None or dispatched + failed >= limit:
+                break
+            async with self.uow.transaction() as conn:
+                rows = (await conn.execute(self._candidate_select(
+                    after=self._candidate_after, through=self._scan_end
+                ).limit(limit))).all()
+            # Sinks may commit projections; no read transaction spans dispatch.
+            for row in rows:
+                if dispatched + failed >= limit:
+                    break
+                key = (row.created_at, row.outbox_id)
+                if not self._row_eligible(row, now_dt):
+                    skipped += 1
+                    self._candidate_after = key
+                    continue
+                event = {
+                    "outbox_id": row.outbox_id,
+                    "aggregate_type": row.aggregate_type,
+                    "aggregate_id": row.aggregate_id,
+                    "aggregate_version": row.aggregate_version,
+                    "event_sequence": row.event_sequence,
+                    "event_type": row.event_type,
+                    "audience": row.audience,
+                    "payload": row.payload,
+                    "created_at": row.created_at,
+                }
+                error: str | None = None
+                try:
+                    await self.sink.dispatch(event)
+                    dispatched += 1
+                except Exception as exc:  # noqa: BLE001 - isolate failing consumers
+                    failed += 1
+                    error = str(exc)[:_MAX_ERROR_LEN]
+                    if self._next_attempts(row.ledger_attempts) >= self.max_attempts:
+                        error = f"attempt limit exceeded: {error}"
+                async with self.uow.transaction() as conn:
+                    await self._record_dispatch(conn, event, dispatched_at=now, error=error)
+                # Failed receipt commit or cancellation must not skip an event.
+                self._candidate_after = key
+            consumed_page = not rows or self._candidate_after == (rows[-1].created_at, rows[-1].outbox_id)
+            if consumed_page and (len(rows) < limit or self._candidate_after == self._scan_end):
+                self._candidate_after = self._scan_end = None
+                break
+            await asyncio.sleep(0)  # gated pages also yield the event loop
         return {
             "pending": dispatched + failed + skipped,
             "dispatched": dispatched,
@@ -399,12 +432,12 @@ class OutboxRelayService:
             "skipped": skipped,
         }
 
-    def _candidate_select(self) -> Any:
+    def _candidate_select(self, *, after=None, through=None) -> Any:
         """Candidate rows: no ledger row, or a failed row below the attempt
         cap. Rows parked at ``attempts >= max_attempts`` are excluded
         forever. The time gate itself is applied per row in Python (it
         needs the injectable clock)."""
-        return (
+        query = (
             select(
                 domain_outbox.c.outbox_id,
                 domain_outbox.c.aggregate_type,
@@ -434,6 +467,14 @@ class OutboxRelayService:
             )
             .order_by(domain_outbox.c.created_at, domain_outbox.c.outbox_id)
         )
+
+        if after is not None:
+            query = query.where(or_(domain_outbox.c.created_at > after[0], and_(
+                domain_outbox.c.created_at == after[0], domain_outbox.c.outbox_id > after[1])))
+        if through is not None:
+            query = query.where(or_(domain_outbox.c.created_at < through[0], and_(
+                domain_outbox.c.created_at == through[0], domain_outbox.c.outbox_id <= through[1])))
+        return query
 
     def _row_eligible(self, row: Any, now_dt: datetime) -> bool:
         """Time-gate one candidate row against the injected clock.

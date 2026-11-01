@@ -13,6 +13,7 @@ from dataclasses import dataclass, asdict, replace
 
 from mathtutor.learning.skill_graph import GRAPH_VERSION, SKILLS, skills_for_problem, skills_for_subgoal
 from mathtutor.domain.dual_channel_gate import evidence_kind, math_state_from_correctness
+from mathtutor.pedagogy.verified_progress import classify_progress, NEW_PROGRESS
 
 _STUCK = re.compile(r"不会|没懂|不懂|不明白|看不懂|还是不|没思路|卡住")
 
@@ -106,12 +107,15 @@ def apply_assessment(context, assessment, raw_text, assistance):
         # Inequality errors are about direction and boundaries; the verifier's
         # own reason is more precise than the generic signal guidance.
         record["verifier_reason"] = assessment.reason
+    record.update(classify_progress(context, record))
     context["assessments"].append(record)
     if record["math_validity"] == "valid":
         context["progress"].append({"assessment_id": record["assessment_id"], "text": raw_text,
-                                    "verified_claims": record["verified_steps"]})
-        context["stuck_count"] = 0
-        context["help_without_progress"] = 0
+                                    "verified_claims": record["verified_steps"],
+                                    **{key: record[key] for key in ("progress_policy_version", "progress_kind", "semantic_evidence_keys")}})
+        if record["progress_kind"] in NEW_PROGRESS:
+            context["stuck_count"] = 0
+            context["help_without_progress"] = 0
         goals = context["subgoals"]
         if record["task_completion"] == "complete":
             for goal in goals:
@@ -325,6 +329,10 @@ def assessment_feedback(record):
     if record["task_completion"] == "complete":
         return f"已验证你提交的「{raw}」满足这道题的完整要求。"
     if record["math_validity"] == "valid":
+        if record.get("progress_kind") == "restatement":
+            return f"已验证「{raw}」是有效的重述；还没有新增已验证的步骤，请写出接下来的一步，或说明卡在哪里。"
+        if record.get("progress_kind") == "unknown":
+            return f"已验证「{raw}」在数学上有效，但暂时不能确定新增了哪一步。请说明这一步新增了什么。"
         return f"已验证「{raw}」是有效的部分结果；整题还没有完成，请继续补齐剩余要求。"
     if record["math_validity"] == "invalid":
         guidance = record.get("verifier_reason") or error_guidance(record.get("misconception_candidates", []))

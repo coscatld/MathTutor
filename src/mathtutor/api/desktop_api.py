@@ -44,6 +44,7 @@ Security invariants:
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import fnmatch
 import os
 from pathlib import Path
@@ -51,6 +52,7 @@ import shutil
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from mathtutor.api.auth_deps import require_student_owner
@@ -66,8 +68,8 @@ from mathtutor.application.document_ingestion import DocumentBusyError
 from mathtutor.domain.documents import (
     MAX_DOCUMENT_BYTES,
 )
-from mathtutor.domain.memory import MemoryType, PersonalMemoryNode
-from mathtutor.infrastructure.gateway_config import secret_key_name
+from mathtutor.domain.memory import MemoryConflictError, MemoryNotFoundError, MemoryType, PersonalMemoryNode
+from mathtutor.infrastructure.gateway_config import GatewayRevisionConflict, secret_key_name
 from mathtutor.infrastructure.generative_gateway import (
     GenerativeConfigError,
     PRESETS,
@@ -97,7 +99,16 @@ DESKTOP_ROUTER_PREFIX = "/api/v2/math-tutor/desktop"
 from typing import Literal
 
 
+class ConfigOperation(BaseModel):
+    epoch: str | None = Field(default=None, max_length=64)
+    revision: int | None = Field(default=None, ge=0)
+    operation_id: str | None = Field(default=None, max_length=128)
+
+
 class SettingsUpdate(BaseModel):
+    expected_epoch: str | None = Field(default=None, max_length=64)
+    expected_revision: int | None = Field(default=None, ge=0)
+    operation_id: str | None = Field(default=None, max_length=128)
     preset_id: str
     api_key: str | None = None
     base_url: str = ""
@@ -155,6 +166,21 @@ def _desktop_secret_store() -> SecretStore:
 def _gateway_config_service():
     """Return the process-wide non-sensitive provider configuration service."""
     return get_product_state().gateway_config
+
+
+def _config_receipt(config: dict, service) -> dict:
+    revision = int(config.get("revision", service.revision()))
+    current = service.revision()
+    return {"epoch": config.get("epoch"), "revision": revision, "current_revision": current, "accepted": revision == current,
+            "persisted": bool(config.get("persisted", False)), "persistence_error": config.get("persistence_error"),
+            **({"operation_id": config["operation_id"]} if "operation_id" in config else {})}
+
+
+def _probe_receipt(result, service) -> dict:
+    current = service.revision()
+    return {"epoch": result.epoch, "revision": result.revision, "current_revision": current, "operation_id": result.operation_id,
+            "provider_id": result.provider_id, "accepted": result.accepted and current == result.revision,
+            "persisted": result.persisted, "persistence_error": result.persistence_error}
 
 
 def _friendly_config_error(preset_id: str, base_url: str, model: str) -> str | None:
@@ -217,6 +243,7 @@ async def get_settings(
         "key_masked": masked,
         "connection_status": service.connection_status(),
         "provider_configs": profiles,
+        **_config_receipt(config, service),
     }
 
 
@@ -279,7 +306,12 @@ async def put_settings(
             base_url=update.base_url,
             vision_mode=update.vision_mode,
             model=update.model,
+            expected_revision=update.expected_revision,
+            expected_epoch=update.expected_epoch,
+            operation_id=update.operation_id,
         )
+    except GatewayRevisionConflict as error:
+        raise HTTPException(status_code=409, detail="模型配置已变化，请重新读取后再保存。") from error
     except GenerativeConfigError as error:
         raise HTTPException(status_code=422, detail="配置无效，请检查填写内容。") from error
 
@@ -305,7 +337,7 @@ async def put_settings(
             masked = mask_secret(stored)
     return {
         "preset_id": str(config.get("preset_id") or ""),
-        "vision_mode": service.provider_profiles().get(str(config.get("preset_id") or ""), {}).get("vision_mode", "auto"),
+        "vision_mode": config.get("provider_configs", {}).get(str(config.get("preset_id") or ""), {}).get("vision_mode", "auto"),
         "model": str(config.get("model") or ""),
         "base_url": str(config.get("base_url") or ""),
         "key_masked": masked,
@@ -313,21 +345,27 @@ async def put_settings(
         "onboarding_completed": service.onboarding_completed(),
         "connection_status": service.connection_status(),
         "initial_assessment_required": bool(assessment_state and assessment_state["status"] in {"pending", "in_progress"}),
+        **_config_receipt(config, service),
     }
 
 
 @router.post("/settings/onboarding/skip")
 async def skip_provider_onboarding(
+    operation: ConfigOperation | None = None,
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
     """Remember the explicit choice to continue in template teaching mode."""
     service = _gateway_config_service()
-    service.mark_onboarding_completed()
-    return {"ok": True, "onboarding_completed": True}
+    try:
+        config = await service.mark_onboarding_completed(expected_revision=operation.revision if operation else None, expected_epoch=operation.epoch if operation else None, operation_id=operation.operation_id if operation else None)
+    except GatewayRevisionConflict as error:
+        raise HTTPException(status_code=409, detail="模型配置已变化，请重新读取后再保存。") from error
+    return {"ok": True, "onboarding_completed": True, **_config_receipt(config, service)}
 
 
 @router.delete("/settings/api-key")
 async def delete_api_key(
+    operation: ConfigOperation | None = None,
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
     """Remove the OS-stored credential and immediately fall back to templates."""
@@ -336,7 +374,9 @@ async def delete_api_key(
     if active and not PRESETS[active].requires_api_key:
         raise HTTPException(status_code=422, detail="本地 Ollama 不使用 API Key。")
     try:
-        config = await service.remove_api_key()
+        config = await service.remove_api_key(expected_revision=operation.revision if operation else None, expected_epoch=operation.epoch if operation else None, operation_id=operation.operation_id if operation else None)
+    except GatewayRevisionConflict as error:
+        raise HTTPException(status_code=409, detail="模型配置已变化，请重新读取后再保存。") from error
     except Exception as error:
         raise HTTPException(
             status_code=503,
@@ -351,6 +391,7 @@ async def delete_api_key(
         "onboarding_completed": True,
         "key_masked": None,
         "connection_status": service.connection_status(),
+        **_config_receipt(config, service),
     }
 
 
@@ -444,24 +485,20 @@ async def delete_local_embedding_model(
 
 @router.post("/settings/test-connection")
 async def test_connection(
+    operation: ConfigOperation | None = None,
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
-    """Probe the configured provider; ``message`` never carries a key."""
+    """Legacy probe route with the same revision ownership as /model/test."""
     service = _gateway_config_service()
-    result = await service.test_connection()
+    result = await service.test_connection(expected_revision=operation.revision if operation else None, expected_epoch=operation.epoch if operation else None, operation_id=operation.operation_id if operation else None)
+    metadata = _probe_receipt(result, service)
+    if not metadata["accepted"]:
+        return {"status": "error", "message": "配置已变化，本次测试结果未应用。请测试当前配置。", "resolved_model": "", **metadata}
     if result.status == "ok":
         get_product_state().refresh_model_writer()
-        message = result.message or "连接成功，模型可正常调用。"
-        return {
-            "status": "ok",
-            "message": message,
-            "resolved_model": result.resolved_model,
-        }
-    if "no provider configured" in result.message:
-        message = "尚未配置模型提供商，请先保存 API Key。"
-    else:
-        message = f"连接失败：{result.message}"
-    return {"status": "error", "message": message, "resolved_model": ""}
+        return {"status": "ok", "message": result.message or "连接成功，模型可正常调用。", "resolved_model": result.resolved_model, **metadata}
+    message = "尚未配置模型提供商，请先保存 API Key。" if "no provider configured" in result.message else f"连接失败：{result.message}"
+    return {"status": "error", "message": message, "resolved_model": "", **metadata}
 
 
 @router.get("/settings/models")
@@ -818,6 +855,7 @@ _MODEL_TEST_MESSAGES: dict[str, str] = {
 
 @router.post("/model/test")
 async def test_model(
+    operation: ConfigOperation | None = None,
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
     """Probe the configured provider (wire contract ModelTestResult).
@@ -827,18 +865,22 @@ async def test_model(
     this router.
     """
     service = _gateway_config_service()
-    result = await service.test_connection()
+    result = await service.test_connection(expected_revision=operation.revision if operation else None, expected_epoch=operation.epoch if operation else None, operation_id=operation.operation_id if operation else None)
+    metadata = _probe_receipt(result, service)
+    if not metadata["accepted"]:
+        return {"ok": False, "error_kind": None, "message": "配置已变化，本次测试结果未应用。请测试当前配置。", "resolved_model": "", **metadata}
     if result.status == "ok":
         get_product_state().refresh_model_writer()
-        provider_id = str(service.current_config().get("preset_id") or "")
+        provider_id = result.provider_id
         return {
             "ok": True,
             "error_kind": None,
             "message": "已连接到本地 Ollama。" if provider_id == "ollama" else "连接成功，模型可正常调用。",
             "resolved_model": result.resolved_model,
+            **metadata,
         }
     kind = result.error_kind or "provider_error"
-    provider_id = str(service.current_config().get("preset_id") or "")
+    provider_id = result.provider_id
     message = _MODEL_TEST_MESSAGES.get(kind, "连接失败，请稍后重试。")
     if provider_id == "ollama" and kind == "network_unavailable":
         message = "Ollama 服务暂时不可用，请确认本地服务已启动。"
@@ -846,6 +888,7 @@ async def test_model(
         "ok": False,
         "error_kind": kind,
         "message": message,
+        **metadata,
     }
 
 
@@ -1060,159 +1103,182 @@ async def restore_backup_endpoint(
     request: BackupPathRequest,
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
-    """Verified restore with the full stop→dispose→restore→rebuild
-    orchestration (spec 5.8). Wire contract: success ALWAYS returns
-    ``restart_required: true`` — the desktop shell prompts a restart.
-
-    Fail-closed: a refused restore leaves the current database untouched
-    (the service validates before the atomic copy); the runtime is rebuilt
-    in both outcomes so the app keeps serving.
-    """
+    """Hold admission until the owned restore reaches a known file/runtime state."""
     state = get_product_state()
     _require_backup_service(state)
     if state.db_path is None:
         raise HTTPException(status_code=409, detail="当前为内存模式，不支持恢复。")
     backup_path = _resolve_backup_path(state, request.path)
-
-    # The ASGI maintenance middleware has counted this restore request. Close
-    # admission, drain every other HTTP/WebSocket request, and hold the gate
-    # through shutdown, target precheck, replacement, migration and rollback.
-    if not await state.begin_maintenance(timeout=5.0):
-        return {
-            "ok": False,
-            "message": "当前仍有学习请求正在处理，未开始恢复，请稍后重试。",
-        }
-    try:
+    # Acquisition itself is cancellation-safe; a rejected contender cannot
+    # release the first restore's gate. Cancellation after acquisition joins
+    # the complete owned operation before releasing either runtime's gate.
+    async with state.maintenance(timeout=5.0) as acquired:
+        if not acquired:
+            return {"ok": False, "message": "当前仍有学习请求正在处理，未开始恢复，请稍后重试。"}
         return await _restore_backup_while_quiesced(state, backup_path, request.recovery_key)
-    finally:
-        await state.end_maintenance()
+
+
+async def _restore_io(function, *args):
+    from mathtutor.infrastructure.owned_task import join_owned
+    return await join_owned(asyncio.create_task(asyncio.to_thread(function, *args)))
 
 
 async def _restore_backup_while_quiesced(state, backup_path: Path, recovery_key: str | None = None) -> dict:
-    """Perform restore while the ProductState request gate is exclusively held."""
-    from mathtutor.api.product_state import (
-        get_product_state,
-        reset_product_state,
-    )
-    from mathtutor.infrastructure.backup import BackupError
-    from mathtutor.infrastructure.migrate import upgrade_db
+    """Keep one runtime-owned task through stop, every worker, and recovery."""
+    return await state.run_restore(lambda: _perform_owned_restore(state, backup_path, recovery_key))
 
-    # 1) stop the write runtime (relay loop + backup scheduler), checkpoint
-    #    the WAL and dispose every engine — ProductState.shutdown_runtime
-    #    guarantees no live connection and no active -wal/-shm remains.
+
+def _restore_failed_closed(state, error: BaseException) -> dict:
+    state.lifecycle_status = "FAILED"
+    state._maintenance_active = True
+    state.restore_status = "FAILED"
+    state.restore_error = str(error)
+    return {"ok": False, "recovery_required": True,
+            "message": "恢复未完成，无法确认安全运行状态。应用保持维护状态，请保留数据库及现有恢复材料。"}
+
+
+async def _remove_restore_image(state, path: Path) -> None:
+    try:
+        await _restore_io(lambda: path.unlink(missing_ok=True))
+    except OSError as error:
+        # A cleanup failure does not invalidate an already verified database.
+        state.restore_cleanup_error = str(error)
+    else:
+        state.restore_recovery_path = None
+
+
+async def _recover_refused_restore(state, rollback_path: Path | None,
+                                  error: BaseException, message: str) -> dict:
+    """Only publish a new runtime after verified rollback/current-file safety."""
+    from mathtutor.infrastructure.backup import BackupService
+    if rollback_path is not None:
+        try:
+            rollback_error = await _rollback_failed_restore(rollback_path, state.db_path)
+        except asyncio.CancelledError as rollback_error:
+            _restore_failed_closed(state, rollback_error)
+            raise
+        if rollback_error:
+            result = _restore_failed_closed(state, RuntimeError(rollback_error))
+            if isinstance(error, asyncio.CancelledError):
+                raise error
+            return result
+    else:
+        try:
+            integrity = await _restore_io(BackupService._verify_backup_file, state.db_path)
+            if integrity != "ok":
+                raise RuntimeError(f"original database integrity_check={integrity!r}")
+        except (Exception, asyncio.CancelledError) as verify_error:
+            result = _restore_failed_closed(state, verify_error)
+            if isinstance(verify_error, asyncio.CancelledError) or isinstance(error, asyncio.CancelledError):
+                raise asyncio.CancelledError from verify_error
+            return result
+    try:
+        _rebuild_after_restore(state)
+    except Exception as rebuild_error:
+        result = _restore_failed_closed(state, rebuild_error)
+        if isinstance(error, asyncio.CancelledError):
+            raise error from rebuild_error
+        return result
+    state.restore_status = "RECOVERED"
+    if rollback_path is not None:
+        await _remove_restore_image(state, rollback_path)
+    if isinstance(error, asyncio.CancelledError):
+        raise error
+    return {"ok": False, "message": message}
+
+
+async def _perform_owned_restore(state, backup_path: Path, recovery_key: str | None) -> dict:
+    from mathtutor.infrastructure.backup import BackupService
+    from mathtutor.infrastructure import db_crypto
+    from mathtutor.infrastructure.migrate import upgrade_db
+    from mathtutor.infrastructure.lifecycle_trace import trace
+
+    state.restore_status = "PREFLIGHT"
+    try:
+        # Restoring SQLite alone cannot roll back a simultaneous encryption
+        # marker/journal transition. Finish that startup operation first.
+        pending = await _restore_io(lambda: db_crypto.state(state.db_path).get("pending")
+                                    or db_crypto.conversion_path(state.db_path).exists())
+    except Exception:
+        state.restore_status = "REFUSED"
+        return {"ok": False, "message": "无法确认加密转换状态，未开始恢复。请保留数据库与恢复材料，重新启动后检查。"}
+    if pending:
+        state.restore_status = "REFUSED"
+        return {"ok": False, "message": "加密转换尚未完成，未开始恢复。请先重新启动应用完成加密转换，再恢复备份。"}
+    state.restore_status = "STOPPING"
     try:
         await state.shutdown_runtime()
-    except Exception:
-        return {"ok": False, "message": "运行时未安全关闭，已取消恢复。"}
-    from mathtutor.infrastructure.lifecycle_trace import trace
+    except (Exception, asyncio.CancelledError) as error:
+        result = _restore_failed_closed(state, error)
+        result["message"] = "运行时未安全关闭，已取消恢复。应用保持维护状态。"
+        if isinstance(error, asyncio.CancelledError):
+            raise
+        return result
     trace(id(state), "restore_replacement_begin")
-    # Preserve the exact checkpointed live database until BOTH replacement
-    # and forward migration have succeeded.  ``restore_verified`` provides an
-    # atomic file replacement, but migration is a later failure boundary; a
-    # private same-directory rollback image closes that gap.
-    rollback_path = state.db_path.with_name(
-        f".{state.db_path.name}.pre-restore-{uuid4().hex}.rollback"
-    )
+    state.restore_status = "PROTECTING"
+    rollback_path = state.db_path.with_name(f".{state.db_path.name}.pre-restore-{uuid4().hex}.rollback")
     try:
-        await asyncio.to_thread(shutil.copy2, state.db_path, rollback_path)
-    except OSError as error:
-        _rebuild_after_restore(state)
-        return {
-            "ok": False,
-            "message": f"无法创建恢复前保护副本，已取消恢复：{error}",
-        }
-    # 2) verified restore (sha256 + integrity + alembic compatibility +
-    #    active-wal/shm refusal + atomic copy + post-copy re-check).
+        await _restore_io(shutil.copy2, state.db_path, rollback_path)
+        integrity = await _restore_io(BackupService._verify_backup_file, rollback_path)
+        if integrity != "ok":
+            raise RuntimeError(f"protection image integrity_check={integrity!r}")
+    except (Exception, asyncio.CancelledError) as error:
+        # The live file has not been replaced. A partially copied protection
+        # image is never advertised as a valid recovery point.
+        try:
+            return await _recover_refused_restore(state, None, error,
+                                                 f"无法创建恢复前保护副本，已取消恢复：{error}")
+        finally:
+            if state.restore_status != "FAILED":
+                await _remove_restore_image(state, rollback_path)
+            elif rollback_path.exists():
+                state.restore_partial_path = rollback_path
+    state.restore_recovery_path = rollback_path
+    phase = "恢复备份失败"
     try:
+        state.restore_status = "REPLACING"
         await state.backup_service.restore_verified(backup_path, state.db_path, recovery_key=recovery_key)
-    except BackupError as error:
-        rollback_error = await _rollback_failed_restore(
-            rollback_path, state.db_path
-        )
-        _rebuild_after_restore(state)
-        if rollback_error:
-            return {
-                "ok": False,
-                "message": f"{error}；原数据库自动回滚失败：{rollback_error}",
-            }
-        return {"ok": False, "message": str(error)}
-    # 3) rebuild the product runtime over the restored file and bring its
-    #    schema forward (idempotent — an older backup migrates to head).
-    try:
-        upgrade_db(state.db_path)
-    except Exception as error:  # noqa: BLE001 - surface as a failed restore
-        rollback_error = await _rollback_failed_restore(
-            rollback_path, state.db_path
-        )
-        _rebuild_after_restore(state)
-        if rollback_error:
-            return {
-                "ok": False,
-                "message": f"恢复后迁移失败：{error}；原数据库自动回滚失败：{rollback_error}",
-            }
-        return {
-            "ok": False,
-            "message": f"恢复后迁移失败：{error}；已自动恢复原数据库。",
-        }
-    # Community settings live outside the SQLite-only backup. A restored
-    # learning database requires a fresh consent before plugins read it.
-    try:
+        state.restore_status = "MIGRATING"
+        phase = "恢复后迁移失败"
+        # Migration owns blocking SQLite/file work too; it must reach a
+        # terminal state before rollback can replace its target.
+        await _restore_io(upgrade_db, state.db_path)
+        phase = "插件访问权限重置失败"
         plugins = getattr(state, "community_plugins", None)
         if plugins is not None:
-            plugins.revoke_all_consents()
-    except Exception:
-        rollback_error = await _rollback_failed_restore(rollback_path, state.db_path)
+            await _restore_io(plugins.revoke_all_consents)
+        phase = "恢复后运行时重建失败"
         _rebuild_after_restore(state)
-        return {"ok": False, "message": "插件访问权限重置失败，已取消恢复。" +
-                ("原数据库自动回滚失败，请使用保护副本恢复。" if rollback_error else "已恢复原数据库；请重新确认插件权限。")}
-    rollback_path.unlink(missing_ok=True)
-    reset_product_state()
-    get_product_state(state.db_path)
-    return {
-        "ok": True,
-        "restart_required": True,
-        "message": "备份已恢复，请重启应用以完成恢复。",
-    }
+    except (Exception, asyncio.CancelledError) as error:
+        message = ("插件访问权限重置失败，已取消恢复。已恢复原数据库；请重新确认插件权限。"
+                   if phase == "插件访问权限重置失败" else f"{phase}：{error}；已自动恢复原数据库。")
+        return await _recover_refused_restore(state, rollback_path, error, message)
+    state.restore_status = "RESTORED"
+    await _remove_restore_image(state, rollback_path)
+    return {"ok": True, "restart_required": True, "message": "备份已恢复，请重启应用以完成恢复。"}
 
 
-async def _rollback_failed_restore(
-    rollback_path: Path, target_path: Path
-) -> str | None:
-    """Atomically put the checkpointed pre-restore DB back in place.
-
-    Alembic/SQLite may have created sidecars before raising.  With the runtime
-    already stopped, removing those derived files and replacing the main DB is
-    safe.  The rollback image is retained if replacement itself fails so an
-    operator still has a recoverable copy.
-    """
+async def _rollback_failed_restore(rollback_path: Path, target_path: Path) -> str | None:
+    """Retain the recovery point until copied target verification succeeds."""
     from mathtutor.infrastructure.backup import BackupService
 
-    try:
+    def rollback():
         if any(Path(f"{target_path}{suffix}").exists() for suffix in ("-wal", "-shm")):
             raise RuntimeError("Rollback refused: database sidecars remain")
-        await asyncio.to_thread(os.replace, rollback_path, target_path)
-        integrity = await asyncio.to_thread(
-            BackupService._verify_backup_file, target_path
-        )
+        BackupService._copy_atomic(rollback_path, target_path)
+        integrity = BackupService._verify_backup_file(target_path)
         if integrity != "ok":
             raise RuntimeError(f"rollback integrity_check={integrity!r}")
-    except Exception as error:  # noqa: BLE001 - returned as fail-closed detail
+    try:
+        await _restore_io(rollback)
+    except Exception as error:
         return str(error)
     return None
 
 
 def _rebuild_after_restore(state) -> None:
-    """Rebuild the product singleton after a refused restore (fail-closed:
-    the current database file was never replaced, but its engines were
-    disposed — the runtime must be reconstructed either way)."""
-    from mathtutor.api.product_state import (
-        get_product_state,
-        reset_product_state,
-    )
-
-    reset_product_state()
-    if state.db_path is not None:
-        get_product_state(state.db_path)
+    from mathtutor.api.product_state import rebuild_product_state
+    rebuild_product_state(state)
 
 
 # ---------------------------------------------------------------------------
@@ -1719,6 +1785,7 @@ async def delete_document(
 
 class RetrievalToggle(BaseModel):
     enabled: bool
+    expected_updated_at: datetime | None = None
 
 
 @router.patch("/documents/{document_id}/retrieval")
@@ -1771,6 +1838,19 @@ class MemoryUpdate(BaseModel):
     object_json: dict | None = None
     predicate: str | None = None
     confidence: float | None = None
+    expected_updated_at: datetime | None = None
+
+
+class MemoryConfirmation(BaseModel):
+    expected_updated_at: datetime | None = None
+
+
+def _memory_conflict_response(error: MemoryConflictError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={
+        "code": "memory_conflict",
+        "detail": "这条记忆已在其他位置更新。",
+        "latest": _project_memory(error.latest),
+    })
 
 
 def _require_memory(owner: StudentOwnerScope, memory_id: str) -> UUID:
@@ -1829,7 +1909,10 @@ async def update_memory(
             object_json=update.object_json,
             predicate=update.predicate.strip() if update.predicate else None,
             confidence=update.confidence,
+            expected_updated_at=update.expected_updated_at,
         )
+    except MemoryConflictError as error:
+        return _memory_conflict_response(error)
     except ValueError as error:
         raise HTTPException(status_code=404, detail="记忆不存在。") from error
     return _project_memory(node)
@@ -1860,8 +1943,11 @@ async def set_memory_retrieval(
     state = get_product_state()
     try:
         node = await state.personal_memory.set_retrieval_enabled(
-            owner.student_id, mem_uuid, toggle.enabled
+            owner.student_id, mem_uuid, toggle.enabled,
+            expected_updated_at=toggle.expected_updated_at,
         )
+    except MemoryConflictError as error:
+        return _memory_conflict_response(error)
     except ValueError as error:
         raise HTTPException(status_code=404, detail="记忆不存在。") from error
     return _project_memory(node)
@@ -1870,13 +1956,21 @@ async def set_memory_retrieval(
 @router.post("/memory/{memory_id}/confirm")
 async def confirm_memory(
     memory_id: str,
+    confirmation: MemoryConfirmation | None = None,
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> dict:
     """MODEL_INFERRED → USER_CONFIRMED — the only legal migration."""
     mem_uuid = _require_memory(owner, memory_id)
     state = get_product_state()
     try:
-        node = await state.personal_memory.confirm(owner.student_id, mem_uuid)
+        node = await state.personal_memory.confirm(
+            owner.student_id, mem_uuid,
+            expected_updated_at=confirmation.expected_updated_at if confirmation else None,
+        )
+    except MemoryConflictError as error:
+        return _memory_conflict_response(error)
+    except MemoryNotFoundError as error:
+        raise HTTPException(status_code=404, detail="记忆不存在。") from error
     except ValueError as error:
         raise HTTPException(
             status_code=409, detail="只有 AI 推测的记忆可以确认。"

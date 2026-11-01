@@ -59,8 +59,9 @@ def test_e2e2_conversation_isolation(tmp_path):
 async def initial_tools(product, query='移项'):
     await seed(product)
     scope = await product.knowledge.scope('alice', 'A')
-    pack = await product.retrieval_orchestrator.retrieve_for_turn('alice', scope, query)
-    tools = KnowledgeTools(product, 'alice', 'A', generation=await product.knowledge.generation('alice'))
+    turn = product.metrics.begin_retrieval_turn()
+    pack = await product.retrieval_orchestrator.retrieve_for_turn('alice', scope, query, turn_stats=turn)
+    tools = KnowledgeTools(product, 'alice', 'A', generation=await product.knowledge.generation('alice'), retrieval_turn=turn)
     await tools.seed_evidence(pack)
     return pack, tools
 
@@ -84,7 +85,7 @@ async def test_e2e4_second_retrieval_hops_and_rate(state):
     pack, tools = await initial_tools(state, 'unmatchedquasarxyz')
     assert not pack.evidences and pack.execution.retrieval_ran
     result = await complete_tools(ScriptedProvider(), [{'role': 'user', 'content': '移项与分母检验'}], executor=tools)
-    state.metrics.end_retrieval_turn()
+    state.metrics.end_retrieval_turn(tools.retrieval_turn)
     assert result.turn_result['finish_reason'] == 'FINAL_ANSWER'
     assert any(r['tool'] == 'read_source' and r['ok'] for r in tools.receipts)
     assert tools.retrieval_execution.hop_count == 3

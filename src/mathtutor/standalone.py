@@ -60,6 +60,7 @@ def main() -> None:  # pragma: no cover - exercised by packaged launch smoke
         create_standalone_app(),
         host=settings.host or "127.0.0.1",
         port=int(os.environ.get("MATHTUTOR_PORT", "8001")),
+        proxy_headers=False,
     )
 
 

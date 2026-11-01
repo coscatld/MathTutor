@@ -59,7 +59,8 @@ def test_model_checks_its_claim_and_corrects_it_before_answering(tmp_path):
 def test_bad_tool_arguments_get_a_rejection_receipt_not_an_error(tmp_path):
     requests = []
     bad = {"choices": [{"message": {"content": "", "tool_calls": [{"id": "c1", "type": "function", "function": {
-        "name": "run_python", "arguments": "{}"}}]}, "finish_reason": "tool_calls"}]}
+        "name": "run_python", "arguments": "{}"}}]}, "finish_reason": "tool_calls"}],
+        "usage": {"prompt_tokens": 40, "completion_tokens": 10}}
     with client_at(tmp_path / "tools.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         bind([bad, answer("通分是为了让分母相同。")], requests)
         frames = send(ws, "send_message", "q", {"text": "计算 1/2+1/3 为什么要通分？"})

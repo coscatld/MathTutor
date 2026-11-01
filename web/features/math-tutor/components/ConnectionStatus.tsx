@@ -1,5 +1,6 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import { RefreshCw } from "lucide-react";
 import type { ConnectionStatus as Status } from "../types";
 
@@ -26,6 +27,7 @@ export default function ConnectionStatus({
   note,
   onReconnect,
 }: ConnectionStatusProps) {
+  const {t} = useI18n();
   const style = STATUS_STYLES[status];
   const showRetry = status === "disconnected" || status === "error";
 
@@ -34,11 +36,11 @@ export default function ConnectionStatus({
       className="flex items-center gap-2"
       role="status"
       aria-live="polite"
-      aria-label={note}
+      aria-label={t(note)}
     >
       <span className={`mt-status-pill ${style.tone}`}>
         <span className="mt-status-dot" data-live={style.live} aria-hidden="true" />
-        <span className="text-xs font-semibold">{note}</span>
+        <span className="text-xs font-semibold">{t(note)}</span>
       </span>
       {showRetry && (
         <button
@@ -46,9 +48,7 @@ export default function ConnectionStatus({
           onClick={onReconnect}
           className="mt-btn h-8 min-h-0 px-3 text-xs"
         >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          重新连接
-        </button>
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />{t("重新连接")}</button>
       )}
     </div>
   );

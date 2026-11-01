@@ -511,7 +511,37 @@ class BackupService:
 
     # ----------------------------------------------------------- restore
 
-    async def restore(
+    async def _run_restore(self, function, *args):
+        """Restore remains owned after the backup runtime has been stopped.
+
+        Unlike ordinary backup jobs, a restore is permitted after shutdown;
+        its caller owns the exclusive maintenance gate and all engines are
+        closed. Cancellation is reported only after this whole file worker
+        finishes, including verification and temporary-file cleanup.
+        """
+        from mathtutor.infrastructure.owned_task import join_owned
+        if getattr(self, "_restore_active", False):
+            raise BackupError("Another restore is already running")
+        self._restore_active = True
+        task = asyncio.create_task(asyncio.to_thread(function, *args))
+        self._owned_workers.add(task)
+        try:
+            return await join_owned(task)
+        finally:
+            self._owned_workers.discard(task)
+            self._restore_active = False
+
+    async def restore(self, backup_path: Path, target_path: Path,
+                      manifest: BackupManifest | None = None) -> Path:
+        return await self._run_restore(self._restore, backup_path, target_path, manifest)
+
+    async def restore_verified(self, backup_path: Path, target_path: Path,
+                               manifest: BackupManifest | None = None,
+                               recovery_key: str | None = None) -> Path:
+        return await self._run_restore(self._restore_verified, backup_path, target_path,
+                                       manifest, recovery_key)
+
+    def _restore(
         self,
         backup_path: Path,
         target_path: Path,
@@ -534,7 +564,7 @@ class BackupService:
         if manifest is not None and manifest.sha256 != _sha256(backup_path):
             raise BackupError("备份文件哈希与 manifest 不符，拒绝恢复")
 
-        integrity = await asyncio.to_thread(self._verify_backup_file, backup_path)
+        integrity = self._verify_backup_file(backup_path)
         if integrity != "ok":
             raise BackupError(
                 f"备份文件完整性校验未通过（{integrity!r}），拒绝恢复: {backup_path}"
@@ -542,10 +572,10 @@ class BackupService:
 
         target = Path(target_path).resolve()
         target.parent.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread(BackupService._restore_into, backup_path, target)
+        BackupService._restore_into(backup_path, target)
         return target
 
-    async def restore_verified(
+    def _restore_verified(
         self,
         backup_path: Path,
         target_path: Path,
@@ -590,29 +620,23 @@ class BackupService:
                         f"备份 sidecar manifest 无法解析（{exc}），拒绝恢复"
                     ) from exc
         if manifest is not None:
-            ok, detail = await asyncio.to_thread(
-                BackupService.verify_backup, backup_path, manifest, recovery_key
-            )
+            ok, detail = BackupService.verify_backup(backup_path, manifest, recovery_key)
             if not ok:
                 raise BackupError(f"备份验证失败，拒绝恢复: {detail}")
         else:
-            integrity = await asyncio.to_thread(
-                self._verify_backup_file, backup_path, recovery_key
-            )
+            integrity = self._verify_backup_file(backup_path, recovery_key)
             if integrity != "ok":
                 raise BackupError(
                     f"备份文件完整性校验未通过（{integrity!r}），拒绝恢复: {backup_path}"
                 )
 
-        await asyncio.to_thread(
-            BackupService._check_backup_revision_compatible, backup_path, recovery_key
-        )
+        BackupService._check_backup_revision_compatible(backup_path, recovery_key)
 
         target = Path(target_path).resolve()
         BackupService._reject_active_wal_shm(target)
         target.parent.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread(BackupService._restore_into, backup_path, target, recovery_key)
-        after = await asyncio.to_thread(self._verify_backup_file, target)
+        BackupService._restore_into(backup_path, target, recovery_key)
+        after = self._verify_backup_file(target)
         if after != "ok":
             target.unlink(missing_ok=True)
             raise BackupError(

@@ -13,6 +13,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from mathtutor.security.scopes import PrincipalScope
+from mathtutor.security.auth_store import AuthStore, AuthStoreError, MISSING, atomic_bytes
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,16 +83,18 @@ def load_auth_settings(data_root: Path | None = None) -> AuthSettings:
     ).strip()
     if enabled and not secret:
         secret_path = root / "user" / "auth_secret"
-        try:
-            secret = secret_path.read_text(encoding="utf-8").strip()
-        except OSError:
-            secret_path.parent.mkdir(parents=True, exist_ok=True)
-            secret = secrets.token_urlsafe(48)
-            secret_path.write_text(secret, encoding="utf-8")
+        with AuthStore(root).transaction():
             try:
-                secret_path.chmod(0o600)
-            except OSError:
-                pass
+                secret = secret_path.read_text(encoding="utf-8").strip()
+            except FileNotFoundError:
+                if secret_path.is_symlink():
+                    raise AuthStoreError("Account storage needs recovery")
+                secret = secrets.token_urlsafe(48)
+                atomic_bytes(secret_path, (secret + "\n").encode("utf-8"))
+            except (OSError, UnicodeError) as exc:
+                # A damaged/unreadable existing secret cannot be replaced by
+                # another process and silently invalidate existing sessions.
+                raise AuthStoreError("Account storage needs recovery") from exc
     return AuthSettings(
         enabled=enabled,
         secret=secret,
@@ -107,36 +110,16 @@ class LocalAuthProvider:
 
     def __init__(self, settings: AuthSettings, data_root: Path) -> None:
         self.settings = settings
-        self._store_path = data_root.resolve() / "user" / "auth_users.json"
+        self._store = AuthStore(data_root)
+        self._store_path = self._store.path
 
     def _load_users(self) -> dict[str, dict]:
-        try:
-            loaded = json.loads(self._store_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            loaded = {}
-        users = loaded if isinstance(loaded, dict) else {}
-        if not users and self.settings.bootstrap_username and self.settings.bootstrap_password_hash:
-            users[self.settings.bootstrap_username] = {
-                "id": "env-admin",
-                "hash": self.settings.bootstrap_password_hash,
-                "role": "admin",
-                "created_at": "",
-                "disabled": False,
-                "avatar": "",
-            }
-        return users
+        with self._store.transaction():
+            return self._load_locked()
 
-    def _save_users(self, users: dict[str, dict]) -> None:
-        self._store_path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self._store_path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(users, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
-        try:
-            temporary.chmod(0o600)
-        except OSError:
-            pass
-        temporary.replace(self._store_path)
+    def _load_locked(self) -> dict[str, dict]:
+        return self._store.load(bootstrap_username=self.settings.bootstrap_username,
+                                bootstrap_password_hash=self.settings.bootstrap_password_hash)
 
     def is_first_user(self) -> bool:
         return not self._load_users()
@@ -149,7 +132,13 @@ class LocalAuthProvider:
         SQLite learning data visible after upgrading to login-free desktop
         mode.  Fresh installs use the fixed local identity.
         """
-        users = self._load_users()
+        # Login-free desktop never opens registration or writes auth state.
+        # Preserve its historical single-owner lookup and missing-store fallback.
+        try:
+            raw = self._store._read(self._store_path)
+            users = {} if raw is MISSING else self._store.validate(raw)
+        except AuthStoreError:
+            users = {}
         if len(users) == 1:
             username, record = next(iter(users.items()))
             user_id = str(record.get("id") or "").strip()
@@ -173,21 +162,30 @@ class LocalAuthProvider:
             raise ValueError("Enter a valid username or email address")
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters")
-        users = self._load_users()
-        if users:
-            raise PermissionError("Self-registration is closed")
+        try:
+            encoded = password.encode("utf-8")
+        except UnicodeError as exc:
+            raise ValueError("Password must contain valid Unicode") from exc
+        if len(encoded) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes")
         import bcrypt
 
-        user_id = f"u_{uuid4().hex}"
-        users[username] = {
-            "id": user_id,
-            "hash": bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
-            "role": "admin",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "disabled": False,
-            "avatar": "",
-        }
-        self._save_users(users)
+        # Across threads/processes, the whole check/hash/publish is one writer
+        # transaction. Hashing is reached only after the store passes validation.
+        with self._store.transaction():
+            users = self._load_locked()
+            if users:
+                raise PermissionError("Self-registration is closed")
+            user_id = f"u_{uuid4().hex}"
+            users[username] = {
+                "id": user_id,
+                "hash": bcrypt.hashpw(encoded, bcrypt.gensalt()).decode(),
+                "role": "admin",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "disabled": False,
+                "avatar": "",
+            }
+            self._store.save(users)
         return PrincipalScope(user_id=user_id, username=username, role="admin")
 
     def authenticate(self, username: str, password: str) -> PrincipalScope | None:
@@ -255,12 +253,13 @@ class LocalAuthProvider:
         }
 
     def set_avatar(self, username: str, avatar: str) -> bool:
-        users = self._load_users()
-        if username not in users:
-            return False
-        users[username]["avatar"] = avatar
-        self._save_users(users)
-        return True
+        with self._store.transaction():
+            users = self._load_locked()
+            if username not in users:
+                return False
+            users[username]["avatar"] = avatar
+            self._store.save(users)
+            return True
 
 
 __all__ = [

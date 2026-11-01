@@ -39,14 +39,15 @@ class SolveOutcome:
     kind: str  # "solved" | "unsupported"
     candidate: MathSolutionCandidate | None = None
     reason: str = ""
+    code: str = ""
 
     @classmethod
     def solved(cls, candidate: MathSolutionCandidate) -> "SolveOutcome":
         return cls("solved", candidate)
 
     @classmethod
-    def unsupported(cls, reason: str) -> "SolveOutcome":
-        return cls("unsupported", None, reason)
+    def unsupported(cls, reason: str, *, code: str = "") -> "SolveOutcome":
+        return cls("unsupported", None, reason, code)
 
 
 def solve_problem(problem: MathProblem, parsed: ParsedProblem) -> SolveOutcome:
@@ -59,7 +60,7 @@ def solve_problem(problem: MathProblem, parsed: ParsedProblem) -> SolveOutcome:
     except n.MathDomainError as exc:
         return SolveOutcome.unsupported(str(exc))
     except n.MathComplexityError as exc:
-        return SolveOutcome.unsupported(str(exc))
+        return SolveOutcome.unsupported(str(exc), code="resource_limit")
     candidate = MathSolutionCandidate.canonicalize(
         problem_id=problem.problem_id,
         strategy=problem.problem_type,

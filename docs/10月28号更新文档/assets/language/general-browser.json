@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "checks": [
+    "settings provides exactly Chinese/English, updates navigation and document language immediately, and persists across reload",
+    "native cross-tab storage sync preserves chat draft element, graph query/results, question text and historical user content",
+    "375px English settings fit the viewport; invalid stored values fall back to Chinese without API mutations",
+    "blocked preference storage still switches the current session and explains that it was not saved"
+  ],
+  "errors": [],
+  "mutations": [],
+  "scope": "Actual macOS Chromium UI; isolated synthetic REST/WebSocket fixtures; no model calls."
+}

@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from fractions import Fraction
+from functools import reduce
 
 from mathtutor.solving import nodes as n
+from mathtutor.solving.budget import fraction_add, fraction_sub, fraction_mul, fraction_div
 
 
 def affine(node: n.Node, variables: tuple[str, ...]) -> tuple[Fraction, ...]:
@@ -22,14 +24,16 @@ def affine(node: n.Node, variables: tuple[str, ...]) -> tuple[Fraction, ...]:
             return tuple(Fraction(int(name == item.name)) for name in variables) + (Fraction(0),)
         if isinstance(item, n.Add):
             values = [walk(term, depth + 1) for term in item.terms]
-            return tuple(sum(value[index] for value in values) for index in range(len(variables) + 1))
+            return tuple(reduce(fraction_add, (value[index] for value in values), Fraction(0))
+                         for index in range(len(variables) + 1))
         if isinstance(item, n.Mul):
             result = (*zeros, Fraction(1))
             for factor in item.factors:
                 right = walk(factor, depth + 1)
                 if any(result[:-1]) and any(right[:-1]):
                     raise n.MathDomainError("当前方程组只支持一次项，不支持未知数乘积")
-                result = tuple(result[i] * right[-1] + right[i] * result[-1] for i in range(len(variables))) + (result[-1] * right[-1],)
+                result = tuple(fraction_add(fraction_mul(result[i], right[-1]), fraction_mul(right[i], result[-1]))
+                               for i in range(len(variables))) + (fraction_mul(result[-1], right[-1]),)
             return result
         if isinstance(item, n.Div):
             if n.variables(item.den):
@@ -37,7 +41,7 @@ def affine(node: n.Node, variables: tuple[str, ...]) -> tuple[Fraction, ...]:
             denominator = n.evaluate(item.den).to_fraction()
             if not denominator:
                 raise n.MathDomainError("division by zero")
-            return tuple(value / denominator for value in walk(item.num, depth + 1))
+            return tuple(fraction_div(value, denominator) for value in walk(item.num, depth + 1))
         if isinstance(item, n.Pow) and not n.variables(item):
             return (*zeros, n.evaluate(item).to_fraction())
         raise n.MathDomainError("当前仅支持二元一次方程组")
@@ -46,7 +50,7 @@ def affine(node: n.Node, variables: tuple[str, ...]) -> tuple[Fraction, ...]:
 
 def equation_row(equation: n.Equation, variables: tuple[str, ...]) -> tuple[Fraction, ...]:
     left, right = affine(equation.lhs, variables), affine(equation.rhs, variables)
-    return tuple(left[index] - right[index] for index in range(len(variables))) + (right[-1] - left[-1],)
+    return tuple(fraction_sub(left[index], right[index]) for index in range(len(variables))) + (fraction_sub(right[-1], left[-1]),)
 
 
 def system_rows(ast: n.LinearSystem):
@@ -56,7 +60,7 @@ def system_rows(ast: n.LinearSystem):
     if len(variables) != 2:
         raise n.MathDomainError("当前方程组必须恰好有两个未知数")
     rows = tuple(equation_row(eq, variables) for eq in ast.equations)
-    if rows[0][0] * rows[1][1] - rows[1][0] * rows[0][1] == 0:
+    if fraction_sub(fraction_mul(rows[0][0], rows[1][1]), fraction_mul(rows[1][0], rows[0][1])) == 0:
         raise n.MathDomainError("该方程组没有唯一解，当前验证策略不支持无解或无穷多解")
     return variables, rows
 
@@ -68,9 +72,9 @@ def independent_values(ast: n.LinearSystem) -> dict[str, Fraction]:
     if matrix[0][0] == 0:
         matrix.reverse()
     scale = matrix[0][0]
-    matrix[0] = [value / scale for value in matrix[0]]
+    matrix[0] = [fraction_div(value, scale) for value in matrix[0]]
     scale = matrix[1][0]
-    matrix[1] = [matrix[1][i] - scale * matrix[0][i] for i in range(3)]
-    second = matrix[1][2] / matrix[1][1]
-    first = matrix[0][2] - matrix[0][1] * second
+    matrix[1] = [fraction_sub(matrix[1][i], fraction_mul(scale, matrix[0][i])) for i in range(3)]
+    second = fraction_div(matrix[1][2], matrix[1][1])
+    first = fraction_sub(matrix[0][2], fraction_mul(matrix[0][1], second))
     return dict(zip(variables, (first, second)))

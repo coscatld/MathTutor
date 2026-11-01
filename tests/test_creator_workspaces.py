@@ -117,14 +117,15 @@ async def test_writable_directory_alone_does_not_authorize_current_write(files, 
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("request_text", ["请保存到文件 result.md", "在授权目录新建 lesson.md", "保存这份笔记", "Save my notes to result.md", "Create a new Markdown file result.md"])
-async def test_explicit_current_write_request_executes_real_handler(files, request_text):
+@pytest.mark.parametrize("request_text,target", [("请保存到文件 result.md", "result.md"), ("在授权目录新建 lesson.md", "lesson.md"),
+    ("保存这份笔记为 result.md", "result.md"), ("Save my notes to result.md", "result.md"), ("Create a new Markdown file result.md", "result.md")])
+async def test_explicit_current_write_request_executes_real_handler(files, request_text, target):
     root, grants, grant, registry = files
     executor = registry.bind(ALICE, request_text=request_text)
     assert "ext_workspace_write_text" in names(executor)
     result = await executor.execute("ext_workspace_write_text", {"workspace_id": grant["workspace_id"],
-        "relative_path": "result.md", "content": "explicitly authorized"})
-    assert result["ok"] and (root / "result.md").read_text(encoding="utf-8") == "explicitly authorized"
+        "relative_path": target, "content": "explicitly authorized"})
+    assert result["ok"] and (root / target).read_text(encoding="utf-8") == "explicitly authorized"
 
 
 @pytest.mark.asyncio
@@ -251,6 +252,7 @@ def test_real_ws_tool_read_and_write_use_authenticated_owner_and_receipts(tmp_pa
         assert grant["workspace_id"] in tool["description"] and grant["name"] in tool["description"]
         assert (root / "lesson.md").read_text(encoding="utf-8") == args["content"]
         send(ws, "send_message", "read-lesson", {"text": "读一下刚才保存的 lesson.md"})
+        assert all(t["function"]["name"] != "ext_workspace_write_text" for t in requests[2]["tools"])
         receipt = next(json.loads(m["content"]) for m in requests[-1]["messages"] if m["role"] == "tool")
         assert "定义域" in receipt["result"]["text"] and receipt["authority"] == "reference_only"
         assert str(root) not in json.dumps(requests, ensure_ascii=False)
@@ -377,9 +379,9 @@ async def test_same_turn_fresh_responder_binding_cannot_execute_fourth_file_call
     turn = TutorTurnResult()
     token = current_turn.set(turn)
     try:
-        await responder.respond("请在授权目录保存前三份 Markdown 文件。", execution_context=ALICE)
+        await responder.respond("请在授权目录保存 saved-1.md、saved-2.md、saved-3.md。", execution_context=ALICE)
         assert turn.workspace_calls_used == 3
-        await responder.respond("请在授权目录再保存第四份 Markdown 文件。", execution_context=ALICE)
+        await responder.respond("请在授权目录保存 saved-4.md。", execution_context=ALICE)
     finally:
         current_turn.reset(token)
     assert len(bindings) == 2 and bindings[0] is not bindings[1]

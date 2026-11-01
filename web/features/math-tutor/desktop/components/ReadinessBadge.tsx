@@ -1,5 +1,7 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
+
 import { CheckCircle2, ChevronDown, ChevronUp, ShieldAlert, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { READINESS_LABELS } from "../lib/labels";
@@ -38,6 +40,7 @@ function StatusIcon({ status }: { status: ReadinessStatus }) {
  * Pure presentational: the parent supplies the Readiness payload.
  */
 export default function ReadinessBadge({ readiness }: { readiness: Readiness }) {
+  const {t} = useI18n();
   const [open, setOpen] = useState(false);
   const style = STATUS_STYLES[readiness.status];
   const reasons = Object.entries(readiness.reasons ?? {});
@@ -48,12 +51,12 @@ export default function ReadinessBadge({ readiness }: { readiness: Readiness }) 
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label={`系统状态：${READINESS_LABELS[readiness.status]}`}
+        aria-label={t("系统状态：{value0}", {value0: t(READINESS_LABELS[readiness.status])})}
         className={`inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${style.badge} ${style.text}`}
       >
         <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${style.dot} ${readiness.status === "DEGRADED" ? "animate-pulse" : ""}`} aria-hidden="true" />
         <StatusIcon status={readiness.status} />
-        {READINESS_LABELS[readiness.status]}
+        {t(READINESS_LABELS[readiness.status])}
         {reasons.length > 0 &&
           (open ? (
             <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
@@ -65,21 +68,20 @@ export default function ReadinessBadge({ readiness }: { readiness: Readiness }) 
       {open && reasons.length > 0 && (
         <div
           role="region"
-          aria-label="状态详情"
+          aria-label={t("状态详情")}
           className="mt-card absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg"
         >
           <ul className="flex flex-col gap-2">
             {reasons.map(([key, reason]) => (
               <li key={key} className="flex items-start gap-2 text-[var(--foreground)]">
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warning)]" aria-hidden="true" />
-                <span className="min-w-0">{reason}</span>
+                <span className="min-w-0">{t(reason)}</span>
               </li>
             ))}
           </ul>
           {readiness.status !== "READY" && (
             <p className="mt-2 border-t border-[var(--border)] pt-2 text-xs leading-relaxed text-[var(--muted-foreground)]">
-              核心练习仍可使用；配置模型后即可解锁全部功能。
-            </p>
+              {t("核心练习仍可使用；配置模型后即可解锁全部功能。")}</p>
           )}
         </div>
       )}

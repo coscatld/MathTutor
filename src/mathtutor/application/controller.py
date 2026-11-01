@@ -623,6 +623,7 @@ class MathTutorController:
                         continuation_turn.error_code = "CONTINUATION_BOUNDARY_UNVERIFIED"
                 await self._chat_message(session, text, history, stream,
                     owner_id=request.owner.student_id,
+                    client_session_id=request.session_id,
                     follow_up=bool(chat_context.get("follow_up")),
                     response_request=chat_context.get("response_request"),
                     plugin_context=chat_context.get("plugin_context"),
@@ -933,6 +934,10 @@ class MathTutorController:
         stream: MathTutorEventSink,
     ) -> None:
         constraint = evaluate_constraints(text)
+        if constraint.reason == "resource_limit":
+            await stream.error("这道表达式超出计算预算，请缩短式子或减小数值后重试。",
+                               source=self.manifest.name, metadata={"error_code": "RESOURCE_LIMIT"})
+            return
         logger.info(
             "tutor_orchestration conversation_id=%s constraint=%s reason=%s",
             request.session_id,
@@ -1254,8 +1259,15 @@ class MathTutorController:
                     extra["plugin_context"] = plugin_context
                 if "execution_context" in accepts and owner_id and client_session_id:
                     from mathtutor.extensions import ExecutionContext
-                    execution_context = ExecutionContext(owner_id=owner_id, conversation_id=client_session_id)
+                    from mathtutor.application.tutor_runtime import current_turn
+                    active_turn = current_turn.get()
+                    execution_context = ExecutionContext(owner_id=owner_id, conversation_id=client_session_id,
+                        request_id=active_turn.turn_id if active_turn and active_turn.turn_id else str(uuid4()))
                     extra["execution_context"] = execution_context
+                if "authorization_request" in accepts:
+                    # Authorization belongs to this authenticated turn, whereas
+                    # response_request may retain a historical explanation goal.
+                    extra["authorization_request"] = text
                 personal_memory = await self._personal_memory_context(owner_id)
                 if personal_memory is not None and "personal_memory" in accepts:
                     extra["personal_memory"] = personal_memory
@@ -1366,6 +1378,8 @@ class MathTutorController:
                     repair_parameters = inspect.signature(responder.respond).parameters
                     if "response_request" in repair_parameters:
                         repair_options["response_request"] = request_text
+                    if "authorization_request" in repair_parameters:
+                        repair_options["authorization_request"] = text
                     if document_context is not None and "document_context" in repair_parameters:
                         repair_options["document_context"] = document_context
                     if math_verify is not None and "math_verify" in repair_parameters:
@@ -1458,6 +1472,7 @@ class MathTutorController:
             supported = inspect.signature(responder.respond).parameters
             context_options = {key: value for key, value in {
                 "response_request": response_request, "learner_context": learner_context,
+                "authorization_request": text,
                 "document_context": document_context, "personal_memory": personal_memory,
                 "execution_context": execution_context,
             }.items() if key in supported and value is not None}
@@ -1476,7 +1491,13 @@ class MathTutorController:
                 note_turn(figures={"removed": removed})
             return again
         turn.figures = []
-        turn.finish_reason, turn.status, turn.final_text, turn.error_code = saved
+        from mathtutor.domain.turn_result import FinishReason
+        if turn.finish_reason == FinishReason.TOKEN_LIMIT:
+            # The reliable first explanation survives a failed redraw, but a
+            # budget stop must not become a completed answer again.
+            turn.stop(FinishReason.TOKEN_LIMIT, first_answer)
+        else:
+            turn.finish_reason, turn.status, turn.final_text, turn.error_code = saved
         return first_answer
 
     # ------------------------------------------------------------- dispatch
@@ -1612,6 +1633,10 @@ class MathTutorController:
     ) -> None:
         text = str(payload.get("text", ""))
         constraint = constraint or evaluate_constraints(text)
+        if constraint.reason == "resource_limit":
+            await stream.error("这道表达式超出计算预算，请缩短式子或减小数值后重试。",
+                               source=self.manifest.name, metadata={"error_code": "RESOURCE_LIMIT"})
+            return
         if (
             constraint.status is ConstraintStatus.SOFT_FAIL
             and constraint.reason != "unsupported_family"
@@ -1687,6 +1712,11 @@ class MathTutorController:
         if session.state != CycleState.GROUNDING:
             raise InvalidTransitionError(session.state, CycleCommand.GROUNDING_OK)
         constraint = constraint or evaluate_constraints(text)
+        if constraint.reason == "resource_limit":
+            await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+            await stream.error("这道表达式超出计算预算，请缩短式子或减小数值后重试。",
+                               source=self.manifest.name, metadata={"error_code": "RESOURCE_LIMIT"})
+            return
         logger.info(
             "tutor_orchestration state=grounding constraint=%s reason=%s",
             constraint.status.value,
@@ -1777,6 +1807,10 @@ class MathTutorController:
         if result.kind == "unsupported":
             logger.info("problem_grounding unsupported reason=%s", result.reason)
             transition = await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+            if result.code == "resource_limit":
+                await stream.error("这道表达式超出计算预算，请缩短式子或减小数值后重试。",
+                                   source=self.manifest.name, metadata={"error_code": "RESOURCE_LIMIT"})
+                return
             _, recovery = await self._remember_recovery(session, owner_id, constraint.raw_text, mathematical=True)
             if self.chat_responder is not None and getattr(self.chat_responder, "is_configured", True):
                 await self._chat_message(session, constraint.raw_text, (), stream,

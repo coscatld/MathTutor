@@ -122,7 +122,8 @@ async def test_call_limit_and_context_never_give_mastery_authority():
         assert result["ok"] and result["authority"] == "reference_only"
     assert executor.definitions() == []
     assert (await executor.execute("ext_echo", {"value": 2}))["code"] == "EXTENSION_CALL_LIMIT"
-    assert set(CTX.model_dump()) == {"owner_id", "conversation_id"}
+    assert set(CTX.model_dump()) == {"owner_id", "conversation_id", "request_id"}
+    assert CTX.request_id
     with pytest.raises(ValidationError):
         ExecutionContext(owner_id="alice", conversation_id="lesson", tools=["shell"])
 

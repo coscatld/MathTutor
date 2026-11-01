@@ -89,46 +89,157 @@ def _to_student_frame(event: Any) -> dict[str, Any]:
     return StudentPublicEvent(event_type="turn_error", payload={"error": "internal event dropped"}).wire_dict()
 
 
+# Per-connection application buffers. Transport frame limits remain an ASGI
+# server concern; oversized frames are rejected before JSON parsing/admission.
+INCOMING_CAPACITY = 16
+OUTGOING_CAPACITY = 32
+MAX_INCOMING_CHARS = 65_536
+MAX_OUTGOING_CHARS = 262_144
+SEND_TIMEOUT_SECONDS = 2.0
+CLOSE_TIMEOUT_SECONDS = 1.0
+
+
 @router.websocket("/ws")
 async def math_tutor_websocket(ws: WebSocket) -> None:
     owner = await ws_require_student_owner(ws)
-    if owner is None:  # socket already closed (401-style rejection)
+    if owner is None:
         return
 
     await ws.accept()
     state = get_product_state()
     closed = False
     active_task: asyncio.Task | None = None
+    request_task: asyncio.Task | None = None
     active_conversation = ""
-    incoming: asyncio.Queue[str | None] = asyncio.Queue(maxsize=16)
+    cancel_requested = False
+    incoming: asyncio.Queue[str | None] = asyncio.Queue(maxsize=INCOMING_CAPACITY)
+    outgoing: asyncio.Queue[str] = asyncio.Queue(maxsize=OUTGOING_CAPACITY)
+    admitted: dict[tuple[str, str], str] = {}
     disconnect_reason = FinishReason.STREAM_INTERRUPTED
+    close_code, close_reason = 1000, ""
+    writer: asyncio.Task | None = None
 
-    def set_active(task, conversation_id):
-        nonlocal active_task, active_conversation
-        active_task, active_conversation = task, conversation_id
-
-    async def safe_send(data: dict[str, Any]) -> None:
-        nonlocal closed
+    def stop_connection(code=1013, reason="Connection overloaded; reconnect and retry the same request ID"):
+        nonlocal closed, close_code, close_reason
         if closed:
             return
+        closed, close_code, close_reason = True, code, reason
+        # Dropped buffered requests were never claimed by the durable journal.
+        # Reconnection reuses request IDs; a claimed request replays its result.
+        while not incoming.empty():
+            incoming.get_nowait()
+        incoming.put_nowait(None)
+        admitted.clear()
+        if active_task is not None and not active_task.done():
+            active_task.cancel()
+        elif request_task is not None and not request_task.done():
+            request_task.cancel()
+        if writer is not None and writer is not asyncio.current_task() and not writer.done():
+            writer.cancel()
+
+    def set_active(task, conversation_id):
+        nonlocal active_task
+        active_task = task
+        if task is not None and cancel_requested:
+            # The run coroutine must enter its try/finally before cancellation,
+            # so it closes the event stream and persists a CANCELLED receipt.
+            asyncio.get_running_loop().call_soon(task.cancel)
+
+    async def write_messages():
         try:
-            await ws.send_text(json.dumps(data, ensure_ascii=False, default=str))
+            while not closed:
+                text = await outgoing.get()
+                await asyncio.wait_for(ws.send_text(text), SEND_TIMEOUT_SECONDS)
+        except asyncio.CancelledError:
+            raise
         except Exception:
-            closed = True
+            stop_connection()
+        finally:
+            with anyio.move_on_after(CLOSE_TIMEOUT_SECONDS, shield=True):
+                try:
+                    await ws.close(code=close_code, reason=close_reason)
+                except (WebSocketDisconnect, RuntimeError, OSError):
+                    pass
+
+    writer = asyncio.create_task(write_messages(), name="math-tutor-ws-writer")
+
+    async def safe_send(data: dict[str, Any]) -> None:
+        # Never wait for a socket or queue slot in the sole reader. A stalled
+        # client gets one bounded writer and a bounded close, not extra tasks.
+        if closed:
+            return
+        text = json.dumps(data, ensure_ascii=False, default=str)
+        if len(text) > MAX_OUTGOING_CHARS:
+            stop_connection(reason="Response exceeds connection buffer limit; reconnect to resync")
+            return
+        try:
+            outgoing.put_nowait(text)
+        except asyncio.QueueFull:
+            stop_connection()
+
+    def envelope_for(raw):
+        try:
+            value = json.loads(raw)
+            return validate_client_envelope(value)
+        except (ValueError, SecurityViolationError):
+            return {}
+
+    def conversation_for(raw):
+        envelope = envelope_for(raw)
+        return str(envelope.get("session_id") or "default")
+
+    def admission_identity(raw):
+        envelope = envelope_for(raw)
+        key = envelope.get("request_id") or envelope.get("idempotency_key")
+        if not key:
+            return None, ""
+        identity = (str(envelope.get("session_id") or "default"), key)
+        canonical = _canonical_envelope(raw)
+        fingerprint = content_hash({k: v for k, v in canonical.items()
+                                    if k not in {"request_id", "idempotency_key"}})
+        return identity, fingerprint
+
+    async def reject(raw, code, message):
+        envelope = envelope_for(raw)
+        request_id = str(envelope.get("request_id") or envelope.get("idempotency_key") or "")
+        await safe_send(StudentPublicEvent(event_type="assistant_error", payload={
+            "turn_id": request_id + (":conflict" if code == "REQUEST_ID_CONFLICT" else ""), "conversation_id": str(envelope.get("session_id") or "default"),
+            "status": "FAILED", "error_code": code, "error": message,
+            "accepted": False, "retryable": True,
+        }).wire_dict())
+
+    async def discard_queued(conversation_id):
+        kept, discarded = [], []
+        while not incoming.empty():
+            raw = incoming.get_nowait()
+            (discarded if raw is not None and conversation_for(raw) == conversation_id else kept).append(raw)
+        for raw in kept:
+            incoming.put_nowait(raw)
+        for raw in discarded:
+            identity, _ = admission_identity(raw)
+            admitted.pop(identity, None)
+            await reject(raw, "REQUEST_CANCELLED_BEFORE_START", "已停止：这条排队请求尚未执行。如需继续，请重新发送。")
+        return len(discarded)
 
     async def receive_messages() -> None:
-        nonlocal closed, disconnect_reason
+        nonlocal disconnect_reason, cancel_requested
         try:
-            while True:
+            while not closed:
                 raw = await ws.receive_text()
+                if len(raw) > MAX_INCOMING_CHARS:
+                    # No unbounded echo/JSON parse of the oversized input.
+                    await safe_send(StudentPublicEvent(event_type="turn_error", payload={
+                        "error_code": "REQUEST_TOO_LARGE", "error": "消息过长，请缩短后重新发送。",
+                    }).wire_dict())
+                    stop_connection(1009, "Message exceeds application limit")
+                    return
                 try:
                     envelope = json.loads(raw)
                     if (isinstance(envelope, dict) and envelope.get("type") == "delivery_presented"
                             and set(envelope) == {"type", "delivery_id"}
                             and isinstance(envelope["delivery_id"], str) and len(envelope["delivery_id"]) <= 160):
-                        # Disconnect cancels this reader directly. Let the short
-                        # receipt write finish: cancelling a driver execute can
-                        # retain an unread SQLite cursor and its file handle.
+                        # Owner-scoped repository lookup rejects another owner's
+                        # receipt. Preserve the short owned SQLite write on exit.
                         receipt = asyncio.create_task(state.controller.mark_delivery(
                             owner.student_id, envelope["delivery_id"], "presented"),
                             name="delivery-presented")
@@ -142,45 +253,85 @@ async def math_tutor_websocket(ws: WebSocket) -> None:
                     validate_client_envelope(envelope)
                 except (ValueError, SecurityViolationError):
                     envelope = {}
-                if isinstance(envelope, dict) and envelope.get("command") == "cancel_turn" and (not envelope.get("session_id") or envelope.get("session_id") == active_conversation) and active_task is not None and not active_task.done():
-                    disconnect_reason = FinishReason.USER_CANCELLED
-                    active_task.cancel()
-                else:
-                    await incoming.put(raw)
+                if isinstance(envelope, dict) and envelope.get("command") == "cancel_turn":
+                    requested = envelope.get("session_id")
+                    if requested is not None and (not isinstance(requested, str) or not requested or len(requested) > 160):
+                        await reject(raw, "CANCEL_SESSION_MISMATCH", "停止请求的对话标识无效。")
+                        continue
+                    target = requested or active_conversation or "default"
+                    if active_conversation and target != active_conversation:
+                        await reject(raw, "CANCEL_SESSION_MISMATCH", "停止请求与当前生成的对话不一致。")
+                        continue
+                    discarded = await discard_queued(target)
+                    if active_conversation:
+                        disconnect_reason = FinishReason.USER_CANCELLED
+                        cancel_requested = True
+                        if active_task is not None and not active_task.done():
+                            active_task.cancel()
+                    elif not discarded:
+                        await reject(raw, "CANCEL_NOT_RUNNING", "当前没有正在生成或排队的请求。")
+                    continue
+                identity, fingerprint = admission_identity(raw)
+                if identity is not None and identity in admitted:
+                    if admitted[identity] != fingerprint:
+                        await reject(raw, "REQUEST_ID_CONFLICT", "同一个请求标识对应了不同内容，请重新发送。")
+                    # A retry of an already buffered/running request shares its
+                    # forthcoming receipt; it cannot fill the queue or be
+                    # misreported as rejected when its original is accepted.
+                    continue
+                try:
+                    incoming.put_nowait(raw)
+                    if identity is not None:
+                        admitted[identity] = fingerprint
+                except asyncio.QueueFull:
+                    await reject(raw, "REQUEST_QUEUE_FULL", "请求队列已满，这条请求尚未执行。请稍后重试。")
         except WebSocketDisconnect:
-            closed = True
-            if active_task is not None and not active_task.done():
-                active_task.cancel()
+            stop_connection(1000, "")
+        except (RuntimeError, KeyError):
+            stop_connection(1003, "Unsupported websocket frame")
         finally:
-            try:
-                incoming.put_nowait(None)
-            except asyncio.QueueFull:
-                pass
+            if not closed:
+                try:
+                    incoming.put_nowait(None)
+                except asyncio.QueueFull:
+                    pass
 
-    reader = asyncio.create_task(receive_messages())
+    reader = asyncio.create_task(receive_messages(), name="math-tutor-ws-reader")
     try:
         while not closed:
             raw = await incoming.get()
             if raw is None:
                 break
+            identity, _ = admission_identity(raw)
             user_message, session_id = await _normalize_message(raw, safe_send)
             if user_message is not None:
                 session_id = session_id or "default"
                 display_text, event_key = _message_projection(user_message)
                 disconnect_reason = FinishReason.STREAM_INTERRUPTED
-                await _process_request(state, owner, session_id, user_message, event_key,
-                                       display_text, safe_send, set_active,
-                                       lambda: disconnect_reason)
-            # Turn-termination frame: the client reads events until it sees
-            # this marker (the socket stays open for the next command).
+                cancel_requested = False
+                active_conversation = session_id
+                request_task = asyncio.create_task(_process_request(
+                    state, owner, session_id, user_message, event_key, display_text,
+                    safe_send, set_active, lambda: disconnect_reason), name="math-tutor-ws-request")
+                try:
+                    await request_task
+                except asyncio.CancelledError:
+                    if not closed:
+                        raise
+                finally:
+                    active_conversation = ""
+                    request_task = None
+            admitted.pop(identity, None)
             await safe_send(StudentPublicEvent(event_type="turn_end", payload={"conversation_id": session_id}).wire_dict())
     except WebSocketDisconnect:
-        pass
+        stop_connection(1000, "")
     finally:
         with anyio.fail_after(5, shield=True):
-            owned = {reader}
+            owned = {reader, writer}
             if active_task is not None:
                 owned.add(active_task)
+            if request_task is not None:
+                owned.add(request_task)
             for task in owned:
                 if not task.done():
                     task.cancel()

@@ -15,7 +15,7 @@ reasoning / attestation payload / full document in logs, events or errors).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 #: Substrings that make a KEY forbidden in metrics/logs. Normalized to
@@ -166,6 +166,20 @@ def aggregate_readiness(
     return "READY", {**details, "reason": "全部就绪"}
 
 
+@dataclass(slots=True)
+class RetrievalTurnStats:
+    """One KnowledgeQA response attempt; contains no identity or content.
+
+    Explicitly shared by initial retrieval and its tools. Closing is
+    idempotent; late work cannot mutate a completed turn's denominator.
+    """
+
+    _registry: MathTutorMetrics = field(repr=False)
+    had_initial: bool = False
+    had_second: bool = False
+    closed: bool = False
+
+
 class MathTutorMetrics:
     """Process-local metric registry (latency, tokens, lag, release gate)."""
 
@@ -176,8 +190,6 @@ class MathTutorMetrics:
         self._outbox_pending: int | None = None
         self._outbox_oldest_seconds: float | None = None
         self._rag: dict[str, int] = {name: 0 for name in _RAG_COUNTERS}
-        self._turn_had_initial_retrieval = False
-        self._turn_had_second = False
 
     # ----------------------------------------------------------- record
 
@@ -208,6 +220,13 @@ class MathTutorMetrics:
 
     # --------------------------------------------------------------- RAG
 
+    def begin_retrieval_turn(self) -> RetrievalTurnStats:
+        return RetrievalTurnStats(self)
+
+    def _validate_turn(self, turn_stats: RetrievalTurnStats | None) -> None:
+        if turn_stats is not None and turn_stats._registry is not self:
+            raise ValueError("retrieval scope belongs to another metrics registry")
+
     def record_retrieval(
         self,
         execution: Any,
@@ -215,6 +234,7 @@ class MathTutorMetrics:
         latency_ms: float | None = None,
         rerank_ms: float | None = None,
         context_chars: int = 0,
+        turn_stats: RetrievalTurnStats | None = None,
     ) -> None:
         """Fold one turn's :class:`RetrievalExecution` into the counters.
 
@@ -222,11 +242,13 @@ class MathTutorMetrics:
         the retrieval stack actually reported, not a re-derivation from config.
         Only counts and reason codes are stored — never chunk text.
         """
+        self._validate_turn(turn_stats)
         asked = bool(getattr(execution, "retrieval_ran", False))
         decision = str(getattr(execution, "decision", "") or "")
         if asked:
             self._rag["rag_retrieval_requested_total"] += 1
-            self._turn_had_initial_retrieval = True
+            if turn_stats is not None and not turn_stats.closed:
+                turn_stats.had_initial = True
         elif decision:
             self._rag["rag_retrieval_skipped_total"] += 1
 
@@ -257,37 +279,40 @@ class MathTutorMetrics:
         if rerank_ms is not None:
             self.record_latency("rerank", rerank_ms)
 
-    def record_tool_call(self, tool_name: str) -> None:
+    def record_tool_call(self, tool_name: str, *, turn_stats: RetrievalTurnStats | None = None) -> None:
         """Count an executed application-tool call by name.
 
         Only the two retrieval tools are counted; anything else is ignored
         rather than growing the key set at runtime.
         """
+        self._validate_turn(turn_stats)
         if tool_name == "search_knowledge":
             self._rag["tool_search_calls"] += 1
             # Turn-level flag for `second_retrieval_rate`. Guarded so three
             # searches in one turn still count as ONE turn that needed a
             # second retrieval — a call-count ratio would overstate how often
             # the initial retrieval was insufficient.
-            if self._turn_had_initial_retrieval and not self._turn_had_second:
-                self._turn_had_second = True
+            if turn_stats is not None and not turn_stats.closed and turn_stats.had_initial:
+                turn_stats.had_second = True
         elif tool_name == "read_source":
             self._rag["tool_read_calls"] += 1
 
-    def end_retrieval_turn(self) -> None:
-        """Close the current turn's retrieval bookkeeping.
+    def end_retrieval_turn(self, turn_stats: RetrievalTurnStats) -> None:
+        """Commit exactly one response attempt's retrieval bookkeeping.
 
         Must be called once per turn by the turn owner. Without it the turn
         denominators never accumulate and the rates read as 0 forever — an
         absent measurement, not a healthy one.
         """
+        self._validate_turn(turn_stats)
+        if turn_stats.closed:
+            return
+        turn_stats.closed = True
         self._rag["rag_turns_total"] += 1
-        if self._turn_had_initial_retrieval:
+        if turn_stats.had_initial:
             self._rag["rag_turns_with_initial_total"] += 1
-            if self._turn_had_second:
+            if turn_stats.had_second:
                 self._rag["rag_turns_with_second_total"] += 1
-        self._turn_had_initial_retrieval = False
-        self._turn_had_second = False
 
     def record_citations(self, count: int, *, unsupported: int = 0) -> None:
         """Count citations in a final answer, plus any that failed support."""
@@ -317,6 +342,7 @@ class MathTutorMetrics:
         searched = self._rag["tool_search_calls"]
         return {
             **dict(self._rag),
+            "rag_turn_semantics_version": 2,
             "second_retrieval_rate": (
                 round(turns_second / turns_initial, 4) if turns_initial else 0.0
             ),
@@ -454,6 +480,7 @@ __all__ = [
     "LATENCY_BUCKETS_MS",
     "Histogram",
     "MathTutorMetrics",
+    "RetrievalTurnStats",
     "aggregate_readiness",
     "sanitize_for_logs",
 ]

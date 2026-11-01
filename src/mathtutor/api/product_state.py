@@ -27,6 +27,7 @@ Construction rules:
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import tempfile
 from pathlib import Path
 
@@ -220,6 +221,10 @@ class ProductState:
         self._maintenance_active = False
         self.lifecycle_status = "RUNNING"
         self._shutdown_task = None
+        self._restore_task = None
+        self._maintenance_replacement = None
+        self.restore_status = "IDLE"
+        self.restore_recovery_path = None
 
         # ---- Phase 5/6 knowledge surface -------------------------------
         # The gateway is built FIRST so the capability's writer can be
@@ -578,42 +583,92 @@ class ProductState:
             if self._maintenance_active or self.lifecycle_status != "RUNNING":
                 return False
             self._maintenance_active = True
+            acquired = False
             try:
-                await asyncio.wait_for(
-                    self._maintenance_condition.wait_for(
+                # Keep Condition.wait in this task. wait_for would spawn a
+                # child waiter whose lock reacquisition can outlive a second
+                # cancellation of the acquisition caller.
+                async with asyncio.timeout(timeout):
+                    await self._maintenance_condition.wait_for(
                         lambda: self._active_requests <= 1
-                    ),
-                    timeout=timeout,
-                )
+                    )
+                acquired = True
+                return True
             except TimeoutError:
-                self._maintenance_active = False
-                self._maintenance_condition.notify_all()
                 return False
-            return True
+            finally:
+                # Also runs for cancellation while Condition.wait_for drains.
+                # A rejected contender never changes the existing owner's gate.
+                if not acquired:
+                    self._maintenance_active = False
+                    self._maintenance_condition.notify_all()
+
+    @asynccontextmanager
+    async def maintenance(self, *, timeout: float = 5.0):
+        acquired = await self.begin_maintenance(timeout=timeout)
+        try:
+            yield acquired
+        finally:
+            if acquired:
+                from mathtutor.infrastructure.owned_task import join_owned
+                await join_owned(asyncio.create_task(self.end_maintenance()))
+
+    async def run_restore(self, operation):
+        """Own the complete restore, not just the thread copying its files."""
+        from mathtutor.infrastructure.owned_task import join_owned
+        if self._restore_task is not None and not self._restore_task.done():
+            return {"ok": False, "message": "恢复正在进行，请稍后重试。"}
+        self._restore_task = asyncio.create_task(operation(), name="product-restore")
+        return await join_owned(self._restore_task)
 
     async def end_maintenance(self) -> None:
         async with self._maintenance_condition:
-            self._maintenance_active = False
+            if self.lifecycle_status != "FAILED":
+                self._maintenance_active = False
             self._maintenance_condition.notify_all()
+        replacement = self._maintenance_replacement
+        if replacement is not None:
+            await replacement.end_maintenance()
 
     async def shutdown_runtime(self) -> None:
-        """Join one owned cleanup task, including when the caller is cancelled."""
-        if self.lifecycle_status == "STOPPED":
+        """Join owned restore/cleanup, including repeated caller cancellation."""
+        from mathtutor.infrastructure.owned_task import join_owned
+        cancelled = False
+        restore = self._restore_task
+        if restore is not None and not restore.done() and restore is not asyncio.current_task():
+            try:
+                await join_owned(restore)
+            except asyncio.CancelledError:
+                cancelled = True
+        # An app shutdown may have captured this old state before restore
+        # published its replacement. The new runtime belongs to that shutdown
+        # too; merely observing this old runtime's STOPPED flag is insufficient.
+        replacement = self._maintenance_replacement
+        if replacement is not None:
+            await replacement.shutdown_runtime()
+            if cancelled:
+                raise asyncio.CancelledError
+            return
+        already_closed = (self.restore_status == "FAILED" and self._shutdown_task is not None
+                          and self._shutdown_task.done() and not self._shutdown_task.cancelled()
+                          and self._shutdown_task.exception() is None)
+        if self.lifecycle_status == "STOPPED" or already_closed:
+            if cancelled:
+                raise asyncio.CancelledError
             return
         if self._shutdown_task is None or self._shutdown_task.done():
             self._shutdown_restore = self._maintenance_active and self.lifecycle_status == "RUNNING"
             self.lifecycle_status = "STOPPING"
             self._maintenance_active = True
             self._shutdown_task = asyncio.create_task(self._shutdown_owned(), name="product-shutdown")
-        task = self._shutdown_task
         try:
-            await asyncio.shield(task)
+            await join_owned(self._shutdown_task)
         except asyncio.CancelledError:
-            # Cancellation of the caller must not abandon connection cleanup.
-            await asyncio.shield(task)
             from mathtutor.infrastructure.lifecycle_trace import trace
             trace(id(self), "caller_cancellation_complete")
             raise
+        if cancelled:
+            raise asyncio.CancelledError
 
     async def _shutdown_owned(self) -> None:
         import sqlalchemy as sa
@@ -766,6 +821,47 @@ class ProductState:
 _default_state: ProductState | None = None
 
 
+def _build_product_state(db_path: Path | None = None, *, extension_registry=None) -> ProductState:
+    if db_path is not None:
+        # Durable mode: BOTH the cycle store and the math-fact
+        # repositories live in the same SQLite file — a restart restores
+        # cycles AND the verified problems they reference. The knowledge
+        # repositories (memory/documents) share that database; imported
+        # document bytes live under the SAME data dir (controlled
+        # storage: <data_dir>/uploads/<student>/<document>/).
+        from mathtutor.infrastructure.db import create_db_engine
+        from mathtutor.repositories.sqlite_math_facts import (
+            SQLiteProblemRepository,
+            SQLiteSolutionRepository,
+        )
+        from mathtutor.repositories.sqlite_store import SQLiteSessionStore
+        from mathtutor.repositories.uow import MathTutorUow
+
+        engine = create_db_engine(db_path)
+        uow = MathTutorUow(engine)
+        from mathtutor.infrastructure.verifier_worker import (
+            VerifierWorkerManager,
+        )
+
+        verification_backend = VerifierWorkerManager()
+        result = ProductState(
+            store=SQLiteSessionStore(engine),
+            service=MathTutorApplicationService(
+                problems=SQLiteProblemRepository(uow),
+                solutions=SQLiteSolutionRepository(uow),
+                verification_backend=verification_backend,
+            ),
+            engine=engine,
+            data_dir=db_path.parent,
+            db_path=db_path,
+            verification_backend=verification_backend,
+            extension_registry=extension_registry,
+        )
+    else:
+        result = ProductState(extension_registry=extension_registry)
+    return result
+
+
 def get_product_state(db_path: Path | None = None, *, extension_registry=None) -> ProductState:
     """Return the process singleton, initializing it on first use.
 
@@ -774,46 +870,26 @@ def get_product_state(db_path: Path | None = None, *, extension_registry=None) -
     """
     global _default_state
     if _default_state is None:
-        if db_path is not None:
-            # Durable mode: BOTH the cycle store and the math-fact
-            # repositories live in the same SQLite file — a restart restores
-            # cycles AND the verified problems they reference. The knowledge
-            # repositories (memory/documents) share that database; imported
-            # document bytes live under the SAME data dir (controlled
-            # storage: <data_dir>/uploads/<student>/<document>/).
-            from mathtutor.infrastructure.db import create_db_engine
-            from mathtutor.repositories.sqlite_math_facts import (
-                SQLiteProblemRepository,
-                SQLiteSolutionRepository,
-            )
-            from mathtutor.repositories.sqlite_store import SQLiteSessionStore
-            from mathtutor.repositories.uow import MathTutorUow
-
-            engine = create_db_engine(db_path)
-            uow = MathTutorUow(engine)
-            from mathtutor.infrastructure.verifier_worker import (
-                VerifierWorkerManager,
-            )
-
-            verification_backend = VerifierWorkerManager()
-            _default_state = ProductState(
-                store=SQLiteSessionStore(engine),
-                service=MathTutorApplicationService(
-                    problems=SQLiteProblemRepository(uow),
-                    solutions=SQLiteSolutionRepository(uow),
-                    verification_backend=verification_backend,
-                ),
-                engine=engine,
-                data_dir=db_path.parent,
-                db_path=db_path,
-                verification_backend=verification_backend,
-                extension_registry=extension_registry,
-            )
-        else:
-            _default_state = ProductState(extension_registry=extension_registry)
+        _default_state = _build_product_state(db_path, extension_registry=extension_registry)
     elif extension_registry is not None and _default_state.extension_registry is not extension_registry:
         raise ValueError("Inject the extension registry before product state initialization")
     return _default_state
+
+
+def rebuild_product_state(state: ProductState) -> ProductState:
+    """Publish a fully built replacement with admission still closed.
+
+    Keep the stopped/failed singleton installed if construction raises. The
+    restore owner releases the replacement only after reaching a safe terminal
+    state; cancellation cannot expose a partially rebuilt runtime.
+    """
+    global _default_state
+    replacement = _build_product_state(state.db_path)
+    replacement._maintenance_active = True
+    replacement._restore_task = state._restore_task
+    state._maintenance_replacement = replacement
+    _default_state = replacement
+    return replacement
 
 
 def current_product_state() -> ProductState | None:
@@ -839,4 +915,5 @@ __all__ = [
     "current_product_state",
     "get_product_state",
     "reset_product_state",
+    "rebuild_product_state",
 ]

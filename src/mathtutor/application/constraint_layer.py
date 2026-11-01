@@ -80,6 +80,12 @@ def evaluate_constraints(text: str) -> ConstraintResult:
         )
 
     parse = parse_problem(normalized.normalized)
+    if parse.code == "resource_limit":
+        return ConstraintResult(
+            status=ConstraintStatus.HARD_FAIL, raw_text=normalized.raw,
+            normalized_text=normalized.normalized, repairs=normalized.repairs,
+            parse=parse, reason="resource_limit",
+        )
     ambiguity = _semantic_ambiguity(normalized, parse)
     if ambiguity is not None:
         return ambiguity

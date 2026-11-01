@@ -127,7 +127,7 @@ def test_draw_attempts_are_bounded_per_turn(tmp_path):
     bad = {"title": "坏图", "objects": [{"id": "Q", "type": "magic"}]}
     calls = {"choices": [{"message": {"content": "", "tool_calls": [
         {"id": f"d{i}", "type": "function", "function": {"name": "draw_scene", "arguments": json.dumps(bad)}} for i in range(5)]},
-        "finish_reason": "tool_calls"}]}
+        "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": 40, "completion_tokens": 10}}
     with client_at(tmp_path / "draw.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         bind([calls, answer("这张图暂时画不了，我用文字说明。")], requests)
         frames = send(ws, "send_message", "q", {"text": QUESTION})
@@ -180,6 +180,29 @@ def test_redraw_request_can_replace_a_text_figure_with_a_canvas(tmp_path):
     assert payload["action"] == "TUTOR_CHAT_FIGURE"
     assert "看下图" in payload["student_message"] and "|     |" not in payload["student_message"]
     assert traces[0]["details"]["figure_repair"] == {"attempted": 1, "succeeded": 1}
+
+
+def test_redraw_budget_stop_keeps_reliable_text_partial_without_another_provider_call(tmp_path):
+    requests = []
+    text = "椭圆如下：\n\n   ___\n  /   \\\n |     |\n  \\___/\n\n焦点在长轴上。"
+    first = answer(text)
+    # The first answer is within the unchanged default cap. Its reliable text
+    # remains usable, but the remaining four tokens cannot fund a redraw.
+    first["usage"] = {"prompt_tokens": 16360, "completion_tokens": 20}
+    with client_at(tmp_path / "draw-budget.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+        bind([first], requests)
+        frames = send(ws, "send_message", "draw-budget", {"text": QUESTION})
+        traces = client.get("/api/v2/math-tutor/desktop/diagnostics/turns").json()["turns"]
+    assert len(requests) == 1
+    final = next(frame["payload"] for frame in frames if frame["event_type"] == "assistant_partial")
+    assert final["status"] == "PARTIAL" and final["finish_reason"] == "TOKEN_LIMIT"
+    assert final["error_code"] == "TUTOR_TOKEN_LIMIT"
+    assert "焦点在长轴上。" in final["final_text"] and "|     |" not in final["final_text"]
+    assert not any(frame["event_type"] == "assistant_complete" for frame in frames)
+    assert traces[0]["status"] == "PARTIAL" and traces[0]["finish_reason"] == "TOKEN_LIMIT"
+    assert traces[0]["error_code"] == "TUTOR_TOKEN_LIMIT"
+    assert traces[0]["details"]["response_failure"]["code"] == "TUTOR_TOKEN_LIMIT"
+    assert traces[0]["details"]["figure_repair"] == {"attempted": 1, "succeeded": 0}
 
 
 # --------------------------------------------------------------------------- sanitizer

@@ -22,6 +22,7 @@ import {
   shouldRenderTutorText,
   projectAllowedActions,
   projectRecoveryProblem,
+  isUnstartedRequestRejection,
 } from "./protocol";
 import { projectActiveOffer, projectDiagnosis, projectEvidenceSummary, projectProblemContext, projectTeachingPlan } from "./teaching-contract";
 import { projectAttachments, type MessageAttachment } from "./attachments";
@@ -124,6 +125,12 @@ function applyFrame(state: MathTutorUIState, frame: StudentFrame): MathTutorUISt
     return next;
   }
   if (["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)) {
+    if (isUnstartedRequestRejection(frame)) {
+      next.messages = appendMessage(next, { kind: "error", text: projectTurnError(frame.payload.error || "请求尚未执行，请重试。"),
+        status: "FAILED", turnId: frame.payload.turn_id, action: "", assistanceLevel: 0, version: next.seenVersion });
+      next.pendingCommand = null;
+      return next;
+    }
     const status = frame.event_type === "assistant_complete" ? "COMPLETED" : frame.event_type === "assistant_partial" ? "PARTIAL" : frame.payload.status === "CANCELLED" ? "CANCELLED" : "FAILED";
     next.messages = state.messages.map(m => m.turnId === frame.payload.turn_id ? { ...m, status, finishReason: frame.payload.finish_reason,
       verificationNotice: frame.payload.verification_notice ?? m.verificationNotice } : m);

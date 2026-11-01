@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n";
+
 import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 
@@ -8,6 +10,7 @@ export type ConversationDeleteResult = "deleted" | "cancelled";
 export default function ConversationDeleteDialog({ title, permanent = false, onCancel, onConfirm }: {
   title: string; permanent?: boolean; onCancel: () => void; onConfirm: () => Promise<ConversationDeleteResult>;
 }) {
+  const { t } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
   const inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -34,21 +37,21 @@ export default function ConversationDeleteDialog({ title, permanent = false, onC
     onCancel={e => { e.preventDefault(); if (!inFlight.current) onCancel(); }}
     className="mt-card m-auto w-[calc(100%-2rem)] max-w-md p-6 text-[var(--foreground)] shadow-xl backdrop:bg-black/35">
     <Trash2 aria-hidden="true" className="mb-4 h-6 w-6 text-[var(--muted-foreground)]" />
-    <h2 id="delete-conversation-title" className="text-lg font-semibold">{permanent ? "彻底删除此对话？" : "将此对话移入垃圾桶？"}</h2>
+    <h2 id="delete-conversation-title" className="text-lg font-semibold">{permanent ? t("彻底删除此对话？") : t("将此对话移入垃圾桶？")}</h2>
     <p className="mt-2 break-words text-sm font-medium">{title}</p>
     <div id="delete-conversation-copy" className="mt-3 space-y-2 text-sm leading-6 text-[var(--muted-foreground)]">
       {permanent ? <>
-        <p>聊天记录和仅属于此对话的文件、图片将被删除，无法从垃圾桶恢复。</p>
-        <p>总资料、其他对话共用的附件、学习记录与已有备份不会删除。学习记录请在“我的数据”中管理。</p>
+        <p>{t("聊天记录和仅属于此对话的文件、图片将被删除，无法从垃圾桶恢复。")}</p>
+        <p>{t("总资料、其他对话共用的附件、学习记录与已有备份不会删除。学习记录请在“我的数据”中管理。")}</p>
       </> : <>
-        <p>本地记录不会删除，将会保存到垃圾桶。你可以随时恢复对话和关联资料。</p>
-        <p className="text-xs">如果要彻底删除：设置&gt;垃圾桶</p>
+        <p>{t("本地记录不会删除，将会保存到垃圾桶。你可以随时恢复对话和关联资料。")}</p>
+        <p className="text-xs">{t("如果要彻底删除：设置>垃圾桶")}</p>
       </>}
     </div>
-    {error ? <p role="alert" className="mt-3 text-sm text-[var(--destructive)]">{error}</p> : null}
+    {error ? <p role="alert" className="mt-3 text-sm text-[var(--destructive)]">{t(error)}</p> : null}
     <div className="mt-6 flex justify-end gap-3">
-      <button type="button" disabled={busy} onClick={() => { if (!inFlight.current) onCancel(); }} className="mt-btn min-h-11 px-4">取消</button>
-      <button type="button" disabled={busy} onClick={() => void confirm()} className="mt-btn mt-btn-danger-solid min-h-11 px-4">{busy ? "处理中…" : permanent ? "彻底删除" : "移入垃圾桶"}</button>
+      <button type="button" disabled={busy} onClick={() => { if (!inFlight.current) onCancel(); }} className="mt-btn min-h-11 px-4">{t("取消")}</button>
+      <button type="button" disabled={busy} onClick={() => void confirm()} className="mt-btn mt-btn-danger-solid min-h-11 px-4">{busy ? t("处理中…") : permanent ? t("彻底删除") : t("移入垃圾桶")}</button>
     </div>
   </dialog>;
 }

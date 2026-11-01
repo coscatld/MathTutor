@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "Synthetic, isolated local SQLite. No model calls or user data. Timing includes Python allocation tracing; no production speedup claim.",
+  "page_size": 32,
+  "max_candidates": 256,
+  "matching_index_added": false,
+  "results": [
+    {
+      "scenario": "small",
+      "live_rows": 40,
+      "same_selected_records": true,
+      "before": {
+        "samples": 15,
+        "selection_p95_ms": 2.275,
+        "selection_median_ms": 1.909,
+        "peak_python_bytes": 109033,
+        "rows_materialized": 40,
+        "selected_count": 20
+      },
+      "after": {
+        "samples": 15,
+        "selection_p95_ms": 3.266,
+        "selection_median_ms": 2.62,
+        "peak_python_bytes": 92507,
+        "rows_materialized": 32,
+        "selected_count": 20
+      },
+      "selection_stats": {
+        "live_count": 40,
+        "enabled_count": 40,
+        "eligible_count": 40,
+        "rows_read": 32,
+        "pages": 1,
+        "selected_count": 20,
+        "selection_ms": 0.08529098704457283,
+        "selection_scan_limited": false
+      }
+    },
+    {
+      "scenario": "recent_edit",
+      "live_rows": 10000,
+      "same_selected_records": true,
+      "before": {
+        "samples": 15,
+        "selection_p95_ms": 411.117,
+        "selection_median_ms": 384.13,
+        "peak_python_bytes": 28644317,
+        "rows_materialized": 10000,
+        "selected_count": 20
+      },
+      "after": {
+        "samples": 15,
+        "selection_p95_ms": 7.696,
+        "selection_median_ms": 7.232,
+        "peak_python_bytes": 95267,
+        "rows_materialized": 32,
+        "selected_count": 20
+      },
+      "selection_stats": {
+        "live_count": 10000,
+        "enabled_count": 10000,
+        "eligible_count": 10000,
+        "rows_read": 32,
+        "pages": 1,
+        "selected_count": 20,
+        "selection_ms": 0.10537501657381654,
+        "selection_scan_limited": false
+      }
+    },
+    {
+      "scenario": "oversized_latest",
+      "live_rows": 10000,
+      "same_selected_records": true,
+      "before": {
+        "samples": 15,
+        "selection_p95_ms": 475.291,
+        "selection_median_ms": 391.86,
+        "peak_python_bytes": 28728653,
+        "rows_materialized": 10000,
+        "selected_count": 20
+      },
+      "after": {
+        "samples": 15,
+        "selection_p95_ms": 13.587,
+        "selection_median_ms": 13.281,
+        "peak_python_bytes": 246850,
+        "rows_materialized": 64,
+        "selected_count": 20
+      },
+      "selection_stats": {
+        "live_count": 10000,
+        "enabled_count": 10000,
+        "eligible_count": 10000,
+        "rows_read": 64,
+        "pages": 2,
+        "selected_count": 20,
+        "selection_ms": 0.280875014141202,
+        "selection_scan_limited": false
+      }
+    },
+    {
+      "scenario": "disabled",
+      "live_rows": 10000,
+      "same_selected_records": true,
+      "before": {
+        "samples": 15,
+        "selection_p95_ms": 390.132,
+        "selection_median_ms": 372.899,
+        "peak_python_bytes": 28656053,
+        "rows_materialized": 10000,
+        "selected_count": 0
+      },
+      "after": {
+        "samples": 15,
+        "selection_p95_ms": 1.858,
+        "selection_median_ms": 1.626,
+        "peak_python_bytes": 32276,
+        "rows_materialized": 0,
+        "selected_count": 0
+      },
+      "selection_stats": {
+        "live_count": 10000,
+        "enabled_count": 0,
+        "eligible_count": 0,
+        "rows_read": 0,
+        "pages": 0,
+        "selected_count": 0,
+        "selection_ms": 0.0,
+        "selection_scan_limited": false
+      }
+    },
+    {
+      "scenario": "unconfirmed",
+      "live_rows": 10000,
+      "same_selected_records": true,
+      "before": {
+        "samples": 15,
+        "selection_p95_ms": 452.941,
+        "selection_median_ms": 381.981,
+        "peak_python_bytes": 28652421,
+        "rows_materialized": 10000,
+        "selected_count": 0
+      },
+      "after": {
+        "samples": 15,
+        "selection_p95_ms": 2.846,
+        "selection_median_ms": 1.914,
+        "peak_python_bytes": 32564,
+        "rows_materialized": 0,
+        "selected_count": 0
+      },
+      "selection_stats": {
+        "live_count": 10000,
+        "enabled_count": 10000,
+        "eligible_count": 0,
+        "rows_read": 0,
+        "pages": 0,
+        "selected_count": 0,
+        "selection_ms": 0.0,
+        "selection_scan_limited": false
+      }
+    },
+    {
+      "scenario": "scan_limit",
+      "live_rows": 10000,
+      "same_selected_records": false,
+      "before": {
+        "samples": 15,
+        "selection_p95_ms": 417.825,
+        "selection_median_ms": 394.299,
+        "peak_python_bytes": 29191453,
+        "rows_materialized": 10000,
+        "selected_count": 20
+      },
+      "after": {
+        "samples": 15,
+        "selection_p95_ms": 53.313,
+        "selection_median_ms": 51.386,
+        "peak_python_bytes": 314875,
+        "rows_materialized": 256,
+        "selected_count": 0
+      },
+      "selection_stats": {
+        "live_count": 10000,
+        "enabled_count": 10000,
+        "eligible_count": 10000,
+        "rows_read": 256,
+        "pages": 8,
+        "selected_count": 0,
+        "selection_ms": 1.3000820763409138,
+        "selection_scan_limited": true
+      }
+    }
+  ]
+}

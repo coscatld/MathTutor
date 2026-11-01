@@ -1,8 +1,10 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import LanguagePicker from "@/components/common/LanguagePicker";
 import BrandMark from "@/components/common/BrandMark";
 import { register, checkIsFirstUser, fetchAuthStatus } from "@/lib/auth";
 
@@ -27,9 +29,11 @@ const ZH: Record<string, string> = {
   "Create account": "创建账户",
   "Already have an account?": "已有账户？",
 };
-const t = (message: string): string => ZH[message] ?? message;
+
 
 export default function RegisterPage() {
+  const {t: translate} = useI18n();
+  const t = (message: string) => translate(ZH[message] ?? message);
   const router = useRouter();
 
   const [username, setUsername] = useState("");
@@ -190,9 +194,8 @@ export default function RegisterPage() {
         </Link>
       </p>
 
-      <p className="mt-3 text-center text-xs text-[var(--muted-foreground)]">
-        MathTutor · K12 数学辅导
-      </p>
+      <div className="mt-6 flex justify-center"><LanguagePicker compact /></div>
+      <p className="mt-3 text-center text-xs text-[var(--muted-foreground)]">{t("MathTutor · K12 数学辅导")}</p>
     </div>
   );
 }

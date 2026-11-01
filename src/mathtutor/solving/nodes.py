@@ -27,13 +27,14 @@ from fractions import Fraction
 import math
 from typing import Any, Literal
 
+from mathtutor.solving.budget import (
+    MathComplexityError, check_integer, check_power,
+    fraction_add, fraction_mul, fraction_div,
+)
+
 
 class MathDomainError(Exception):
     """A mathematical domain violation (e.g. division by zero)."""
-
-
-class MathComplexityError(Exception):
-    """The expression exceeds the MVP node/depth budget."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +45,8 @@ class Rational:
     d: int
 
     def __init__(self, n: int, d: int = 1) -> None:
+        check_integer(n)
+        check_integer(d)
         if d == 0:
             raise MathDomainError("division by zero")
         if d < 0:
@@ -67,18 +70,18 @@ class Rational:
         return cls(payload["n"], payload["d"])
 
     def __add__(self, other: "Rational") -> "Rational":
-        return Rational.from_fraction(self.to_fraction() + other.to_fraction())
+        return Rational.from_fraction(fraction_add(self.to_fraction(), other.to_fraction()))
 
     def __sub__(self, other: "Rational") -> "Rational":
-        return Rational.from_fraction(self.to_fraction() - other.to_fraction())
+        return Rational.from_fraction(fraction_add(self.to_fraction(), -other.to_fraction()))
 
     def __mul__(self, other: "Rational") -> "Rational":
-        return Rational.from_fraction(self.to_fraction() * other.to_fraction())
+        return Rational.from_fraction(fraction_mul(self.to_fraction(), other.to_fraction()))
 
     def __truediv__(self, other: "Rational") -> "Rational":
         if other.n == 0:
             raise MathDomainError("division by zero")
-        return Rational.from_fraction(self.to_fraction() / other.to_fraction())
+        return Rational.from_fraction(fraction_div(self.to_fraction(), other.to_fraction()))
 
     def __neg__(self) -> "Rational":
         return Rational(-self.n, self.d)
@@ -86,6 +89,8 @@ class Rational:
     def __pow__(self, exp: int) -> "Rational":
         if not isinstance(exp, int) or exp < 0:
             raise TypeError("Rational powers require a non-negative integer exponent")
+        check_power(self.n, exp)
+        check_power(self.d, exp)
         return Rational(self.n**exp, self.d**exp)
 
     def __lt__(self, other: "Rational") -> bool:
@@ -414,14 +419,14 @@ def evaluate(node: Node) -> Rational:
 def _poly_add(a: dict[int, Fraction], b: dict[int, Fraction]) -> dict[int, Fraction]:
     out = dict(a)
     for deg, coeff in b.items():
-        out[deg] = out.get(deg, Fraction(0)) + coeff
+        out[deg] = fraction_add(out.get(deg, Fraction(0)), coeff)
     return _trim(out)
 
 
 def _poly_sub(a: dict[int, Fraction], b: dict[int, Fraction]) -> dict[int, Fraction]:
     out = dict(a)
     for deg, coeff in b.items():
-        out[deg] = out.get(deg, Fraction(0)) - coeff
+        out[deg] = fraction_add(out.get(deg, Fraction(0)), -coeff)
     return _trim(out)
 
 
@@ -432,7 +437,7 @@ def _poly_mul(a: dict[int, Fraction], b: dict[int, Fraction]) -> dict[int, Fract
             deg = d1 + d2
             if deg > _MAX_POLY_DEGREE:
                 raise MathComplexityError(f"expanded degree exceeds {_MAX_POLY_DEGREE}")
-            out[deg] = out.get(deg, Fraction(0)) + c1 * c2
+            out[deg] = fraction_add(out.get(deg, Fraction(0)), fraction_mul(c1, c2))
     return _trim(out)
 
 
@@ -488,7 +493,7 @@ def poly_coeffs(node: Node, var_name: str) -> dict[int, Fraction] | None:
         if num is None:
             return None
         factor = den[0]
-        return {degree: coeff / factor for degree, coeff in num.items()}
+        return {degree: fraction_div(coeff, factor) for degree, coeff in num.items()}
     raise TypeError(f"unknown node: {node!r}")
 
 

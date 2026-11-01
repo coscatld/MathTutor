@@ -12,6 +12,7 @@ EVENT_SCHEMA = "learning_event_v2"
 FEATURE_SCHEMA = "structured_kt_v1"
 LABEL_POLICY = "first_content_submission_v1"
 BASELINE_POLICY = "evidence_beta_v1"
+INDEPENDENT_OPPORTUNITY_POLICY = "first_unassisted_free_response_v1"
 
 
 def utcnow() -> str:
@@ -95,20 +96,32 @@ class LearningEvent(BaseModel):
     @property
     def independent_target(self) -> bool:
         """Primary loss: a single, trustworthy, whole-task binary observation."""
-        return (
-            self.event_type == "attempt_assessed"
-            and self.evidence_kind == "independent"
-            and self.correctness in {"correct", "incorrect"}
-            and self.completion_scope == "full_problem"
-            and self.task_purpose not in {"diagnostic", "error_analysis"}
-            and self.response_format == "free_response"
-            and not self.options_exposed
-            and bool(self.skill_ids)
-            and not self.provenance_uncertain
-            and not self.duplicate_response
-            and not self.prior_task_attempt
-            and not self.target_answer_exposed_before_attempt
-        )
+        return independent_opportunity(self) and self.correctness in {"correct", "incorrect"}
+
+
+def independent_opportunity(event: LearningEvent) -> bool:
+    """Eligibility is separate from whether the judge produced a binary label.
+
+    Call after ``valid_events`` so first submissions and earlier option
+    exposure survive exclusions and cross-session replay. An unknown verdict
+    uses evidence_kind=unknown in the recorder even when provenance is known:
+    it still occupies an unassisted opportunity, but never becomes a target.
+    """
+    return (
+        event.event_type == "attempt_assessed"
+        and (event.evidence_kind == "independent"
+             or (event.evidence_kind == "unknown" and event.correctness in {None, "unknown"}))
+        and event.completion_scope == "full_problem"
+        and event.task_purpose not in {"diagnostic", "error_analysis"}
+        and event.response_format == "free_response"
+        and not event.options_exposed
+        and bool(event.skill_ids)
+        and not event.provenance_uncertain
+        and not event.duplicate_response
+        and not event.prior_task_attempt
+        and not event.target_answer_exposed_before_attempt
+        and not event.prior_help_event_ids
+    )
 
 
 def ordered_attempts(events: Sequence[LearningEvent]) -> list[LearningEvent]:

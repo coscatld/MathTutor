@@ -23,6 +23,7 @@ from typing import Any
 from mathtutor.solving import nodes as n
 from mathtutor.solving.parser import ParsedProblem
 from mathtutor.solving.strategies import _common as common
+from mathtutor.solving.budget import check_product, fraction_add, fraction_sub, fraction_mul, fraction_div
 
 STRATEGY_NAME = "mt-quadratic-v1"
 
@@ -65,34 +66,39 @@ def _is_perfect_square(value: int) -> bool:
 
 def quad_roots(a: Fraction, b: Fraction, c: Fraction) -> tuple[dict[str, Any], ...]:
     """Exact real root set of ``a x^2 + b x + c = 0`` (a != 0), sorted."""
-    discriminant = b * b - 4 * a * c
+    discriminant = quad_discriminant(a, b, c)
     if discriminant < 0:
         return ()
     if discriminant == 0:
-        root = Fraction(-b, 2 * a)
+        root = fraction_div(-b, fraction_mul(Fraction(2), a))
         return (common.rational_root(root),)
     p, q = discriminant.numerator, discriminant.denominator
     if _is_perfect_square(p) and _is_perfect_square(q):
         sqrt_d = Fraction(math.isqrt(p), math.isqrt(q))
-        roots = [(-b + sqrt_d) / (2 * a), (-b - sqrt_d) / (2 * a)]
+        denominator = fraction_mul(Fraction(2), a)
+        roots = [fraction_div(fraction_add(-b, sqrt_d), denominator),
+                 fraction_div(fraction_sub(-b, sqrt_d), denominator)]
         roots.sort()
         return tuple(common.rational_root(root) for root in roots)
     # Surd case: sqrt(D) = k*sqrt(r)/q  with  D = p/q,  m = p*q = k^2*r.
+    check_product(p, q)
     k, r = sqrt_factor(p * q)
-    num_part = Fraction(-b, 2 * a)          # (-b)/(2a)
-    coeff = Fraction(k, 2 * a * q)          # k/(2a*q)
+    denominator = fraction_mul(Fraction(2), a)
+    num_part = fraction_div(-b, denominator)
+    coeff = fraction_div(Fraction(k), fraction_mul(denominator, Fraction(q)))
     roots = [
         common.surd_root(num_part, coeff, r),
         common.surd_root(num_part, -coeff, r),
     ]
     roots.sort(
-        key=lambda root: (root["num"]["n"] / root["num"]["d"], root["coeff"]["n"] / root["coeff"]["d"])
+        key=lambda root: (Fraction(root["num"]["n"], root["num"]["d"]),
+                          Fraction(root["coeff"]["n"], root["coeff"]["d"]))
     )
     return tuple(roots)
 
 
 def quad_discriminant(a: Fraction, b: Fraction, c: Fraction) -> Fraction:
-    return b * b - 4 * a * c
+    return fraction_sub(fraction_mul(b, b), fraction_mul(fraction_mul(Fraction(4), a), c))
 
 
 def quad_eval_surd(a: Fraction, b: Fraction, c: Fraction, num: Fraction, coeff: Fraction, radicand: int) -> tuple[Fraction, Fraction]:

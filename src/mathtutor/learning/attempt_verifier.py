@@ -502,7 +502,7 @@ def _verify_linear(problem_ast: n.Node, answer: ParsedAttempt, base: dict[str, A
             correctness=Correctness.PARTIAL,
             score=EQUIVALENT_EQUATION_SCORE,
             verified_claims=(
-                {"claim": "equivalent_equation", "root": c.frac_to_dict(expected)},
+                {"claim": "equivalent_equation", "root": c.frac_to_dict(expected), "equation": n.to_dict(parsed.ast)},
             ),
             remaining_requirements=(
                 {"requirement": "solve_for_variable", "variable": variable, "expected": c.frac_to_dict(expected)},
@@ -636,7 +636,7 @@ def _verify_quadratic(problem_ast: n.Node, answer: ParsedAttempt, base: dict[str
         return AttemptAssessment(
             correctness=Correctness.PARTIAL,
             score=EQUIVALENT_EQUATION_SCORE,
-            verified_claims=({"claim": "equivalent_equation", "roots": list(claimed_roots)},),
+            verified_claims=({"claim": "equivalent_equation", "roots": list(claimed_roots), "equation": n.to_dict(parsed.ast)},),
             remaining_requirements=({"requirement": "state_roots", "expected_roots": list(expected)},),
             signals=("equivalent_equation",),
             **base,

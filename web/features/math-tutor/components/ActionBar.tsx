@@ -1,5 +1,6 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import {
   BookOpen,
   BookOpenCheck,
@@ -63,6 +64,7 @@ interface ActionBarProps {
  * can still supply allowed_next_inputs; the UI never grants missing actions.
  */
 export default function ActionBar({ allowed, actions, offer, busy, disabled, onCommand }: ActionBarProps) {
+  const {t} = useI18n();
   const buttons = allowedInputsToButtons(actions ? actions.map(a => a.command) : allowed);
   const reasons = new Map(actions?.filter(a => !a.enabled && a.description).map(a => [a.reason_code, a.description]));
   const validOffer = isAcceptableOffer(offer);
@@ -75,10 +77,10 @@ export default function ActionBar({ allowed, actions, offer, busy, disabled, onC
   return (
     <section
       className="mt-card p-4"
-      aria-label="可用操作"
+      aria-label={t("可用操作")}
     >
-      <h2 className="mb-2.5 text-sm font-semibold text-[var(--foreground)]">可用操作</h2>
-      {validOffer ? <div className="mb-3 rounded-xl bg-[var(--primary-soft)] p-3"><p className="text-xs font-medium text-[var(--primary-text)]">{offerPurposeLabel(offer.purpose)}</p>{offer.title ? <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{offer.title}</p> : null}</div> : null}
+      <h2 className="mb-2.5 text-sm font-semibold text-[var(--foreground)]">{t("可用操作")}</h2>
+      {validOffer ? <div className="mb-3 rounded-xl bg-[var(--primary-soft)] p-3"><p className="text-xs font-medium text-[var(--primary-text)]">{t(offerPurposeLabel(offer.purpose))}</p>{offer.title ? <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{t(offer.title)}</p> : null}</div> : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 lg:grid-cols-2">
         {buttons.map((spec: ActionButtonSpec) => {
           const Icon = COMMAND_ICONS[spec.command] ?? Lightbulb;
@@ -100,12 +102,12 @@ export default function ActionBar({ allowed, actions, offer, busy, disabled, onC
               ) : (
                 <Icon className="h-4 w-4" aria-hidden="true" />
               )}
-              {capability?.label || spec.label}
+              {t(capability?.label || spec.label)}
             </button>
           );
         })}
       </div>
-      {[...reasons].map(([code, description]) => <p key={code} id={`action-reason-${code}`} className="mt-3 text-xs leading-5 text-[var(--muted-foreground)]">{description}</p>)}
+      {[...reasons].map(([code, description]) => <p key={code} id={`action-reason-${code}`} className="mt-3 text-xs leading-5 text-[var(--muted-foreground)]">{t(description)}</p>)}
     </section>
   );
 }

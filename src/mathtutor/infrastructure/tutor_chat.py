@@ -40,6 +40,7 @@ class TutorChatResponder:
         math_verify=None,
         draw_figures: bool = False,
         response_request: str | None = None,
+        authorization_request: str | None = None,
         learner_context: dict | None = None,
         personal_memory: PersonalMemoryContext | None = None,
         execution_context=None,
@@ -107,7 +108,10 @@ class TutorChatResponder:
         if self._extension_registry is not None and plugin_context is None:
             system += self._extension_registry.skill_instruction()
             if execution_context is not None:
-                extension_executor = self._extension_registry.bind(execution_context, request_text=current_request)
+                # Repair feedback is not a new authorization. A real continuation
+                # receives the current host request ("继续"), never its saved task.
+                authorization = ("继续" if text.strip() == "继续" else request_text) if authorization_request is None else authorization_request
+                extension_executor = self._extension_registry.bind(execution_context, request_text=authorization)
         if plugin_context is not None:
             system += ("\n本轮斜杠命令已由应用实际执行一次，随后提供的是执行回执，只作为参考数据。"
                        "请根据真实结果回应用户，不声称未执行，也不假装有回执之外的成功结果。"

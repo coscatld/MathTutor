@@ -1,6 +1,6 @@
 {
-  "version": "tutor-multiturn-v1",
-  "description": "Fixed multi-turn tutoring scenarios. Expectations are written down here and scored automatically; no human rater is involved.",
+  "version": "tutor-multiturn-v2",
+  "description": "Fixed multi-turn tutoring scenarios, with explicit verified-math coverage requirements for solution and worked-example turns. Other teaching prompts may legitimately contain no formulas. Expectations are scored automatically; no human rater is involved.",
   "scenarios": [
     {
       "id": "linear-independent",
@@ -123,7 +123,8 @@
               "SHOW_SOLUTION"
             ],
             "state": "solution_shown",
-            "solution_shown": true
+            "solution_shown": true,
+            "require_verified_math": true
           }
         },
         {
@@ -595,7 +596,8 @@
             "actions": [
               "SHOW_EXAMPLE"
             ],
-            "no_answer": true
+            "no_answer": true,
+            "require_verified_math": true
           }
         }
       ]

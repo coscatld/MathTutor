@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "checks": [
+    "test and save are mutually exclusive; a completed probe cannot replace a newer model draft or display stale success",
+    "runtime-only save receipt reports persistence failure and preserves edits made after submission",
+    "retry sends the updated configuration revision and confirms durable save only after a successful receipt",
+    "English feedback handles runtime-only persistence and rejects a result from a newer external revision at 375px",
+    "onboarding reload and save retain the form and newer API-key draft when persistence fails",
+    "onboarding skip uses the current revision and cannot navigate away on a runtime-only persistence receipt"
+  ],
+  "errors": [],
+  "requestCount": 7,
+  "scope": "Actual macOS Chromium; controlled synthetic REST receipts; no model calls."
+}

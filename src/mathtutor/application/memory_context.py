@@ -8,6 +8,7 @@ inferences remain in the management UI until the user confirms them.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from collections.abc import Sequence
 
 from mathtutor.domain.assembled_context import MemoryContextEntry, PersonalMemoryContext
@@ -26,30 +27,55 @@ MEMORY_INSTRUCTION = (
 )
 
 
+@dataclass(frozen=True)
+class MemorySelectionStats:
+    live_count: int
+    enabled_count: int
+    eligible_count: int
+    rows_read: int
+    pages: int
+    selected_count: int
+    selection_ms: float
+    selection_scan_limited: bool
+
+
+class MemoryContextSelector:
+    """Consume already ordered pages once, retaining only accepted records."""
+
+    def __init__(self):
+        self.entries: list[MemoryContextEntry] = []
+        self.used = 0
+
+    @property
+    def full(self) -> bool:
+        return len(self.entries) >= MAX_MEMORY_ENTRIES
+
+    def consider(self, nodes: Sequence[PersonalMemoryNode]) -> None:
+        for node in nodes:
+            if self.full:
+                break
+            if not node.is_retrievable() or node.source_type not in TRUSTED_MEMORY_SOURCES:
+                continue
+            entry = MemoryContextEntry(
+                memory_id=node.memory_id, memory_type=node.memory_type,
+                subject=node.subject, predicate=node.predicate, object_json=node.object_json,
+                source_type=node.source_type, confidence=node.confidence,
+            )
+            size = len(entry.model_dump_json())
+            if size > MAX_MEMORY_ENTRY_CHARS or self.used + size > MAX_MEMORY_CONTEXT_CHARS:
+                continue
+            self.entries.append(entry)
+            self.used += size
+
+    def context(self) -> PersonalMemoryContext:
+        return PersonalMemoryContext(entries=tuple(self.entries))
+
+
 def select_memory_context(nodes: Sequence[PersonalMemoryNode]) -> PersonalMemoryContext:
-    """Select intact recent records within a fixed prompt budget."""
-    entries: list[MemoryContextEntry] = []
-    used = 0
-    for node in sorted(nodes, key=lambda n: (n.updated_at, n.created_at, str(n.memory_id)), reverse=True):
-        if not node.is_retrievable() or node.source_type not in TRUSTED_MEMORY_SOURCES:
-            continue
-        entry = MemoryContextEntry(
-            memory_id=node.memory_id,
-            memory_type=node.memory_type,
-            subject=node.subject,
-            predicate=node.predicate,
-            object_json=node.object_json,
-            source_type=node.source_type,
-            confidence=node.confidence,
-        )
-        size = len(entry.model_dump_json())
-        if size > MAX_MEMORY_ENTRY_CHARS or used + size > MAX_MEMORY_CONTEXT_CHARS:
-            continue
-        entries.append(entry)
-        used += size
-        if len(entries) == MAX_MEMORY_ENTRIES:
-            break
-    return PersonalMemoryContext(entries=tuple(entries))
+    """Unbounded reference projection, retained for compatibility/baselines."""
+    selector = MemoryContextSelector()
+    selector.consider(sorted(nodes, key=lambda n: (n.updated_at, n.created_at, str(n.memory_id)), reverse=True))
+    return selector.context()
 
 
 def memory_prompt_block(context: PersonalMemoryContext | None) -> str:

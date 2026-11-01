@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "checks": [
+    "two-window disable versus edit returns a conflict, keeps the draft and only resaves after review without reenabling retrieval",
+    "confirmation of a stale inference requires another explicit review and never enables a disabled record",
+    "edits made while a save waits remain dirty and retry with the confirmed server version",
+    "English conflict recovery fits 375px, preserves original content and loads the latest text only after explicit discard"
+  ],
+  "errors": [],
+  "writeCount": 10,
+  "scope": "Actual macOS Chromium; two pages and controlled versioned REST fixtures; no model calls."
+}

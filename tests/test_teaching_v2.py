@@ -289,7 +289,11 @@ def test_semantic_restatement_does_not_complete_named_subgoal():
     result = asyncio.run(MathTutorApplicationService().submit_problem("2x+3=7"))
     attempt = parse_student_attempt(attempt_submission_id=uuid4(), student_id=uuid4(), cycle_id=uuid4(), raw_text="2x+3+0=7", attempt_index=1)
     assessment = verify_attempt(attempt, result.problem, result.candidate)
-    context, _ = apply_assessment(initial_context(result.problem, result.candidate), assessment, "2x+3+0=7", CycleAssistance())
+    initial = initial_context(result.problem, result.candidate)
+    initial.update(stuck_count=2, help_without_progress=2)
+    context, record = apply_assessment(initial, assessment, "2x+3+0=7", CycleAssistance())
     assert context["current_subgoal_index"] == 0
     assert context["subgoals"][0]["status"] == "pending"
     assert context["progress"]
+    assert record["math_validity"] == "valid" and record["progress_kind"] == "restatement"
+    assert context["stuck_count"] == context["help_without_progress"] == 2

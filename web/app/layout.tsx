@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
+import {LOCALE_BOOT_SCRIPT} from "@/lib/i18n/messages";
+import {I18nProvider} from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统",
@@ -14,8 +16,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: LOCALE_BOOT_SCRIPT }} />
       </head>
-      <body className="bg-[var(--background)] text-[var(--foreground)]">{children}</body>
+      <body className="bg-[var(--background)] text-[var(--foreground)]"><I18nProvider>{children}</I18nProvider></body>
     </html>
   );
 }

@@ -43,6 +43,16 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<MathTutorEventType>([
   "assistant_start", "assistant_delta", "assistant_complete", "assistant_partial", "assistant_error",
 ]);
 
+/** These requests never entered the journal and do not get a turn_end. */
+export function isUnstartedRequestRejection(frame: StudentFrame): boolean {
+  return frame.event_type === "assistant_error" &&
+    ["REQUEST_QUEUE_FULL", "REQUEST_CANCELLED_BEFORE_START"].includes(frame.payload.error_code || "");
+}
+
+export function rejectionMatchesRequest(frame: StudentFrame, requestId: string | undefined): boolean {
+  return isUnstartedRequestRejection(frame) && Boolean(requestId) && frame.payload.turn_id === requestId;
+}
+
 function asStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");

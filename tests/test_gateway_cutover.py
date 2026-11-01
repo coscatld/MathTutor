@@ -486,6 +486,7 @@ async def test_apply_config_returns_nonsensitive_config(tmp_path):
         tmp_path, preset="custom", base_url=_BASE_URL, model="m", api_key=_SECRET
     )
     config = service.current_config()
+    assert config.pop("epoch")
     assert config == {
         "preset_id": "custom",
         "model": "m",
@@ -496,6 +497,9 @@ async def test_apply_config_returns_nonsensitive_config(tmp_path):
         },
         "onboarding_completed": True,
         "config_version": 2,
+        "revision": 1,
+        "persisted": True,
+        "persistence_error": None,
     }
     assert _SECRET not in json.dumps(config)
 

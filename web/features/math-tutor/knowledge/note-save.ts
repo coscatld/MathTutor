@@ -1,3 +1,6 @@
+import {translate, type MessageParams} from "@/lib/i18n/messages";
+type Translator = (message: string, params?: MessageParams) => string;
+const chinese: Translator = (message, params) => translate("zh-CN", message, params);
 import { apiFetch } from "@/lib/api";
 import { root } from "./api";
 
@@ -26,7 +29,7 @@ export class NoteSaveTracker {
 /** A response rejecting the write is distinct from an unknown network outcome. */
 export class NoteSaveRejected extends Error {}
 
-export async function submitNote(submission: NoteSubmission): Promise<NoteReceipt & { version: number }> {
+export async function submitNote(submission: NoteSubmission, t: Translator = chinese): Promise<NoteReceipt & { version: number }> {
   const response = await apiFetch(`${root}/libraries/${encodeURIComponent(submission.libraryId)}/notes`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       title: submission.title, body: submission.body, tags: submission.tags.split(/[,，]/).map(tag => tag.trim()).filter(Boolean),
@@ -36,7 +39,7 @@ export async function submitNote(submission: NoteSubmission): Promise<NoteReceip
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    const message = typeof body.detail === "string" ? body.detail : "笔记没有保存，请重试。";
+    const message = typeof body.detail === "string" ? body.detail : t("笔记没有保存，请重试。");
     if (response.status >= 400 && response.status < 500) throw new NoteSaveRejected(message);
     throw new Error(message);
   }
@@ -44,7 +47,7 @@ export async function submitNote(submission: NoteSubmission): Promise<NoteReceip
   if (!receipt || typeof receipt.document_id !== "string" || !receipt.document_id
     || (submission.documentId && receipt.document_id !== submission.documentId)
     || typeof receipt.version !== "number" || !Number.isInteger(receipt.version) || receipt.version < Math.max(1, submission.version || 1)) {
-    throw new Error("保存回执不完整，请重试确认同一次提交。");
+    throw new Error(t("保存回执不完整，请重试确认同一次提交。"));
   }
   return receipt as NoteReceipt & { version: number };
 }

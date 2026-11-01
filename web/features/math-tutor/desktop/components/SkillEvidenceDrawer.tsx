@@ -1,5 +1,7 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
+
 import {useCallback, useEffect, useRef, useState} from "react";
 import Link from "next/link";
 import {X} from "lucide-react";
@@ -13,6 +15,7 @@ const button = "min-h-11 rounded-lg px-3 text-sm font-medium focus-visible:outli
 export default function SkillEvidenceDrawer({title, skillId, cycleId, onClose, onChanged}: {
   title: string; skillId?: string; cycleId?: string; onClose: () => void; onChanged: () => void;
 }) {
+  const {locale, t} = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
   const [rows, setRows] = useState<LearningEvidence[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
@@ -37,20 +40,20 @@ export default function SkillEvidenceDrawer({title, skillId, cycleId, onClose, o
   };
   return <dialog ref={dialog} onClose={onClose} aria-labelledby="evidence-title"
     className="mt-card m-auto max-h-[85vh] w-[min(42rem,calc(100%-2rem))] overflow-y-auto p-6 text-[var(--foreground)] shadow-xl backdrop:bg-black/40">
-    <header className="mb-5 flex items-center justify-between gap-4"><div><p className="text-xs text-[var(--muted-foreground)]">学习依据</p><h2 id="evidence-title" className="mt-1 font-serif text-xl font-bold">{title}</h2></div><button className={button} aria-label="关闭学习依据" onClick={() => dialog.current?.close()}><X className="h-5 w-5" aria-hidden="true" /></button></header>
-    {error && <p role="alert">{error}<button className={button} onClick={() => void load()}>重试</button></p>}
-    {!rows.length && !loading && !error && <p className="py-8 text-[var(--muted-foreground)]">尚无可展示的作答记录。</p>}
+    <header className="mb-5 flex items-center justify-between gap-4"><div><p className="text-xs text-[var(--muted-foreground)]">{t("学习依据")}</p><h2 id="evidence-title" className="mt-1 font-serif text-xl font-bold">{t(title)}</h2></div><button className={button} aria-label={t("关闭学习依据")} onClick={() => dialog.current?.close()}><X className="h-5 w-5" aria-hidden="true" /></button></header>
+    {error && <p role="alert">{t(error)}<button className={button} onClick={() => void load()}>{t("重试")}</button></p>}
+    {!rows.length && !loading && !error && <p className="py-8 text-[var(--muted-foreground)]">{t("尚无可展示的作答记录。")}</p>}
     <ol className="divide-y divide-[var(--border)]">{rows.map(row => <li key={row.event_id} className="py-5">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted-foreground)]"><time>{new Date(row.occurred_at).toLocaleString("zh-CN")}</time><span>{row.excluded ? "已排除判定" : KINDS[row.evidence_kind] || "待确认"}</span></div>
-      <p className="mt-2 whitespace-pre-wrap break-words font-medium">{row.problem_text}</p>
-      {row.student_response && <p className="mt-2 whitespace-pre-wrap break-words text-sm">你的作答：{row.student_response}</p>}
-      <p className="mt-2 text-sm">核验：{RESULTS[row.correctness || "unknown"] || "待确认"}{row.completion_scope !== "full_problem" ? "（步骤记录）" : ""}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-2">{row.session_id ? <Link className={`${button} inline-flex items-center text-[var(--primary)]`} href={`/math-tutor?session=${encodeURIComponent(row.session_id)}`}>回到原题</Link> : <span className="text-xs text-[var(--muted-foreground)]">原会话不可打开</span>}
-      {!row.excluded && <button className={button} disabled={busy !== null} onClick={() => setConfirm(row.event_id)}>这条记录有问题</button>}</div>
-      {row.excluded && <p className="mt-2 text-xs text-[var(--muted-foreground)]">此判定不再用于画像或训练；曾经作答的顺序保留。</p>}
-      {confirm === row.event_id && <div className="mt-3 rounded-xl bg-[var(--muted)] p-3"><p className="text-sm leading-6">排除这次判定后，画像会重新计算。同题再答不会因此变成首次作答。</p><div className="mt-2 flex gap-2"><button className={`${button} text-[var(--destructive)]`} disabled={busy !== null} onClick={() => void exclude(row.event_id)}>{busy ? "正在排除…" : "排除这次判定"}</button><button className={button} disabled={busy !== null} onClick={() => setConfirm(null)}>取消</button></div></div>}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted-foreground)]"><time>{new Date(row.occurred_at).toLocaleString(locale)}</time><span>{row.excluded ? t("已排除判定") : t(KINDS[row.evidence_kind] || "待确认")}</span></div>
+      <p className="mt-2 whitespace-pre-wrap break-words font-medium">{row.problem_text === "原题详情暂不可用" ? t("原题详情暂不可用") : row.problem_text}</p>
+      {row.student_response && <p className="mt-2 whitespace-pre-wrap break-words text-sm">{t("你的作答：")}{row.student_response}</p>}
+      <p className="mt-2 text-sm">{t("核验：")}{t(RESULTS[row.correctness || "unknown"] || "待确认")}{row.completion_scope !== "full_problem" ? t("（步骤记录）") : ""}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">{row.session_id ? <Link className={`${button} inline-flex items-center text-[var(--primary)]`} href={`/math-tutor?session=${encodeURIComponent(row.session_id)}`}>{t("回到原题")}</Link> : <span className="text-xs text-[var(--muted-foreground)]">{t("原会话不可打开")}</span>}
+      {!row.excluded && <button className={button} disabled={busy !== null} onClick={() => setConfirm(row.event_id)}>{t("这条记录有问题")}</button>}</div>
+      {row.excluded && <p className="mt-2 text-xs text-[var(--muted-foreground)]">{t("此判定不再用于画像或训练；曾经作答的顺序保留。")}</p>}
+      {confirm === row.event_id && <div className="mt-3 rounded-xl bg-[var(--muted)] p-3"><p className="text-sm leading-6">{t("排除这次判定后，画像会重新计算。同题再答不会因此变成首次作答。")}</p><div className="mt-2 flex gap-2"><button className={`${button} text-[var(--destructive)]`} disabled={busy !== null} onClick={() => void exclude(row.event_id)}>{busy ? t("正在排除…") : t("排除这次判定")}</button><button className={button} disabled={busy !== null} onClick={() => setConfirm(null)}>{t("取消")}</button></div></div>}
     </li>)}</ol>
-    {loading && <p role="status" className="py-4 text-sm">正在加载学习记录…</p>}
-    {cursor && <button className={button} disabled={loading} onClick={() => void load(cursor)}>查看更多</button>}
+    {loading && <p role="status" className="py-4 text-sm">{t("正在加载学习记录…")}</p>}
+    {cursor && <button className={button} disabled={loading} onClick={() => void load(cursor)}>{t("查看更多")}</button>}
   </dialog>;
 }

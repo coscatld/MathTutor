@@ -10,7 +10,9 @@ from collections import defaultdict
 from statistics import median
 
 from .dataset import sequences
-from .events import valid_events
+from .events import INDEPENDENT_OPPORTUNITY_POLICY, independent_opportunity, valid_events
+
+PRODUCT_FUNNEL_SCHEMA = "product_funnel_v2"
 
 
 def proportion(numerator, denominator, *, unavailable_reason=""):
@@ -32,6 +34,21 @@ def _exposure(event):
     return event.event_type in {"help_possibly_exposed", "help_presented"}
 
 
+def _solving_category(event, *, help_before):
+    """One completion bucket per cycle; recorded evidence_kind alone is insufficient."""
+    if event.response_format == "single_choice" or event.options_exposed:
+        return "solved_diagnostic"
+    if independent_opportunity(event) and not help_before:
+        return "solved_independent"
+    if event.provenance_uncertain or event.evidence_kind not in {"independent", "assisted"}:
+        return "solved_help_provenance_unknown"
+    if event.evidence_kind == "assisted" or event.prior_help_event_ids or help_before:
+        return "solved_assisted"
+    if event.prior_task_attempt:
+        return "solved_after_retry"
+    return "solved_help_provenance_unknown"
+
+
 def product_funnel(events, *, turn_records=()):
     """Return counts and ratios, never turn missing data into 0% failures.
 
@@ -39,6 +56,11 @@ def product_funnel(events, *, turn_records=()):
     ``student_id``, ``cycle_id``, ``student_math_message`` and
     ``tutor_presented`` flag per logical turn. Retry frames reuse turn_id.
     Without these actual pairs round statistics are unavailable, not zero.
+
+    Version 2 excludes choices and prior option exposure from independent
+    opportunities/successes. New diagnostic/retry buckets partition completed
+    cycles with the retained buckets; started denominators are unchanged.
+    Replaying old facts changes the metric policy, not their recorded labels.
     """
     by_cycle = defaultdict(list)
     for history in sequences(events):
@@ -68,15 +90,14 @@ def product_funnel(events, *, turn_records=()):
             and x.event_seq < target_seq), None)
         if completed_before:
             counts["student_solved"] += 1
-            if completed_before.evidence_kind in {"independent", "assisted"}:
-                counts[f"solved_{completed_before.evidence_kind}"] += 1
-            else:
-                counts["solved_help_provenance_unknown"] += 1
+            category = _solving_category(completed_before, help_before=any(
+                x.event_seq < completed_before.event_seq for x in relevant_help))
+            counts[category] += 1
         first = next((x for x in attempts if not x.duplicate_response), None)
-        first_help_seq = min((x.event_seq for x in relevant_help), default=float("inf"))
-        independent_first = (first is not None and first.event_seq < first_help_seq
-                             and not first.prior_task_attempt
-                             and not first.provenance_uncertain and not first.target_answer_exposed_before_attempt)
+        first_exposure_seq = min((x.event_seq for x in history
+            if _exposure(x) or x.event_type == "options_exposed"), default=float("inf"))
+        independent_first = (first is not None and independent_opportunity(first)
+                             and first.event_seq < first_exposure_seq)
         if independent_first:
             counts["first_independent_opportunity"] += 1
             if first.correctness == "correct":
@@ -146,10 +167,12 @@ def product_funnel(events, *, turn_records=()):
     solved_keys = {(x["student_id"], x["cycle_id"]) for x in cycle_details if x["outcome"] == "student_solved_before_answer"}
     observed_rounds = sorted(value for key, value in round_counts.items() if key in solved_keys)
     return {
-        "schema_version": "product_funnel_v1", "learning_effect_verified": False,
+        "schema_version": PRODUCT_FUNNEL_SCHEMA,
+        "independent_opportunity_policy": INDEPENDENT_OPPORTUNITY_POLICY,
+        "learning_effect_verified": False,
         "eligibility": {"supported_started": n, "unknown_start_eligibility": unknown_eligibility, "explicitly_ineligible": ineligible},
         "student_problem_solved": proportion(counts["student_solved"], n, unavailable_reason="missing_supported_problem_started_events"),
-        "solving_breakdown": {key: counts[key] for key in ("solved_independent", "solved_assisted", "solved_help_provenance_unknown", "exited_unsolved", "failed_unsolved", "unknown_or_incomplete")},
+        "solving_breakdown": {key: counts[key] for key in ("solved_independent", "solved_assisted", "solved_diagnostic", "solved_after_retry", "solved_help_provenance_unknown", "exited_unsolved", "failed_unsolved", "unknown_or_incomplete")},
         "first_independent_correct": proportion(counts["first_independent_correct"], counts["first_independent_opportunity"]),
         "first_independent_unknown": counts["first_independent_unknown"],
         "assisted_completion": proportion(counts["helped_completed"], counts["helped_cycles"]),

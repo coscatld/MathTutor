@@ -30,6 +30,8 @@ def compile_extended(text: str, parse_core) -> ParseOutcome | None:
         return None
     expression, family, display = matched
     outcome = parse_core(expression)
+    if outcome.code == "resource_limit":
+        return outcome
     if outcome.kind != "parsed" or outcome.problem is None or outcome.problem.problem_type != family:
         return ParseOutcome.unsupported("这句话里的数量关系还不能按步骤核验")
     problem = outcome.problem
@@ -57,6 +59,8 @@ def parse_inequality_text(text: str, parse_core) -> ParseOutcome | None:
     if op is None or not left.strip() or not right.strip():
         return ParseOutcome.unsupported("不等式两边都要有式子")
     outcome = parse_core(f"{left.strip()}={right.strip()}")
+    if outcome.code == "resource_limit":
+        return outcome
     if outcome.kind != "parsed" or outcome.problem is None or outcome.problem.problem_type not in {"linear", "quadratic"}:
         return ParseOutcome.unsupported("目前只逐步核验一元一次和一元二次不等式")
     parsed = outcome.problem

@@ -1,0 +1,22 @@
+[check] MathTutor: /tmp/mathtutor071-tests/bin/python -m pytest tests desktop/tests
+========= 3881 passed, 22 skipped, 9502 warnings in 360.56s (0:06:00) ==========
+[check] web: /Users/mingze/.nvm/versions/node/v22.22.2/bin/npm test
+ℹ tests 328
+ℹ pass 328
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 1409.923084
+[check] web: /Users/mingze/.nvm/versions/node/v22.22.2/bin/npm run build
+✓ Compiled successfully in 1235ms
+  Finished TypeScript in 1799ms ...
+✓ Generating static pages using 9 workers (16/16) in 235ms
+[check] desktop: /Users/mingze/.nvm/versions/node/v22.22.2/bin/npm run test:contracts
+ℹ tests 58
+ℹ pass 56
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ duration_ms 253.982125
+[check] cross-platform source verification: PASS
+[check] Distribution: SKIPPED / NOT APPLICABLE — target packaging runtime not provisioned

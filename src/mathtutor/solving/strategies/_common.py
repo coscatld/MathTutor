@@ -11,9 +11,12 @@ from fractions import Fraction
 from typing import Any
 
 from mathtutor.solving import nodes as n
+from mathtutor.solving.budget import check_integer
 
 
 def frac_to_dict(value: Fraction) -> dict[str, int]:
+    check_integer(value.numerator)
+    check_integer(value.denominator)
     return {"n": value.numerator, "d": value.denominator}
 
 
@@ -35,6 +38,7 @@ def rational_root(value: Fraction) -> dict[str, Any]:
 
 def surd_root(num: Fraction, coeff: Fraction, radicand: int) -> dict[str, Any]:
     """x = num ± coeff * sqrt(radicand) with ``radicand`` squarefree."""
+    check_integer(radicand)
     return {
         "kind": "surd",
         "num": frac_to_dict(num),

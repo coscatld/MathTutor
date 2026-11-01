@@ -1,0 +1,293 @@
+{
+  "baseline_commit": "392e3bf656d0594ffab59d869edaa3e930542e96",
+  "synthetic_only": true,
+  "model_calls": 0,
+  "learning_effect_verified": false,
+  "scenarios": {
+    "options_then_typed_correct": {
+      "legacy": {
+        "schema_version": "product_funnel_v1",
+        "solving_breakdown": {
+          "solved_independent": 1,
+          "solved_assisted": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      },
+      "current": {
+        "schema_version": "product_funnel_v2",
+        "independent_opportunity_policy": "first_unassisted_free_response_v1",
+        "solving_breakdown": {
+          "solved_independent": 0,
+          "solved_assisted": 0,
+          "solved_diagnostic": 1,
+          "solved_after_retry": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 0,
+          "denominator": 0,
+          "value": null,
+          "status": "unavailable",
+          "uncertainty": "没有可用分母"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      }
+    },
+    "options_then_choice_correct": {
+      "legacy": {
+        "schema_version": "product_funnel_v1",
+        "solving_breakdown": {
+          "solved_independent": 1,
+          "solved_assisted": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      },
+      "current": {
+        "schema_version": "product_funnel_v2",
+        "independent_opportunity_policy": "first_unassisted_free_response_v1",
+        "solving_breakdown": {
+          "solved_independent": 0,
+          "solved_assisted": 0,
+          "solved_diagnostic": 1,
+          "solved_after_retry": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 0,
+          "denominator": 0,
+          "value": null,
+          "status": "unavailable",
+          "uncertainty": "没有可用分母"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      }
+    },
+    "free_response_correct": {
+      "legacy": {
+        "schema_version": "product_funnel_v1",
+        "solving_breakdown": {
+          "solved_independent": 1,
+          "solved_assisted": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      },
+      "current": {
+        "schema_version": "product_funnel_v2",
+        "independent_opportunity_policy": "first_unassisted_free_response_v1",
+        "solving_breakdown": {
+          "solved_independent": 1,
+          "solved_assisted": 0,
+          "solved_diagnostic": 0,
+          "solved_after_retry": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 1,
+          "denominator": 1,
+          "value": 1.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      }
+    },
+    "unknown_first_response": {
+      "legacy": {
+        "schema_version": "product_funnel_v1",
+        "solving_breakdown": {
+          "solved_independent": 0,
+          "solved_assisted": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 1
+        },
+        "first_independent_correct": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 1,
+        "transfer_success": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      },
+      "current": {
+        "schema_version": "product_funnel_v2",
+        "independent_opportunity_policy": "first_unassisted_free_response_v1",
+        "solving_breakdown": {
+          "solved_independent": 0,
+          "solved_assisted": 0,
+          "solved_diagnostic": 0,
+          "solved_after_retry": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 1
+        },
+        "first_independent_correct": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 1,
+        "transfer_success": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      }
+    },
+    "incorrect_then_correct": {
+      "legacy": {
+        "schema_version": "product_funnel_v1",
+        "solving_breakdown": {
+          "solved_independent": 1,
+          "solved_assisted": 0,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      },
+      "current": {
+        "schema_version": "product_funnel_v2",
+        "independent_opportunity_policy": "first_unassisted_free_response_v1",
+        "solving_breakdown": {
+          "solved_independent": 0,
+          "solved_assisted": 0,
+          "solved_diagnostic": 0,
+          "solved_after_retry": 1,
+          "solved_help_provenance_unknown": 0,
+          "exited_unsolved": 0,
+          "failed_unsolved": 0,
+          "unknown_or_incomplete": 0
+        },
+        "first_independent_correct": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        },
+        "first_independent_unknown": 0,
+        "transfer_success": {
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0.0,
+          "status": "observed",
+          "uncertainty": "样本有限，不能推断学习效果"
+        }
+      }
+    }
+  }
+}

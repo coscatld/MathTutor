@@ -326,7 +326,7 @@ def _identity(bench, key: str, sequence: int) -> str:
     return f"{bench['documents'][key]['document_id']}:{sequence}"
 
 
-async def _rank(bench, query: str, *, limit: int = 8, scope=None, owner: str | None = None):
+async def _rank(bench, query: str, *, limit: int = 8, scope=None, owner: str | None = None, turn_stats=None):
     # ``owner`` is a parameter so a runner over a DIFFERENT corpus can reuse
     # this ranking path instead of writing a second one. Querying the wrong
     # owner is silent — retrieval simply returns nothing — so a duplicated
@@ -335,6 +335,7 @@ async def _rank(bench, query: str, *, limit: int = 8, scope=None, owner: str | N
         OWNER if owner is None else owner,
         bench["scope"] if scope is None else scope,
         query,
+        turn_stats=turn_stats,
     )
     ranked = [f"{e.document_id}:{e.sequence}" for e in pack.evidences]
     return pack, ranked
@@ -499,8 +500,9 @@ async def test_the_benchmark_also_exercises_telemetry(bench):
     """Metrics are read from the same runs the metrics above come from, so a
     silently-broken telemetry path shows up here rather than in production."""
     for query in QUERIES:
-        await _rank(bench, query.text)
-    bench["metrics"].end_retrieval_turn()
+        turn = bench["metrics"].begin_retrieval_turn()
+        await _rank(bench, query.text, turn_stats=turn)
+        bench["metrics"].end_retrieval_turn(turn)
 
     rag = bench["metrics"].rag()
     assert rag["rag_retrieval_requested_total"] == len(QUERIES)

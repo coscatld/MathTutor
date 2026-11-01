@@ -1,7 +1,7 @@
 // Real Chromium + React interactions. API/WS fixtures never call a model or alter user data.
 // The direct component fixture is bundled in memory from installed packages; no test route is shipped.
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -46,7 +46,8 @@ function browserBundle(entry) {
     const deps = {};
     for (const match of source.matchAll(/require\(["']([^"']+)["']\)/g)) {
       const request = match[1];
-      const target = request.startsWith(".") || path.isAbsolute(request) ? ["", ".ts", ".tsx", ".js", "/index.js"].map(suffix => path.resolve(path.dirname(filename), request + suffix)).find(existsSync) : createRequire(filename).resolve(request);
+      const local = request.startsWith("@/") ? path.join(webRoot, request.slice(2)) : request.startsWith(".") || path.isAbsolute(request) ? path.resolve(path.dirname(filename), request) : null;
+      const target = local ? ["", ".ts", ".tsx", ".js", "/index.ts", "/index.tsx", "/index.js"].map(suffix => local + suffix).find(candidate => existsSync(candidate) && statSync(candidate).isFile()) : createRequire(filename).resolve(request);
       assert.ok(target, `Cannot bundle ${request} from ${filename}`);
       deps[request] = add(target);
     }

@@ -1,4 +1,5 @@
 """The fixed multi-turn evaluation passes the template tutor and catches bad models."""
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,12 @@ def test_template_tutor_passes_the_release_gate():
     assert report["coverage"]["scope"] == "full_suite"
     assert report["coverage"]["executed"] == report["coverage"]["available"]
     assert report["release_gate"]["passed"] is True
+    assert report["metric_version"] == "tutor-multiturn-metrics-v2"
+    assert report["suite"] == "tutor-multiturn-v2"
+    assert report["math"]["required"] == {"passed": 2, "total": 2}
+    assert report["math"]["turns"]["not_applicable"] > 0
+    assert report["dimensions"]["math"]["unit"] == "verifier_checks"
+    assert report["dimensions"]["math"]["total"] == report["math"]["verified"] + report["math"]["refuted"]
     assert "没有人工评分" in render_markdown(report)
 
 
@@ -204,3 +211,112 @@ def test_quoted_student_text_and_latex_root_lists_are_not_tutor_claims():
     assert extract_statements("已验证你提交的「x=-2」不满足原方程。") == []
     assert [s.text for s in extract_statements("题目已解析并验证：x^{2} - 5x + 6 = 0")] == ["x^(2) - 5x + 6 = 0"]
     assert [s.text for s in extract_statements("\\[ z = 5 \\text{或} z = 7 \\]")] == ["z = 5 或 z = 7"]
+
+
+@pytest.mark.parametrize("text,status,counts", [
+    ("先想想如何消去常数项？", "not_applicable", (0, 0, 0)),
+    ("$f(2)=3$", "unchecked", (0, 0, 1)),
+    ("$2+2=4$", "verified", (1, 0, 0)),
+    ("$2+2=5$", "refuted", (0, 1, 0)),
+    ("$2+2=4$，$f(2)=3$", "partial", (1, 0, 1)),
+])
+def test_math_outcomes_use_real_certification_and_preserve_coverage(text, status, counts):
+    from mathtutor.evaluation.tutor_multiturn import _certify_formulas, _math_assessment, _math_checks
+
+    certification = asyncio.run(_certify_formulas(text, None))
+    assessment = _math_assessment(certification, step=1, delivered=True, text=text, required=False)
+    assert assessment["status"] == status
+    assert tuple(assessment[key] for key in ("verified", "refuted", "unchecked")) == counts
+    result = ScenarioResult("coverage", "真实核验")
+    result.add("coherence", True, "complete")
+    result.math_assessments.append(assessment)
+    result.checks.extend(_math_checks(assessment, "第 1 轮"))
+    report = score([result])
+    assert report["math"]["coverage"] == (round(sum(counts[:2]) / sum(counts), 4) if sum(counts) else None)
+    assert report["dimensions"]["math"]["total"] == sum(counts[:2])
+    if status in {"not_applicable", "unchecked"}:
+        assert report["dimensions"]["math"]["score"] is None
+        assert not [c for c in result.checks if c.dimension == "math"]
+        assert report["math"]["legacy_v1"]["score"] == 1.0
+    assert report["gate"]["passed"] is (status != "refuted")
+    if status == "partial":
+        assert "部分核验" in result.checks[-1].detail
+        assert "算式核验通过" not in result.checks[-1].detail
+
+
+@pytest.mark.parametrize("text,required,expected_status,passed", [
+    ("先想想如何消去常数项？", False, "not_applicable", True),
+    ("先想想如何消去常数项？", True, "not_applicable", False),
+    ("$f(2)=3$", False, "unchecked", True),
+    ("$f(2)=3$", True, "unchecked", False),
+    ("$2+2=4$", True, "verified", True),
+    ("$2+2=5$", False, "refuted", False),
+    ("$2+2=4$，$f(2)=3$", False, "partial", True),
+])
+def test_math_coverage_on_real_websocket_turns(tmp_path, text, required, expected_status, passed):
+    from mathtutor.evaluation.tutor_multiturn import run_scenario
+
+    class FixedChat:
+        async def respond(self, request, **kwargs):
+            return text
+
+    def prepare(state):
+        state.controller.chat_responder = FixedChat()
+
+    scenario = {"id": "math-coverage", "title": "数学覆盖回归", "steps": [{
+        "send": "send_message", "payload": {"text": "分数加法为什么要先通分？"},
+        "expect": {"require_verified_math": required},
+    }]}
+    result = run_scenario(scenario, tmp_path, prepare=prepare)
+    report = score([result])
+    assert result.transcript[0]["status"] == "COMPLETED"
+    assert result.math_assessments[0]["status"] == expected_status
+    assert result.transcript[0]["math"] == result.math_assessments[0]
+    assert report["gate"]["passed"] is passed, report["gate"]
+    if required and not passed:
+        assert any("本轮要求至少一项已核验" in c.detail for c in result.critical_failures)
+    if expected_status in {"not_applicable", "unchecked"}:
+        assert report["dimensions"]["math"]["score"] is None
+
+
+@pytest.mark.parametrize("status", ["PARTIAL", "FAILED", "CANCELLED"])
+@pytest.mark.parametrize("text,refuted", [("$2+2=4$", False), ("$2+2=5$", True)])
+def test_incomplete_delivery_never_votes_math_success_and_refutations_still_fail(status, text, refuted):
+    from mathtutor.evaluation.tutor_multiturn import _certify_formulas, _delivery_gate, _math_assessment, _math_checks
+
+    certification = asyncio.run(_certify_formulas(text, None))
+    assessment = _math_assessment(certification, step=1, delivered=False, text=text, required=False,
+                                  legacy_eligible=True)
+    result = ScenarioResult("expected-terminal", "预期非完成终态")
+    result.checks.extend(_delivery_gate({"status": status, "errors": []}, {"status": status}, "第 1 轮"))
+    result.checks.extend(_math_checks(assessment, "第 1 轮"))
+    result.math_assessments.append(assessment)
+    report = score([result])
+    assert assessment["verified"] == int(not refuted)
+    assert assessment["refuted"] == int(refuted)
+    assert report["math"]["delivery_excluded"] == {"verified": int(not refuted), "refuted": int(refuted), "unchecked": 0}
+    assert report["dimensions"]["math"]["score"] is None
+    assert report["gate"]["passed"] is (not refuted)
+
+
+def test_markdown_preserves_legacy_reports_and_exposes_new_outcome_details():
+    report = run(only=["free-graph-and-chat"])
+    markdown = render_markdown(report)
+    assert "tutor-multiturn-metrics-v2" in markdown
+    assert "同次输出的旧 v1 口径" in markdown
+    assert "unchecked 待人工复核" in markdown
+    assert "只覆盖提取到的核验项" in markdown
+    legacy = {key: value for key, value in report.items() if key not in {"math", "metric_version", "coverage", "release_gate"}}
+    legacy_markdown = render_markdown(legacy)
+    assert "历史检查结果" in legacy_markdown
+    assert "同次输出的旧 v1 口径" not in legacy_markdown
+
+
+def test_invalid_required_math_expectation_fails_before_product_start(tmp_path):
+    from mathtutor.evaluation.tutor_multiturn import run_scenario
+
+    scenario = {"id": "invalid-math", "title": "invalid", "steps": [{
+        "send": "send_message", "expect": {"require_verified_math": "false"},
+    }]}
+    with pytest.raises(ValueError, match="require_verified_math"):
+        run_scenario(scenario, tmp_path, prepare=lambda _: pytest.fail("must reject before app creation"))

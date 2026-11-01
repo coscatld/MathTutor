@@ -1,5 +1,7 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
+
 import { CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCw, ShieldAlert, TriangleAlert, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchBootstrap } from "../lib/desktop-api";
@@ -75,11 +77,12 @@ interface ControlProps {
  * (never markup).
  */
 export function BootstrapStatusControl({ payload, open, refreshing, onToggle, onRefresh }: ControlProps) {
+  const {t} = useI18n();
   const final = isFinal(payload);
   const steps = payload?.steps ?? [];
   const doneCount = steps.filter((s) => s.status === "ok").length;
   const style = payload ? STATUS_STYLES[payload.readiness] : null;
-  const label = payload ? READINESS_LABELS[payload.readiness] : "";
+  const label = payload ? t(READINESS_LABELS[payload.readiness]) : "";
 
   return (
     <div className="relative">
@@ -87,7 +90,7 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        aria-label={payload ? `系统状态：${label}` : "系统正在启动"}
+        aria-label={payload ? t("系统状态：{value0}", {value0: label}) : t("系统正在启动")}
         className={`inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
           payload !== null && final && style !== null
             ? `${style.badge} ${style.text}`
@@ -95,7 +98,7 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
         }`}
       >
         <span aria-live="polite" className="sr-only">
-          {payload ? `系统状态：${label}` : "系统正在启动"}
+          {payload ? t("系统状态：{value0}", {value0: label}) : t("系统正在启动")}
         </span>
         {payload !== null && final ? (
           <>
@@ -106,7 +109,7 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
         ) : (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            {steps.length > 0 ? `正在启动… ${doneCount}/${steps.length}` : "正在启动本地服务…"}
+            {steps.length > 0 ? t("正在启动… {value0}/{value1}", {value0: doneCount, value1: steps.length}) : t("正在启动本地服务…")}
           </>
         )}
         {open ? (
@@ -119,14 +122,13 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
       {open && (
         <div
           role="region"
-          aria-label="启动步骤"
+          aria-label={t("启动步骤")}
           className="mt-card absolute right-0 z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg"
         >
           {steps.length === 0 ? (
             <p className="flex items-center gap-2 px-1 py-2 text-[var(--muted-foreground)]">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              正在启动本地服务，请稍候…
-            </p>
+              {t("正在启动本地服务，请稍候…")}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {steps.map((step) => {
@@ -137,14 +139,14 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
                     <StepIconComponent className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${stepIcon.className}`} aria-hidden="true" />
                     <span className="flex min-w-0 flex-col gap-0.5">
                       <span className="flex flex-wrap items-baseline gap-x-2">
-                        <span className="font-medium">{bootstrapStepLabel(step.key, step.label)}</span>
+                        <span className="font-medium">{t(bootstrapStepLabel(step.key, step.label))}</span>
                         <span className="text-xs text-[var(--muted-foreground)]">
-                          {BOOTSTRAP_STEP_STATUS_LABELS[step.status] ?? step.status}
+                          {t(BOOTSTRAP_STEP_STATUS_LABELS[step.status] ?? step.status)}
                         </span>
                       </span>
                       {step.detail ? (
                         // Plain text only — defensive: details are never rendered as markup.
-                        <span className="text-xs leading-relaxed text-[var(--muted-foreground)]">{step.detail}</span>
+                        <span className="text-xs leading-relaxed text-[var(--muted-foreground)]">{t(step.detail)}</span>
                       ) : null}
                     </span>
                   </li>
@@ -155,13 +157,12 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
 
           {payload?.reason ? (
             <p className="mt-2 border-t border-[var(--border)] pt-2 text-xs leading-relaxed text-[var(--muted-foreground)]">
-              {payload.reason}
+              {t(payload.reason)}
             </p>
           ) : null}
           {payload && payload.readiness !== "READY" ? (
             <p className="mt-2 text-xs leading-relaxed text-[var(--muted-foreground)]">
-              核心练习与模板辅导仍可使用；配置 AI 模型后即可解锁全部功能。
-            </p>
+              {t("核心练习与模板辅导仍可使用；配置 AI 模型后即可解锁全部功能。")}</p>
           ) : null}
 
           <div className="mt-2 flex justify-end border-t border-[var(--border)] pt-2">
@@ -172,8 +173,7 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
               className="mt-btn mt-btn-ghost"
             >
               {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-              重新检测
-            </button>
+              {t("重新检测")}</button>
           </div>
         </div>
       )}

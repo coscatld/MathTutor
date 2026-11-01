@@ -260,7 +260,7 @@ test("ProviderOnboarding: dedicated page has focused copy and safe skip", () => 
   assert.ok(source.includes("配置你的 AI 数学辅导模型"), "focused onboarding title");
   assert.ok(source.includes("正在加载本地配置…"), "initial local-config state");
   assert.ok(source.includes("暂时跳过，使用模板教学"), "skip remains available");
-  assert.ok(source.includes("skipProviderOnboarding()"), "skip is persisted by the backend");
+  assert.match(source, /await\s+skipProviderOnboarding\s*\(/, "skip awaits its backend persistence receipt");
   assert.ok(/type="password"/.test(source), "API key input is type=password");
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { readTheme, setTheme, THEME_CHANGE_EVENT, THEME_OPTIONS, type ThemeId } from "@/lib/theme";
@@ -26,6 +27,7 @@ function Mini({ theme }: { theme: Exclude<ThemeId, "system"> }) {
 
 /** Radio group of appearance styles with live miniature previews. */
 export default function AppearancePicker() {
+  const {t} = useI18n();
   const [current, setCurrent] = useState<ThemeId>("system");
   useEffect(() => {
     setCurrent(readTheme());
@@ -42,7 +44,7 @@ export default function AppearancePicker() {
     choose(next.id);
     (event.currentTarget.parentElement?.children[THEME_OPTIONS.indexOf(next)] as HTMLElement | undefined)?.focus();
   };
-  return <div role="radiogroup" aria-label="页面风格" className="mt-theme-grid">
+  return <div role="radiogroup" aria-label={t("页面风格")} className="mt-theme-grid">
     {THEME_OPTIONS.map((option, index) => {
       const selected = option.id === current;
       return <button key={option.id} type="button" role="radio" aria-checked={selected} tabIndex={selected ? 0 : -1} onClick={() => choose(option.id)} onKeyDown={event => move(event, index)} className="mt-theme-option">
@@ -53,8 +55,8 @@ export default function AppearancePicker() {
         </span>
         {selected ? <span className="mt-theme-check"><Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" /></span> : null}
         <span className="px-1 pb-1">
-          <span className="block text-sm font-semibold">{option.label}</span>
-          <span className="mt-0.5 block text-xs leading-5 text-[var(--muted-foreground)]">{option.description}</span>
+          <span className="block text-sm font-semibold">{t(option.label)}</span>
+          <span className="mt-0.5 block text-xs leading-5 text-[var(--muted-foreground)]">{t(option.description)}</span>
         </span>
       </button>;
     })}

@@ -20,12 +20,23 @@ the same contract.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Protocol, Sequence
 from uuid import UUID
 
-from mathtutor.domain.memory import PersonalMemoryEdge, PersonalMemoryNode
+from mathtutor.domain.memory import MemoryConflictError, PersonalMemoryEdge, PersonalMemoryNode, confirm_inference
 from mathtutor.security.scopes import student_uuid
+
+
+MemoryCursor = tuple[datetime, datetime, UUID]
+
+
+@dataclass(frozen=True)
+class MemoryCounts:
+    live: int
+    enabled: int
+    eligible: int
 
 
 class MemoryRepository(Protocol):
@@ -41,10 +52,22 @@ class MemoryRepository(Protocol):
         self, student_id: str, node: PersonalMemoryNode
     ) -> PersonalMemoryNode | None: ...
 
+    async def patch_node(self, student_id: str, memory_id: UUID, *, expected_updated_at: datetime,
+                         object_json: dict | None = None, predicate: str | None = None,
+                         confidence: float | None = None) -> PersonalMemoryNode | None: ...
+
+    async def confirm_node(self, student_id: str, memory_id: UUID, *,
+                           expected_updated_at: datetime) -> PersonalMemoryNode | None: ...
+
+    async def retrieval_counts(self, student_id: str, *, source_types: Sequence[str]) -> MemoryCounts: ...
+
+    async def list_recent_retrievable(self, student_id: str, *, source_types: Sequence[str],
+                                    limit: int, before: MemoryCursor | None = None) -> list[PersonalMemoryNode]: ...
+
     async def soft_delete_node(self, student_id: str, memory_id: UUID) -> bool: ...
 
     async def set_retrieval_enabled(
-        self, student_id: str, memory_id: UUID, enabled: bool
+        self, student_id: str, memory_id: UUID, enabled: bool, *, expected_updated_at: datetime | None = None
     ) -> PersonalMemoryNode | None: ...
 
     async def list_nodes(
@@ -115,18 +138,39 @@ class InMemoryMemoryRepository:
             return None
         return node
 
-    async def update_node(
-        self, student_id: str, node: PersonalMemoryNode
-    ) -> PersonalMemoryNode | None:
-        owner = student_uuid(student_id)
-        current = self._nodes.get(node.memory_id)
-        if current is None or current.student_id != owner or current.deleted_at is not None:
+    async def update_node(self, student_id: str, node: PersonalMemoryNode) -> PersonalMemoryNode | None:
+        """Compatibility surface: content only, with the supplied snapshot CAS."""
+        return await self.patch_node(student_id, node.memory_id, expected_updated_at=node.updated_at,
+                                     object_json=node.object_json, predicate=node.predicate, confidence=node.confidence)
+
+    async def patch_node(self, student_id: str, memory_id: UUID, *, expected_updated_at: datetime,
+                         object_json: dict | None = None, predicate: str | None = None,
+                         confidence: float | None = None) -> PersonalMemoryNode | None:
+        current = await self.get_node(student_id, memory_id)
+        if current is None:
             return None
-        stored = node.model_copy(
-            update={"student_id": owner, "created_at": current.created_at,
-                    "updated_at": self._next_updated_at(owner)}
-        )
-        self._nodes[stored.memory_id] = stored
+        if current.updated_at != expected_updated_at:
+            raise MemoryConflictError(current)
+        fields = {key: value for key, value in {"object_json": object_json, "predicate": predicate,
+                                               "confidence": confidence}.items() if value is not None}
+        stored = PersonalMemoryNode.model_validate({**current.model_dump(), **fields,
+                     "updated_at": self._next_updated_at(current.student_id)})
+        self._nodes[memory_id] = stored
+        return stored
+
+    async def confirm_node(self, student_id: str, memory_id: UUID, *,
+                           expected_updated_at: datetime) -> PersonalMemoryNode | None:
+        current = await self.get_node(student_id, memory_id)
+        if current is None:
+            return None
+        confirmed = confirm_inference(current)
+        if confirmed is current:
+            return current
+        if current.updated_at != expected_updated_at:
+            raise MemoryConflictError(current)
+        stored = current.model_copy(update={"source_type": "USER_CONFIRMED",
+                                            "updated_at": self._next_updated_at(current.student_id)})
+        self._nodes[memory_id] = stored
         return stored
 
     async def soft_delete_node(self, student_id: str, memory_id: UUID) -> bool:
@@ -138,12 +182,14 @@ class InMemoryMemoryRepository:
         return True
 
     async def set_retrieval_enabled(
-        self, student_id: str, memory_id: UUID, enabled: bool
+        self, student_id: str, memory_id: UUID, enabled: bool, *, expected_updated_at: datetime | None = None
     ) -> PersonalMemoryNode | None:
         owner = student_uuid(student_id)
         current = self._nodes.get(memory_id)
         if current is None or current.student_id != owner or current.deleted_at is not None:
             return None
+        if expected_updated_at is not None and current.updated_at != expected_updated_at:
+            raise MemoryConflictError(current)
         stored = current.model_copy(
             update={"retrieval_enabled": enabled, "updated_at": self._next_updated_at(owner)}
         )
@@ -190,6 +236,30 @@ class InMemoryMemoryRepository:
         ]
         rows.sort(key=lambda node: node.created_at)
         return rows[:limit] if limit is not None else rows
+
+    async def retrieval_counts(self, student_id: str, *, source_types: Sequence[str]) -> MemoryCounts:
+        owner, sources = student_uuid(student_id), set(source_types)
+        live = enabled = eligible = 0
+        for node in self._nodes.values():
+            if node.student_id != owner or node.deleted_at is not None:
+                continue
+            live += 1
+            if node.retrieval_enabled:
+                enabled += 1
+                eligible += int(node.source_type in sources)
+        return MemoryCounts(live, enabled, eligible)
+
+    async def list_recent_retrievable(self, student_id: str, *, source_types: Sequence[str],
+                                    limit: int, before: MemoryCursor | None = None) -> list[PersonalMemoryNode]:
+        if limit < 1:
+            raise ValueError("memory page limit must be positive")
+        owner, sources = student_uuid(student_id), set(source_types)
+        key = lambda node: (node.updated_at, node.created_at, node.memory_id)
+        rows = [node for node in self._nodes.values() if node.student_id == owner
+                and node.is_retrievable() and node.source_type in sources
+                and (before is None or key(node) < before)]
+        rows.sort(key=key, reverse=True)
+        return rows[:limit]
 
     # ------------------------------------------------------------- edges
 

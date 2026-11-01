@@ -102,13 +102,14 @@ class RetrievalMetricsSink(Protocol):
         latency_ms: float | None = None,
         rerank_ms: float | None = None,
         context_chars: int = 0,
+        turn_stats=None,
     ) -> None: ...
 
 
 class _NullSink:
     """Default sink: recording is opt-in, never a precondition for retrieval."""
 
-    def record_retrieval(self, execution, *, latency_ms=None, rerank_ms=None, context_chars=0):
+    def record_retrieval(self, execution, *, latency_ms=None, rerank_ms=None, context_chars=0, turn_stats=None):
         return None
 
 
@@ -222,7 +223,11 @@ class ConversationRetrievalOrchestrator:
         history: Sequence[dict] = (),
         problem_text: str = "",
         hints_only: bool = False,
+        turn_stats=None,
     ) -> EvidencePack:
+        # Standalone retrieval consumers can retain their existing sink
+        # signature; a QA owner explicitly opts into response-attempt scope.
+        metric_scope = {"turn_stats": turn_stats} if turn_stats is not None else {}
         decision, reasons = decide_retrieval(
             user_query, document_ids=document_ids, hints_only=hints_only
         )
@@ -240,7 +245,7 @@ class ConversationRetrievalOrchestrator:
             # Recorded even when nothing was retrieved: "we chose not to
             # search" is exactly the fact that makes the empty-retrieval and
             # second-retrieval rates interpretable.
-            self._metrics.record_retrieval(skipped.execution, context_chars=0)
+            self._metrics.record_retrieval(skipped.execution, context_chars=0, **metric_scope)
             return skipped
 
         query = rewrite_query(user_query, history=history, problem_text=problem_text)
@@ -302,6 +307,7 @@ class ConversationRetrievalOrchestrator:
             latency_ms=retrieval_ms,
             rerank_ms=rerank_ms,
             context_chars=pack.chars(),
+            **metric_scope,
         )
         return pack
 

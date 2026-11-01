@@ -168,14 +168,16 @@ def test_second_retrieval_rate_is_defined_over_turns_not_calls():
     """
     metrics = MathTutorMetrics()
 
-    metrics.record_retrieval(_execution())          # turn 1: needs a 2nd search
-    metrics.record_tool_call("search_knowledge")
-    metrics.record_tool_call("search_knowledge")    # same turn, still one turn
-    metrics.end_retrieval_turn()
+    turn = metrics.begin_retrieval_turn()
+    metrics.record_retrieval(_execution(), turn_stats=turn)
+    metrics.record_tool_call("search_knowledge", turn_stats=turn)
+    metrics.record_tool_call("search_knowledge", turn_stats=turn)
+    metrics.end_retrieval_turn(turn)
 
     for _ in range(3):                              # turns 2-4: initial suffices
-        metrics.record_retrieval(_execution())
-        metrics.end_retrieval_turn()
+        turn = metrics.begin_retrieval_turn()
+        metrics.record_retrieval(_execution(), turn_stats=turn)
+        metrics.end_retrieval_turn(turn)
 
     metrics.record_tool_call("read_source")
     metrics.record_tool_call("save_note")           # not a retrieval tool
@@ -195,21 +197,23 @@ def test_turn_closure_is_required_for_the_rates_to_mean_anything():
     """Without end_retrieval_turn the denominator stays 0 — the rate reads
     0.0, which is indistinguishable from 'never needed a second search'."""
     metrics = MathTutorMetrics()
-    metrics.record_retrieval(_execution())
-    metrics.record_tool_call("search_knowledge")
+    turn = metrics.begin_retrieval_turn()
+    metrics.record_retrieval(_execution(), turn_stats=turn)
+    metrics.record_tool_call("search_knowledge", turn_stats=turn)
 
     assert metrics.rag()["second_retrieval_rate"] == 0.0
     assert metrics.rag()["rag_turns_with_initial_total"] == 0
 
-    metrics.end_retrieval_turn()
+    metrics.end_retrieval_turn(turn)
     assert metrics.rag()["second_retrieval_rate"] == 1.0
 
 
 def test_rag_health_is_scalars_only():
     metrics = MathTutorMetrics()
-    metrics.record_retrieval(_execution(), latency_ms=11.0, rerank_ms=1.0, context_chars=200)
-    metrics.record_tool_call("search_knowledge")
-    metrics.end_retrieval_turn()
+    turn = metrics.begin_retrieval_turn()
+    metrics.record_retrieval(_execution(), latency_ms=11.0, rerank_ms=1.0, context_chars=200, turn_stats=turn)
+    metrics.record_tool_call("search_knowledge", turn_stats=turn)
+    metrics.end_retrieval_turn(turn)
     metrics.record_citations(2, unsupported=1)
 
     health = metrics.rag_health()

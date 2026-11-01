@@ -1,5 +1,7 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
+
 import {BookOpen, RefreshCw} from "lucide-react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {fetchOffers, sendOfferFeedback} from "../lib/desktop-api";
@@ -19,6 +21,7 @@ export function groupOffers(offers: PracticeOffer[]) {
 }
 
 export default function OffersPanel({fetchOffersFn = fetchOffers}: {fetchOffersFn?: typeof fetchOffers}) {
+  const {t} = useI18n();
   const [offers, setOffers] = useState<PracticeOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -48,15 +51,15 @@ export default function OffersPanel({fetchOffersFn = fetchOffers}: {fetchOffersF
     accepting={busy === offer.offer_id} disabled={busy !== null || pending}
     onStart={() => void start(offer)} onFeedback={kind => void feedback(offer, kind)} />;
   return <div className="mt-page">
-    <header className="flex items-start justify-between gap-4"><div><p className="mt-eyebrow">让每次练习都有来由</p><h1 className="mt-2">推荐练习</h1><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">继续已经开始的题目，再决定下一步。稍后再做不会影响学习判断。</p></div><button aria-label="刷新推荐练习" disabled={loading} onClick={() => void refresh()} className="mt-btn mt-btn-icon shrink-0"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden="true" /></button></header>
-    {(error || acceptError) && <p role="alert" className="rounded-xl bg-[var(--muted)] p-4">{error || acceptError}</p>}
-    {loading && !offers.length ? <p role="status" className="py-10">正在加载推荐…</p> : <>
-      {!!groups.inProgress.length && <section aria-label="进行中的练习"><h2 className="mt-section-title mb-3">先继续这道题</h2><ul className="space-y-4">{groups.inProgress.map(card)}</ul></section>}
-      {!!groups.pending.length && <section aria-label="待开始的推荐"><h2 className="mt-section-title mb-3">{groups.inProgress.length ? "接下来可选" : "建议的下一步"}</h2><ul className="space-y-4">{groups.pending.slice(0,1).map(card)}</ul>{groups.pending.length > 1 && <details className="mt-4"><summary className="cursor-pointer py-2 text-sm text-[var(--muted-foreground)]">其他选择</summary><ul className="mt-3 space-y-3">{groups.pending.slice(1,3).map(card)}</ul></details>}</section>}
-      {!offers.length && !error && <section className="mt-card mt-paper border-dashed p-8"><BookOpen className="mb-3 h-6 w-6 text-[var(--primary-text)]" aria-hidden="true"/><h2 className="text-xl font-semibold tracking-tight">暂时没有推荐练习</h2><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">先完成当前题目。获得可核验的作答后，系统会在合适时机给出下一步建议。</p><a href="/math-tutor" className="mt-4 inline-flex min-h-11 items-center text-sm text-[var(--primary)]">回到辅导</a></section>}
-      {!!groups.later.length && <section aria-label="稍后再做"><h2 className="mt-section-title mb-3">稍后再做</h2><ul className="space-y-3">{groups.later.map(card)}</ul></section>}
-      {!!groups.completed.length && <section aria-label="已完成的练习"><h2 className="mt-section-title mb-3">完成后观察到了什么</h2><ul className="space-y-3">{groups.completed.map(card)}</ul></section>}
-      {!!groups.history.length && <details><summary className="cursor-pointer py-2 text-sm text-[var(--muted-foreground)]">历史建议 · {groups.history.length}</summary><ul className="mt-3 space-y-3">{groups.history.map(card)}</ul></details>}
+    <header className="flex items-start justify-between gap-4"><div><p className="mt-eyebrow">{t("让每次练习都有来由")}</p><h1 className="mt-2">{t("推荐练习")}</h1><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">{t("继续已经开始的题目，再决定下一步。稍后再做不会影响学习判断。")}</p></div><button aria-label={t("刷新推荐练习")} disabled={loading} onClick={() => void refresh()} className="mt-btn mt-btn-icon shrink-0"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden="true" /></button></header>
+    {(error || acceptError) && <p role="alert" className="rounded-xl bg-[var(--muted)] p-4">{t(error || acceptError || "")}</p>}
+    {loading && !offers.length ? <p role="status" className="py-10">{t("正在加载推荐…")}</p> : <>
+      {!!groups.inProgress.length && <section aria-label={t("进行中的练习")}><h2 className="mt-section-title mb-3">{t("先继续这道题")}</h2><ul className="space-y-4">{groups.inProgress.map(card)}</ul></section>}
+      {!!groups.pending.length && <section aria-label={t("待开始的推荐")}><h2 className="mt-section-title mb-3">{groups.inProgress.length ? t("接下来可选") : t("建议的下一步")}</h2><ul className="space-y-4">{groups.pending.slice(0,1).map(card)}</ul>{groups.pending.length > 1 && <details className="mt-4"><summary className="cursor-pointer py-2 text-sm text-[var(--muted-foreground)]">{t("其他选择")}</summary><ul className="mt-3 space-y-3">{groups.pending.slice(1,3).map(card)}</ul></details>}</section>}
+      {!offers.length && !error && <section className="mt-card mt-paper border-dashed p-8"><BookOpen className="mb-3 h-6 w-6 text-[var(--primary-text)]" aria-hidden="true"/><h2 className="text-xl font-semibold tracking-tight">{t("暂时没有推荐练习")}</h2><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">{t("先完成当前题目。获得可核验的作答后，系统会在合适时机给出下一步建议。")}</p><a href="/math-tutor" className="mt-4 inline-flex min-h-11 items-center text-sm text-[var(--primary)]">{t("回到辅导")}</a></section>}
+      {!!groups.later.length && <section aria-label={t("稍后再做")}><h2 className="mt-section-title mb-3">{t("稍后再做")}</h2><ul className="space-y-3">{groups.later.map(card)}</ul></section>}
+      {!!groups.completed.length && <section aria-label={t("已完成的练习")}><h2 className="mt-section-title mb-3">{t("完成后观察到了什么")}</h2><ul className="space-y-3">{groups.completed.map(card)}</ul></section>}
+      {!!groups.history.length && <details><summary className="cursor-pointer py-2 text-sm text-[var(--muted-foreground)]">{t("历史建议 · {count}", {count: groups.history.length})}</summary><ul className="mt-3 space-y-3">{groups.history.map(card)}</ul></details>}
     </>}
   </div>;
 }

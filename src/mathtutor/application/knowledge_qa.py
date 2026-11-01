@@ -55,7 +55,7 @@ class KnowledgeQA:
             metrics=getattr(self.state, "metrics", None),
         )
 
-    async def _initial_evidence(self, owner, cid, text, history):
+    async def _initial_evidence(self, owner, cid, text, history, *, retrieval_turn=None):
         """System-side retrieval, or an empty pack when it cannot run."""
         if self.orchestrator is None:
             return None
@@ -65,29 +65,35 @@ class KnowledgeQA:
             # A scope that cannot be computed must not become an unscoped read.
             return None
         return await self.orchestrator.retrieve_for_turn(
-            owner, document_ids, text, history=history
+            owner, document_ids, text, history=history, turn_stats=retrieval_turn
         )
 
     async def respond(self, owner, cid, text, history=(), *, practice=None):
-        """Turn boundary wrapper.
+        """One response-attempt scope, including exceptions/cancellation.
 
-        The turn-level denominators behind ``second_retrieval_rate`` only
-        advance if the turn is closed. Without this the rate reads 0 forever,
-        which looks identical to "the agent never needed a second search" —
-        an absent measurement masquerading as a healthy one.
+        Provider retries/tools inside this call share a scope. A fresh call
+        starts another attempt; replayed journal frames never call respond.
+        No context variable or process-wide current-turn state is involved.
         """
+        metrics = getattr(self.state, "metrics", None)
+        retrieval_turn = None
+        if metrics is not None:
+            try:
+                retrieval_turn = metrics.begin_retrieval_turn()
+            except Exception:
+                pass  # Telemetry never prevents a response.
         try:
-            return await self._respond(owner, cid, text, history, practice=practice)
+            return await self._respond(owner, cid, text, history, practice=practice,
+                                       retrieval_turn=retrieval_turn)
         finally:
-            metrics = getattr(self.state, "metrics", None)
-            if metrics is not None:
+            if retrieval_turn is not None:
                 try:
-                    metrics.end_retrieval_turn()
+                    metrics.end_retrieval_turn(retrieval_turn)
                 except Exception:
                     # Telemetry never breaks a turn.
                     pass
 
-    async def _respond(self, owner, cid, text, history=(), *, practice=None):
+    async def _respond(self, owner, cid, text, history=(), *, practice=None, retrieval_turn=None):
         config = await self.state.knowledge.configuration(owner, cid)
         # Fail closed before retrieval/provider calls. An uploaded answer key
         # must not become an alternate route around a hint-only request.
@@ -100,7 +106,7 @@ class KnowledgeQA:
             return "请先在知识库的会话挂载设置中选择笔记保存目标库，再发送整理保存请求。本轮尚未保存。"
         executor = KnowledgeTools(self.state, owner, cid, generation=generation,
             save_space=config.get("save_space_id", ""), allow_save=allow_save,
-            synthesize=synthesize, practice=practice)
+            synthesize=synthesize, practice=practice, retrieval_turn=retrieval_turn)
         provider = self.state.gateway.provider_for(ModelRole.TUTOR_WRITER)
         query = text.strip()[:800]
         if re.search(r"这个|这份|上述|刚才|继续|里面", query):
@@ -118,7 +124,7 @@ class KnowledgeQA:
                     claims.append(Claim(text=src["text"], kind="quote", evidence=[Evidence(source_id=src["source_id"], quote=src["text"])]))
             return ("尚未配置可用模型：以下仅为实际词法检索与原文摘录，未进行 AI 综合或保存。\n\n" +
                     (executor.render_claims(claims) if claims else "所选资料没有命中；未扩大范围或联网。"))
-        pack = await self._initial_evidence(owner, cid, text, history)
+        pack = await self._initial_evidence(owner, cid, text, history, retrieval_turn=retrieval_turn)
         # Phase D: let the initial evidence be READ (and therefore cited).
         # Tool availability is unchanged — this only registers ranges that
         # demonstrably address text that exists.

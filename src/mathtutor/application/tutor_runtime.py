@@ -19,6 +19,34 @@ stream_preview: ContextVar = ContextVar('stream_preview', default=None)
 health = Counter()
 
 
+def request_token_estimate(messages, tools=None) -> int:
+    """Conservative no-usage cost for the actual history and offered schemas.
+
+    Images use the bounded image estimate; native call arguments are charged
+    again when sent back as assistant history, just as on a provider request.
+    """
+    estimate = sum(content_token_estimate(message.get("content", "")) + 16 for message in messages)
+    estimate += sum(content_token_estimate(json.dumps(message["tool_calls"], ensure_ascii=False))
+                    for message in messages if message.get("tool_calls"))
+    if tools:
+        estimate += content_token_estimate(json.dumps(tools, ensure_ascii=False))
+    return estimate
+
+
+def completion_token_estimate(result) -> int:
+    estimate = content_token_estimate(result.text)
+    if result.tool_calls:
+        estimate += content_token_estimate(json.dumps(result.tool_calls, ensure_ascii=False))
+    return estimate
+
+
+def charge_completion(turn, result, input_estimate: int) -> None:
+    """Reported usage wins independently for each direction, including zero."""
+    turn.input_tokens += result.input_tokens if result.input_tokens is not None else input_estimate
+    turn.output_tokens += result.output_tokens if result.output_tokens is not None else completion_token_estimate(result)
+    turn.usage_estimated |= result.input_tokens is None or result.output_tokens is None
+
+
 class TutorResponseUnavailable(RuntimeError):
     """A safe delivery failure, distinct from a successful offline explanation."""
 
@@ -187,8 +215,8 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
                       or CONTINUATION_NOTICE in prior_text)
     while turn.steps_used < turn.max_steps:
         remaining = turn.max_total_tokens - turn.input_tokens - turn.output_tokens
-        prompt_estimate = sum(content_token_estimate(m.get('content', '')) + 16 for m in messages)
-        allowance = min(max_tokens or 512, remaining - prompt_estimate)
+        prompt_estimate = request_token_estimate(messages)
+        allowance = min(512 if max_tokens is None else max_tokens, remaining - prompt_estimate)
         if allowance <= 0:
             turn.stop(FinishReason.TOKEN_LIMIT, text)
             break
@@ -196,7 +224,7 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
             turn.grace_call_used = True
             messages.insert(1 if messages and messages[0].get('role') == 'system' else 0,
                 {'role': 'system', 'content': '这是最后一次回答机会。不要调用工具或开始新的任务。接着已有回答完成可靠结论，不要重复前文；明确尚未完成的部分。'})
-            prompt_estimate = sum(content_token_estimate(m.get("content", "")) + 16 for m in messages)
+            prompt_estimate = request_token_estimate(messages)
             allowance = min(allowance, remaining - prompt_estimate)
             if allowance <= 0:
                 turn.stop(FinishReason.TOKEN_LIMIT, text)
@@ -222,9 +250,10 @@ async def complete_tutor(provider, messages, *, max_tokens, temperature, max_ret
                 raise
             break
         turn.provider, turn.model = result.provider_id, result.model
-        turn.input_tokens += result.input_tokens if result.input_tokens is not None else prompt_estimate
-        turn.output_tokens += result.output_tokens if result.output_tokens is not None else len(result.text.encode('utf-8'))
-        turn.usage_estimated |= result.input_tokens is None or result.output_tokens is None
+        charge_completion(turn, result, prompt_estimate)
+        if turn.input_tokens + turn.output_tokens > turn.max_total_tokens:
+            turn.stop(FinishReason.TOKEN_LIMIT, text)
+            break
         addition = result.text
         prefix = text or prior_text
         visible_delta, uncertain = continuation_delta(prefix, addition)
@@ -352,21 +381,14 @@ async def complete_math_tools(provider, messages, *, verify, draw=False, tempera
         if extension_executor is not None and getattr(turn, "extension_calls_used", 0) < MAX_EXTENSION_CALLS:
             tools.extend(extension_executor.definitions())
         tool_enabled = bool(tools) and turn.steps_used < turn.max_steps - 1
-        call_tokens = max_tokens
-        extension_input_estimate = None
-        if extension_executor is not None:
-            # Extension schemas/results share the existing turn budget. Merely
-            # installing an extension must not grant more steps or free input.
-            estimate = sum(content_token_estimate(m.get("content", "")) + 16 for m in messages)
-            estimate += sum(content_token_estimate(json.dumps(m["tool_calls"], ensure_ascii=False))
-                            for m in messages if m.get("tool_calls"))
-            if tool_enabled:
-                estimate += content_token_estimate(json.dumps(tools, ensure_ascii=False))
-            extension_input_estimate = estimate
-            call_tokens = min(max_tokens, turn.max_total_tokens - turn.input_tokens - turn.output_tokens - estimate)
-            if call_tokens <= 0:
-                turn.stop(FinishReason.TOKEN_LIMIT, turn.final_text)
-                raise RuntimeError("Tutor token budget exhausted")
+        # All maths/figure/extension combinations pay for the same request.
+        # Binding an extension changes capabilities, never the budget guard.
+        prompt_estimate = request_token_estimate(messages, tools if tool_enabled else None)
+        call_tokens = min(2048 if max_tokens is None else max_tokens,
+                          turn.max_total_tokens - turn.input_tokens - turn.output_tokens - prompt_estimate)
+        if call_tokens <= 0:
+            turn.stop(FinishReason.TOKEN_LIMIT, turn.final_text)
+            raise RuntimeError("Tutor token budget exhausted")
         turn.steps_used += 1
         try:
             result = await asyncio.wait_for(provider.complete(
@@ -379,16 +401,8 @@ async def complete_math_tools(provider, messages, *, verify, draw=False, tempera
             turn.stop(FinishReason.PROVIDER_ERROR, "")
             raise
         turn.provider, turn.model = result.provider_id, result.model
-        prompt_estimate = sum(content_token_estimate(str(m.get("content", ""))) + 16 for m in messages)
-        if extension_input_estimate is not None:
-            prompt_estimate = extension_input_estimate
-        turn.input_tokens += result.input_tokens if result.input_tokens is not None else prompt_estimate
-        output_estimate = len(result.text.encode("utf-8"))
-        if extension_executor is not None and result.tool_calls:
-            output_estimate += content_token_estimate(json.dumps(result.tool_calls, ensure_ascii=False))
-        turn.output_tokens += result.output_tokens if result.output_tokens is not None else output_estimate
-        turn.usage_estimated |= result.input_tokens is None or result.output_tokens is None
-        if extension_executor is not None and turn.input_tokens + turn.output_tokens > turn.max_total_tokens:
+        charge_completion(turn, result, prompt_estimate)
+        if turn.input_tokens + turn.output_tokens > turn.max_total_tokens:
             turn.stop(FinishReason.TOKEN_LIMIT, turn.final_text)
             raise RuntimeError("Tutor token budget exhausted")
         if result.tool_calls and not tool_enabled:
@@ -477,8 +491,9 @@ async def complete_auxiliary(provider, messages, *, temperature, max_tokens, max
     if turn.steps_used >= turn.max_steps:
         turn.stop(FinishReason.STEP_CAP, turn.final_text)
         raise RuntimeError('Tutor step budget exhausted')
-    estimate = sum(len(str(m.get('content', '')).encode('utf-8')) + 16 for m in messages)
-    available = turn.max_total_tokens - turn.input_tokens - turn.output_tokens - estimate
+    estimate = request_token_estimate(messages)
+    available = min(512 if max_tokens is None else max_tokens,
+                    turn.max_total_tokens - turn.input_tokens - turn.output_tokens - estimate)
     if available <= 0:
         turn.stop(FinishReason.TOKEN_LIMIT, turn.final_text)
         raise RuntimeError('Tutor token budget exhausted')
@@ -487,7 +502,7 @@ async def complete_auxiliary(provider, messages, *, temperature, max_tokens, max
         turn.provider, turn.model = getattr(provider, 'provider_id', ''), getattr(provider, 'model', '')
     try:
         result = await asyncio.wait_for(provider.complete(messages, temperature=temperature,
-            max_tokens=min(max_tokens or 512, available), max_retries=0), timeout=60)
+            max_tokens=available, max_retries=0), timeout=60)
     except asyncio.CancelledError:
         raise
     except Exception as exc:
@@ -495,9 +510,7 @@ async def complete_auxiliary(provider, messages, *, temperature, max_tokens, max
         timed_out = isinstance(exc, (TimeoutError, httpx.TimeoutException)) or isinstance(exc.__cause__, httpx.TimeoutException)
         turn.stop(FinishReason.TIMEOUT if timed_out else FinishReason.PROVIDER_ERROR, turn.final_text)
         raise
-    turn.input_tokens += result.input_tokens if result.input_tokens is not None else estimate
-    turn.output_tokens += result.output_tokens if result.output_tokens is not None else len(result.text.encode('utf-8'))
-    turn.usage_estimated |= result.input_tokens is None or result.output_tokens is None
+    charge_completion(turn, result, estimate)
     if turn.input_tokens + turn.output_tokens > turn.max_total_tokens:
         turn.stop(FinishReason.TOKEN_LIMIT, turn.final_text)
         raise RuntimeError('Tutor token budget exhausted')

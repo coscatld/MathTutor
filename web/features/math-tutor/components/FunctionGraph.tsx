@@ -1,5 +1,6 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import { useEffect, useId, useRef, useState } from "react";
 import { formatTick, niceStep, valueAt, type GraphSpec } from "../lib/function-graph";
 
@@ -32,6 +33,7 @@ export default function FunctionGraph({ spec }: { spec: GraphSpec }) {
 }
 
 function FunctionGraphView({ spec }: { spec: GraphSpec }) {
+  const {t} = useI18n();
   const wrapper = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(0);
@@ -40,7 +42,7 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
   const inputId = useId();
   const [inputX, setInputX] = useState(() => String(Math.min(spec.xRange[1], Math.max(spec.xRange[0], 0))));
   const [readout, setReadout] = useState<Readout | null>(null);
-  const [inputError, setInputError] = useState("");
+  const [inputError, setInputError] = useState(false);
   const [announcement, setAnnouncement] = useState({ text: "", sequence: 0 });
 
   useEffect(() => {
@@ -164,15 +166,15 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
     event.preventDefault();
     const x = Number(inputX);
     if (!inputX.trim() || !Number.isFinite(x) || x < x0 || x > x1) {
-      const error = `请输入 ${x0} 到 ${x1} 之间的有限数值（含端点）。`;
-      setInputError(error);
+      const error = t("请输入 {min} 到 {max} 之间的有限数值（含端点）。",{min:x0,max:x1});
+      setInputError(true);
       setAnnouncement(previous => ({ text: error, sequence: previous.sequence + 1 }));
       return;
     }
     const values = spec.series.map(series => valueAt(series, x));
-    setInputError("");
+    setInputError(false);
     setReadout({ x, values });
-    const text = `x = ${formatReadout(x)}。${values.length ? values.map((value, index) => `${spec.series[index].label || `曲线 ${index + 1}`}：${value === null ? "无定义" : formatReadout(value)}`).join("；") : "当前图中没有可读取 y 值的函数曲线。"}`;
+    const text = t("x = {x}。{values}", {x:formatReadout(x), values: values.length ? values.map((value,index) => t("{label}：{value}",{label:spec.series[index].label || t("曲线 {index}",{index:index+1}),value:value === null ? t("无定义") : formatReadout(value)})).join(t("；")) : t("当前图中没有可读取 y 值的函数曲线。")});
     setAnnouncement(previous => ({ text, sequence: previous.sequence + 1 }));
   };
 
@@ -182,7 +184,7 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
   return (
     <figure className="my-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
       {named.length + spec.vertical.length > 1 ? (
-        <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]" aria-label="图例">
+        <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]" aria-label={t("图例")}>
           {named.map((series, index) => <li key={series.label} className="flex items-center gap-1.5">
             <svg width="18" height="6" aria-hidden="true"><line x1="1" y1="3" x2="17" y2="3" stroke={index === 0 ? "var(--primary)" : "#eb6834"} strokeWidth="2" strokeDasharray={index === 0 ? undefined : "5 3"} strokeLinecap="round" /></svg>{series.label}</li>)}
           {spec.vertical.map(line => <li key={line.label} className="flex items-center gap-1.5">
@@ -190,42 +192,40 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
         </ul>
       ) : null}
       <div ref={wrapper} className="relative">
-        <canvas ref={canvas} role="img" aria-label={summary || "函数图像"} aria-describedby={`${inputId}-help`} style={{ width: "100%", height: HEIGHT, touchAction: "pan-y" }}
+        <canvas ref={canvas} role="img" aria-label={summary || t("函数图像")} aria-describedby={`${inputId}-help`} style={{ width: "100%", height: HEIGHT, touchAction: "pan-y" }}
           onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)} />
         {hover ? <div aria-hidden="true" className="pointer-events-none absolute top-1 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs text-[var(--foreground)] shadow-[var(--shadow-xs)]"
           style={hover.px > width / 2 ? { right: width - hover.px + 8 } : { left: hover.px + 8 }}>
           <div className="text-[var(--muted-foreground)]">x = {formatTick(hover.x)}</div>
-          {hover.values.map((value, index) => spec.series[index].segments.length ? <div key={index}>{named.length > 1 ? `${spec.series[index].label}：` : "y = "}{value === null ? "无定义" : formatTick(value)}</div> : null)}
+          {hover.values.map((value, index) => spec.series[index].segments.length ? <div key={index}>{named.length > 1 ? `${spec.series[index].label}：` : "y = "}{value === null ? t("无定义") : formatTick(value)}</div> : null)}
         </div> : null}
       </div>
       {spec.marks.length ? <figcaption className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
-        <span className="sr-only">图上标出的点：</span>{spec.marks.map(mark => mark.label).join(" · ")}
+        <span className="sr-only">{t("图上标出的点：")}</span>{spec.marks.map(mark => mark.label).join(" · ")}
       </figcaption> : null}
-      <form onSubmit={readValue} noValidate className="mt-3 border-t border-[var(--border)] pt-3" aria-label="按 x 坐标读取函数值">
+      <form onSubmit={readValue} noValidate className="mt-3 border-t border-[var(--border)] pt-3" aria-label={t("按 x 坐标读取函数值")}>
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-0 flex-1 basis-40">
-            <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-[var(--foreground)]">x 坐标</label>
+            <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-[var(--foreground)]">{t("x 坐标")}</label>
             <input id={inputId} name="x" type="number" min={x0} max={x1} step="any" required value={inputX}
-              onChange={event => { setInputX(event.target.value); setInputError(""); }}
+              onChange={event => { setInputX(event.target.value); setInputError(false); }}
               aria-invalid={inputError ? true : undefined} aria-describedby={`${inputId}-help${inputError ? ` ${inputId}-error` : ""}`}
               className="mt-input min-h-11 w-full min-w-0 text-base" />
           </div>
-          <button type="submit" className="mt-btn min-h-11 shrink-0 px-4">读取</button>
+          <button type="submit" className="mt-btn min-h-11 shrink-0 px-4">{t("读取")}</button>
         </div>
-        <p id={`${inputId}-help`} className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
-          范围：{x0} ≤ x ≤ {x1}。读数按采样点作线性插值；分段空缺显示“无定义”，不跨段插值。
-        </p>
-        {inputError ? <p id={`${inputId}-error`} className="mt-1 text-xs leading-5 text-[var(--foreground)]">{inputError}</p> : null}
+        <p id={`${inputId}-help`} className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{t("范围：")}{x0} ≤ x ≤ {x1}{t("。读数按采样点作线性插值；分段空缺显示“无定义”，不跨段插值。")}</p>
+        {inputError ? <p id={`${inputId}-error`} className="mt-1 text-xs leading-5 text-[var(--foreground)]">{t("请输入 {min} 到 {max} 之间的有限数值（含端点）。",{min:x0,max:x1})}</p> : null}
       </form>
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement.text ? <span key={announcement.sequence}>{announcement.text}</span> : null}</p>
       {submitted ? spec.series.length ? <table className="mt-3 w-full table-fixed text-left text-xs leading-5 text-[var(--foreground)]">
-        <caption className="mb-1 text-left font-medium">x = {formatReadout(submitted.x)} 的函数读数</caption>
-        <thead><tr><th scope="col" className="w-2/3 py-1 pr-3 font-medium">函数</th><th scope="col" className="py-1 font-medium">y 值</th></tr></thead>
+        <caption className="mb-1 text-left font-medium">{t("x = {x} 的函数读数",{x:formatReadout(submitted.x)})}</caption>
+        <thead><tr><th scope="col" className="w-2/3 py-1 pr-3 font-medium">{t("函数")}</th><th scope="col" className="py-1 font-medium">{t("y 值")}</th></tr></thead>
         <tbody>{submitted.values.map((value, index) => <tr key={index} className="border-t border-[var(--border)]">
-          <th scope="row" className="break-words py-1 pr-3 font-normal">{spec.series[index].label || `曲线 ${index + 1}`}</th>
-          <td className="break-words py-1">{value === null ? "无定义" : formatReadout(value)}</td>
+          <th scope="row" className="break-words py-1 pr-3 font-normal">{spec.series[index].label || t("曲线 {index}",{index:index+1})}</th>
+          <td className="break-words py-1">{value === null ? t("无定义") : formatReadout(value)}</td>
         </tr>)}</tbody>
-      </table> : <p className="mt-3 text-xs leading-5 text-[var(--foreground)]">当前图中没有可读取 y 值的函数曲线。</p> : null}
+      </table> : <p className="mt-3 text-xs leading-5 text-[var(--foreground)]">{t("当前图中没有可读取 y 值的函数曲线。")}</p> : null}
     </figure>
   );
 }

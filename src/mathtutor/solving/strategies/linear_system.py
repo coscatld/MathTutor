@@ -2,6 +2,7 @@
 from mathtutor.solving.linear_system import system_rows
 from mathtutor.solving.strategies import _common as c
 from mathtutor.solving import nodes as n
+from mathtutor.solving.budget import fraction_sub, fraction_mul, fraction_div
 
 STRATEGY_NAME = "mt-linear-system-v1"
 
@@ -9,12 +10,14 @@ STRATEGY_NAME = "mt-linear-system-v1"
 def solve(parsed):
     variables, rows = system_rows(parsed.ast)
     (a, b, rhs), (d, e, other) = rows
-    determinant = a * e - d * b
-    first = (rhs * e - other * b) / determinant
-    second = (rhs - a * first) / b if b else (other - d * first) / e
+    determinant = fraction_sub(fraction_mul(a, e), fraction_mul(d, b))
+    eliminated_rhs = fraction_sub(fraction_mul(rhs, e), fraction_mul(other, b))
+    first = fraction_div(eliminated_rhs, determinant)
+    second = (fraction_div(fraction_sub(rhs, fraction_mul(a, first)), b) if b
+              else fraction_div(fraction_sub(other, fraction_mul(d, first)), e))
     values = {variables[0]: c.frac_to_dict(first), variables[1]: c.frac_to_dict(second)}
     row_json = [[c.frac_to_dict(value) for value in row] for row in rows]
-    eliminated = [determinant, 0 * determinant, rhs * e - other * b]
+    eliminated = [determinant, 0 * determinant, eliminated_rhs]
     substitute_row = 0 if b else 1
     row = rows[substitute_row]
     steps = (
@@ -24,7 +27,7 @@ def solve(parsed):
         {"label": f"求出 {variables[0]} 的值", "kind": "solve_variable", "variable": variables[0], "value": c.frac_to_dict(first)},
         {"label": "代回一个原方程，保留另一个未知数继续求解", "kind": "back_substitution",
          "source_row_index": substitute_row, "variable": variables[1],
-         "coefficient": c.frac_to_dict(row[1]), "rhs": c.frac_to_dict(row[2] - row[0] * first)},
+         "coefficient": c.frac_to_dict(row[1]), "rhs": c.frac_to_dict(fraction_sub(row[2], fraction_mul(row[0], first)))},
         {"label": "将两个未知数的值代回原来的两个方程", "kind": "substitution",
          "values": values, "residuals": [c.frac_to_dict(0 * determinant), c.frac_to_dict(0 * determinant)]},
     )

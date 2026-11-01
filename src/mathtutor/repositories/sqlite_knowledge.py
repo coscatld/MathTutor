@@ -14,6 +14,7 @@ functions (every statement carries the owner; retrieval reads filter
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Sequence
 from uuid import UUID
 
@@ -30,6 +31,7 @@ from mathtutor.domain.embedding import (
 from mathtutor.domain.memory import PersonalMemoryEdge, PersonalMemoryNode
 from mathtutor.repositories import sqlite_documents as sd
 from mathtutor.repositories import sqlite_memory as sm
+from mathtutor.repositories.memory_repository import MemoryCounts, MemoryCursor
 from mathtutor.repositories.uow import MathTutorUow
 
 
@@ -42,7 +44,7 @@ class SQLiteMemoryRepository:
     async def add_node(self, student_id: str, node: PersonalMemoryNode) -> PersonalMemoryNode:
         async with self.uow.transaction() as conn:
             await sm.insert_personal_memory_node(conn, student_id=student_id, node=node)
-        return node
+            return await sm.select_personal_memory_node(conn, student_id=student_id, memory_id=node.memory_id)
 
     async def get_node(
         self, student_id: str, memory_id: UUID, *, include_deleted: bool = False
@@ -61,6 +63,29 @@ class SQLiteMemoryRepository:
         async with self.uow.transaction() as conn:
             return await sm.update_personal_memory_node(conn, student_id=student_id, node=node)
 
+    async def patch_node(self, student_id: str, memory_id: UUID, *, expected_updated_at: datetime,
+                         object_json: dict | None = None, predicate: str | None = None,
+                         confidence: float | None = None) -> PersonalMemoryNode | None:
+        async with self.uow.transaction() as conn:
+            return await sm.patch_personal_memory_node(conn, student_id=student_id, memory_id=memory_id,
+                expected_updated_at=expected_updated_at, object_json=object_json, predicate=predicate, confidence=confidence)
+
+    async def confirm_node(self, student_id: str, memory_id: UUID, *,
+                           expected_updated_at: datetime) -> PersonalMemoryNode | None:
+        async with self.uow.transaction() as conn:
+            return await sm.confirm_personal_memory_node(conn, student_id=student_id, memory_id=memory_id,
+                                                         expected_updated_at=expected_updated_at)
+
+    async def retrieval_counts(self, student_id: str, *, source_types: Sequence[str]) -> MemoryCounts:
+        async with self.uow.transaction() as conn:
+            return await sm.personal_memory_retrieval_counts(conn, student_id=student_id, source_types=source_types)
+
+    async def list_recent_retrievable(self, student_id: str, *, source_types: Sequence[str],
+                                    limit: int, before: MemoryCursor | None = None) -> list[PersonalMemoryNode]:
+        async with self.uow.transaction() as conn:
+            return await sm.list_recent_retrievable_memories(conn, student_id=student_id,
+                source_types=source_types, limit=limit, before=before)
+
     async def soft_delete_node(self, student_id: str, memory_id: UUID) -> bool:
         async with self.uow.transaction() as conn:
             return await sm.soft_delete_personal_memory_node(
@@ -68,11 +93,12 @@ class SQLiteMemoryRepository:
             )
 
     async def set_retrieval_enabled(
-        self, student_id: str, memory_id: UUID, enabled: bool
+        self, student_id: str, memory_id: UUID, enabled: bool, *, expected_updated_at: datetime | None = None
     ) -> PersonalMemoryNode | None:
         async with self.uow.transaction() as conn:
             return await sm.set_memory_retrieval_enabled(
-                conn, student_id=student_id, memory_id=memory_id, enabled=enabled
+                conn, student_id=student_id, memory_id=memory_id, enabled=enabled,
+                expected_updated_at=expected_updated_at
             )
 
     async def list_nodes(

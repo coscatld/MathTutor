@@ -6,7 +6,23 @@
  * attestation material) may ever appear here or in the components.
  */
 
-export interface DesktopSettings {
+export interface ConfigurationReceipt {
+  revision?: number;
+  current_revision?: number;
+  epoch?: string;
+  operation_id?: string;
+  accepted?: boolean;
+  persisted?: boolean;
+  persistence_error?: "config_write_failed" | "persistence_unavailable" | null;
+}
+
+export interface ConfigurationOperation {
+  revision?: number;
+  epoch?: string;
+  operation_id?: string;
+}
+
+export interface DesktopSettings extends ConfigurationReceipt {
   initial_assessment_required?: boolean;
   vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
@@ -43,7 +59,7 @@ export interface TutorSettings {
   presets: Array<{ id: string; label: string }>;
 }
 
-export interface SettingsSaveResult {
+export interface SettingsSaveResult extends ConfigurationReceipt {
   initial_assessment_required?: boolean;
   vision_mode?: "auto" | "enabled" | "disabled";
   preset_id: string;
@@ -90,7 +106,7 @@ export interface EmbeddingTestResult {
   message: string;
 }
 
-export interface TestConnectionResult {
+export interface TestConnectionResult extends ConfigurationReceipt {
   status: "ok" | "error";
   message: string;
   resolved_model?: string;
@@ -220,7 +236,7 @@ export type ModelErrorKind =
   | "model_unavailable"
   | "gateway_disabled";
 
-export interface ModelTestResult {
+export interface ModelTestResult extends ConfigurationReceipt {
   ok: boolean;
   error_kind: ModelErrorKind | null;
   /** Friendly Chinese message only — never raw tracebacks or headers. */

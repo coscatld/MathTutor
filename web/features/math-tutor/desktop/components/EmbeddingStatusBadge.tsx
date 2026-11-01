@@ -1,3 +1,6 @@
+"use client";
+
+import {useI18n} from "@/lib/i18n";
 import { CircleOff, Cloud, DatabaseZap, Search } from "lucide-react";
 import type { EmbeddingSettings } from "../types";
 
@@ -16,11 +19,13 @@ const ICONS = {
 } as const;
 
 export default function EmbeddingStatusBadge({ settings }: { settings: EmbeddingSettings }) {
+  const {t} = useI18n();
   const Icon = ICONS[settings.status];
+  const label = {disabled: "未启用 Embedding", local_ready: "本地模型就绪", cloud_configured: "云端已配置", incomplete: "配置不完整（回退关键词）"}[settings.status];
   return (
     <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${STYLES[settings.status]}`}>
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-      {settings.status_label}
+      {label ? t(label) : settings.status_label}
     </span>
   );
 }

@@ -169,6 +169,7 @@ def create_math_tutor_app(
         # product app never mounts a general execution surface (§25).
     )
     app.state.math_tutor_auth = LocalAuthProvider(effective_auth, auth_data_root)
+    auth_router.install_auth_runtime(app)
     app.state.math_tutor_security = settings
     app.add_middleware(_MaintenanceGateMiddleware)
     from mathtutor.api.upload_limits import UploadBodyLimitMiddleware
@@ -230,9 +231,9 @@ def create_math_tutor_app(
         """Phase 6 (round 2): the outbox relay runs as a RESIDENT loop.
 
         Drains committed events continuously (idle poll every second, wake
-        on append via the UoW commit hook). Idempotent + restart-safe by
-        construction (the relay ledger keys on the outbox's unique 4-tuple —
-        a replay can never dispatch twice). The sink only logs event
+        on append via the UoW commit hook). Delivery is at least once: the
+        ledger's unique 4-tuple prevents duplicate receipts, but a crash
+        after delivery can redeliver, so sinks must be idempotent. The sink only logs event
         summaries; domain_outbox rows are never mutated. A start failure
         never blocks serving — events accumulate and drain on the next
         successful start.
@@ -363,8 +364,8 @@ def create_math_tutor_app_from_runtime() -> FastAPI:
     from mathtutor.infrastructure.db import resolve_db_path
     from mathtutor.infrastructure.migrate import upgrade_db
 
-    from mathtutor.infrastructure import db_crypto
-    db_crypto.apply_pending(resolve_db_path().resolve())  # encryption change chosen by the student
+    # One OS-owned lock spans pending encryption recovery/conversion and schema
+    # migration. No second lock acquisition inside the coordinator.
     upgrade_db()  # fail fast before serving (design doc §15 readiness)
     return create_math_tutor_app(
         settings=load_math_tutor_security_settings(),

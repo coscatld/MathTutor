@@ -699,6 +699,7 @@ async def test_get_settings_has_no_key_material() -> None:
             "key_masked",
             "connection_status",
             "provider_configs",
+            "revision", "current_revision", "epoch", "accepted", "persisted", "persistence_error",
         }
         assert "api_key" not in response.text
         assert SECRET not in response.text
@@ -888,7 +889,7 @@ async def test_connection_success_resolves_model(monkeypatch) -> None:
     async def fake_complete(self, *args, **kwargs):
         return None
     monkeypatch.setattr(
-        "mathtutor.infrastructure.generative_gateway.GenerativeModelGateway.complete",
+        "mathtutor.infrastructure.generative_gateway.GenerativeModelGateway.probe_provider",
         fake_complete,
     )
     with _client() as client:
@@ -1288,7 +1289,7 @@ def test_readiness_ready_when_fully_configured(monkeypatch) -> None:
     async def fake_complete(self, *args, **kwargs):
         return None
     monkeypatch.setattr(
-        "mathtutor.infrastructure.generative_gateway.GenerativeModelGateway.complete",
+        "mathtutor.infrastructure.generative_gateway.GenerativeModelGateway.probe_provider",
         fake_complete,
     )
     with _client() as client:

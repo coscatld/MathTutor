@@ -10,7 +10,9 @@ import inspect
 import json
 import math
 from dataclasses import dataclass
+from contextvars import ContextVar
 from typing import Awaitable, Callable, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -39,6 +41,32 @@ class ExecutionContext(StrictArguments):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
     owner_id: str = Field(min_length=1, max_length=128)
     conversation_id: str = Field(min_length=1, max_length=128)
+    request_id: str = Field(default_factory=lambda: str(uuid4()), min_length=1, max_length=128)
+
+
+@dataclass(frozen=True)
+class FileWriteIntent:
+    """Host-only authority derived once from the original authenticated request."""
+    owner_id: str
+    conversation_id: str
+    request_id: str
+    request_sha256: str
+    workspace_id: str
+    relative_path: str
+    mode: Literal["create", "update"]
+
+
+@dataclass(frozen=True)
+class _FileWriteBinding:
+    registry: object
+    context: ExecutionContext
+    request_text: str
+    intents: tuple[FileWriteIntent, ...]
+
+
+# This is never a tool argument. A handler receives only its executor's
+# immutable host authority, including when wait_for creates a child task.
+_file_write_intents: ContextVar[tuple[FileWriteIntent, ...]] = ContextVar("file_write_intents", default=())
 
 
 class ExtensionError(ValueError):
@@ -104,6 +132,8 @@ class _Tool:
     available: Callable[[ExecutionContext], bool] | None = None
     context_hint: Callable[[ExecutionContext], dict] | None = None
     request_authorizer: Callable[[ExecutionContext, str], bool] | None = None
+    intent_authorizer: Callable | None = None
+    intent_hint: Callable | None = None
 
 
 @dataclass(frozen=True)
@@ -120,6 +150,13 @@ class ExtensionRegistry:
         self._tools: dict[str, _Tool] = {}
         self._skills: dict[str, _Skill] = {}
         self._file_task_policy: Callable[[ExecutionContext, str], bool] | None = None
+        self._file_write_policy: Callable | None = None
+
+    def set_file_write_policy(self, policy: Callable) -> None:
+        """Only trusted startup code may install an original-request parser."""
+        if not callable(policy):
+            raise ValueError("A server-owned policy is required")
+        self._file_write_policy = policy
 
     def set_file_task_policy(self, policy: Callable[[ExecutionContext, str], bool]) -> None:
         """Trusted host policy only; a model cannot submit budgets or grants."""
@@ -139,7 +176,8 @@ class ExtensionRegistry:
                       source: Literal["builtin", "server-registered"] = "server-registered",
                       available: Callable[[ExecutionContext], bool] | None = None,
                       context_hint: Callable[[ExecutionContext], dict] | None = None,
-                      request_authorizer: Callable[[ExecutionContext, str], bool] | None = None) -> None:
+                      request_authorizer: Callable[[ExecutionContext, str], bool] | None = None,
+                      intent_authorizer: Callable | None = None, intent_hint: Callable | None = None) -> None:
         import re
         self._check_id(manifest)
         if manifest.kind != "tool" or not re.fullmatch(r"ext_[a-z][a-z0-9_]{0,58}", name):
@@ -155,7 +193,8 @@ class ExtensionRegistry:
         if source not in {"builtin", "server-registered"}:
             raise ValueError("Unknown tool source")
         self._tools[name] = _Tool(manifest, name, input_model, _closed_schema(input_model), handler,
-                                 float(timeout_seconds), max_result_bytes, source, available, context_hint, request_authorizer)
+                                 float(timeout_seconds), max_result_bytes, source, available, context_hint,
+                                 request_authorizer, intent_authorizer, intent_hint)
 
     def register_skill(self, manifest: ExtensionManifest, *, instructions: str,
                        enabled: bool = False, source: str = "server-registered") -> None:
@@ -199,7 +238,27 @@ class ExtensionRegistry:
                 file_task = self._file_task_policy(context, request_text) is True
             except Exception:
                 pass
-        return ExtensionExecutor(self, context, file_task=file_task, request_text=request_text)
+        # Repairs share a host turn, so a later prompt/receipt cannot grant a
+        # new target, mode or workspace. A new authenticated request gets a
+        # new binding; continuation text by itself grants no write authority.
+        from mathtutor.application.tutor_runtime import current_turn
+        turn = current_turn.get()
+        binding = getattr(turn, "_file_write_binding", None) if turn is not None else None
+        if binding is None:
+            intents = ()
+            if self._file_write_policy is not None:
+                try:
+                    intents = tuple(self._file_write_policy(context, request_text))
+                    if not all(isinstance(intent, FileWriteIntent) for intent in intents):
+                        intents = ()
+                except Exception:
+                    intents = ()
+            binding = _FileWriteBinding(self, context, request_text, intents)
+            if turn is not None:
+                turn._file_write_binding = binding
+        same_scope = binding.registry is self and binding.context == context
+        return ExtensionExecutor(self, context, file_task=file_task, request_text=binding.request_text,
+                                 file_write_intents=binding.intents if same_scope else ())
 
     def catalog(self, context: ExecutionContext | None = None) -> dict:
         return {
@@ -219,7 +278,7 @@ class ExtensionRegistry:
 
 
 class ExtensionExecutor:
-    def __init__(self, registry: ExtensionRegistry, context: ExecutionContext, *, file_task=False, request_text=""):
+    def __init__(self, registry: ExtensionRegistry, context: ExecutionContext, *, file_task=False, request_text="", file_write_intents=()):
         self.registry, self.context = registry, context
         # A turn may lose authority but cannot gain newly registered tools.
         self._snapshot = dict(registry._tools)
@@ -227,6 +286,11 @@ class ExtensionExecutor:
         self._file_calls = 0
         self.file_task = file_task
         self._request_text = request_text
+        self._file_write_intents = tuple(file_write_intents)
+
+    @property
+    def file_write_intents(self) -> tuple[FileWriteIntent, ...]:
+        return self._file_write_intents
 
     def _active(self, name):
         tool = self._snapshot.get(name)
@@ -236,6 +300,8 @@ class ExtensionExecutor:
             if tool.available is not None and not tool.available(self.context):
                 return None
             if tool.request_authorizer is not None and tool.request_authorizer(self.context, self._request_text) is not True:
+                return None
+            if tool.intent_authorizer is not None and tool.intent_authorizer(self.context, self._file_write_intents, None) is not True:
                 return None
         except Exception:
             return None
@@ -252,9 +318,10 @@ class ExtensionExecutor:
             if name.startswith("ext_workspace_") and self._file_calls >= 3:
                 continue
             description = tool.manifest.description
-            if tool.context_hint is not None:
+            if tool.context_hint is not None or tool.intent_hint is not None:
                 try:
-                    hint = tool.context_hint(self.context)
+                    hint = (tool.intent_hint(self.context, self._file_write_intents) if tool.intent_hint is not None
+                            else tool.context_hint(self.context))
                     encoded = _json_bytes(hint)
                     if not isinstance(hint, dict) or len(encoded) > 4096:
                         continue
@@ -289,7 +356,13 @@ class ExtensionExecutor:
         except (ValueError, TypeError, ValidationError, RecursionError, OverflowError):
             return {**receipt, "code": "INVALID_ARGUMENTS"}
         try:
-            result = await asyncio.wait_for(tool.handler(parsed, self.context), timeout=tool.timeout_seconds)
+            if tool.intent_authorizer is not None and tool.intent_authorizer(self.context, self._file_write_intents, parsed) is not True:
+                return {**receipt, "code": "REJECTED", "message": "目标文件或写入方式不属于本轮明确请求。"}
+            token = _file_write_intents.set(self._file_write_intents)
+            try:
+                result = await asyncio.wait_for(tool.handler(parsed, self.context), timeout=tool.timeout_seconds)
+            finally:
+                _file_write_intents.reset(token)
             if self._active(name) is not tool:
                 return {**receipt, "code": "EXTENSION_REVOKED"}
             try:

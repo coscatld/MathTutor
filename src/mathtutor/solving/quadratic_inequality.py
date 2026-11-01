@@ -20,6 +20,7 @@ from fractions import Fraction
 from typing import Any
 
 from mathtutor.solving import nodes as n
+from mathtutor.solving.budget import fraction_add, fraction_sub, fraction_mul, fraction_div
 
 STRATEGY_NAME = "mt-quadratic-inequality-v1"
 _SATISFIES = {"gt": lambda v: v > 0, "ge": lambda v: v >= 0, "lt": lambda v: v < 0, "le": lambda v: v <= 0}
@@ -63,13 +64,15 @@ def _isqrt(value: int) -> int:
 
 def rational_roots(a: Fraction, b: Fraction, c: Fraction) -> tuple[Fraction, ...]:
     """Sorted distinct real roots; raises when they are irrational."""
-    disc = b * b - 4 * a * c
+    disc = fraction_sub(fraction_mul(b, b), fraction_mul(fraction_mul(Fraction(4), a), c))
     if disc < 0:
         return ()
     root = _rational_sqrt(disc)
     if root is None:
         raise n.MathDomainError("目前只核验根为有理数的二次不等式")
-    return tuple(sorted({(-b - root) / (2 * a), (-b + root) / (2 * a)}))
+    denominator = fraction_mul(Fraction(2), a)
+    return tuple(sorted({fraction_div(fraction_sub(-b, root), denominator),
+                         fraction_div(fraction_add(-b, root), denominator)}))
 
 
 def solution_set(a: Fraction, b: Fraction, c: Fraction, relation: str) -> tuple[Interval, ...]:
@@ -81,7 +84,8 @@ def solution_set(a: Fraction, b: Fraction, c: Fraction, relation: str) -> tuple[
     intervals: list[Interval] = []
     for lo, hi in zip(points, points[1:]):
         probe = _probe(lo, hi)
-        if holds(a * probe * probe + b * probe + c):
+        if holds(fraction_add(fraction_add(fraction_mul(fraction_mul(a, probe), probe),
+                                          fraction_mul(b, probe)), c)):
             intervals.append(Interval(lo, closed and lo is not None, hi, closed and hi is not None))
     for root in roots:  # isolated touching points such as (x-2)^2 <= 0
         if closed and not any(i.contains(root) for i in intervals):
@@ -93,10 +97,10 @@ def _probe(lo: Fraction | None, hi: Fraction | None) -> Fraction:
     if lo is None and hi is None:
         return Fraction(0)
     if lo is None:
-        return hi - 1
+        return fraction_sub(hi, Fraction(1))
     if hi is None:
-        return lo + 1
-    return (lo + hi) / 2
+        return fraction_add(lo, Fraction(1))
+    return fraction_div(fraction_add(lo, hi), Fraction(2))
 
 
 def normalize(intervals) -> tuple[Interval, ...]:

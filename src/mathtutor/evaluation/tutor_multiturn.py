@@ -28,8 +28,9 @@ from pathlib import Path
 from typing import Any
 
 SCENARIOS = Path(__file__).with_name("tutor_multiturn_v1.json")
+METRIC_VERSION = "tutor-multiturn-metrics-v2"
 DIMENSIONS = {
-    "math": "数学正确",
+    "math": "已核验算式正确",
     "relevance": "目标相关",
     "evidence": "学生证据",
     "actionability": "可执行性",
@@ -55,6 +56,7 @@ class ScenarioResult:
     title: str
     checks: list[Check] = field(default_factory=list)
     transcript: list[dict[str, Any]] = field(default_factory=list)
+    math_assessments: list[dict[str, Any]] = field(default_factory=list)
 
     def add(self, dimension: str, passed: bool, detail: str, *, critical: bool = False) -> None:
         self.checks.append(Check(dimension, bool(passed), detail, critical))
@@ -214,12 +216,60 @@ def _turn_view(frames: list[dict]) -> dict:
     }
 
 
-async def _refuted_formulas(text: str, anchor) -> list[str]:
+async def _certify_formulas(text: str, anchor):
     from mathtutor.application.math_claims import certify
     from mathtutor.application.verification_backend import InProcessVerificationBackend
 
-    result = await certify(text, InProcessVerificationBackend(), anchor=anchor)
-    return [statement.shown for statement, _ in result.refuted]
+    return await certify(text, InProcessVerificationBackend(), anchor=anchor)
+
+
+def _math_assessment(certification, *, step: int, delivered: bool, text: str, required: bool,
+                     legacy_eligible: bool | None = None) -> dict:
+    """Project all verifier outcomes; absence of a refutation is not verification.
+
+    Counts are the verifier's check units (a chained equality may have more
+    than one), not characters, formulas in prose, or complete proofs.
+    """
+    counts = certification.counts() if certification is not None else {"verified": 0, "refuted": 0, "unchecked": 0}
+    checked = counts["verified"] + counts["refuted"]
+    total = checked + counts["unchecked"]
+    if counts["refuted"]:
+        status = "refuted"
+    elif not delivered:
+        status = "not_delivered"
+    elif counts["verified"]:
+        status = "partial" if counts["unchecked"] else "verified"
+    else:
+        status = "unchecked" if counts["unchecked"] else "not_applicable"
+    legacy_eligible = bool(delivered and text) if legacy_eligible is None else legacy_eligible
+    return {
+        "step": step, "status": status, "delivered": delivered, **counts,
+        "checked": checked, "total": total,
+        "coverage": round(checked / total, 4) if total else None,
+        "required": required,
+        "requirement_met": bool(delivered and counts["verified"] > 0 and not counts["refuted"]) if required else None,
+        "refuted_formulas": [statement.shown for statement, _ in certification.refuted] if certification else [],
+        # Exact old eligibility and numerator, retained only for migration.
+        "legacy_eligible": legacy_eligible,
+        "legacy_passed": bool(legacy_eligible and certification is not None and not certification.refuted),
+    }
+
+
+def _math_checks(assessment: dict, label: str) -> list[Check]:
+    checks = []
+    status = assessment["status"]
+    counts = f"已核验 {assessment['verified']}，反例 {assessment['refuted']}，未覆盖 {assessment['unchecked']}"
+    if assessment["refuted"] or (assessment["delivered"] and assessment["checked"]):
+        description = (f"算式核验未通过 {assessment['refuted_formulas']}" if status == "refuted" else
+                       "算式部分核验" if status == "partial" else "算式核验通过")
+        checks.append(Check("math", not assessment["refuted"], f"{label}：{description}（{counts}）",
+                            critical=bool(assessment["refuted"])))
+    if assessment["required"]:
+        # This is a coverage requirement, separate from the math-correctness
+        # denominator. It cannot make an unchecked formula count as wrong.
+        checks.append(Check("relevance", assessment["requirement_met"],
+                            f"{label}：本轮要求至少一项已核验推导或答案（{counts}）", critical=True))
+    return checks
 
 
 def _profile_gate(profile: dict, final: dict) -> list[Check]:
@@ -251,6 +301,9 @@ def run_scenario(scenario: dict, workdir: Path, live: dict | None = None, prepar
     from mathtutor.application.math_claims import anchor_for
     from mathtutor.solving.parser import parse_problem
 
+    for step in scenario["steps"]:
+        if type(step.get("expect", {}).get("require_verified_math", False)) is not bool:
+            raise ValueError("require_verified_math must be a boolean")
     result = ScenarioResult(scenario["id"], scenario["title"])
     parsed = parse_problem(scenario["problem"]).problem if scenario.get("problem") else None
     anchor = anchor_for(parsed) if parsed else None
@@ -306,13 +359,17 @@ def run_scenario(scenario: dict, workdir: Path, live: dict | None = None, prepar
             for fragment in expect.get("contains", []):
                 result.add("relevance", fragment in view["text"], f"{label}：包含「{fragment}」")
 
-            # Math: every formula the tutor wrote passes verify_math.
-            # Delivery failures are N/A — an error notice with no formula is not math success.
-            delivered = legal_complete or bool(expected_error) or bool(expected_status)
-            if view["text"] and delivered:
-                wrong = asyncio.run(_refuted_formulas(view["text"], anchor))
-                result.add("math", not wrong, f"{label}：算式核验" + (f"未通过 {wrong}" if wrong else "通过"),
-                           critical=bool(wrong))
+            # Math correctness scores checked formulas only. Unsupported
+            # formulas and prose have explicit outcomes and no success vote.
+            legacy_eligible = bool(view["text"] and (legal_complete or expected_error or expected_status))
+            certification = asyncio.run(_certify_formulas(view["text"], anchor)) if view["text"] else None
+            assessment = _math_assessment(
+                certification, step=index + 1, delivered=bool(legal_complete), text=view["text"],
+                required=expect.get("require_verified_math", False), legacy_eligible=legacy_eligible,
+            )
+            result.math_assessments.append(assessment)
+            result.checks.extend(_math_checks(assessment, label))
+            result.transcript[-1]["math"] = assessment
 
             # Answer exposure before the student earned or asked for it.
             if expect.get("no_answer") or (forbidden and not solution_shown and "SHOW_SOLUTION" not in view["actions"]
@@ -349,12 +406,37 @@ def run_scenario(scenario: dict, workdir: Path, live: dict | None = None, prepar
 
 
 def score(results: list[ScenarioResult]) -> dict:
+    assessments = [a for r in results for a in r.math_assessments]
+    counts = {key: sum(a[key] for a in assessments if a["delivered"])
+              for key in ("verified", "refuted", "unchecked")}
+    checked = counts["verified"] + counts["refuted"]
+    total = checked + counts["unchecked"]
+    legacy_total = sum(a["legacy_eligible"] for a in assessments)
+    legacy_passed = sum(a["legacy_passed"] for a in assessments)
+    math_summary = {
+        "unit": "verifier_checks", **counts, "checked": checked, "total": total,
+        "coverage": round(checked / total, 4) if total else None,
+        "delivery_excluded": {key: sum(a[key] for a in assessments if not a["delivered"])
+                              for key in ("verified", "refuted", "unchecked")},
+        "turns": {status: sum(a["status"] == status for a in assessments) for status in
+                  ("verified", "partial", "refuted", "unchecked", "not_applicable", "not_delivered")},
+        "required": {"total": sum(a["required"] for a in assessments),
+                     "passed": sum(a["requirement_met"] is True for a in assessments)},
+        "legacy_v1": {"unit": "delivered_nonempty_turns_without_refutation", "passed": legacy_passed,
+                      "total": legacy_total, "score": round(legacy_passed / legacy_total, 4) if legacy_total else None},
+    }
     by_dimension = {}
     for dimension, name in DIMENSIONS.items():
         checks = [c for r in results for c in r.checks if c.dimension == dimension]
         passed = sum(c.passed for c in checks)
         by_dimension[dimension] = {"name": name, "passed": passed, "total": len(checks),
                                    "score": round(passed / len(checks), 4) if checks else None}
+    if assessments:
+        by_dimension["math"].update(
+            passed=counts["verified"], total=checked,
+            score=round(counts["verified"] / checked, 4) if checked else None,
+            unit="verifier_checks",
+        )
     critical = [{"scenario": r.id, "detail": c.detail} for r in results for c in r.critical_failures]
     gate_failures = [f"{DIMENSIONS[d]} {v['score']} < {GATE_MIN[d]}" for d, v in by_dimension.items()
                      if v["score"] is not None and v["score"] < GATE_MIN[d]]
@@ -365,7 +447,8 @@ def score(results: list[ScenarioResult]) -> dict:
         gate_failures.append("场景没有执行检查：" + ", ".join(unscored))
     if critical:
         gate_failures.insert(0, f"关键检查失败 {len(critical)} 项")
-    return {"dimensions": by_dimension, "critical_failures": critical,
+    return {"metric_version": METRIC_VERSION, "math": math_summary,
+            "dimensions": by_dimension, "critical_failures": critical,
             "scenarios_passed": sum(r.passed for r in results), "scenarios_total": len(results),
             "gate": {"passed": not gate_failures, "thresholds": GATE_MIN, "failures": gate_failures}}
 
@@ -397,7 +480,8 @@ def run(mode: str = "template", *, live: dict | None = None, only: list[str] | N
                      "selected_ids": selected_ids, "missing_ids": missing_ids},
         "release_gate": {"passed": complete and summary["gate"]["passed"]},
         "scenarios": [{"id": r.id, "title": r.title, "passed": r.passed,
-                       "checks": [c.__dict__ for c in r.checks], "transcript": r.transcript} for r in results],
+                       "checks": [c.__dict__ for c in r.checks], "math_assessments": r.math_assessments,
+                       "transcript": r.transcript} for r in results],
     }
 
 
@@ -413,13 +497,38 @@ def render_markdown(report: dict) -> str:
              + ("" if report["gate"]["passed"] else "（" + "；".join(report["gate"]["failures"]) + "）")]
     if coverage:
         lines.append(f"- 套件覆盖：{coverage['executed']}/{coverage['available']} 个场景")
+    if report.get("metric_version"):
+        lines.append(f"- 指标口径：`{report['metric_version']}`；数学正确分母仅含本地验证器已核验项。")
     if subset:
         lines.append("- 全套发布门：**未验收**；未运行场景：" + ", ".join(coverage["missing_ids"]))
     elif not coverage:
         lines.append("- 全套发布门：**未验收**；历史报告缺少覆盖信息，请重新运行。")
     lines += ["", "| 维度 | 通过/总数 | 得分 | 门槛 |", "|---|---|---|---|"]
     for key, row in report["dimensions"].items():
-        lines.append(f"| {row['name']} | {row['passed']}/{row['total']} | {row['score']} | {GATE_MIN[key]} |")
+        value = row["score"] if row["score"] is not None else "N/A"
+        lines.append(f"| {row['name']} | {row['passed']}/{row['total']} | {value} | {GATE_MIN[key]} |")
+    if "math" in report:
+        math = report["math"]
+        coverage_value = math["coverage"] if math["coverage"] is not None else "N/A"
+        legacy = math["legacy_v1"]
+        legacy_score = legacy["score"] if legacy["score"] is not None else "N/A"
+        lines += ["", "## 数学核验覆盖", "",
+                  f"- 已核验正确 {math['verified']} 项；发现反例 {math['refuted']} 项；未覆盖 {math['unchecked']} 项。",
+                  f"- 非完整交付的核验记录（不计正确率）：{math['delivery_excluded']}；其中任何反例仍使门禁失败。",
+                  f"- 可核验覆盖率：{math['checked']}/{math['total']} = {coverage_value}。只覆盖提取到的核验项，文字说明及未提取数学不在分母。",
+                  "- 轮次分类：" + "；".join(f"{status} {count}" for status, count in math["turns"].items()) + "。",
+                  f"- 要求可核验数学的轮次：{math['required']['passed']}/{math['required']['total']} 满足要求。",
+                  f"- 同次输出的旧 v1 口径：{legacy['passed']}/{legacy['total']} = {legacy_score}（非空交付且未发现反例的轮次，不代表全部已核验）。",
+                  "- N/A 不计入数学正确分母；unchecked 待人工复核；partial 仅表示已核验部分正确，不能认定整段数学已通过。",
+                  "- 新旧分母不同，旧成绩保留其原口径，不能据此推断教学效果变化。", "",
+                  "| 场景/轮次 | 核验状态 | verified | refuted | unchecked | 可核验覆盖率 | 必须核验 |",
+                  "|---|---|---|---|---|---|---|"]
+        for scenario in report["scenarios"]:
+            for assessment in scenario.get("math_assessments", []):
+                ratio = assessment["coverage"] if assessment["coverage"] is not None else "N/A"
+                lines.append(f"| {scenario['id']}/{assessment['step']} | {assessment['status']} | "
+                             f"{assessment['verified']} | {assessment['refuted']} | {assessment['unchecked']} | "
+                             f"{ratio} | {'是' if assessment['required'] else '否'} |")
     lines += ["", "## 场景", "", "| 场景 | 结果 | 未通过的检查 |", "|---|---|---|"]
     for scenario in report["scenarios"]:
         failed = [c["detail"] for c in scenario["checks"] if not c["passed"]]

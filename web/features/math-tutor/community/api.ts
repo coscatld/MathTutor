@@ -1,3 +1,5 @@
+import {readLocale, translate, type MessageParams} from "@/lib/i18n";
+const localize = (message: string, params?: MessageParams) => translate(readLocale(), message, params);
 import { apiFetch } from "@/lib/api";
 
 export const communityRoot = "/api/v2/math-tutor/desktop/community";
@@ -17,13 +19,13 @@ export type RunResult = {schema_version: "mathtutor.community-result.v1"; plugin
 
 export async function communityApi<T>(path: string, body?: unknown, method?: string): Promise<T> {
   const response = await apiFetch(communityRoot + path, {method: method || (body === undefined ? "GET" : "POST"), headers: {"Content-Type": "application/json"}, body: body === undefined ? undefined : JSON.stringify(body)});
-  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(typeof data.detail === "string" ? data.detail : "操作未完成，请稍后重试。"); }
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(typeof data.detail === "string" ? data.detail : localize("操作未完成，请稍后重试。")); }
   return response.json() as Promise<T>;
 }
 export async function communityDownload(path: string, filename: string, body?: unknown) {
   const response = await apiFetch(communityRoot + path, {method: body === undefined ? "GET" : "POST", headers: body === undefined ? undefined : {"Content-Type": "application/json"}, body: body === undefined ? undefined : JSON.stringify(body)});
-  if (!response.ok) { const value = await response.json().catch(() => ({})); throw new Error(typeof value.detail === "string" ? value.detail : "文件没有导出，请重试。"); }
+  if (!response.ok) { const value = await response.json().catch(() => ({})); throw new Error(typeof value.detail === "string" ? value.detail : localize("文件没有导出，请重试。")); }
   const link = document.createElement("a"), url = URL.createObjectURL(await response.blob());
   link.href = url; link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export const permissionLabel = (value: string) => ({question_bank: "读取题库与知识点", read_learning_records: "读取我的作答与核验记录", execute_local_code: "在本机运行插件代码"})[value] || `未识别权限：${value}`;
+export const permissionLabel = (value: string, t: typeof localize = localize) => ({question_bank: t("读取题库与知识点"), read_learning_records: t("读取我的作答与核验记录"), execute_local_code: t("在本机运行插件代码")})[value] || t("未识别权限：{value}", {value});

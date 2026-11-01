@@ -1,8 +1,10 @@
 "use client";
 
+import {useI18n} from "@/lib/i18n";
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import LanguagePicker from "@/components/common/LanguagePicker";
 import BrandMark from "@/components/common/BrandMark";
 import { login, fetchAuthStatus, checkIsFirstUser } from "@/lib/auth";
 
@@ -27,9 +29,11 @@ const ZH: Record<string, string> = {
   "Create account": "创建账户",
   "Already have an account?": "已有账户？",
 };
-const t = (message: string): string => ZH[message] ?? message;
+
 
 function LoginPageContent() {
+  const {t: translate} = useI18n();
+  const t = (message: string) => translate(ZH[message] ?? message);
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/";
@@ -161,20 +165,19 @@ function LoginPageContent() {
         </Link>
       </p>
 
-      <p className="mt-3 text-center text-xs text-[var(--muted-foreground)]">
-        MathTutor · K12 数学辅导
-      </p>
+      <div className="mt-6 flex justify-center"><LanguagePicker compact /></div>
+      <p className="mt-3 text-center text-xs text-[var(--muted-foreground)]">{t("MathTutor · K12 数学辅导")}</p>
     </div>
   );
 }
 
 export default function LoginPage() {
+  const {t: translate} = useI18n();
+  const t = (message: string) => translate(ZH[message] ?? message);
   return (
     <Suspense
       fallback={
-        <div className="w-full max-w-sm text-center text-sm text-[var(--muted-foreground)]">
-          正在加载…
-        </div>
+        <div className="w-full max-w-sm text-center text-sm text-[var(--muted-foreground)]">{t("正在加载…")}</div>
       }
     >
       <LoginPageContent />

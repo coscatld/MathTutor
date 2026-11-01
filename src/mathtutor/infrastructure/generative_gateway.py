@@ -715,14 +715,7 @@ class GenerativeModelGateway:
         if provider is None:
             raise GenerativeConfigError(f"no generative provider for role {role.value!r}")
         if connection_probe:
-            probe = getattr(provider, "probe_connection", None)
-            result = await asyncio.wait_for(
-                probe(messages) if probe else provider.complete(messages, temperature=0, max_tokens=128, max_retries=0),
-                timeout=30,
-            )
-            if result.finish_reason in {"length", "max_tokens"}:
-                raise GenerativeProviderError("connection probe output truncated")
-            return result
+            return await self.probe_provider(provider, messages)
         if any(isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"]) for m in messages):
             from mathtutor.infrastructure.vision import supports_vision, VISION_UNSUPPORTED
             if not await supports_vision(provider):
@@ -736,7 +729,7 @@ class GenerativeModelGateway:
                 from mathtutor.application.tutor_runtime import complete_math_tools
                 # draw_figures also offers draw_scene (the canvas drawing skill).
                 return await complete_math_tools(provider, messages, verify=math_verify, draw=draw_figures,
-                    temperature=temperature, max_tokens=max_tokens or 2048, extension_executor=extension_executor)
+                    temperature=temperature, max_tokens=2048 if max_tokens is None else max_tokens, extension_executor=extension_executor)
             from mathtutor.application.tutor_runtime import complete_tutor
             return await complete_tutor(provider, messages, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries)
         from mathtutor.application.tutor_runtime import complete_auxiliary
@@ -745,6 +738,19 @@ class GenerativeModelGateway:
 
     # ---------------------------------------------------------- discovery
 
+    async def probe_provider(self, provider: GenerativeModelProvider, messages: Sequence[dict]) -> CompletionResult:
+        """Probe an explicitly captured provider, never a later role binding."""
+        if model_calls_blocked.get():
+            raise GenerativeConfigError("generative calls are blocked")
+        probe = getattr(provider, "probe_connection", None)
+        result = await asyncio.wait_for(
+            probe(messages) if probe else provider.complete(messages, temperature=0, max_tokens=128, max_retries=0),
+            timeout=30,
+        )
+        if result.finish_reason in {"length", "max_tokens"}:
+            raise GenerativeProviderError("connection probe output truncated")
+        return result
+
     async def fetch_models(self, provider_id: str) -> list[str]:
         """System-side model discovery (GET /models) — never a user chore."""
         provider = self._by_id.get(provider_id)
@@ -752,12 +758,13 @@ class GenerativeModelGateway:
             raise GenerativeConfigError(f"unknown provider id {provider_id!r}")
         return await provider.fetch_models()
 
-    async def resolve_model(self, provider_id: str) -> str:
+    async def resolve_model(self, provider_id: str, *, provider: GenerativeModelProvider | None = None, materialize: bool = True) -> str:
         """Concrete model for a provider: configured → preset default →
         first discovered. Raises when nothing is discoverable."""
-        provider = self._by_id.get(provider_id)
+        provider = provider if provider is not None else self._by_id.get(provider_id)
         if provider is None:
             raise GenerativeConfigError(f"unknown provider id {provider_id!r}")
+        bindings = tuple(bound for bound in self._by_role.values() if bound.provider_id == provider_id)
         if provider.model:
             return provider.model
         preset = PRESETS.get(provider_id)
@@ -772,8 +779,8 @@ class GenerativeModelGateway:
             )
         # Materialize the discovery result on every role binding without
         # rebuilding providers (preserves transports, timeouts and clients).
-        for bound in self._by_role.values():
-            if bound.provider_id == provider_id:
+        if materialize:
+            for bound in bindings:
                 bound.set_model(resolved)
         return resolved
 
