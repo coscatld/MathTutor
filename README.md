@@ -159,7 +159,7 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 近期改进
 
-以下改进已在源码中实现，开发验收与安装包验收分别记录。最近一次本地完整检查通过 **3881 项 Python 测试、328 项 Web 测试和 56 项桌面契约测试**，前端生产构建通过；跳过项与测试范围见 [源码验收记录](docs/11月1号更新文档/assets/verification.json)。三平台运行结果见 [GitHub Actions](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml)。
+以下改进已在源码中实现，开发验收与安装包验收分别记录。本地验证已覆盖 **3881 项 Python 测试、328 项 Web 测试和 57 项桌面契约测试**，前端生产构建通过。桌面计数包含打包阶段补充的代理头边界回归；完整流水线与补充检查范围见 [验收说明](docs/11月1号更新文档/001-资源限制与并发安全修复.md)。三平台运行结果见 [GitHub Actions](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml)。
 
 ### 中英文界面与学习工作流
 

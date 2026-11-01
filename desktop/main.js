@@ -177,7 +177,8 @@ function resolvePython() {
 function backendCommand(python, port) {
   const args = [...(IS_PACKAGED ? ["-B"] : []), "-m", "uvicorn", "--factory",
     BACKEND_ENTRY,
-    "--host", HOST, "--port", String(port), "--log-level", "warning"];
+    // Auth attempt budgets use the socket peer, including through local Next.js.
+    "--no-proxy-headers", "--host", HOST, "--port", String(port), "--log-level", "warning"];
   return { cmd: python.python, args };
 }
 
