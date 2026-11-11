@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — 2026-11-01
+## Unreleased — 2026-11-11
+
+- Flush encryption conversion files through non-truncating writable handles so Windows can persist them before publication. Preserve the original database and pending conversion on sync failure, verify retry recovery in both directions, and check Windows conversion/crash recovery before the full CI suite.
 
 - Fail closed on corrupt, malformed or initialized-but-missing authentication stores. Preserve legacy owner IDs, durably record initialization, and serialize account and signing-secret writes across processes with unique atomic temporary files.
 - Bound authentication work with two dedicated workers, retain running capacity after caller cancellation, and apply process/local-peer attempt budgets. Disable implicit forwarded-header trust in both Python and Electron launchers. Keep the default bcrypt cost and reject unsupported stored cost or oversized writes before computation/publication.

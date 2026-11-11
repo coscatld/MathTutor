@@ -1,5 +1,6 @@
 """Real SQLCipher fault injection across database/marker commits and startup locks."""
 from contextlib import closing
+import errno
 import json
 import os
 from pathlib import Path
@@ -43,6 +44,34 @@ def assert_content(path, encrypted):
         assert connection.execute("SELECT version_num FROM alembic_version").fetchall() == [("024",)]
     assert not db_crypto.conversion_path(path).exists()
     assert not list(path.parent.glob("*.convert-*"))
+
+
+@pytest.mark.parametrize("encrypted", [False, True])
+def test_source_flush_failure_preserves_pending_conversion_and_can_retry(tmp_path, monkeypatch, encrypted):
+    path = database(tmp_path, encrypted)
+    key = TEST_KEY if encrypted else None
+    with closing(db_crypto.connect(path, key=key)) as connection:
+        connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    before = path.read_bytes()
+    marker = db_crypto.marker_path(path).read_bytes()
+    source_id = path.stat().st_ino
+    original_fsync = os.fsync
+
+    def fail_source_flush(descriptor):
+        if os.fstat(descriptor).st_ino == source_id:
+            raise OSError(errno.EIO, "injected source flush failure")
+        return original_fsync(descriptor)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(db_crypto.os, "fsync", fail_source_flush)
+        with pytest.raises(OSError, match="injected source flush failure"):
+            db_crypto.apply_pending(path)
+    assert path.read_bytes() == before
+    assert db_crypto.marker_path(path).read_bytes() == marker
+    assert not db_crypto.conversion_path(path).exists()
+    assert not list(path.parent.glob("*.convert-*"))
+    assert db_crypto.apply_pending(path) == ("decrypt" if encrypted else "encrypt")
+    assert_content(path, not encrypted)
 
 
 @pytest.mark.parametrize("encrypted", [False, True])

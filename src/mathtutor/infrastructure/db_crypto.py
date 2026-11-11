@@ -150,7 +150,10 @@ def _sync_directory(path: Path) -> None:
 
 
 def _sync_file(path: Path) -> None:
-    with path.open("rb") as handle:
+    # Windows fsync uses _commit/FlushFileBuffers, which requires a writable
+    # handle. Open the existing conversion file without creating or truncating
+    # it; a flush failure must still stop publication of the converted database.
+    with path.open("r+b") as handle:
         os.fsync(handle.fileno())
 
 
