@@ -108,13 +108,13 @@ def test_code_smoke_validates_explicit_consent_replay_and_install_runtime(tmp_pa
 
 
 @pytest.mark.parametrize("name", ["fresh_unicode", "restart_unicode"], ids=["fresh-runs-code", "restart-keeps-existing-schema"])
-def test_startup_elapsed_is_captured_before_additional_code_smoke(tmp_path, monkeypatch, install_paths, name):
+def test_startup_elapsed_is_captured_before_additional_acceptance(tmp_path, monkeypatch, install_paths, name):
     python, executable, environment = install_paths
     data, output = tmp_path / "data", tmp_path / "output"
     (data / "logs").mkdir(parents=True)
     output.mkdir()
     (data / "logs/startup.log").write_text("backend: python --port 8001\n- Local: http://127.0.0.2026-10-27T14:04:57.037Z 1:8000\nstartup: ready\n", encoding="utf-8")
-    clock, processes, smoke_calls = [10.0], [], []
+    clock, processes, smoke_calls, loop_calls = [10.0], [], [], []
 
     class Process:
         def __init__(self, *args, **kwargs):
@@ -135,20 +135,28 @@ def test_startup_elapsed_is_captured_before_additional_code_smoke(tmp_path, monk
         clock[0] += 30.0
         return {"status": "PASS", "cases": ["contract-fixture"]}
 
+    def loop_smoke(*args, **kwargs):
+        loop_calls.append(kwargs)
+        clock[0] += 12.0
+        return {"status": "PASS", "episode_id": "contract-fixture", "phase": "practice"}
+
     monkeypatch.setattr(acceptance.subprocess, "Popen", Process)
     monkeypatch.setattr(acceptance, "kill_tree", lambda process: None)
     monkeypatch.setattr(acceptance, "local_read", local_read)
     monkeypatch.setattr(acceptance.time, "monotonic", lambda: clock[0])
-    monkeypatch.setattr(acceptance, "probe", lambda *args: {"math_tutor.db": {"revisions": [["024"]]}})
+    monkeypatch.setattr(acceptance, "probe", lambda *args: {"math_tutor.db": {"revisions": [["025"]]}})
     monkeypatch.setattr(acceptance, "verify_code_plugins", code_smoke)
+    monkeypatch.setattr(acceptance, "verify_learning_loop", loop_smoke)
     result = acceptance.run_gui(executable, python, data, output, name)
     assert result["seconds"] == 0.0 and result["version"] == acceptance.EXPECTED_VERSION
     assert len(processes) == 2 and result["duplicate_exit"] == 0
     if name == "fresh_unicode":
-        assert smoke_calls and result["code_plugins"]["status"] == "PASS" and clock[0] == 40.0
+        assert smoke_calls and result["code_plugins"]["status"] == "PASS" and clock[0] == 52.0
         assert smoke_calls[0]["origin"] == "http://127.0.0.1:8000"
     else:
-        assert not smoke_calls and "code_plugins" not in result and clock[0] == 10.0
+        assert not smoke_calls and "code_plugins" not in result and clock[0] == 22.0
+    assert result["learning_loop"]["status"] == "PASS"
+    assert loop_calls == [{"origin": "http://127.0.0.1:8000", "resume": name == "restart_unicode"}]
 
 
 def test_local_api_sends_utf8_file_origin_and_disables_proxy(tmp_path, monkeypatch):
@@ -246,6 +254,10 @@ async def test_acceptance_headers_pass_real_boundary_without_exporting_bridge_se
     acceptance.local_read(base, "/api/v2/math-tutor/desktop/readiness", origin=origin)
     acceptance.local_read(base, "/version", origin=origin)
     acceptance.local_api(base, "/api/v2/math-tutor/desktop/community/plugins/run", origin=origin, method="POST", payload={"text": "fixture"})
+    prefix = "/api/v2/math-tutor/desktop/learning-loop"
+    acceptance.local_api(base, prefix, origin=origin)
+    for suffix in ("/start", "/help", "/answer"):
+        acceptance.local_api(base, prefix + suffix, origin=origin, method="POST", payload={"domain": "fraction_addition"})
 
     async def status(request, omit=None):
         messages = []
@@ -265,4 +277,77 @@ async def test_acceptance_headers_pass_real_boundary_without_exporting_bridge_se
     for request in requests:
         assert await status(request) == 200
         assert await status(request, "origin") == 403
-    assert await status(requests[-1], "x-mathtutor-csrf") == 403
+        if request.get_method() == "POST":
+            assert await status(request, "x-mathtutor-csrf") == 403
+
+
+@pytest.mark.parametrize("suffix,method", [
+    ("/other", "GET"), ("/help/", "POST"), ("/answer?mode=unsafe", "POST"),
+    ("/../privacy/export", "GET"), ("/%61nswer", "POST"), ("/start", "GET"), ("", "POST"),
+])
+def test_learning_acceptance_has_only_exact_route_and_method_permissions(suffix, method):
+    with pytest.raises(AssertionError, match="explicit local acceptance API"):
+        acceptance.local_api("http://127.0.0.1:8001", "/api/v2/math-tutor/desktop/learning-loop" + suffix,
+                             origin="http://127.0.0.1:8000", method=method)
+
+
+def test_learning_acceptance_cannot_upload_files():
+    with pytest.raises(AssertionError, match="file upload"):
+        acceptance.local_api("http://127.0.0.1:8001", "/api/v2/math-tutor/desktop/learning-loop/start",
+            origin="http://127.0.0.1:8000", method="POST", file=("example.py", "pass"))
+
+
+def test_learning_acceptance_exercises_real_api_and_persists_across_restart(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from mathtutor.api.product_app import create_math_tutor_app
+    from mathtutor.api.product_state import reset_product_state
+    from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway
+    from mathtutor.security.settings import MathTutorSecuritySettings
+
+    base, origin = "http://127.0.0.1:8001", "http://127.0.0.1:8000"
+    path = tmp_path / "中文已安装数据" / "math_tutor.db"
+    provider_calls, requests, reports = [], [], []
+    async def forbid_provider(*args, **kwargs):
+        provider_calls.append(True)
+        raise AssertionError("installed learning acceptance called a model provider")
+    monkeypatch.setattr(GenerativeModelGateway, "complete", forbid_provider)
+
+    class Response(io.BytesIO):
+        def __init__(self, response):
+            super().__init__(response.content)
+            self.code = response.status_code
+
+    reset_product_state()
+    try:
+        for resume in (False, True):
+            settings = MathTutorSecuritySettings(environment="production", local_desktop=True,
+                host="127.0.0.1", allowed_hosts=("127.0.0.1:8001",), allowed_origins=(origin,),
+                bridge_secret="private-boundary-fixture-not-exported-123456789")
+            app = create_math_tutor_app(settings, auth_enabled=False, db_path=str(path))
+            with TestClient(app, base_url=base) as client:
+                def build_opener(handler):
+                    assert handler.proxies == {}
+                    def open(request, timeout=None):
+                        assert request.full_url.startswith(base + "/api/v2/math-tutor/desktop/learning-loop")
+                        assert request.get_header("Origin") == origin
+                        assert request.get_header("X-mathtutor-csrf") == "1"
+                        assert request.get_header("X-mathtutor-bridge") is None
+                        requests.append((resume, request.get_method(), request.full_url))
+                        return Response(client.request(request.get_method(), request.full_url,
+                            headers=dict(request.header_items()), content=request.data))
+                    return SimpleNamespace(open=open)
+                monkeypatch.setattr(acceptance.urllib.request, "build_opener", build_opener)
+                reports.append(acceptance.verify_learning_loop(base, origin=origin, resume=resume))
+            reset_product_state()
+        fresh, restarted = reports
+        assert fresh["status"] == restarted["status"] == "PASS"
+        assert fresh["episode_id"] == restarted["episode_id"]
+        assert fresh["question_id"] != restarted["question_id"]
+        assert fresh["phase"] == restarted["phase"] == "practice"
+        assert fresh["evidence"] == restarted["evidence"] == {
+            "independent_practice": 0, "delayed_review": 0, "structural_transfer": 0}
+        assert all(not row["assisted_success_independent"] and not row["duplicate_advanced"] for row in reports)
+        assert all(row["provider_calls"] == 0 for row in reports) and provider_calls == []
+        assert {request[0] for request in requests} == {False, True}
+    finally:
+        reset_product_state()

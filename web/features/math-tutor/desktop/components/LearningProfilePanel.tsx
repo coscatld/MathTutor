@@ -10,6 +10,7 @@ import {fetchStudentSummary} from "../lib/desktop-api";
 import type {StudentSummary, SkillSummary} from "../types";
 import SkillEvidenceDrawer from "./SkillEvidenceDrawer";
 import StageReviewPanel from "../../knowledge/StageReviewPanel";
+import LearningLoopPanel from "./LearningLoopPanel";
 
 export function SkillObservation({skill, onEvidence}: {skill: SkillSummary; onEvidence: () => void}) {
   const {locale, t} = useI18n();
@@ -93,6 +94,7 @@ export default function LearningProfilePanel() {
     {error && <p role="alert" className="rounded-xl bg-[var(--muted)] p-4">{t("画像暂时无法加载。")}<button className="ml-2 min-h-11 underline" onClick={() => void load()}>{t("重新加载")}</button></p>}
     {summary && <>
       <LearningOverview summary={summary} />
+      <LearningLoopPanel />
       <section aria-labelledby="learning-observations-title"><div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm"><h2 id="learning-observations-title" className="mt-section-title">{t("已有的学习观察")}</h2><p className="text-[var(--muted-foreground)]">{t("独立与受助表现分开记录")}</p></div>
       {observed.length ? <div className="grid gap-4 lg:grid-cols-2">{observed.map(skill => <SkillObservation key={skill.code} skill={skill} onEvidence={() => setSelected({title:skill.label, skillId:skill.code})} />)}</div> : <div className="mt-profile-empty"><BookOpen className="h-5 w-5 shrink-0 text-[var(--primary-text)]" aria-hidden="true" /><p>{summary.has_conversations ? t("已有问答，作答证据还待积累。聊天次数、上传资料和说“懂了”不会自动形成学习观察。") : t("还没有可展示的作答记录。完成可核验的题目后，这里会显示观察和下一步建议。")}</p></div>}</section>
       <ItemErrorObservations summary={summary} onEvidence={cycleId => setSelected({title:"整题错误观察", cycleId})} />

@@ -1,0 +1,42 @@
+{
+  "seed": 0,
+  "training": false,
+  "weights_fitted": false,
+  "baseline_commit": "f6f928b7c3de0e9d98b8c303ad66c4cba20ca74d",
+  "policy_version": "diagnostic_probes_v1",
+  "core_sha256": "59e82910698c55a4d39294e89fcf733f5991f35816cd4a130542beab676228a2",
+  "fixtures_sha256": "db27104e605abbd3d0b4bc69c36147748324ac5b94dcc5daf0c8fb2d0ece42ac",
+  "development_domain": "fraction_addition",
+  "heldout_domain": "signed_subtraction",
+  "cases_per_domain": 400,
+  "known_per_domain": 200,
+  "stress_per_domain": 200,
+  "models": [
+    [
+      "fraction_addition",
+      [
+        "correct",
+        "add_across",
+        "multiply_denominators",
+        "keep_left_denominator"
+      ]
+    ],
+    [
+      "signed_subtraction",
+      [
+        "correct",
+        "ignore_subtracted_sign",
+        "always_negative_difference",
+        "add_instead"
+      ]
+    ]
+  ],
+  "max_questions": 3,
+  "source_of_labels": "independent elementary-formula simulator",
+  "generalization_scope": "generic selection policy across two authored domains; not discovery of new rules",
+  "stress_warning": "indistinguishable_other deliberately duplicates known outputs; no finite observation can identify its cause",
+  "development_compile_seconds": 0.0046990840000944445,
+  "full_runtime_seconds": 0.008670125000207918,
+  "gpu": "N/A; deterministic CPU policy, no training",
+  "post_eval_copy_edit": "Chinese rule label corrected; policy/formulas/fixtures unchanged; verification rerun on identical fixtures"
+}

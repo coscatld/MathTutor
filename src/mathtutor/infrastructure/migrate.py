@@ -18,9 +18,9 @@ from mathtutor.infrastructure.migration_lock import migration_lock
 logger = logging.getLogger(__name__)
 
 
-# Frozen database contract for the 0.2.0 RC.  Keep this aligned with the
+# Current database contract. Keep this aligned with the
 # Alembic head; release manifests and packaged smoke assert the exact value.
-MIGRATION_HEAD = "024"
+MIGRATION_HEAD = "025"
 
 
 def alembic_config(db_path: str | None = None) -> Config:
@@ -56,7 +56,7 @@ def _version_rows(connection) -> list[str]:
 
 
 def _validate_recovery_schema(connection) -> None:
-    """Require the complete current table contract before removing an ancestor."""
+    """Require the known 024 table contract before removing its 023 ancestor."""
     from sqlalchemy.dialects.sqlite import dialect
     from mathtutor.infrastructure.schema import metadata
 
@@ -74,6 +74,10 @@ def _validate_recovery_schema(connection) -> None:
 
     problems = []
     for table in metadata.tables.values():
+        # Recovery only attests the historical 024 schema. Later additive
+        # tables are created by Alembic after the ancestor row is removed.
+        if table.name == "learning_loop_episodes":
+            continue
         # Names originate only from the bundled SQLAlchemy metadata.
         columns = connection.execute(f'PRAGMA table_info("{table.name}")').fetchall()
         actual = {row[1]: row for row in columns}

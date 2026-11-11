@@ -13,7 +13,7 @@ const appRoot = path.join(desktop, "dist", "mac-arm64", "MathTutor.app");
 const appExecutable = path.join(appRoot, "Contents", "MacOS", "MathTutor");
 const evidencePath = path.join(desktop, "dist", "package-smoke-evidence.json");
 const keychainProbe = path.join(desktop, "scripts", "macos-keychain-sentinel.py");
-const migrationRelative = path.join("Contents", "Resources", "python-app", "mathtutor", "infrastructure", "migrations", "versions", "024_turn_traces.py");
+const migrationRelative = path.join("Contents", "Resources", "python-app", "mathtutor", "infrastructure", "migrations", "versions", "025_learning_loop.py");
 for (const required of [dmg, appExecutable, path.join(appRoot, migrationRelative)]) {
   if (!fs.existsSync(required)) throw new Error(`Packaged artifact missing: ${required}`);
 }
@@ -81,6 +81,7 @@ function fullResult(result) {
     backend_ready_ms: metric(result.output, "backend_ready_ms"),
     frontend_ready_ms: metric(result.output, "frontend_ready_ms"),
     smoke_steps: result.output.match(/完成 — (\d+)\/(\d+) 步通过/)?.slice(1).map(Number) || null,
+    learning_loop: result.output.includes("smoke-full: PASS learning-loop"),
     self_contained_import: result.output.includes("SELF_CONTAINED_IMPORT="),
     local_provider: result.output.includes("ASSERT PASS local-provider"),
   };
@@ -173,6 +174,8 @@ function auditReleaseLogs(namedOutputs) {
     currentRun.app_production_launch.self_contained_import,
     currentRun.app_full_smoke.self_contained_import,
     currentRun.app_full_smoke.local_provider,
+    currentRun.app_full_smoke.learning_loop,
+    currentRun.dmg_readonly_mount_full_smoke.learning_loop,
     currentRun.app_full_smoke.smoke_steps?.join("/") === "17/17",
     currentRun.dmg_readonly_mount_full_smoke.smoke_steps?.join("/") === "17/17",
     currentRun.release_log_audit.status === "PASS",
@@ -197,7 +200,7 @@ function auditReleaseLogs(namedOutputs) {
     dmg_artifact: path.relative(desktop, dmg),
     dmg_size_bytes: dmgBytes.length,
     dmg_sha256: dmgSha256,
-    packaged_migration_head: "024",
+    packaged_migration_head: "025",
     packaged_migration_file: migrationRelative.split(path.sep).join("/"),
     runner_isolation: { cwd_outside_checkout: true, inherited_pythonpath: false, inherited_conda_or_virtualenv: false },
     consecutive_runs: consecutiveRunResults.length,

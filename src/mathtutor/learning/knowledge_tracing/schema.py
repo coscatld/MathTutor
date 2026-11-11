@@ -7,6 +7,12 @@ initial_assessments = Table(
     Column("student_id", String(64), primary_key=True),
     Column("payload", JSON, nullable=False),
 )
+learning_loop_episodes = Table(
+    "learning_loop_episodes", metadata,
+    Column("student_id", String(64), primary_key=True),
+    Column("domain", String(48), primary_key=True),
+    Column("payload", JSON, nullable=False),
+)
 learning_generations = Table(
     "learning_generations", metadata,
     Column("student_id", String(64), primary_key=True),

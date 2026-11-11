@@ -480,6 +480,8 @@ class ProductState:
         self.store.practice_repository = self.practice_repository
         from mathtutor.application.initial_assessment import InitialAssessmentService
         self.initial_assessment = InitialAssessmentService(engine) if engine is not None else None
+        from mathtutor.application.learning_loop import LearningLoopService
+        self.learning_loop = LearningLoopService(engine) if engine is not None else None
         self.adaptive_practice.initial_assessment = self.initial_assessment
         self.adaptive_practice.student_state = self.student_state
         from mathtutor.application.knowledge import KnowledgeService

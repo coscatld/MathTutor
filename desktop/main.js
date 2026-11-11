@@ -957,9 +957,34 @@ async function runSmokeFull() {
     const frozen = version.body && version.body.release_config && version.body.release_config.migration_head;
     assertNamed(
       "database-migration",
-      version.status === 200 && frozen === "024" && live.head === frozen,
+      version.status === 200 && frozen === "025" && live.head === frozen,
       `frozen=${frozen || "missing"}, live=${live.head || "missing"}`,
     );
+  }
+
+  // The installed API must preserve assistance and retry boundaries too.
+  {
+    const prefix = `${backendUrl}/api/v2/math-tutor/desktop/learning-loop`;
+    const post = (action, body) => httpJson(`${prefix}/${action}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const episode = (response) => response.body?.domains?.find(row => row.domain === "fraction_addition")?.episode;
+    const started = await post("start", { domain: "fraction_addition" });
+    const first = episode(started);
+    const hidden = started.status === 200 && first?.question && !("answer" in first.question) && !("predictions" in first.question);
+    const request = (state) => ({ domain: "fraction_addition", episode_id: state.episode_id,
+      probe_id: state.question.probe_id, request_id: crypto.randomUUID() });
+    if (!hidden) throw new Error("Learning-loop probe contract failed");
+    const practice = episode(await post("help", request(first)));
+    if (practice?.phase !== "practice") throw new Error("Learning-loop help did not end diagnosis");
+    const helped = episode(await post("help", request(practice)));
+    const body = { ...request(helped), answer: helped.feedback.answer };
+    const answered = await post("answer", body);
+    const replayed = await post("answer", body);
+    const result = episode(answered);
+    assertNamed("learning-loop", answered.status === 200 && replayed.status === 200 &&
+      result?.evidence.independent_practice === 0 && result?.feedback.independent === false &&
+      JSON.stringify(result) === JSON.stringify(episode(replayed)), "helped response stays assisted; replay is idempotent");
   }
 
   // 4. Local OpenAI-compatible provider: explicit settings PUT + real

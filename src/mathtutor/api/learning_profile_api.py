@@ -107,3 +107,53 @@ async def recompute(owner: StudentOwnerScope = Depends(require_student_owner)):
             return await state.student_state.recompute(str(owner.student_id))
         except (ValueError, ArithmeticError) as exc:
             raise HTTPException(409, "画像重算未完成，请稍后重试。原始记录已保留。") from exc
+
+
+class LearningLoopStart(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    domain: Literal["fraction_addition", "signed_subtraction"]
+
+
+class LearningLoopAction(LearningLoopStart):
+    episode_id: str = Field(min_length=1, max_length=64)
+    probe_id: str = Field(min_length=1, max_length=80)
+    request_id: str = Field(min_length=1, max_length=80)
+
+
+class LearningLoopAnswer(LearningLoopAction):
+    answer: str = Field(min_length=1, max_length=48)
+
+
+@router.get("/learning-loop")
+async def learning_loop(owner: StudentOwnerScope = Depends(require_student_owner)):
+    return await tracking_state().learning_loop.read(str(owner.student_id))
+
+
+@router.post("/learning-loop/start")
+async def start_learning_loop(body: LearningLoopStart, owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = tracking_state()
+    async with state.turn_requests.owner(owner.student_id):
+        try:
+            return await state.learning_loop.start(str(owner.student_id), body.domain)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/learning-loop/answer")
+async def answer_learning_loop(body: LearningLoopAnswer, owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = tracking_state()
+    async with state.turn_requests.owner(owner.student_id):
+        try:
+            return await state.learning_loop.submit(str(owner.student_id), **body.model_dump())
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/learning-loop/help")
+async def help_learning_loop(body: LearningLoopAction, owner: StudentOwnerScope = Depends(require_student_owner)):
+    state = tracking_state()
+    async with state.turn_requests.owner(owner.student_id):
+        try:
+            return await state.learning_loop.submit(str(owner.student_id), **body.model_dump(), help_requested=True)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc

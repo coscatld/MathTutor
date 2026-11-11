@@ -1,0 +1,284 @@
+{
+  "seed": 0,
+  "training": false,
+  "population": "synthetic",
+  "smoke": false,
+  "results": {
+    "active": {
+      "fraction_addition": {
+        "known_episodes": 200,
+        "correct_supported": 200,
+        "wrong_supported": 0,
+        "correct_coverage": 1.0,
+        "mean_questions_to_correct_support": 2,
+        "mean_questions_all_known": 2,
+        "stress": {
+          "slip_first": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "strategy_switch": {
+            "episodes": 50,
+            "provisional_matches": 17,
+            "uncertain": 33
+          },
+          "unknown_rule": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "indistinguishable_other": {
+            "episodes": 50,
+            "provisional_matches": 50,
+            "uncertain": 0
+          }
+        },
+        "max_questions": 2
+      },
+      "signed_subtraction": {
+        "known_episodes": 200,
+        "correct_supported": 200,
+        "wrong_supported": 0,
+        "correct_coverage": 1.0,
+        "mean_questions_to_correct_support": 2,
+        "mean_questions_all_known": 2,
+        "stress": {
+          "slip_first": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "strategy_switch": {
+            "episodes": 50,
+            "provisional_matches": 30,
+            "uncertain": 20
+          },
+          "unknown_rule": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "indistinguishable_other": {
+            "episodes": 50,
+            "provisional_matches": 50,
+            "uncertain": 0
+          }
+        },
+        "max_questions": 2
+      }
+    },
+    "fixed": {
+      "fraction_addition": {
+        "known_episodes": 200,
+        "correct_supported": 200,
+        "wrong_supported": 0,
+        "correct_coverage": 1.0,
+        "mean_questions_to_correct_support": 2,
+        "mean_questions_all_known": 2,
+        "stress": {
+          "slip_first": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "strategy_switch": {
+            "episodes": 50,
+            "provisional_matches": 15,
+            "uncertain": 35
+          },
+          "unknown_rule": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "indistinguishable_other": {
+            "episodes": 50,
+            "provisional_matches": 50,
+            "uncertain": 0
+          }
+        },
+        "max_questions": 2
+      },
+      "signed_subtraction": {
+        "known_episodes": 200,
+        "correct_supported": 43,
+        "wrong_supported": 0,
+        "correct_coverage": 0.215,
+        "mean_questions_to_correct_support": 2.883720930232558,
+        "mean_questions_all_known": 2.975,
+        "stress": {
+          "slip_first": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "strategy_switch": {
+            "episodes": 50,
+            "provisional_matches": 4,
+            "uncertain": 46
+          },
+          "unknown_rule": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "indistinguishable_other": {
+            "episodes": 50,
+            "provisional_matches": 13,
+            "uncertain": 37
+          }
+        },
+        "max_questions": 3
+      }
+    },
+    "random": {
+      "fraction_addition": {
+        "known_episodes": 200,
+        "correct_supported": 199,
+        "wrong_supported": 0,
+        "correct_coverage": 0.995,
+        "mean_questions_to_correct_support": 2.0351758793969847,
+        "mean_questions_all_known": 2.04,
+        "stress": {
+          "slip_first": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "strategy_switch": {
+            "episodes": 50,
+            "provisional_matches": 8,
+            "uncertain": 42
+          },
+          "unknown_rule": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "indistinguishable_other": {
+            "episodes": 50,
+            "provisional_matches": 49,
+            "uncertain": 1
+          }
+        },
+        "max_questions": 3
+      },
+      "signed_subtraction": {
+        "known_episodes": 200,
+        "correct_supported": 165,
+        "wrong_supported": 0,
+        "correct_coverage": 0.825,
+        "mean_questions_to_correct_support": 2.224242424242424,
+        "mean_questions_all_known": 2.36,
+        "stress": {
+          "slip_first": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "strategy_switch": {
+            "episodes": 50,
+            "provisional_matches": 23,
+            "uncertain": 27
+          },
+          "unknown_rule": {
+            "episodes": 50,
+            "provisional_matches": 0,
+            "uncertain": 50
+          },
+          "indistinguishable_other": {
+            "episodes": 50,
+            "provisional_matches": 45,
+            "uncertain": 5
+          }
+        },
+        "max_questions": 3
+      }
+    }
+  },
+  "primary_gate": {
+    "coverage_branch": true,
+    "efficiency_branch": false,
+    "passed": true,
+    "selected_branch": "coverage_at_three_questions"
+  },
+  "data_load_seconds": 0.0007276250016730046,
+  "catalog_compile_seconds": 0.01027675000113959,
+  "total_seconds": 0.15994808400137117,
+  "selection_latency_ms": {
+    "scope": "all_policies_combined",
+    "p50": 0.00025000008463393897,
+    "p95": 0.09362499986309558,
+    "max": 0.4449580010259524,
+    "samples": 4576
+  },
+  "selection_latency_ms_by_policy": {
+    "active": {
+      "p50": 0.06931250027264468,
+      "p95": 0.10124999971594661,
+      "max": 0.4449580010259524,
+      "samples": 1400
+    },
+    "fixed": {
+      "p50": 0.00020900006347801536,
+      "p95": 0.0002920005499618128,
+      "max": 0.0013329990906640887,
+      "samples": 1664
+    },
+    "random": {
+      "p50": 0.0002080014382954687,
+      "p95": 0.00029199873097240925,
+      "max": 0.0012910004443256184,
+      "samples": 1512
+    }
+  },
+  "catalog_sizes": {
+    "fraction_addition": 41,
+    "signed_subtraction": 52
+  },
+  "served_catalog_math_gate": "PASS",
+  "manifest": {
+    "seed": 0,
+    "training": false,
+    "weights_fitted": false,
+    "baseline_commit": "f6f928b7c3de0e9d98b8c303ad66c4cba20ca74d",
+    "policy_version": "diagnostic_probes_v1",
+    "core_sha256": "59e82910698c55a4d39294e89fcf733f5991f35816cd4a130542beab676228a2",
+    "fixtures_sha256": "db27104e605abbd3d0b4bc69c36147748324ac5b94dcc5daf0c8fb2d0ece42ac",
+    "development_domain": "fraction_addition",
+    "heldout_domain": "signed_subtraction",
+    "cases_per_domain": 400,
+    "known_per_domain": 200,
+    "stress_per_domain": 200,
+    "models": [
+      [
+        "fraction_addition",
+        [
+          "correct",
+          "add_across",
+          "multiply_denominators",
+          "keep_left_denominator"
+        ]
+      ],
+      [
+        "signed_subtraction",
+        [
+          "correct",
+          "ignore_subtracted_sign",
+          "always_negative_difference",
+          "add_instead"
+        ]
+      ]
+    ],
+    "max_questions": 3,
+    "source_of_labels": "independent elementary-formula simulator",
+    "generalization_scope": "generic selection policy across two authored domains; not discovery of new rules",
+    "stress_warning": "indistinguishable_other deliberately duplicates known outputs; no finite observation can identify its cause",
+    "development_compile_seconds": 0.0046990840000944445,
+    "full_runtime_seconds": 0.008670125000207918,
+    "gpu": "N/A; deterministic CPU policy, no training",
+    "post_eval_copy_edit": "Chinese rule label corrected; policy/formulas/fixtures unchanged; verification rerun on identical fixtures"
+  },
+  "caveat": "Provisional output patterns only. Unknown lookup mechanisms can be observationally identical; no stable misconception attribution or student learning gain is validated."
+}

@@ -91,8 +91,11 @@ EXPORT_ALLOWED_FIELDS: dict[str, frozenset[str]] = {
             "active_misconceptions",
             "item_error_observations",
             "model_status",
+            "learning_loop",
         }
     ),
+    "student_summary.learning_loop": frozenset({"domain", "phase", "due_at", "review_round", "diagnostic_status", "evidence"}),
+    "student_summary.learning_loop.evidence": frozenset({"independent_practice", "delayed_review", "structural_transfer"}),
     "student_summary.skills": frozenset({"skill_id", "evidence_status", "evidence_summary"}),
     "student_summary.skills.evidence_summary": frozenset({"independent", "assisted", "post_solution", "diagnostic", "ungradable", "step_correct", "joint_task_evidence", "duplicate_responses", "repeat_attempts"}),
     "student_summary.skills.binary_counts": frozenset({"correct", "incorrect"}),
@@ -163,6 +166,13 @@ def validate_export(export: dict[str, Any]) -> None:
     for index, entry in enumerate(export["student_summary"].get("item_error_observations", [])):
         _check(entry, EXPORT_ALLOWED_FIELDS["student_summary.item_error_observations"],
                f"student_summary.item_error_observations[{index}]")
+
+    for index, entry in enumerate(export["student_summary"].get("learning_loop", [])):
+        where = f"student_summary.learning_loop[{index}]"
+        _check(entry, EXPORT_ALLOWED_FIELDS["student_summary.learning_loop"], where)
+        _check(entry.get("evidence", {}), EXPORT_ALLOWED_FIELDS["student_summary.learning_loop.evidence"], where + ".evidence")
+        if any(type(value) is not int or value < 0 for value in entry.get("evidence", {}).values()):
+            raise ExportValidationError("学习闭环证据必须是非负整数计数")
 
 
 def _default_document_projector() -> Callable[[UserDocument], dict[str, Any]]:
@@ -235,13 +245,16 @@ async def export_evidence_summary(student_id, *, uow=None, student_state=None):
     """Shared API/export projection; strictly read-only, no migration writes."""
     from mathtutor.learning.knowledge_tracing.service import StudentStateService
     from mathtutor.application.learning_profile import item_error_observations
+    from mathtutor.application.learning_loop import LearningLoopService
+    engine = uow.engine if uow is not None else getattr(student_state, "engine", None)
+    loop_summary = await LearningLoopService(engine).export_summary(student_id) if engine is not None else []
     if uow is None:
         snapshot = await student_state.summary(student_id) if student_state else {"skills": [], "last_event_seq": 0}
         events = await student_state.events(student_id) if student_state else []
         return {"total_attempts": sum(snapshot.get("totals", {}).values()), "estimator_version": "evidence_tracker_v2",
                 "projection_version": snapshot["last_event_seq"], "skills": _export_skills(snapshot["skills"]),
                 "active_misconceptions": _export_misconceptions(events),
-                "item_error_observations": item_error_observations(events), "model_status": snapshot.get("dkt_mode", "not_trained")}
+                "item_error_observations": item_error_observations(events), "learning_loop": loop_summary, "model_status": snapshot.get("dkt_mode", "not_trained")}
     tracker = student_state or StudentStateService(uow.engine)
     async with uow.transaction() as conn:
         snapshot = await tracker.summary(student_id, conn=conn)
@@ -266,6 +279,7 @@ async def export_evidence_summary(student_id, *, uow=None, student_state=None):
             "projection_version": snapshot["last_event_seq"], "skills": [rows[k] for k in sorted(rows)],
             "active_misconceptions": _export_misconceptions(events),
             "item_error_observations": item_error_observations(events),
+            "learning_loop": loop_summary,
             "model_status": snapshot.get("dkt_mode", "not_trained")}
 
 

@@ -2,6 +2,10 @@
 
 ## Unreleased — 2026-11-11
 
+- Add Concept Check under the learning profile: bounded exact probes for fraction addition and signed subtraction, provisional response-pattern observations, independent practice, 24/72-hour review and missing-operand structure checks. Preserve help exposure, first-response evidence, owner isolation, retries and restart state; keep review and transfer evidence separate from mastery or DKT scores.
+- Add a fixed-seed offline comparison and four literature reviews. Active probes identify 200/200 authored held-out rule cases versus 165/200 for random selection within three questions; unknown and changing strategies remain an explicit attribution limit. Publish reproducible fixtures, metrics and implementation checks without claiming student learning gains.
+- Add the owner-scoped learning-loop table through migration 025, retain historical 023/024 recovery, and include loop summaries in privacy export and educational-history deletion. Verify the new flow in bilingual responsive UI and installed-package acceptance.
+
 - Flush encryption conversion files through non-truncating writable handles so Windows can persist them before publication. Preserve the original database and pending conversion on sync failure, verify retry recovery in both directions, and check Windows conversion/crash recovery before the full CI suite.
 
 - Fail closed on corrupt, malformed or initialized-but-missing authentication stores. Preserve legacy owner IDs, durably record initialization, and serialize account and signing-secret writes across processes with unique atomic temporary files.

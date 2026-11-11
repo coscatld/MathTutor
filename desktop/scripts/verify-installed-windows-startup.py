@@ -91,7 +91,12 @@ def local_api(base, path, *, origin, method='GET', payload=None, file=None, oper
     """Only call this GUI instance's loopback API; never a provider endpoint."""
     loopback_origin(base)
     loopback_origin(origin)
-    assert path.startswith('/api/v2/math-tutor/desktop/community/plugins'), 'plugin API required'
+    plugin_prefix = '/api/v2/math-tutor/desktop/community/plugins'
+    loop_prefix = '/api/v2/math-tutor/desktop/learning-loop'
+    loop_routes = {loop_prefix: 'GET', **{loop_prefix + suffix: 'POST' for suffix in ('/start', '/help', '/answer')}}
+    plugin_path = path == plugin_prefix or path.startswith(plugin_prefix + '/')
+    assert plugin_path or loop_routes.get(path) == method, 'explicit local acceptance API required'
+    assert file is None or plugin_path, 'file upload is limited to the plugin API'
     headers = {'Origin': origin, 'X-MathTutor-CSRF': '1'}
     body = None
     if file is not None:
@@ -116,7 +121,7 @@ def local_api(base, path, *, origin, method='GET', payload=None, file=None, oper
         response = error
     with response:
         value = json.loads(response.read(256 * 1024).decode('utf-8'))
-        assert response.code == expected_status, f'plugin API {method} {path}: status={response.code}, response={value}'
+        assert response.code == expected_status, f'local acceptance API {method} {path}: status={response.code}, response={value}'
     return value
 
 
@@ -215,6 +220,62 @@ def verify_code_plugins(base, python, executable, data, *, environment, origin):
     return result
 
 
+def verify_learning_loop(base, *, origin, resume=False):
+    """Exercise installed, persisted help/answer boundaries without a provider."""
+    prefix = '/api/v2/math-tutor/desktop/learning-loop'
+    domain = 'fraction_addition'
+
+    def episode(envelope):
+        assert envelope['schema_version'] == 'learning_loop_v1', envelope
+        rows = [row for row in envelope['domains'] if row['domain'] == domain]
+        assert len(rows) == 1 and rows[0]['episode'], 'learning episode is missing'
+        return rows[0]['episode']
+
+    def question(state):
+        item = state['question']
+        assert isinstance(item, dict) and item['statement'] and item['probe_id'], state
+        assert not ({'answer', 'predictions', 'matching_rules', 'solution'} & set(item)), 'answer leaked before help'
+        return item
+
+    def action(state, kind, **fields):
+        item = question(state)
+        return {'domain': domain, 'episode_id': state['episode_id'], 'probe_id': item['probe_id'],
+                'request_id': f'installed-loop:{kind}:{item["probe_id"]}', **fields}
+
+    state = episode(local_api(base, prefix + '/start', origin=origin, method='POST', payload={'domain': domain}))
+    identity = state['episode_id']
+    assert state['phase'] == ('practice' if resume else 'diagnose'), state
+    question(state)
+    if not resume:
+        source = question(state)
+        state = episode(local_api(base, prefix + '/help', origin=origin, method='POST', payload=action(state, 'diagnosis-help')))
+        assert state['phase'] == 'practice' and state['diagnostic']['status'] == 'uncertain', state
+        assert state['feedback']['kind'] == 'help' and state['feedback']['probe_id'] == source['probe_id'], state
+        assert state['feedback']['statement'] == source['statement'] and state['feedback']['answer'], state
+        assert question(state)['probe_id'] != source['probe_id'], 'diagnostic help did not end the diagnostic episode'
+    assert state['episode_id'] == identity
+    source = question(state)
+    evidence_before = dict(state['evidence'])
+    assert evidence_before == {'independent_practice': 0, 'delayed_review': 0, 'structural_transfer': 0}, state
+    helped = episode(local_api(base, prefix + '/help', origin=origin, method='POST', payload=action(state, 'practice-help')))
+    assert helped['phase'] == 'practice' and question(helped)['probe_id'] == source['probe_id'], helped
+    assert helped['feedback']['kind'] == 'help' and helped['feedback']['independent'] is False, helped
+    answer = helped['feedback']['answer']
+    assert isinstance(answer, str) and answer and helped['feedback']['statement'] == source['statement'], helped
+    submission = action(helped, 'assisted-answer', answer=answer)
+    first = episode(local_api(base, prefix + '/answer', origin=origin, method='POST', payload=submission))
+    repeated = episode(local_api(base, prefix + '/answer', origin=origin, method='POST', payload=submission))
+    assert repeated == first, 'duplicate answer advanced or altered the episode'
+    assert first['episode_id'] == identity and first['phase'] == 'practice', first
+    assert first['feedback']['kind'] == 'correct' and first['feedback']['independent'] is False, first
+    assert first['evidence'] == evidence_before, 'helped success was counted as independent evidence'
+    assert question(first)['probe_id'] != source['probe_id'], 'helped answer did not lead to a fresh problem'
+    assert episode(local_api(base, prefix, origin=origin)) == first, 'saved episode disagrees with submit result'
+    return {'status': 'PASS', 'provider_calls': 0, 'api': 'loopback_only', 'episode_id': identity,
+            'phase': first['phase'], 'resumed': resume, 'question_id': first['question']['probe_id'],
+            'assisted_success_independent': False, 'duplicate_advanced': False, 'evidence': dict(first['evidence'])}
+
+
 SNAPSHOT = '''
 import json, os
 from pathlib import Path
@@ -222,7 +283,7 @@ from contextlib import closing
 from mathtutor.infrastructure import db_crypto
 root = Path(os.environ['MATHTUTOR_DATA_ROOT'])
 rows = {}
-for path in [root / 'math_tutor.db', *sorted((root / 'backups').glob('*pre-024-*.sqlite3'))]:
+for path in [root / 'math_tutor.db', *sorted((root / 'backups').glob('*pre-025-*.sqlite3'))]:
     with closing(db_crypto.connect(path, key=db_crypto.key_for_file(path))) as conn:
         revisions = conn.execute('SELECT version_num FROM alembic_version ORDER BY version_num').fetchall()
         sentinel_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE name='repair_sentinel'").fetchone()
@@ -275,6 +336,8 @@ def run_gui(executable, python, data, output, name, *, expect_failure=False):
                                   version=version['version'], databases=probe(python, data, SNAPSHOT))
                     if name == 'fresh_unicode':
                         result['code_plugins'] = verify_code_plugins(base, python, executable, data, environment=env, origin=origin)
+                    if name in ('fresh_unicode', 'restart_unicode'):
+                        result['learning_loop'] = verify_learning_loop(base, origin=origin, resume=name == 'restart_unicode')
                     return result
                 assert first.poll() is None, f'first instance exited: {first.returncode}'
                 time.sleep(.2)
@@ -313,14 +376,15 @@ def main():
             report['install_path'] = str(install)
             normal_data = root / '全新用户数据'
             normal = run_gui(executable, python, normal_data, output, 'fresh_unicode')
-            assert normal['databases']['math_tutor.db']['revisions'] == [['024']]
+            assert normal['databases']['math_tutor.db']['revisions'] == [['025']]
             assert len(normal['databases']) == 1, normal
             report['cases'].append(normal)
             # Exercise normal relaunch on exactly the same data directory.
             # Remove only the previous test log, so the ready marker cannot be stale.
             (normal_data / 'logs' / 'startup.log').unlink()
             restart = run_gui(executable, python, normal_data, output, 'restart_unicode')
-            assert restart['databases']['math_tutor.db']['revisions'] == [['024']]
+            assert restart['databases']['math_tutor.db']['revisions'] == [['025']]
+            assert restart['learning_loop']['episode_id'] == normal['learning_loop']['episode_id'], 'relaunch lost the saved learning episode'
             report['cases'].append(restart)
             damaged_data = root / '异常版本 用户数据'
             damaged_data.mkdir()
@@ -333,6 +397,8 @@ from mathtutor.infrastructure import db_crypto
 path = Path(os.environ['MATHTUTOR_DATA_ROOT']) / 'math_tutor.db'
 upgrade_db(str(path))
 with closing(db_crypto.connect_db(path)) as conn:
+    conn.execute('DROP TABLE learning_loop_episodes')
+    conn.execute("UPDATE alembic_version SET version_num = '024'")
     conn.execute("INSERT INTO alembic_version VALUES ('023')")
     conn.execute('CREATE TABLE repair_sentinel (value TEXT)')
     conn.execute("INSERT INTO repair_sentinel VALUES ('preserve-original-data')")
@@ -341,7 +407,7 @@ print(json.dumps({'prepared': True}))
 ''')
             recovered = run_gui(executable, python, damaged_data, output, 'recover_023_024')
             live = recovered['databases'].pop('math_tutor.db')
-            assert live['revisions'] == [['024']] and live['sentinel'] == [['preserve-original-data']]
+            assert live['revisions'] == [['025']] and live['sentinel'] == [['preserve-original-data']]
             backup, = recovered['databases'].values()
             assert backup['revisions'] == [['023'], ['024']] and backup['sentinel'] == live['sentinel']
             recovered['databases']['math_tutor.db'] = live
@@ -363,7 +429,7 @@ print(json.dumps({'prepared': True}))
 ''')
             refused = run_gui(executable, python, invalid_data, output, 'reject_unknown_heads', expect_failure=True)
             refused['databases'] = probe(python, invalid_data, SNAPSHOT)
-            assert refused['databases']['math_tutor.db']['revisions'] == [['024'], ['future']]
+            assert refused['databases']['math_tutor.db']['revisions'] == [['025'], ['future']]
             report['cases'].append(refused)
         report['status'] = 'PASS'
     except BaseException:
