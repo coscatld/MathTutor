@@ -10,7 +10,7 @@
 
 MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
-**下载软件：** [macOS Apple Silicon](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-win-x64.exe) · [下载与校验记录](https://github.com/coscatld/MathTutor/releases) · [Mac 安装说明](docs/MACOS_INSTALLATION.md)
+**下载软件：** [macOS Apple Silicon](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-windows-x64.exe) · [下载与校验记录](https://github.com/coscatld/MathTutor/releases/tag/build-20261111-6f84868) · [Mac 安装说明](docs/MACOS_INSTALLATION.md)
 
 **近期改进：** 学习画像新增“概念复查”，将诊断追问、独立练习、间隔复习与结构变化题串联起来；设置支持中文与 English，学习记录区分独立与受助作答；备份恢复、配置保存及数学计算均有明确的恢复路径和预算。下文介绍当前源码实现，安装包的具体内容以其随附构建与验收记录为准。
 
@@ -151,12 +151,12 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 ## 下载与安装
 
-桌面包内置 Python 与 Node 运行时。已公开的安装文件、SHA-256 校验摘要及平台验收记录集中在 [GitHub Releases](https://github.com/coscatld/MathTutor/releases)；历史安装包也从该页面查找。完整改动沿革见 [CHANGELOG](CHANGELOG.md)。
+桌面包内置 Python 与 Node 运行时。本次安装文件与平台验收记录见[学习闭环更新发布页](https://github.com/coscatld/MathTutor/releases/tag/build-20261111-6f84868)，另附 [SHA-256 校验文件](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/SHA256SUMS.txt)。历史安装包可在 [GitHub Releases](https://github.com/coscatld/MathTutor/releases) 查找，完整改动沿革见 [CHANGELOG](CHANGELOG.md)。
 
 | 平台 | 安装文件 | 使用说明 |
 |---|---|---|
-| macOS Apple Silicon | [下载 DMG](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-mac-arm64.dmg) | 按 [Mac 安装说明](docs/MACOS_INSTALLATION.md)核验文件并完成首次打开 |
-| Windows x64 | [下载 EXE](https://github.com/coscatld/MathTutor/releases/download/v0.7.1/MathTutor-0.7.1-win-x64.exe) | 安装前退出应用；出现 SmartScreen 提示时核对来源与摘要 |
+| macOS Apple Silicon | [下载 DMG](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-mac-arm64.dmg) | 按 [Mac 安装说明](docs/MACOS_INSTALLATION.md)核验文件并完成首次打开 |
+| Windows x64 | [下载 EXE](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-windows-x64.exe) | 安装前退出应用；出现 SmartScreen 提示时核对来源与摘要 |
 
 现有 Mac 安装包使用完整本地 ad-hoc 签名，尚无 Developer ID 和公证；Windows 尚无 Authenticode 发行证书。各包的启动、作答、重启、备份恢复和退出清理范围，以其随附验收记录为准。
 
