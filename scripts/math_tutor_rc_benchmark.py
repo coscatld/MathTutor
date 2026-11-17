@@ -24,20 +24,20 @@ from uuid import uuid4
 import sqlalchemy as sa
 
 from mathtutor.application.adaptive_practice import CandidateExercise
-from mathtutor.application.lexical_reranker import LexicalScoreReranker
 from mathtutor.application.practice_release import ExerciseReleaseService
-from mathtutor.application.retrieval_router import MetadataFirstRetriever
 from mathtutor.domain.problem import MathProblem
 from mathtutor.infrastructure.db import create_db_engine
 from mathtutor.infrastructure.embedding_runtime import EmbeddingRuntime
 from mathtutor.infrastructure.verifier_worker import VerifierWorkerManager
 from mathtutor.learning.attempt_parser import parse_student_attempt
 from mathtutor.solving import parse_problem, solve_problem
-from mathtutor.tests.benchmark_fixtures import (
-    BENCHMARK_QUERIES,
-    OWNER_A,
-    build_corpus,
-)
+from mathtutor.application.context_expansion import ContextExpander
+from mathtutor.application.desktop_files import PickedFile
+from mathtutor.application.document_ingestion import DocumentIndexManager, DocumentIngestionService
+from mathtutor.application.retrieval_orchestrator import ConversationRetrievalOrchestrator
+from mathtutor.infrastructure.document_storage import DocumentStorage
+from mathtutor.infrastructure.migrate import upgrade_db
+from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 
 
 def _percentile(values: list[float], percentile: float) -> float:
@@ -119,24 +119,29 @@ async def run(iterations: int, desktop_ms: list[float]) -> dict:
 
     attempt = await _measure_async(attempt_roundtrip, iterations)
 
-    corpus = build_corpus()
-    query = BENCHMARK_QUERIES[0]
-    retriever = MetadataFirstRetriever(EmbeddingRuntime(), LexicalScoreReranker())
+    # Characterize the shipped retrieval pipeline, with ingestion outside timing.
+    # Historical RC figures used a retired synthetic retriever and are not comparable.
+    with tempfile.TemporaryDirectory(prefix="mt-rc-retrieval-") as tmp:
+        root = Path(tmp)
+        upgrade_db(str(root / "retrieval.db"))
+        retrieval_engine = create_db_engine(root / "retrieval.db")
+        try:
+            repository = SQLiteDocumentRepository(retrieval_engine)
+            kernel = DocumentIndexManager(repository=repository, embedding_runtime=EmbeddingRuntime())
+            ingestion = DocumentIngestionService(repository=repository,
+                storage=DocumentStorage(root / "documents"), index_manager=kernel)
+            document = await ingestion.ingest("rc-benchmark", PickedFile(
+                filename="equations.md", mime_type="text/markdown",
+                data="# 一元一次方程\n等式两边同时减去同一个数，等式仍然成立。移项要变号。".encode()))
+            retriever = ConversationRetrievalOrchestrator(kernel=kernel, expander=ContextExpander(repository))
 
-    async def retrieve() -> object:
-        return await retriever.retrieve(
-            query.query,
-            corpus,
-            owner_scope=OWNER_A,
-            stage=query.stage,
-            grade=query.grade,
-            skill_codes=query.skill_codes,
-            concept_codes=query.concept_codes,
-            mapping_ids=query.mapping_ids,
-            limit=5,
-        )
+            async def retrieve() -> object:
+                return await retriever.retrieve_for_turn(owner="rc-benchmark",
+                    document_ids=[document.document_id], user_query="移项为什么要变号？", history=[])
 
-    retrieval = await _measure_async(retrieve, iterations)
+            retrieval = await _measure_async(retrieve, iterations)
+        finally:
+            await retrieval_engine.dispose()
 
     with tempfile.TemporaryDirectory(prefix="mt-rc-bench-") as tmp:
         engine = create_db_engine(Path(tmp) / "benchmark.db")
@@ -161,8 +166,8 @@ async def run(iterations: int, desktop_ms: list[float]) -> dict:
     release_candidate = CandidateExercise(
         student_id=uuid4(),
         problem_statement="2x + 3 = 7",
-        skill_ids=("linear_equation.solve",),
-        concept_ids=("linear_equations",),
+        skill_ids=("LINEAR_EQUATION",),
+        concept_ids=("CONCEPT_LINEAR_EQUATIONS",),
         difficulty=2,
         generated_by="rc-benchmark",
     )
@@ -183,6 +188,7 @@ async def run(iterations: int, desktop_ms: list[float]) -> dict:
         "kind": "math_tutor_rc_performance_baseline",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "threshold_status": "CHARACTERIZATION_ONLY_NOT_FROZEN",
+        "retrieval_pipeline": "sqlite-document-index-orchestrator-v1",
         "environment": {
             "platform": platform.platform(),
             "machine": platform.machine(),

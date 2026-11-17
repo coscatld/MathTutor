@@ -60,8 +60,6 @@ REQUIRED_PRODUCTION_MODULES = (
 #: Modules the packaging policy deliberately EXCLUDES. Pinned so a future
 #: "cleanup" that starts shipping them is caught as a decision, not slipped in.
 DELIBERATELY_EXCLUDED = (
-    "src/mathtutor/application/lexical_reranker.py",
-    "src/mathtutor/application/retrieval_router.py",
     "src/mathtutor/infrastructure/sqlite_vec_index.py",
 )
 

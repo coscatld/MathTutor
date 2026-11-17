@@ -21,7 +21,7 @@ data/
 *.db
 *.db-shm
 *.db-wal
-node_modules/
+node_modules
 .next/
 .next-mathtutor/
 site/out/

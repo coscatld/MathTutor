@@ -45,8 +45,6 @@
       "data/**",
       "capabilities/**",
       "legacy/**",
-      "application/lexical_reranker.py",
-      "application/retrieval_router.py",
       "infrastructure/sqlite_vec_index.py"
     ],
     "required_runtime_assets": [

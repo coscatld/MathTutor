@@ -83,7 +83,7 @@ class SqliteVecVectorIndex:
       → ``load_extension`` → ``vec_version()`` 全链路在构造时验证，
       失败抛 :class:`SqliteVecUnavailableError`；
     - 同步 SQLite 调用封装在 async 方法里（:memory: 上的 vec0 操作是
-      亚毫秒级纯 CPU 工作，与 InMemoryDocumentRepository 的 async 内联
+      亚毫秒级纯 CPU 工作，与 SQLiteDocumentRepository 的 async 内联
       风格一致）；
     - 向量以 JSON 文本写入 vec0 表（与 document_chunk_vectors 的 JSON
       列同一序列化形态），rowid ↔ 标识映射由本类维护。

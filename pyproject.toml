@@ -81,6 +81,5 @@ include = ["mathtutor*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["compat_deeptutor"]
 asyncio_mode = "auto"
 addopts = "-ra"
