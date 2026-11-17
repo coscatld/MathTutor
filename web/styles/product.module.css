@@ -68,7 +68,9 @@
 
 .mt-new-chat:active { transform: scale(.98); }
 
-.mt-brand-mark { display: flex; height: 32px; width: 32px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 10px; background: var(--primary); color: var(--primary-foreground); box-shadow: inset 0 -1px 0 rgb(0 0 0 / .12), 0 1px 2px rgb(0 0 0 / .08); transition: transform var(--dur) var(--ease-spring); }
+.mt-brand-mark { display: flex; height: 32px; width: 32px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 8px; transition: transform var(--dur) var(--ease-spring); }
+
+.mt-brand-mark > svg, .mt-empty-mark > svg, .mt-tutor-avatar > svg { width: 100%; height: 100%; }
 
 button.mt-brand-mark:hover { transform: scale(1.06); }
 
@@ -140,7 +142,7 @@ button.mt-brand-mark:hover { transform: scale(1.06); }
 
 .mt-tutor-message { display: flex; gap: 14px; align-items: flex-start; animation: var(--motion-rise) var(--dur-slow) var(--ease-out) both; }
 
-.mt-tutor-avatar { display: flex; align-items: center; justify-content: center; height: 28px; width: 28px; flex-shrink: 0; margin-top: 1px; border-radius: 9px; background: var(--primary); color: var(--primary-foreground); box-shadow: inset 0 -1px 0 rgb(0 0 0 / .12); }
+.mt-tutor-avatar { display: flex; align-items: center; justify-content: center; height: 28px; width: 28px; flex-shrink: 0; margin-top: 1px; border-radius: 7px; }
 
 .mt-tutor-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 28px; margin-bottom: 4px; }
 
@@ -254,7 +256,7 @@ button.mt-brand-mark:hover { transform: scale(1.06); }
 
 .mt-chat-column[data-empty="true"] .mt-composer::before { display: none; }
 
-.mt-empty-mark { display: flex; height: 48px; width: 48px; align-items: center; justify-content: center; border-radius: 14px; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 28%, transparent), inset 0 -2px 0 rgb(0 0 0 / .12); }
+.mt-empty-mark { display: flex; height: 48px; width: 48px; align-items: center; justify-content: center; border-radius: 12px; }
 
 .mt-tutor-welcome { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding-block: 12px; }
 

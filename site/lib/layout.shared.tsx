@@ -28,7 +28,7 @@ export const translations = i18n
 function navTitle(copy: Messages) {
   return (
     <span className="inline-flex items-center gap-2 font-semibold">
-      <BrandMark className="size-5" />
+      <BrandMark className="size-8" />
       <span>MathTutor</span>
       <span className="text-fd-muted-foreground font-normal hidden sm:inline">
         {copy.localeName === '简体中文' ? '数迹' : ''}

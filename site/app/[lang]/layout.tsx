@@ -55,6 +55,7 @@ export async function generateMetadata({
     },
     icons: {
       icon: [{ url: `${SITE_URL}/favicon.svg`, type: 'image/svg+xml' }],
+      apple: [{ url: `${SITE_URL}/apple-touch-icon.png`, sizes: '180x180', type: 'image/png' }],
     },
   };
 }

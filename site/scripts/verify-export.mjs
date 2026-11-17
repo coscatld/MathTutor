@@ -43,6 +43,8 @@ const required = [
   'sitemap.xml',
   'robots.txt',
   'favicon.svg',
+  'apple-touch-icon.png',
+  'og.png',
   'screenshots/teaching-desktop.png',
 ];
 

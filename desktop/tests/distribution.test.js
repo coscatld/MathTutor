@@ -31,6 +31,7 @@ test("package contains standalone web, Python application and runtime", () => {
   assert.deepEqual(targets, [
     "web",
     "web/.next-mathtutor/static",
+    "web/public",
     "web/vendor_modules",
     "python-app/mathtutor",
     "python-runtime",
@@ -47,6 +48,12 @@ test("platform targets stay intentionally narrow", () => {
   assert.equal(config.mac.target[0].target, "dmg");
   assert.equal(config.win.target[0].target, "nsis");
   assert.equal(config.linux.target[0].target, "AppImage");
+  for (const platform of ["mac", "win", "linux"]) {
+    assert.ok(fs.existsSync(path.join(desktop, config[platform].icon)));
+  }
+  assert.equal(config.nsis.installerIcon, config.win.icon);
+  assert.equal(config.nsis.uninstallerIcon, config.win.icon);
+  assert.ok(config.files.includes(config.linux.icon));
 });
 
 test("macOS package uses the MathTutor icon and a background-only frontend runtime", () => {

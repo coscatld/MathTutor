@@ -1,3 +1,5 @@
+<img src="resources/branding/mathtutor.svg" width="48" height="48" alt="MathTutor Logo" />
+
 # MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE) [![CI](https://img.shields.io/github/actions/workflow/status/coscatld/MathTutor/cross-platform.yml?branch=main&label=CI)](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml) [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Benchmarks-yellow.svg)](https://huggingface.co/datasets/coscatld/mathtutor)

@@ -46,7 +46,7 @@ module.exports = {
   afterSign: "scripts/after-sign-macos.cjs",
   artifactBuildCompleted: "scripts/verify-macos-dmg.cjs",
   asar: true,
-  files: ["main.js", "preload.js", "runtime/**/*", "package.json"],
+  files: ["main.js", "preload.js", "runtime/**/*", "package.json", "build/icon.png"],
   extraResources: [
     {
       from: nextStandalone,
@@ -64,6 +64,7 @@ module.exports = {
     // be copied beside the standalone server at its configured distDir or the
     // HTML loads while every client JS/CSS request returns 404.
     { from: nextStatic, to: "web/.next-mathtutor/static" },
+    { from: path.join(repoDir, "web", "public"), to: "web/public" },
     // electron-builder intentionally filters a top-level directory named
     // node_modules from generic resources. Copy it under a neutral runtime
     // name and expose it through NODE_PATH in main.js.
@@ -112,13 +113,16 @@ module.exports = {
     entitlementsInherit: "build/entitlements.mac.plist",
   },
   dmg: { sign: false },
-  win: { target: [{ target: "nsis", arch: ["x64"] }] },
+  win: { icon: "build/icon.ico", target: [{ target: "nsis", arch: ["x64"] }] },
   nsis: {
+    installerIcon: "build/icon.ico",
+    uninstallerIcon: "build/icon.ico",
     oneClick: false,
     allowToChangeInstallationDirectory: true,
     perMachine: false,
   },
   linux: {
+    icon: "build/icon.png",
     target: [{ target: "AppImage", arch: ["x64"] }],
     category: "Education",
   },

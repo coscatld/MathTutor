@@ -1424,6 +1424,9 @@ if (isHeadlessNode) {
   }
 } else if (ownsInstance) {
 app.whenReady().then(async () => {
+  if (process.platform === "darwin" && !IS_PACKAGED) {
+    app.dock?.setIcon(path.join(DESKTOP_DIR, "build", "icon.png"));
+  }
   if (isSmokeProduction) {
     try {
       await runSmokeProduction();
@@ -1527,6 +1530,7 @@ app.whenReady().then(async () => {
     height: 840,
     minWidth: 960,
     minHeight: 640,
+    icon: path.join(DESKTOP_DIR, "build", "icon.png"),
     title: "MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统",
     webPreferences: {
       preload: path.join(DESKTOP_DIR, "preload.js"),
