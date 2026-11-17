@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import { BrainCircuit, Loader2, Plus, Sparkles } from "lucide-react";
@@ -172,10 +174,10 @@ export default function MemoryPanel({
   };
 
   return (
-    <div className="mt-page">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className={productClass("mt-page")}>
+      <header className={productClass("flex flex-wrap items-end justify-between gap-3")}>
         <div>
-          <p className="mt-eyebrow flex items-center gap-1.5"><BrainCircuit className="h-3.5 w-3.5" aria-hidden="true" />{t("让辅导更懂你的节奏")}</p>
+          <p className={productClass("mt-eyebrow flex items-center gap-1.5")}><BrainCircuit className="h-3.5 w-3.5" aria-hidden="true" />{t("让辅导更懂你的节奏")}</p>
           <h1 className="mt-2">{t("我的记忆")}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">
             {t("记录你的学习偏好、目标与兴趣，让讲解更适合自己。")}{inferredCount > 0 && t(" 当前有 {value0} 条 AI 推测记忆待你确认。", { value0: inferredCount })}
@@ -186,14 +188,14 @@ export default function MemoryPanel({
           onClick={() => setAdding((v) => !v)}
           aria-expanded={adding}
           aria-controls={adding ? "memory-add-form" : undefined}
-          className="mt-btn mt-btn-primary"
+          className={productClass("mt-btn mt-btn-primary")}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           {t("添加记忆")}</button>
       </header>
 
-      <section className="mt-tool-message" aria-label={t("记忆如何生效")}><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold">{t("由你决定，哪些记忆可以参考")}</h2><span className="mt-tool-badge" data-tone="active">{memories.filter(m => m.retrieval_enabled && m.source_type !== "MODEL_INFERRED").length} {t(" 条允许用于辅导")}</span></div><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">{t("启用后，Tutor 会在使用已配置模型辅导、且内容与当前问题相关时参考记忆；这不代表每轮都使用。AI 推测先经你确认，停用的记忆保留但不参与回答。离线基础辅导暂不按文字偏好调整。")}</p></section>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("记忆类别")}>
+      <section className={productClass("mt-tool-message")} aria-label={t("记忆如何生效")}><div className={productClass("flex flex-wrap items-center justify-between gap-3")}><h2 className="text-sm font-semibold">{t("由你决定，哪些记忆可以参考")}</h2><span className={productClass("mt-tool-badge")} data-tone="active">{memories.filter(m => m.retrieval_enabled && m.source_type !== "MODEL_INFERRED").length} {t(" 条允许用于辅导")}</span></div><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">{t("启用后，Tutor 会在使用已配置模型辅导、且内容与当前问题相关时参考记忆；这不代表每轮都使用。AI 推测先经你确认，停用的记忆保留但不参与回答。离线基础辅导暂不按文字偏好调整。")}</p></section>
+      <div className={productClass("flex flex-wrap gap-1.5")} role="group" aria-label={t("记忆类别")}>
         {FILTER_TABS.map((tab) => {
           const active = filter === tab.key;
           return (
@@ -202,11 +204,11 @@ export default function MemoryPanel({
               type="button"
               aria-pressed={active}
               onClick={() => setFilter(tab.key)}
-              className={`inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
+              className={productClass(`inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
                 active
                   ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]"
                   : "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-              }`}
+              }`)}
             >
               {tab.ai && <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
               {t(tab.label)}
@@ -220,15 +222,15 @@ export default function MemoryPanel({
         <form
           id="memory-add-form"
           onSubmit={handleAdd}
-          className="mt-card flex flex-col gap-3 p-4"
+          className={productClass("mt-card flex flex-col gap-3 p-4")}
           aria-label={t("添加记忆")}
         >
-          <div className="flex flex-wrap gap-3">
-            <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-sm font-medium text-[var(--foreground)]">
+          <div className={productClass("flex flex-wrap gap-3")}>
+            <label className={productClass("flex min-w-40 flex-1 flex-col gap-1.5 text-sm font-medium text-[var(--foreground)]")}>
               {t("类别")}<select
                 value={addType}
                 onChange={(e) => setAddType(e.target.value)}
-                className="mt-input h-11"
+                className={productClass("mt-input h-11")}
               >
                 {Object.entries(MEMORY_TYPE_LABELS)
                   .filter(([key]) => key !== "ai_inference")
@@ -239,27 +241,27 @@ export default function MemoryPanel({
                   ))}
               </select>
             </label>
-            <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm font-medium text-[var(--foreground)]">
+            <label className={productClass("flex min-w-48 flex-1 flex-col gap-1.5 text-sm font-medium text-[var(--foreground)]")}>
               {t("内容")}<textarea
                 value={addValue}
                 onChange={(e) => setAddValue(e.target.value)}
                 placeholder={t("例如：喜欢举一反三的讲解方式")}
-                className="mt-input min-h-24 py-3 leading-6"
+                className={productClass("mt-input min-h-24 py-3 leading-6")}
                 required
               />
             </label>
           </div>
-          <div className="flex justify-end gap-2">
+          <div className={productClass("flex justify-end gap-2")}>
             <button
               type="button"
               onClick={() => setAdding(false)}
-              className="mt-btn"
+              className={productClass("mt-btn")}
             >
               {t("取消")}</button>
             <button
               type="submit"
               disabled={saving || !addValue.trim()}
-              className="mt-btn mt-btn-primary"
+              className={productClass("mt-btn mt-btn-primary")}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
               {t("保存记忆")}</button>
@@ -270,29 +272,29 @@ export default function MemoryPanel({
       {message && (
         <p
           role="status"
-          className={`rounded-xl px-3 py-2 text-sm ${
+          className={productClass(`rounded-xl px-3 py-2 text-sm ${
             message.kind === "ok"
               ? "bg-[var(--success-soft)] text-[var(--success)]"
               : "bg-[var(--card)] text-[var(--destructive)]"
-          }`}
+          }`)}
         >
           {t(message.text)}
         </p>
       )}
 
       {loading ? (
-        <p className="flex items-center gap-2 py-10 text-sm text-[var(--muted-foreground)]">
+        <p className={productClass("flex items-center gap-2 py-10 text-sm text-[var(--muted-foreground)]")}>
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           {t("正在加载记忆…")}</p>
       ) : visible.length === 0 ? (
-        <div className="mt-card flex flex-col items-center gap-2 border-dashed px-6 py-12 text-center">
+        <div className={productClass("mt-card flex flex-col items-center gap-2 border-dashed px-6 py-12 text-center")}>
           <BrainCircuit className="h-8 w-8 text-[var(--muted-foreground)]" aria-hidden="true" />
           <p className="text-sm font-medium text-[var(--foreground)]">{t("这里还没有记忆")}</p>
           <p className="max-w-sm text-sm leading-relaxed text-[var(--muted-foreground)]">
             {t("点击「添加记忆」记下你的偏好与目标；AI 也会在学习中推测一些记忆，等你确认后才会使用。")}</p>
         </div>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className={productClass("flex flex-col gap-3")}>
           {visible.map((memory) => (
             <MemoryRow
               key={memory.memory_id}

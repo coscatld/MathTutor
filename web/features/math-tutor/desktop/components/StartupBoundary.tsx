@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import { RefreshCw, TriangleAlert } from "lucide-react";
@@ -87,11 +89,11 @@ export default function StartupBoundary({ children, entry = false }: Props) {
 
   const blocked = decision === "blocked";
   return (
-    <main className="mt-standalone">
-      <div className="mt-standalone-field mt-paper" aria-hidden="true" />
+    <main className={productClass("mt-standalone")}>
+      <div className={productClass("mt-standalone-field mt-paper")} aria-hidden="true" />
       <div className="absolute right-6 top-4 z-10"><LanguagePicker compact /></div>
       <section className="mt-rise relative w-full max-w-sm text-center" aria-live="polite">
-        <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${blocked ? "bg-[var(--warning-soft)] text-[var(--warning)]" : "mt-empty-mark"}`}>
+        <div className={productClass(`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${blocked ? "bg-[var(--warning-soft)] text-[var(--warning)]" : "mt-empty-mark"}`)}>
           {blocked ? (
             <TriangleAlert className="h-6 w-6" aria-hidden="true" />
           ) : (
@@ -110,7 +112,7 @@ export default function StartupBoundary({ children, entry = false }: Props) {
           <button
             type="button"
             onClick={() => void check()}
-            className="mt-btn mt-btn-primary mt-6 min-h-[44px] px-5"
+            className={productClass("mt-btn mt-btn-primary mt-6 min-h-[44px] px-5")}
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             {t("重新检查")}</button>

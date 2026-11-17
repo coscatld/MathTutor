@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { Fragment, useMemo } from "react";
 import { AlertCircle } from "lucide-react";
@@ -43,12 +45,12 @@ function TutorMessageContent({ messageId, action, body }: { messageId: string; a
 export default function TutorActionCard({ message, onContinue, onRecover }: { message: TutorMessage; onContinue?: () => void; onRecover?: () => void }) {
   const {t} = useI18n();
   if (message.kind === "student") {
-    return <div className="flex justify-end"><div className="mt-student-message"><ImageAttachments images={message.attachments || []} /><MarkdownRenderer content={message.text} enableMath /></div></div>;
+    return <div className={productClass("flex justify-end")}><div className={productClass("mt-student-message")}><ImageAttachments images={message.attachments || []} /><MarkdownRenderer content={message.text} enableMath /></div></div>;
   }
   if (message.kind === "error") {
     return (
       <div
-        className="mt-rise flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 shadow-[var(--shadow-xs)]"
+        className={productClass("mt-rise flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 shadow-[var(--shadow-xs)]")}
         role="alert"
       >
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--muted-foreground)]" aria-hidden="true" />
@@ -68,17 +70,17 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
   const level = normalizeAssistanceLevel(message.assistanceLevel);
 
   return (
-    <div className="mt-tutor-message">
-      <div className="mt-tutor-avatar" aria-hidden="true">
+    <div className={productClass("mt-tutor-message")}>
+      <div className={productClass("mt-tutor-avatar")} aria-hidden="true">
         <BrandMark className="h-4 w-4" />
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="mt-tutor-meta">
-          <span className="mt-tutor-name">MathTutor</span>
+      <div className={productClass("min-w-0 flex-1")}>
+        <div className={productClass("mt-tutor-meta")}>
+          <span className={productClass("mt-tutor-name")}>MathTutor</span>
           {label && <span className="mt-chip">{t(label)}</span>}
           {level > 0 && <span className="mt-chip mt-chip-warn">{t("已展示：")}{t(supportExposureLabel(level))}</span>}
         </div>
-        <div className="mt-answer-text">
+        <div className={productClass("mt-answer-text")}>
           <TutorMessageContent messageId={message.id} action={message.action} body={body} />
           {message.status === "PARTIAL" && <div role="status" className="mt-3 border-l-2 border-[var(--border)] pl-3 text-sm leading-6 text-[var(--muted-foreground)]">{t("这段还没讲完，末尾的公式和结论可能不完整。")}{onContinue ? <button type="button" className="ml-2 min-h-9 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>{t("继续讲完")}</button> : t("请接着查看后续回复。")}</div>}
           {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-[var(--primary-text)] underline underline-offset-2" onClick={onRecover}>{t("重新同步")}</button>}

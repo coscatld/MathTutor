@@ -205,7 +205,7 @@ test("optional diagnosis does not start or fail a student from an empty observat
 });
 
 test("practice-list card rejects a missing offer identifier", () => {
-  const html = renderToStaticMarkup(<PracticeOfferCard offer={{offer_id: "", parent_cycle_id: "cycle", status: "ACTIVE", skill_labels: [], concept_labels: [], difficulty: "easy", offered_at: "", expires_at: ""}} accepting={false} onStart={() => {}} />);
+  const html = renderToStaticMarkup(<PracticeOfferCard offer={{offer_id: "", parent_cycle_id: "cycle", status: "ACTIVE", skill_labels: [], concept_labels: [], difficulty: 1, offered_at: "", expires_at: ""}} accepting={false} onStart={() => {}} />);
   assert.ok(!html.includes("开始练习"));
 });
 

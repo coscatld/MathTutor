@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -77,8 +79,8 @@ function LoginPageContent() {
   return (
     <div className="mt-rise relative w-full max-w-sm">
       {/* Logo / Title */}
-      <div className="mb-8 flex flex-col items-center text-center">
-        <span className="mt-empty-mark mb-5"><BrandMark className="h-6 w-6" /></span>
+      <div className={productClass("mb-8 flex flex-col items-center text-center")}>
+        <span className={productClass("mt-empty-mark mb-5")}><BrandMark className="h-6 w-6" /></span>
         <h1 className="mt-wordmark mt-wordmark-lg">
           Math<span>Tutor</span>
         </h1>
@@ -112,7 +114,7 @@ function LoginPageContent() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="mt-input"
+              className={productClass("mt-input")}
               placeholder="you@example.com"
             />
           </div>
@@ -132,7 +134,7 @@ function LoginPageContent() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-input"
+              className={productClass("mt-input")}
               placeholder="••••••••"
             />
           </div>
@@ -148,7 +150,7 @@ function LoginPageContent() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-btn mt-btn-primary min-h-[44px] w-full"
+            className={productClass("mt-btn mt-btn-primary min-h-[44px] w-full")}
           >
             {loading ? t("Signing in…") : t("Sign in")}
           </button>
@@ -165,7 +167,7 @@ function LoginPageContent() {
         </Link>
       </p>
 
-      <div className="mt-6 flex justify-center"><LanguagePicker compact /></div>
+      <div className={productClass("mt-6 flex justify-center")}><LanguagePicker compact /></div>
       <p className="mt-3 text-center text-xs text-[var(--muted-foreground)]">{t("MathTutor · K12 数学辅导")}</p>
     </div>
   );

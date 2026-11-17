@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { Check, ChevronDown, CornerUpLeft, ListChecks } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -35,16 +37,16 @@ export function CurrentProblem({ context }: { context?: ProblemContext | null })
   if (!context) return null;
   const lifecycle = context.lifecycle.toUpperCase();
   const completeStep = ["completed", "verified", "resolved"].includes(context.current_subgoal?.status.toLowerCase() || "");
-  return <details ref={disclosure} className="mt-context">
-    <summary aria-label={t("当前题目与目标")} className="mt-context-trigger">
+  return <details ref={disclosure} className={productClass("mt-context")}>
+    <summary aria-label={t("当前题目与目标")} className={productClass("mt-context-trigger")}>
       <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />
-      <span className="min-w-0"><span className="mt-context-label">{t("当前题目")}</span><span className="mt-context-preview">{context.display_text || t("待补充题目")}</span></span>
-      <ChevronDown className="mt-context-chevron h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0"><span className={productClass("mt-context-label")}>{t("当前题目")}</span><span className={productClass("mt-context-preview")}>{context.display_text || t("待补充题目")}</span></span>
+      <ChevronDown className={productClass("mt-context-chevron h-3.5 w-3.5 shrink-0")} aria-hidden="true" />
     </summary>
-    <section aria-label={t("题目与目标详情")} className="mt-context-popover">
-      <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]"><ListChecks className="h-3.5 w-3.5" aria-hidden="true" /><span>{t("当前题目")}</span><span className="ml-auto rounded-full border border-[var(--border)] px-2 py-0.5">{lifecycle === "DISCUSSION" ? t("原题已保存 · 讨论中") : t(LIFECYCLE_LABELS[lifecycle] || "当前任务")}</span></div>
+    <section aria-label={t("题目与目标详情")} className={productClass("mt-context-popover")}>
+      <div className={productClass("flex items-center gap-2 text-xs text-[var(--muted-foreground)]")}><ListChecks className="h-3.5 w-3.5" aria-hidden="true" /><span>{t("当前题目")}</span><span className="ml-auto rounded-full border border-[var(--border)] px-2 py-0.5">{lifecycle === "DISCUSSION" ? t("原题已保存 · 讨论中") : t(LIFECYCLE_LABELS[lifecycle] || "当前任务")}</span></div>
       {lifecycle === "DISCUSSION" ? <div className="mt-3 max-h-72 overflow-auto text-sm leading-6"><MarkdownRenderer content={context.display_text} enableMath /></div> : <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{context.display_text || t("请补充当前题目的完整要求。")}</p>}
-      {context.current_subgoal?.prompt_target ? <div className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-[var(--primary-text)]">{completeStep ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <CornerUpLeft className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}<span>{completeStep ? t("已验证步骤：") : t("当前小目标：")}{t(context.current_subgoal.prompt_target)}</span></div> : null}
+      {context.current_subgoal?.prompt_target ? <div className={productClass("mt-1 flex items-start gap-1.5 text-xs leading-5 text-[var(--primary-text)]")}>{completeStep ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <CornerUpLeft className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}<span>{completeStep ? t("已验证步骤：") : t("当前小目标：")}{t(context.current_subgoal.prompt_target)}</span></div> : null}
     </section>
   </details>;
 }
@@ -55,7 +57,7 @@ export function EvidenceSummaryCard({ evidence }: { evidence?: EvidenceSummary |
   const entries = [["独立作答", evidence.independent], ["受助作答", evidence.assisted], ["看答案后作答", evidence.post_solution], ["诊断作答", evidence.diagnostic], ["暂无法判断", evidence.ungradable]] as const;
   return <section aria-label={t("本题学习证据")} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
     <h2 className="text-sm font-semibold">{t("本题学习证据")}</h2>
-    <dl className="mt-3 space-y-2">{entries.map(([label, count]) => <div key={t(label)} className="flex items-center justify-between gap-3 text-xs"><dt className="text-[var(--muted-foreground)]">{t(label)}</dt><dd className="tabular-nums text-[var(--foreground)]">{t("{count} 次", {count})}</dd></div>)}</dl>
+    <dl className={productClass("mt-3 space-y-2")}>{entries.map(([label, count]) => <div key={t(label)} className={productClass("flex items-center justify-between gap-3 text-xs")}><dt className="text-[var(--muted-foreground)]">{t(label)}</dt><dd className="tabular-nums text-[var(--foreground)]">{t("{count} 次", {count})}</dd></div>)}</dl>
     <p className="mt-3 border-t border-[var(--border)] pt-3 text-xs leading-5 text-[var(--muted-foreground)]">{t(evidenceStatusLabel(evidence.status))}{t("。观看答案不计作独立掌握。")}</p>
   </section>;
 }

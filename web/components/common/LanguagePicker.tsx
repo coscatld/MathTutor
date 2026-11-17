@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n, type Locale} from "@/lib/i18n";
 import {useId, useState} from "react";
 
@@ -8,17 +10,17 @@ export default function LanguagePicker({compact = false}: {compact?: boolean}) {
   const id = useId();
   const [temporary, setTemporary] = useState(false);
   const choose = (value: string) => setTemporary(!setLocale(value as Locale));
-  if (compact) return <label className="inline-flex flex-wrap items-center gap-2 text-sm">
+  if (compact) return <label className={productClass("inline-flex flex-wrap items-center gap-2 text-sm")}>
     <span>语言 / Language</span>
-    <select aria-label={t("界面语言")} value={locale} onChange={event => choose(event.target.value)} className="mt-input min-h-11 min-w-32 text-base">
+    <select aria-label={t("界面语言")} value={locale} onChange={event => choose(event.target.value)} className={productClass("mt-input min-h-11 min-w-32 text-base")}>
       <option value="zh-CN" lang="zh-CN">中文</option><option value="en" lang="en">English</option>
     </select>
     {temporary && <span role="status">{t("浏览器未允许保存偏好，本次会话已切换语言。")}</span>}
   </label>;
-  return <div className="mt-card space-y-3 p-5">
+  return <div className={productClass("mt-card space-y-3 p-5")}>
     <label htmlFor={id} className="block text-sm font-semibold">{t("界面语言")}</label>
     <select id={id} value={locale} onChange={event => choose(event.target.value)}
-      aria-describedby={`${id}-description`} className="mt-input min-h-11 w-full max-w-sm text-base">
+      aria-describedby={`${id}-description`} className={productClass("mt-input min-h-11 w-full max-w-sm text-base")}>
       <option value="zh-CN" lang="zh-CN">中文</option>
       <option value="en" lang="en">English</option>
     </select>

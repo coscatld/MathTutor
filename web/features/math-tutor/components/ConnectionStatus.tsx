@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { RefreshCw } from "lucide-react";
 import type { ConnectionStatus as Status } from "../types";
@@ -33,20 +35,20 @@ export default function ConnectionStatus({
 
   return (
     <div
-      className="flex items-center gap-2"
+      className={productClass("flex items-center gap-2")}
       role="status"
       aria-live="polite"
       aria-label={t(note)}
     >
-      <span className={`mt-status-pill ${style.tone}`}>
-        <span className="mt-status-dot" data-live={style.live} aria-hidden="true" />
+      <span className={productClass(`mt-status-pill ${style.tone}`)}>
+        <span className={productClass("mt-status-dot")} data-live={style.live} aria-hidden="true" />
         <span className="text-xs font-semibold">{t(note)}</span>
       </span>
       {showRetry && (
         <button
           type="button"
           onClick={onReconnect}
-          className="mt-btn h-8 min-h-0 px-3 text-xs"
+          className={productClass("mt-btn h-8 min-h-0 px-3 text-xs")}
         >
           <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />{t("重新连接")}</button>
       )}

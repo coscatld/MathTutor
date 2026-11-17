@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { useState } from "react";
 import { Eye, Loader2, Send } from "lucide-react";
@@ -45,16 +47,16 @@ export default function ProblemComposer({
 
   return (
     <section
-      className="mt-card p-4 sm:p-5"
+      className={productClass("mt-card p-4 sm:p-5")}
       aria-label={t("输入题目")}
     >
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className={productClass("mb-2 flex flex-wrap items-center justify-between gap-2")}>
         <h2 className="text-sm font-semibold text-[var(--foreground)]">{t("输入你的题目")}</h2>
         <button
           type="button"
           onClick={() => setShowPreview((value) => !value)}
           aria-pressed={showPreview}
-          className="mt-btn"
+          className={productClass("mt-btn")}
         >
           <Eye className="h-4 w-4" aria-hidden="true" />
           {showPreview ? t("收起预览") : t("预览")}
@@ -82,13 +84,13 @@ export default function ProblemComposer({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      <div className={productClass("mt-3 flex flex-wrap items-center justify-between gap-2")}>
         <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">{t("提交后，辅导老师会先检查题目，再引导你自己解出答案。")}</p>
         <button
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="mt-btn mt-btn-primary"
+          className={productClass("mt-btn mt-btn-primary")}
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

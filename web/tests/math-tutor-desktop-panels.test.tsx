@@ -354,12 +354,13 @@ test("PrivacyPanel danger zone: source wires each action to its own client fn", 
     path.resolve(process.cwd(), "features", "math-tutor", "desktop", "components", "PrivacyPanel.tsx"),
     "utf8",
   );
+  const data = fs.readFileSync(path.resolve(process.cwd(), "features/math-tutor/desktop/hooks/usePrivacyData.ts"), "utf8");
   assert.ok(panel.includes("purgeDocumentsFn()"), "purge documents calls the purge fn");
   assert.ok(panel.includes("purgeMemoryFn()"), "purge memory calls the purge fn");
   assert.ok(panel.includes("deleteHistoryFn()"), "educational history calls its own fn");
-  assert.ok(panel.includes("rebuildIndexesFn()"), "rebuild calls its own fn");
-  assert.ok(panel.includes("fetchExportFn()"), "export calls its own fn");
-  assert.ok(panel.includes('Blob([JSON.stringify(body, null, 2)]'), "export builds a JSON download");
+  assert.ok(data.includes("rebuildIndexesFn()"), "rebuild calls its own fn");
+  assert.ok(data.includes("fetchExportFn()"), "export calls its own fn");
+  assert.ok(data.includes('Blob([JSON.stringify(body, null, 2)]'), "export builds a JSON download");
   assert.ok(panel.includes("deleteHistoryFn"), "educational history goes through the injected fn");
   assert.ok(!panel.includes("/privacy/"), "no hardcoded privacy route in the component");
 });

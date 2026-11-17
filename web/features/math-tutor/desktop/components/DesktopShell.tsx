@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { BookCheck, BookOpen, BrainCircuit, ChevronLeft, Compass, FileText, GraduationCap, Library, MessageSquarePlus, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -66,28 +68,28 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
     router.push(`/math-tutor?session=${encodeURIComponent(conversationId)}`);
   };
 
-  return <div className="mt-workspace">
-    <aside aria-label={t("侧栏")} data-collapsed={collapsed} className="mt-sidebar">
-      <div className={`mt-sidebar-brand relative flex items-center ${collapsed ? "justify-center px-3" : "gap-2.5 px-4"}`}>
-        {collapsed ? <Tooltip label={t("展开侧栏")} side="right"><button type="button" aria-label={t("展开侧栏")} onClick={() => setCollapsed(false)} className="mt-brand-mark"><BrandMark /></button></Tooltip> : <>
-          <div className="mt-brand-mark"><BrandMark /></div>
+  return <div className={productClass("mt-workspace")}>
+    <aside aria-label={t("侧栏")} data-collapsed={collapsed} className={productClass("mt-sidebar")}>
+      <div className={productClass(`mt-sidebar-brand relative flex items-center ${collapsed ? "justify-center px-3" : "gap-2.5 px-4"}`)}>
+        {collapsed ? <Tooltip label={t("展开侧栏")} side="right"><button type="button" aria-label={t("展开侧栏")} onClick={() => setCollapsed(false)} className={productClass("mt-brand-mark")}><BrandMark /></button></Tooltip> : <>
+          <div className={productClass("mt-brand-mark")}><BrandMark /></div>
           <p className="mt-wordmark min-w-0 truncate">Math<span>Tutor</span></p>
-          <button type="button" aria-label={t("收起侧栏")} onClick={() => setCollapsed(true)} className="mt-icon-button ml-auto p-2"><ChevronLeft className="h-4 w-4" /></button>
+          <button type="button" aria-label={t("收起侧栏")} onClick={() => setCollapsed(true)} className={productClass("mt-icon-button ml-auto p-2")}><ChevronLeft className="h-4 w-4" /></button>
         </>}
       </div>
-      <div className="px-3 pb-2 pt-1"><Tooltip label={t("新建辅导对话")} side={collapsed ? "right" : "bottom"} wrapperClassName="flex w-full justify-center"><button type="button" aria-label={t("新建对话")} onClick={createConversation} className={`mt-new-chat ${collapsed ? "w-11" : "w-full px-3"}`}><MessageSquarePlus className="h-4 w-4 shrink-0" />{!collapsed ? t("新建对话") : null}</button></Tooltip></div>
-      {!collapsed ? <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        <p className="mt-sidebar-label">{t("最近对话")}</p>
-        <div className="space-y-0.5">{conversations.length ? conversations.map((item) => <div key={item.conversation_id} className="mt-history-row flex min-w-0 items-center"><Link href={`/math-tutor?session=${encodeURIComponent(item.conversation_id)}`} aria-current={selected === item.conversation_id ? "true" : undefined} className="mt-history-item">{item.title || t("新对话")}</Link><button type="button" aria-label={`删除对话：${item.title || t("新对话")}`} onClick={() => setDeleteTarget(item)} className="mt-history-delete flex h-10 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--destructive)]"><Trash2 className="h-4 w-4" aria-hidden="true" /></button></div>) : <p className="px-3 py-2 text-xs leading-5 text-[var(--muted-foreground)]">{t("发出第一条消息后，对话会保存在这里。")}</p>}</div>
-      </div> : <div className="flex-1" />}
-      <nav aria-label={t("主要功能")} className="flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto p-3">{NAV_ITEMS.map((item) => {
+      <div className="px-3 pb-2 pt-1"><Tooltip label={t("新建辅导对话")} side={collapsed ? "right" : "bottom"} wrapperClassName="flex w-full justify-center"><button type="button" aria-label={t("新建对话")} onClick={createConversation} className={productClass(`mt-new-chat ${collapsed ? "w-11" : "w-full px-3"}`)}><MessageSquarePlus className="h-4 w-4 shrink-0" />{!collapsed ? t("新建对话") : null}</button></Tooltip></div>
+      {!collapsed ? <div className={productClass("min-h-0 flex-1 overflow-y-auto px-3 pb-3")}>
+        <p className={productClass("mt-sidebar-label")}>{t("最近对话")}</p>
+        <div className="space-y-0.5">{conversations.length ? conversations.map((item) => <div key={item.conversation_id} className={productClass("mt-history-row flex min-w-0 items-center")}><Link href={`/math-tutor?session=${encodeURIComponent(item.conversation_id)}`} aria-current={selected === item.conversation_id ? "true" : undefined} className={productClass("mt-history-item")}>{item.title || t("新对话")}</Link><button type="button" aria-label={`删除对话：${item.title || t("新对话")}`} onClick={() => setDeleteTarget(item)} className={productClass("mt-history-delete flex h-10 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--destructive)]")}><Trash2 className="h-4 w-4" aria-hidden="true" /></button></div>) : <p className="px-3 py-2 text-xs leading-5 text-[var(--muted-foreground)]">{t("发出第一条消息后，对话会保存在这里。")}</p>}</div>
+      </div> : <div className={productClass("flex-1")} />}
+      <nav aria-label={t("主要功能")} className={productClass("flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto p-3")}>{NAV_ITEMS.map((item) => {
         const active = item.href === "/math-tutor" ? inTutor : pathname.startsWith(item.href);
-        const link = <Link key={item.href} href={item.href} aria-label={t(item.label)} aria-current={active ? "page" : undefined} className="mt-nav-item"><item.icon className="h-4 w-4 shrink-0" />{!collapsed ? t(item.label) : null}</Link>;
+        const link = <Link key={item.href} href={item.href} aria-label={t(item.label)} aria-current={active ? "page" : undefined} className={productClass("mt-nav-item")}><item.icon className="h-4 w-4 shrink-0" />{!collapsed ? t(item.label) : null}</Link>;
         return collapsed ? <Tooltip key={item.href} label={t(item.label)} side="right" wrapperClassName="flex w-full">{link}</Tooltip> : link;
       })}</nav>
-      <div className={`flex shrink-0 gap-1 border-t p-3 ${collapsed ? "flex-col items-center" : "items-center"}`}>{collapsed ? <Tooltip label={t("设置")} side="right" wrapperClassName="flex w-full"><Link href="/math-tutor/settings" aria-label={t("设置")} aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className="mt-nav-item"><Settings className="h-4 w-4" /></Link></Tooltip> : <Link href="/math-tutor/settings" aria-label={t("设置")} aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className="mt-nav-item"><Settings className="h-4 w-4" />{t("设置")}</Link>}<ThemeQuickSwitch compact={collapsed} /></div>
+      <div className={productClass(`flex shrink-0 gap-1 border-t p-3 ${collapsed ? "flex-col items-center" : "items-center"}`)}>{collapsed ? <Tooltip label={t("设置")} side="right" wrapperClassName="flex w-full"><Link href="/math-tutor/settings" aria-label={t("设置")} aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className={productClass("mt-nav-item")}><Settings className="h-4 w-4" /></Link></Tooltip> : <Link href="/math-tutor/settings" aria-label={t("设置")} aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className={productClass("mt-nav-item")}><Settings className="h-4 w-4" />{t("设置")}</Link>}<ThemeQuickSwitch compact={collapsed} /></div>
     </aside>
-    <main id="workspace-content" className={`min-h-0 min-w-0 flex-1 ${inTutor || pathname.startsWith("/math-tutor/settings") ? "overflow-hidden" : "overflow-y-auto"}`}>{children}</main>
+    <main id="workspace-content" className={productClass(`min-h-0 min-w-0 flex-1 ${inTutor || pathname.startsWith("/math-tutor/settings") ? "overflow-hidden" : "overflow-y-auto"}`)}>{children}</main>
     {deleteTarget ? <ConversationDeleteDialog title={deleteTarget.title || t("对话")} onCancel={() => setDeleteTarget(null)} onConfirm={async () => {
       const operation = {};
       const permission = inTutor && selected === deleteTarget.conversation_id ? requestTutorNavigationPermission(operation) : undefined;

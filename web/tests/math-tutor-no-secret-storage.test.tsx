@@ -51,7 +51,8 @@ test("only offer-navigation.ts reads the whitelisted extra.child_cycle_id", () =
     // delegates to it (its own mention of the key is documentation-only).
     const isWhitelisted =
       file.endsWith(path.join("lib", "offer-navigation.ts")) ||
-      file.endsWith(path.join("hooks", "useOfferAccept.ts"));
+      file.endsWith(path.join("hooks", "useOfferAccept.ts")) ||
+      file.endsWith(".d.ts"); // Generated declarations describe fields; they execute no reads.
     if (!isWhitelisted) {
       assert.ok(
         !content.includes("child_cycle_id"),

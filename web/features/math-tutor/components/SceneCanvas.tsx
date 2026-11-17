@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Eraser, Pause, Play } from "lucide-react";
@@ -500,15 +502,15 @@ function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
   const hoverDigits = Math.max(0, Math.min(4, Math.ceil(-Math.log10((view.x[1] - view.x[0]) / 100))));
 
   return (
-    <figure ref={figure} className="mt-scene my-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+    <figure ref={figure} className={productClass("mt-scene my-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3")}>
       {scene.source === "model" ? <p role="note" className="mb-2 text-xs leading-5 text-[var(--muted-foreground)]">{MODEL_NOTICE}</p> : null}
       {legend.length >= 2 ? (
-        <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]" aria-label={t("图例")}>
+        <ul className={productClass("mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]")} aria-label={t("图例")}>
           {legend.map(object => {
             const slot = slots.get(object.id) ?? null;
             const color = slotColor(slot, dark, "var(--primary)", "var(--muted-foreground)");
             const dash = slot === null ? OVERFLOW_DASH : DASHES[slot];
-            return <li key={object.id} className="flex min-w-0 items-center gap-1.5">
+            return <li key={object.id} className={productClass("flex min-w-0 items-center gap-1.5")}>
               <svg width="18" height="6" className="shrink-0" aria-hidden="true"><line x1="1" y1="3" x2="17" y2="3" stroke={color} strokeWidth="2" strokeDasharray={dash.length ? dash.map(v => Math.max(1, Math.round(v * 0.7))).join(" ") : undefined} strokeLinecap="round" /></svg>
               {object.label}
             </li>;
@@ -524,23 +526,23 @@ function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
         </div> : null}
       </div>
       {scene.params.length || traced ? (
-        <div className="mt-2 flex flex-col gap-2 text-sm text-[var(--foreground)]">
+        <div className={productClass("mt-2 flex flex-col gap-2 text-sm text-[var(--foreground)]")}>
           {scene.params.map(param => {
             const id = `${uid}-param-${param.name}`;
             const value = values[param.name] ?? param.value;
             const shown = formatNumber(value, stepDigits(param.step));
             const on = !!playing[param.name];
-            return <div key={param.name} className="mt-scene-param">
-              <div className="mt-scene-param-meta">
+            return <div key={param.name} className={productClass("mt-scene-param")}>
+              <div className={productClass("mt-scene-param-meta")}>
                 <label htmlFor={id}>{param.label}</label>
                 <output htmlFor={id} className="tabular-nums text-[var(--muted-foreground)]">{shown}</output>
               </div>
-              <div className="mt-scene-param-controls">
+              <div className={productClass("mt-scene-param-controls")}>
               <input id={id} type="range" min={param.min} max={param.max} step={param.step} value={value}
                 aria-valuetext={`${param.label} = ${shown}`} className="accent-[var(--primary)]"
                 onChange={event => setParam(param.name, Number(event.currentTarget.value))} />
               {param.animate ? <button type="button" aria-pressed={on} aria-label={`${on ? t("暂停") : t("播放")} ${param.label} 动画`}
-                className="flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs"
+                className={productClass("flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs")}
                 onClick={() => setPlaying(previous => ({ ...previous, [param.name]: !on }))}>
                 {on ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}{on ? t("暂停") : t("播放")}
               </button> : null}
@@ -548,12 +550,12 @@ function SceneCanvasSession({ initialScene }: { initialScene: Scene }) {
             </div>;
           })}
           {traced ? <div><button type="button" onClick={clearTrails}
-            className="flex min-h-11 items-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs">
+            className={productClass("flex min-h-11 items-center gap-1 rounded-md border border-[var(--border)] px-2 text-xs")}>
             <Eraser className="h-3.5 w-3.5" aria-hidden="true" />{t("清除轨迹")}</button></div> : null}
         </div>
       ) : null}
       {readouts.length ? (
-        <dl className="mt-scene-readouts mt-2 grid gap-x-3 gap-y-0.5 text-sm text-[var(--foreground)]" aria-label={t("读数")}>
+        <dl className={productClass("mt-scene-readouts mt-2 grid gap-x-3 gap-y-0.5 text-sm text-[var(--foreground)]")} aria-label={t("读数")}>
           {readouts.map((readout, index) => <div key={index} className="contents">
             <dt className="text-[var(--muted-foreground)]">{readout.label}</dt>
             <dd className="tabular-nums">{t(readout.value)}</dd>

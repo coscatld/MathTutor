@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
@@ -49,7 +51,7 @@ export default function AttemptComposer({
 
   return (
     <section
-      className="mt-card p-4"
+      className={productClass("mt-card p-4")}
       aria-label={t("作答区")}
     >
       <label
@@ -58,7 +60,7 @@ export default function AttemptComposer({
       >
         {t(heading)}
       </label>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className={productClass("flex flex-col gap-2 sm:flex-row")}>
         <input
           id="math-tutor-attempt-input"
           type="text"
@@ -68,13 +70,13 @@ export default function AttemptComposer({
           disabled={disabled || busy}
           placeholder={t(placeholder)}
           autoComplete="off"
-          className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3.5 py-2 text-[15px] text-[var(--foreground)] outline-none transition-colors duration-200 placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--ring)]/30 disabled:opacity-60"
+          className={productClass("min-h-[44px] min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3.5 py-2 text-[15px] text-[var(--foreground)] outline-none transition-colors duration-200 placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--ring)]/30 disabled:opacity-60")}
         />
         <button
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="mt-btn mt-btn-primary shrink-0"
+          className={productClass("mt-btn mt-btn-primary shrink-0")}
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

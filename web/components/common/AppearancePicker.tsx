@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -13,14 +15,14 @@ const PREVIEW_CLASS: Record<Exclude<ThemeId, "system">, string> = {
 };
 
 function Mini({ theme }: { theme: Exclude<ThemeId, "system"> }) {
-  return <span className={`mt-mini ${PREVIEW_CLASS[theme]}`}>
-    <span className="mt-mini-side"><i /><i /><i /><i /></span>
-    <span className="mt-mini-main">
-      <span className="mt-mini-bubble" />
-      <span className="mt-mini-line" style={{ width: "86%" }} />
-      <span className="mt-mini-line" style={{ width: "64%" }} />
-      <span className="mt-mini-slip mt-paper" />
-      <span className="mt-mini-composer" />
+  return <span className={productClass(`mt-mini ${PREVIEW_CLASS[theme]}`)}>
+    <span className={productClass("mt-mini-side")}><i /><i /><i /><i /></span>
+    <span className={productClass("mt-mini-main")}>
+      <span className={productClass("mt-mini-bubble")} />
+      <span className={productClass("mt-mini-line")} style={{ width: "86%" }} />
+      <span className={productClass("mt-mini-line")} style={{ width: "64%" }} />
+      <span className={productClass("mt-mini-slip mt-paper")} />
+      <span className={productClass("mt-mini-composer")} />
     </span>
   </span>;
 }
@@ -44,16 +46,16 @@ export default function AppearancePicker() {
     choose(next.id);
     (event.currentTarget.parentElement?.children[THEME_OPTIONS.indexOf(next)] as HTMLElement | undefined)?.focus();
   };
-  return <div role="radiogroup" aria-label={t("页面风格")} className="mt-theme-grid">
+  return <div role="radiogroup" aria-label={t("页面风格")} className={productClass("mt-theme-grid")}>
     {THEME_OPTIONS.map((option, index) => {
       const selected = option.id === current;
-      return <button key={option.id} type="button" role="radio" aria-checked={selected} tabIndex={selected ? 0 : -1} onClick={() => choose(option.id)} onKeyDown={event => move(event, index)} className="mt-theme-option">
-        <span className="mt-theme-preview" aria-hidden="true">
+      return <button key={option.id} type="button" role="radio" aria-checked={selected} tabIndex={selected ? 0 : -1} onClick={() => choose(option.id)} onKeyDown={event => move(event, index)} className={productClass("mt-theme-option")}>
+        <span className={productClass("mt-theme-preview")} aria-hidden="true">
           {option.id === "system"
-            ? <span className="mt-theme-preview-split"><span style={{ clipPath: "inset(0 50% 0 0)", position: "absolute", inset: 0 }}><Mini theme="paper" /></span><span style={{ clipPath: "inset(0 0 0 50%)", position: "absolute", inset: 0 }}><Mini theme="night" /></span></span>
+            ? <span className={productClass("mt-theme-preview-split")}><span style={{ clipPath: "inset(0 50% 0 0)", position: "absolute", inset: 0 }}><Mini theme="paper" /></span><span style={{ clipPath: "inset(0 0 0 50%)", position: "absolute", inset: 0 }}><Mini theme="night" /></span></span>
             : <Mini theme={option.id} />}
         </span>
-        {selected ? <span className="mt-theme-check"><Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" /></span> : null}
+        {selected ? <span className={productClass("mt-theme-check")}><Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" /></span> : null}
         <span className="px-1 pb-1">
           <span className="block text-sm font-semibold">{t(option.label)}</span>
           <span className="mt-0.5 block text-xs leading-5 text-[var(--muted-foreground)]">{t(option.description)}</span>

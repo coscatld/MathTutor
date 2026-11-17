@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import { CheckCircle2, ChevronDown, ChevronUp, ShieldAlert, TriangleAlert } from "lucide-react";
@@ -52,9 +54,9 @@ export default function ReadinessBadge({ readiness }: { readiness: Readiness }) 
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={t("系统状态：{value0}", {value0: t(READINESS_LABELS[readiness.status])})}
-        className={`inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${style.badge} ${style.text}`}
+        className={productClass(`inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${style.badge} ${style.text}`)}
       >
-        <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${style.dot} ${readiness.status === "DEGRADED" ? "animate-pulse" : ""}`} aria-hidden="true" />
+        <span className={productClass(`inline-block h-2 w-2 shrink-0 rounded-full ${style.dot} ${readiness.status === "DEGRADED" ? "animate-pulse" : ""}`)} aria-hidden="true" />
         <StatusIcon status={readiness.status} />
         {t(READINESS_LABELS[readiness.status])}
         {reasons.length > 0 &&
@@ -69,11 +71,11 @@ export default function ReadinessBadge({ readiness }: { readiness: Readiness }) 
         <div
           role="region"
           aria-label={t("状态详情")}
-          className="mt-card absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg"
+          className={productClass("mt-card absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg")}
         >
-          <ul className="flex flex-col gap-2">
+          <ul className={productClass("flex flex-col gap-2")}>
             {reasons.map(([key, reason]) => (
-              <li key={key} className="flex items-start gap-2 text-[var(--foreground)]">
+              <li key={key} className={productClass("flex items-start gap-2 text-[var(--foreground)]")}>
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warning)]" aria-hidden="true" />
                 <span className="min-w-0">{t(reason)}</span>
               </li>

@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import { Loader2, RefreshCw, Wand2 } from "lucide-react";
@@ -22,7 +24,7 @@ export function teachingSkills(value: unknown, t: (message: string) => string = 
 
 export function TeachingSkillsList({skills}: {skills: TeachingSkill[]}) {
   const {t} = useI18n();
-  return skills.length ? <div className="grid gap-4 md:grid-cols-2">{skills.map(skill => <article key={skill.id} className="mt-card space-y-3 p-5"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{skill.name}</h3><span className="mt-tool-badge" data-tone={skill.enabled ? "active" : undefined}>{skill.enabled ? skill.activation || t("可用") : t("未启用")}</span></div><p className="text-sm leading-7 text-[var(--muted-foreground)]">{skill.description}</p><p className="text-xs text-[var(--muted-foreground)]">{skill.source === "builtin" ? t("应用内置") : t("当前应用提供")}</p></article>)}</div> : <p className="mt-card p-5 text-sm leading-7 text-[var(--muted-foreground)]">{t("当前没有提供教学技能。你仍可以整理资料和进行数学辅导。")}</p>;
+  return skills.length ? <div className="grid gap-4 md:grid-cols-2">{skills.map(skill => <article key={skill.id} className={productClass("mt-card space-y-3 p-5")}><div className={productClass("flex flex-wrap items-center justify-between gap-2")}><h3 className="font-semibold">{skill.name}</h3><span className={productClass("mt-tool-badge")} data-tone={skill.enabled ? "active" : undefined}>{skill.enabled ? skill.activation || t("可用") : t("未启用")}</span></div><p className="text-sm leading-7 text-[var(--muted-foreground)]">{skill.description}</p><p className="text-xs text-[var(--muted-foreground)]">{skill.source === "builtin" ? t("应用内置") : t("当前应用提供")}</p></article>)}</div> : <p className={productClass("mt-card p-5 text-sm leading-7 text-[var(--muted-foreground)]")}>{t("当前没有提供教学技能。你仍可以整理资料和进行数学辅导。")}</p>;
 }
 
 export default function TeachingSkills() {
@@ -40,8 +42,8 @@ export default function TeachingSkills() {
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
   return <section className="space-y-5" aria-label={t("教学技能")}>
-    <div className="mt-card flex items-start gap-4 p-5 sm:p-6"><span className="mt-tool-heading-icon"><Wand2 className="h-5 w-5" aria-hidden="true" /></span><div><h2 className="text-lg font-semibold">{t("帮助理解问题的教学方法")}</h2><p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">{t("这里展示当前应用提供的教学方法，辅导时会根据问题需要使用。你的题库和笔记继续在资料页管理。")}</p></div></div>
-    {error ? <div className="mt-knowledge-alert" role="alert"><p>{error}</p><button type="button" className="mt-btn min-h-11" disabled={loading} onClick={() => void refresh()}><RefreshCw className="h-4 w-4" aria-hidden="true" />{t("重新读取")}</button></div> : null}
-    {loading ? <p role="status" className="mt-tool-loading"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t("正在读取教学技能…")}</p> : skills ? <TeachingSkillsList skills={skills} /> : null}
+    <div className={productClass("mt-card flex items-start gap-4 p-5 sm:p-6")}><span className={productClass("mt-tool-heading-icon")}><Wand2 className="h-5 w-5" aria-hidden="true" /></span><div><h2 className="text-lg font-semibold">{t("帮助理解问题的教学方法")}</h2><p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">{t("这里展示当前应用提供的教学方法，辅导时会根据问题需要使用。你的题库和笔记继续在资料页管理。")}</p></div></div>
+    {error ? <div className={productClass("mt-knowledge-alert")} role="alert"><p>{error}</p><button type="button" className={productClass("mt-btn min-h-11")} disabled={loading} onClick={() => void refresh()}><RefreshCw className="h-4 w-4" aria-hidden="true" />{t("重新读取")}</button></div> : null}
+    {loading ? <p role="status" className={productClass("mt-tool-loading")}><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t("正在读取教学技能…")}</p> : skills ? <TeachingSkillsList skills={skills} /> : null}
   </section>;
 }

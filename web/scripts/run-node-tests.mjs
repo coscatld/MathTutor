@@ -1,4 +1,4 @@
-import { readdirSync, rmSync, statSync } from "node:fs";
+import { readdirSync, rmSync, statSync, mkdirSync, copyFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,12 @@ run(process.execPath, [
   "-p",
   "tsconfig.node-tests.json",
 ]);
+
+// TypeScript emits JS only; make imported CSS modules resolvable to the test stub.
+mkdirSync(path.join(distRoot, "styles"), { recursive: true });
+for (const name of readdirSync(path.join(webRoot, "styles"))) {
+  if (name.endsWith(".module.css")) copyFileSync(path.join(webRoot, "styles", name), path.join(distRoot, "styles", name));
+}
 
 const testFiles = collectTests(testRoot);
 if (testFiles.length === 0) {

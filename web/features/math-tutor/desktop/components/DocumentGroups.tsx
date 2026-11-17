@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { useEffect, useState, type ReactNode } from "react";
 import ImageAttachments from "../../components/ImageAttachments";
@@ -25,21 +27,21 @@ export default function DocumentGroups({documents, conversations = [], renderDoc
   const groups = groupDocuments(documents, conversations, t);
   const list = (docs: DesktopDocument[]) => <ul className="space-y-3 p-3">{docs.map(renderDocument)}</ul>;
   const heading = "cursor-pointer rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-[var(--ring)]";
-  return <div className="space-y-4">
-    <details open className="mt-card">
-      <summary className={heading}>{t("总资料 · {value0} 份", { value0: groups.global.length })}<span className="ml-3 font-normal text-[var(--muted-foreground)]">{t("所有对话共享")}</span></summary>
+  return <div className={productClass("space-y-4")}>
+    <details open className={productClass("mt-card")}>
+      <summary className={productClass(heading)}>{t("总资料 · {value0} 份", { value0: groups.global.length })}<span className="ml-3 font-normal text-[var(--muted-foreground)]">{t("所有对话共享")}</span></summary>
       <p className="px-4 pb-2 text-xs text-[var(--muted-foreground)]">{t("只有显式设为总资料的文件会进入此处；仍需开启文件的检索开关。")}</p>
       {groups.global.length ? list(groups.global) : <p className="px-4 pb-4 text-sm text-[var(--muted-foreground)]">{t("尚未设置总资料。")}</p>}
     </details>
-    <details open className="mt-card">
-      <summary className={heading}>{t("对话资料 · {value0} 个对话", { value0: groups.conversations.length })}</summary>
-      <div className="space-y-2 p-3">{groups.conversations.map(group => <ConversationSection key={group.id} id={group.id}>
-        <summary className={heading}>{group.title}<span className="ml-3 font-normal text-[var(--muted-foreground)]">{t("{value0} 份", { value0: group.documents.length })}</span></summary>
+    <details open className={productClass("mt-card")}>
+      <summary className={productClass(heading)}>{t("对话资料 · {value0} 个对话", { value0: groups.conversations.length })}</summary>
+      <div className={productClass("space-y-2 p-3")}>{groups.conversations.map(group => <ConversationSection key={group.id} id={group.id}>
+        <summary className={productClass(heading)}>{group.title}<span className="ml-3 font-normal text-[var(--muted-foreground)]">{t("{value0} 份", { value0: group.documents.length })}</span></summary>
         <a className="mx-4 text-xs text-[var(--primary-text)] underline" href={`/math-tutor?session=${encodeURIComponent(group.id)}`}>{t("打开对话与图片记录")}</a>
         {list(group.documents)}
       </ConversationSection>)}{!groups.conversations.length ? <p className="px-1 text-sm text-[var(--muted-foreground)]">{t("还没有关联对话的文档。")}</p> : null}</div>
     </details>
-    {groups.unassigned.length ? <details open className="mt-card"><summary className={heading}>{t("未归类 · {value0} 份", { value0: groups.unassigned.length })}</summary><p className="px-4 text-xs text-[var(--muted-foreground)]">{t("这些文件未绑定对话，也未启用全局共享。")}</p>{list(groups.unassigned)}</details> : null}
+    {groups.unassigned.length ? <details open className={productClass("mt-card")}><summary className={productClass(heading)}>{t("未归类 · {value0} 份", { value0: groups.unassigned.length })}</summary><p className="px-4 text-xs text-[var(--muted-foreground)]">{t("这些文件未绑定对话，也未启用全局共享。")}</p>{list(groups.unassigned)}</details> : null}
   </div>;
 }
 

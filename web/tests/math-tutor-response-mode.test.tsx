@@ -21,7 +21,7 @@ test("option exposure is an explicit capability with no answer payload", () => {
 });
 
 test("one diagnostic choice success is visible when independent and assisted counts are zero", () => {
-  const html=renderToStaticMarkup(<PracticeOfferCard offer={{offer_id:"o",parent_cycle_id:"p",status:"ACCEPTED",skill_labels:[],concept_labels:[],difficulty:"2",offered_at:"",expires_at:"",display_status:"completed",response_mode:"single_choice",observation_kind:"diagnostic",result_summary:{independent_correct:0,first_free_response:0,diagnostic_correct:1,helped:0,observations:1}}} accepting={false} onStart={()=>{}} />);
+  const html=renderToStaticMarkup(<PracticeOfferCard offer={{offer_id:"o",parent_cycle_id:"p",status:"ACCEPTED",skill_labels:[],concept_labels:[],difficulty:2,offered_at:"",expires_at:"",display_status:"completed",response_mode:"single_choice",observation_kind:"diagnostic",result_summary:{independent_correct:0,first_free_response:0,diagnostic_correct:1,helped:0,observations:1}}} accepting={false} onStart={()=>{}} />);
   assert.match(html,/1 次诊断选择答对/);
   assert.match(html,/0 次首次独立自由作答/);
   assert.match(html,/再尝试一道未见新题/);

@@ -11,7 +11,7 @@ import PracticeOfferCard from "../features/math-tutor/desktop/components/Practic
 import DataPrivacySettings from "../features/math-tutor/desktop/components/DataPrivacySettings";
 import type {PracticeOffer} from "../features/math-tutor/desktop/types";
 
-const offer: PracticeOffer = {offer_id:"offer",status:"ACTIVE",skill_labels:["移项"],concept_labels:[],difficulty:"medium",offered_at:"2026-09-13",expires_at:"2026-09-15",parent_cycle_id:"parent"};
+const offer: PracticeOffer = {offer_id:"offer",status:"ACTIVE",skill_labels:["移项"],concept_labels:[],difficulty:2,offered_at:"2026-09-13",expires_at:"2026-09-15",parent_cycle_id:"parent"};
 test("learning observation precedes collapsed evidence and preserves unknown mastery", () => {
   const html = renderToStaticMarkup(<SkillObservation skill={{code:"skill", label:"移项",mastery:null,grade_band:null,observation:"尚未检查",counts:{independent:{correct:0,incorrect:0}}}} onEvidence={() => {}}/>);
   assert.ok(html.indexOf("尚未检查") < html.indexOf("证据计数"));

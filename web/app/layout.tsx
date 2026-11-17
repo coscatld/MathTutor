@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import "../styles/tokens.css";
+import "../styles/motion.css";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";

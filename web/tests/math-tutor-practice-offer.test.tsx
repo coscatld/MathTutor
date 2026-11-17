@@ -12,7 +12,7 @@ function makeOffer(overrides: Partial<PracticeOffer> = {}): PracticeOffer {
     status: "ACTIVE",
     skill_labels: ["分数乘法"],
     concept_labels: ["分数"],
-    difficulty: "medium",
+    difficulty: 2,
     offered_at: "2026-08-20T09:00:00Z",
     expires_at: "2026-08-20T12:00:00Z",
     parent_cycle_id: "cycle-9",

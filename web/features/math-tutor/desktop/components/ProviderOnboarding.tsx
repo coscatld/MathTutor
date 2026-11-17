@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import {
@@ -161,31 +163,31 @@ export default function ProviderOnboarding() {
 
   return (
     <main className="mt-onboarding relative h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
-      <div className="mt-onboarding-field mt-paper pointer-events-none absolute inset-0" aria-hidden="true" />
+      <div className={productClass("mt-onboarding-field mt-paper pointer-events-none absolute inset-0")} aria-hidden="true" />
       <div className="absolute right-6 top-4 z-10"><LanguagePicker compact /></div>
 
       <div className="relative mx-auto grid min-h-full w-full max-w-6xl items-center gap-12 px-6 pb-10 pt-24 lg:grid-cols-[0.9fr_1.1fr] lg:px-10 lg:py-20">
         <section className="hidden lg:block" aria-label={t("MathTutor 介绍")}>
-          <div className="flex items-center gap-2.5"><span className="mt-brand-mark"><BrandMark /></span><span className="mt-wordmark">Math<span>Tutor</span></span></div>
+          <div className={productClass("flex items-center gap-2.5")}><span className={productClass("mt-brand-mark")}><BrandMark /></span><span className="mt-wordmark">Math<span>Tutor</span></span></div>
           <h2 className="mt-10 max-w-md text-[44px] font-bold leading-[1.12] tracking-[-0.035em]">
-            {t("把好奇心，")}<span className="block">{t("变成")}<em className="mt-hero-em">{t("一步步")}</em>{t("的解题思路")}</span>
+            {t("把好奇心，")}<span className="block">{t("变成")}<em className={productClass("mt-hero-em")}>{t("一步步")}</em>{t("的解题思路")}</span>
           </h2>
           <p className="mt-5 max-w-sm text-[15px] leading-7 text-[var(--muted-foreground)]">{t("先自己尝试，卡住时再逐级获得提示。每一步都由本地求解器核验，而不只是看起来对。")}</p>
-          <ol className="mt-worked mt-paper" aria-label={t("示例：逐步核验")}>
+          <ol className={productClass("mt-worked mt-paper")} aria-label={t("示例：逐步核验")}>
             {WORKED_STEPS.map((step, index) => <li key={t(step.note)} style={{ animationDelay: `${300 + index * 420}ms` }}>
-              <span className="mt-worked-index">{index + 1}</span>
-              <span className="mt-worked-tex" dangerouslySetInnerHTML={{ __html: step.html }} />
-              <span className="mt-worked-note"><Check className="h-3.5 w-3.5" aria-hidden="true" />{t(step.note)}</span>
+              <span className={productClass("mt-worked-index")}>{index + 1}</span>
+              <span className={productClass("mt-worked-tex")} dangerouslySetInnerHTML={{ __html: step.html }} />
+              <span className={productClass("mt-worked-note")}><Check className="h-3.5 w-3.5" aria-hidden="true" />{t(step.note)}</span>
             </li>)}
           </ol>
-          <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--muted-foreground)]">
-            {[t("学习记录保存在本机"), t("提示分级，不直接给答案"), t("随时可以换模型")].map(item => <li key={item} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" aria-hidden="true" />{item}</li>)}
+          <ul className={productClass("mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--muted-foreground)]")}>
+            {[t("学习记录保存在本机"), t("提示分级，不直接给答案"), t("随时可以换模型")].map(item => <li key={item} className={productClass("flex items-center gap-2")}><span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" aria-hidden="true" />{item}</li>)}
           </ul>
         </section>
 
         <section className="mt-rise mx-auto w-full max-w-2xl rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--shadow-xl)] md:p-9">
-          <div className="flex items-start gap-4">
-            <div className="mt-empty-mark shrink-0">
+          <div className={productClass("flex items-start gap-4")}>
+            <div className={productClass("mt-empty-mark shrink-0")}>
               <BookOpenCheck className="h-6 w-6" aria-hidden="true" />
             </div>
             <div>
@@ -198,7 +200,7 @@ export default function ProviderOnboarding() {
           </div>
 
           {loading ? (
-            <div className="flex min-h-72 items-center justify-center text-sm text-[var(--muted-foreground)]">
+            <div className={productClass("flex min-h-72 items-center justify-center text-sm text-[var(--muted-foreground)]")}>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               {t("正在加载本地配置…")}</div>
           ) : (
@@ -223,11 +225,11 @@ export default function ProviderOnboarding() {
                           setError("");
                           if (preset.custom || preset.local) setAdvancedOpen(true);
                         }}
-                        className={`relative min-h-[52px] whitespace-nowrap rounded-xl border py-2.5 pl-3 pr-7 text-left text-sm font-semibold transition duration-200 active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
+                        className={productClass(`relative min-h-[52px] whitespace-nowrap rounded-xl border py-2.5 pl-3 pr-7 text-left text-sm font-semibold transition duration-200 active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
                           selected
                             ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)] shadow-[0_0_0_3px_var(--focus-halo)]"
                             : "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)]"
-                        }`}
+                        }`)}
                       >
                         {t(preset.label)}
                         {selected ? (
@@ -256,7 +258,7 @@ export default function ProviderOnboarding() {
                     className="h-12 w-full rounded-xl border border-[var(--input)] bg-[var(--card)] pl-11 pr-4 text-sm text-[var(--foreground)] shadow-[var(--shadow-xs)] outline-none transition placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--focus-halo)]"
                   />
                 </div>
-                <p className="mt-2 flex items-center gap-1.5 text-xs leading-5 text-[var(--muted-foreground)]">
+                <p className={productClass("mt-2 flex items-center gap-1.5 text-xs leading-5 text-[var(--muted-foreground)]")}>
                   <LockKeyhole className="h-3.5 w-3.5 text-[var(--primary-text)]" aria-hidden="true" />
                   {t("API Key 使用系统安全凭据存储，不会写入学习数据库或浏览器存储。")}</p>
               </div> : <p className="rounded-xl bg-[var(--success-soft)] px-4 py-3 text-sm text-[var(--success)]">{t("Ollama 在本机运行，不需要 API Key。")}</p>}
@@ -269,7 +271,7 @@ export default function ProviderOnboarding() {
                   className="inline-flex min-h-[40px] items-center gap-1.5 text-sm font-semibold text-[var(--primary-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
                 >
                   {currentPreset?.custom ? t("自定义模型设置") : t("高级选项")}
-                  <ChevronDown className={`h-4 w-4 transition ${advancedOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                  <ChevronDown className={productClass(`h-4 w-4 transition ${advancedOpen ? "rotate-180" : ""}`)} aria-hidden="true" />
                 </button>
                 {advancedOpen ? (
                   <div className="mt-2 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--secondary)] p-4 sm:grid-cols-2">
@@ -303,11 +305,11 @@ export default function ProviderOnboarding() {
                 </p>
               ) : null}
 
-              <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-5 sm:flex-row sm:items-center">
+              <div className={productClass("flex flex-col gap-3 border-t border-[var(--border)] pt-5 sm:flex-row sm:items-center")}>
                 <button
                   type="submit"
                   disabled={saving || skipping}
-                  className="mt-btn mt-btn-primary min-h-[48px] flex-1"
+                  className={productClass("mt-btn mt-btn-primary min-h-[48px] flex-1")}
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                   {saving ? t("正在安全保存…") : t("保存并继续")}
@@ -317,7 +319,7 @@ export default function ProviderOnboarding() {
                   type="button"
                   onClick={() => void handleSkip()}
                   disabled={saving || skipping}
-                  className="mt-btn mt-btn-ghost min-h-[48px]"
+                  className={productClass("mt-btn mt-btn-ghost min-h-[48px]")}
                 >
                   {skipping ? t("正在进入…") : t("暂时跳过，使用模板教学")}
                 </button>

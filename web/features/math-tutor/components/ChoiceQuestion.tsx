@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { useState } from "react";
 import type { ChoiceSet } from "../types";
@@ -12,11 +14,11 @@ export default function ChoiceQuestion({choices, busy, onSubmit, allowUnsure = f
   return <form onSubmit={event => {event.preventDefault(); if (selected && !busy) onSubmit(selected);}}>
     <fieldset disabled={busy} className="space-y-3">
       <legend className="mb-3 text-sm font-semibold">{t("选择一个答案")}</legend>
-      {[...choices.options, ...(allowUnsure ? [{id: "unsure", text: "暂时不确定（不记为答错）"}] : [])].map(option => <label key={option.id} className={`mt-choice ${selected === option.id ? "mt-choice-selected" : ""}`}>
+      {[...choices.options, ...(allowUnsure ? [{id: "unsure", text: "暂时不确定（不记为答错）"}] : [])].map(option => <label key={option.id} className={productClass(`mt-choice ${selected === option.id ? "mt-choice-selected" : ""}`)}>
         <input type="radio" name={`choice-${choices.version}`} value={option.id} checked={selected === option.id} onChange={() => setSelected(option.id)} className="h-4 w-4 shrink-0 accent-[var(--primary)] focus-visible:outline-2 focus-visible:outline-offset-4" />
-        <span className="min-w-0 break-words">{option.id !== "unsure" && <span className="mt-choice-key">{option.id}</span>}{option.id === "unsure" ? t("暂时不确定（不记为答错）") : option.text}</span>
+        <span className="min-w-0 break-words">{option.id !== "unsure" && <span className={productClass("mt-choice-key")}>{option.id}</span>}{option.id === "unsure" ? t("暂时不确定（不记为答错）") : option.text}</span>
       </label>)}
     </fieldset>
-    <button type="submit" disabled={!selected || busy} className="mt-btn mt-btn-primary mt-5 min-h-11 px-6">{busy ? t("正在保存…") : t("提交选择")}</button>
+    <button type="submit" disabled={!selected || busy} className={productClass("mt-btn mt-btn-primary mt-5 min-h-11 px-6")}>{busy ? t("正在保存…") : t("提交选择")}</button>
   </form>;
 }

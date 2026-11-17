@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -80,8 +82,8 @@ export default function RegisterPage() {
   return (
     <div className="mt-rise relative w-full max-w-sm">
       {/* Logo / Title */}
-      <div className="mb-8 flex flex-col items-center text-center">
-        <span className="mt-empty-mark mb-5"><BrandMark className="h-6 w-6" /></span>
+      <div className={productClass("mb-8 flex flex-col items-center text-center")}>
+        <span className={productClass("mt-empty-mark mb-5")}><BrandMark className="h-6 w-6" /></span>
         <h1 className="mt-wordmark mt-wordmark-lg">
           Math<span>Tutor</span>
         </h1>
@@ -118,7 +120,7 @@ export default function RegisterPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="mt-input"
+              className={productClass("mt-input")}
               placeholder="you@example.com"
             />
           </div>
@@ -138,7 +140,7 @@ export default function RegisterPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-input"
+              className={productClass("mt-input")}
               placeholder="••••••••"
             />
             <p className="mt-1 text-xs text-[var(--muted-foreground)]">
@@ -161,7 +163,7 @@ export default function RegisterPage() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-input"
+              className={productClass("mt-input")}
               placeholder="••••••••"
             />
           </div>
@@ -177,7 +179,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-btn mt-btn-primary min-h-[44px] w-full"
+            className={productClass("mt-btn mt-btn-primary min-h-[44px] w-full")}
           >
             {loading ? t("Creating account…") : t("Create account")}
           </button>
@@ -194,7 +196,7 @@ export default function RegisterPage() {
         </Link>
       </p>
 
-      <div className="mt-6 flex justify-center"><LanguagePicker compact /></div>
+      <div className={productClass("mt-6 flex justify-center")}><LanguagePicker compact /></div>
       <p className="mt-3 text-center text-xs text-[var(--muted-foreground)]">{t("MathTutor · K12 数学辅导")}</p>
     </div>
   );

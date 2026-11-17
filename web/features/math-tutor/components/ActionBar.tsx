@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import {
   BookOpen,
@@ -76,7 +78,7 @@ export default function ActionBar({ allowed, actions, offer, busy, disabled, onC
 
   return (
     <section
-      className="mt-card p-4"
+      className={productClass("mt-card p-4")}
       aria-label={t("可用操作")}
     >
       <h2 className="mb-2.5 text-sm font-semibold text-[var(--foreground)]">{t("可用操作")}</h2>
@@ -95,7 +97,7 @@ export default function ActionBar({ allowed, actions, offer, busy, disabled, onC
               onClick={() => onCommand(spec.command, needsOffer && validOffer ? { offer_id: offer.offer_id } : undefined)}
               disabled={blocked}
               aria-describedby={reason ? `action-reason-${reason}` : undefined}
-              className={`inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[spec.variant]}`}
+              className={productClass(`inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[spec.variant]}`)}
             >
               {busy ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

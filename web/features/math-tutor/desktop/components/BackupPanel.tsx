@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import { useI18n, type MessageParams } from "@/lib/i18n";
 
 import { Archive, BadgeCheck, DatabaseBackup, Loader2, RotateCcw, ShieldAlert } from "lucide-react";
@@ -44,35 +46,35 @@ export function RestoreConfirmDialog({
   const [recoveryKey, setRecoveryKey] = useState("");
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className={productClass("fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4")}
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="restore-confirm-title"
       aria-describedby="restore-confirm-desc"
     >
-      <div className="mt-card flex w-full max-w-md flex-col gap-3 p-5 shadow-xl">
-        <h2 id="restore-confirm-title" className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
+      <div className={productClass("mt-card flex w-full max-w-md flex-col gap-3 p-5 shadow-xl")}>
+        <h2 id="restore-confirm-title" className={productClass("flex items-center gap-2 text-base font-semibold text-[var(--foreground)]")}>
           <ShieldAlert className="h-5 w-5 text-[var(--destructive)]" aria-hidden="true" />
           {t("确认恢复备份？")}</h2>
         <p id="restore-confirm-desc" className="text-sm leading-relaxed text-[var(--foreground)]">
           {t("将用备份「{path}」恢复数据。恢复会", {path: backup.path})}<strong>{t("覆盖当前数据")}</strong>{t("，且恢复完成后")}<strong>{t("应用将重新启动")}</strong>{t("。此操作无法撤销。")}</p>
         <label className="block text-xs text-[var(--muted-foreground)]">
           {t("恢复密钥（只有提示「需要恢复密钥」时才填写）")}<input value={recoveryKey} onChange={event => setRecoveryKey(event.target.value.trim())} disabled={busy}
-            className="mt-input mt-1 font-mono text-xs" placeholder={t("不填")} autoComplete="off" spellCheck={false} />
+            className={productClass("mt-input mt-1 font-mono text-xs")} placeholder={t("不填")} autoComplete="off" spellCheck={false} />
         </label>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className={productClass("flex flex-wrap justify-end gap-2")}>
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="mt-btn"
+            className={productClass("mt-btn")}
           >
             {t("取消")}</button>
           <button
             type="button"
             onClick={() => onConfirm(recoveryKey || undefined)}
             disabled={busy}
-            className="mt-btn mt-btn-danger-solid"
+            className={productClass("mt-btn mt-btn-danger-solid")}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}
             {busy ? t("恢复中…") : t("确认恢复")}
@@ -196,10 +198,10 @@ export default function BackupPanel({
   };
 
   return (
-    <section className="mt-card flex flex-col gap-4 p-5" aria-label={t("数据备份")}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className={productClass("mt-card flex flex-col gap-4 p-5")} aria-label={t("数据备份")}>
+      <div className={productClass("flex flex-wrap items-end justify-between gap-3")}>
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
+          <h2 className={productClass("flex items-center gap-2 text-base font-semibold text-[var(--foreground)]")}>
             <DatabaseBackup className="h-5 w-5 text-[var(--primary-text)]" aria-hidden="true" />
             {t("数据备份")}</h2>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
@@ -209,7 +211,7 @@ export default function BackupPanel({
           type="button"
           onClick={handleBackup}
           disabled={busy !== null}
-          className="mt-btn mt-btn-primary"
+          className={productClass("mt-btn mt-btn-primary")}
         >
           {busy === "backup" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />}
           {busy === "backup" ? t("备份中…") : t("立即备份")}
@@ -218,23 +220,23 @@ export default function BackupPanel({
 
       {/* Status summary */}
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
+        <div className={productClass("flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3")}>
           <dt className="text-xs text-[var(--muted-foreground)]">{t("上次备份")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">
             {latest ? backupDate(latest.created_at) : t("暂无备份")}
           </dd>
         </div>
-        <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
+        <div className={productClass("flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3")}>
           <dt className="text-xs text-[var(--muted-foreground)]">{t("备份状态")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">
             {latest ? t(BACKUP_INTEGRITY_LABELS[latest.integrity] ?? latest.integrity) : "—"}
           </dd>
         </div>
-        <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
+        <div className={productClass("flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3")}>
           <dt className="text-xs text-[var(--muted-foreground)]">{t("备份目录")}</dt>
           <dd className="break-all text-sm font-medium text-[var(--foreground)]">{list?.backup_dir ?? "—"}</dd>
         </div>
-        <div className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
+        <div className={productClass("flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3")}>
           <dt className="text-xs text-[var(--muted-foreground)]">{t("保留策略")}</dt>
           <dd className="text-sm font-medium text-[var(--foreground)]">
             {list ? t("自动保留最近 {retention_limit} 份", {retention_limit: list.policy.retention_limit}) : "—"}
@@ -247,39 +249,39 @@ export default function BackupPanel({
       {message && (
         <p
           role="status"
-          className={`rounded-xl px-3 py-2 text-sm ${
+          className={productClass(`rounded-xl px-3 py-2 text-sm ${
             message.kind === "ok"
               ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
               : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
-          }`}
+          }`)}
         >
           {t(message.text, message.params)}
         </p>
       )}
 
       {loading ? (
-        <p className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+        <p className={productClass("flex items-center gap-2 text-sm text-[var(--muted-foreground)]")}>
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           {t("正在加载备份…")}</p>
       ) : backups.length === 0 ? (
         <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
           {t("还没有备份。点击「立即备份」创建第一份数据备份。")}</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className={productClass("flex flex-col gap-2")}>
           {backups.map((backup) => (
             <li
               key={backup.path}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5"
+              className={productClass("flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5")}
             >
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--foreground)]">
+              <div className={productClass("flex min-w-0 flex-col gap-0.5")}>
+                <span className={productClass("flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--foreground)]")}>
                   <span className="break-all">{backup.path}</span>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
+                    className={productClass(`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
                       backup.integrity === "ok"
                         ? "border-emerald-200 bg-emerald-50 text-[var(--success)] dark:border-emerald-900 dark:bg-emerald-950/40"
                         : "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)]"
-                    }`}
+                    }`)}
                   >
                     <BadgeCheck className="h-3 w-3" aria-hidden="true" />
                     {t(BACKUP_INTEGRITY_LABELS[backup.integrity] ?? backup.integrity)}
@@ -289,12 +291,12 @@ export default function BackupPanel({
                   {backupDate(backup.created_at)} · {formatBytes(backup.size_bytes)} {t("· 校验值")} {backup.sha256_prefix}…
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className={productClass("flex items-center gap-2")}>
                 <button
                   type="button"
                   onClick={() => handleVerify(backup)}
                   disabled={busy !== null}
-                  className="mt-btn"
+                  className={productClass("mt-btn")}
                 >
                   {busy === "verify" && busyPath === backup.path ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <BadgeCheck className="h-4 w-4" aria-hidden="true" />}
                   {t("验证")}</button>
@@ -302,7 +304,7 @@ export default function BackupPanel({
                   type="button"
                   onClick={() => setConfirmRestore(backup)}
                   disabled={busy !== null}
-                  className="mt-btn mt-btn-danger"
+                  className={productClass("mt-btn mt-btn-danger")}
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />
                   {t("恢复")}</button>

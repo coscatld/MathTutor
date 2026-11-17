@@ -9,8 +9,14 @@
     "moduleResolution": "node",
     "incremental": false,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
-  "include": ["tests/**/*.ts", "tests/**/*.tsx"]
+  "include": [
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "styles/**/*.d.ts"
+  ]
 }

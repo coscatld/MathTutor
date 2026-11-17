@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import { FilePlus2, FolderOpen, Loader2 } from "lucide-react";
@@ -182,16 +184,16 @@ export default function DocumentsPanel({
   };
 
   return (
-    <div className="mt-page">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className={productClass("mt-page")}>
+      <header className={productClass("flex flex-wrap items-end justify-between gap-3")}>
         <div>
-          <p className="mt-eyebrow flex items-center gap-1.5"><FolderOpen className="h-3.5 w-3.5" aria-hidden="true" />{t("资料有归属，检索有边界")}</p>
+          <p className={productClass("mt-eyebrow flex items-center gap-1.5")}><FolderOpen className="h-3.5 w-3.5" aria-hidden="true" />{t("资料有归属，检索有边界")}</p>
           <h1 className="mt-2">{t("我的资料")}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">
             {t("按对话管理资料。总资料可供你的所有对话按需检索，其他对话的专属文件不会混入。")}</p>
           {embeddingSettings ? <span className="mt-2 block"><EmbeddingStatusBadge settings={embeddingSettings} /></span> : null}
         </div>
-        <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">{t("新资料保存到")}<select disabled={picking || loading} aria-label={t("新资料保存到")} value={destination} onChange={e => setDestination(e.target.value)} className="min-h-[44px] max-w-[240px] rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
+        <label className={productClass("flex flex-col gap-1 text-xs text-[var(--muted-foreground)]")}>{t("新资料保存到")}<select disabled={picking || loading} aria-label={t("新资料保存到")} value={destination} onChange={e => setDestination(e.target.value)} className="min-h-[44px] max-w-[240px] rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
             <option value="">{t("未归类（不跨对话检索）")}</option><option value="global">{t("总资料（所有对话）")}</option>
             {Array.from(new Map([...destinations.map(d => [d.conversation_id, d.title] as const), ...documents.flatMap(d => (d.conversation_ids || []).map(id => [id, d.conversation_titles?.[id] || t("未命名对话")] as const))])).map(([id,title]) => <option key={id} value={id}>{title}</option>)}
           </select>
@@ -200,7 +202,7 @@ export default function DocumentsPanel({
           type="button"
           onClick={handleNativePick}
           disabled={picking || loading}
-          className="mt-btn mt-btn-primary"
+          className={productClass("mt-btn mt-btn-primary")}
         >
           {picking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FilePlus2 className="h-4 w-4" aria-hidden="true" />}
           {picking ? t("正在导入…") : t("添加资料")}
@@ -220,11 +222,11 @@ export default function DocumentsPanel({
       {message && (
         <p
           role="status"
-          className={`rounded-xl px-3 py-2 text-sm ${
+          className={productClass(`rounded-xl px-3 py-2 text-sm ${
             message.kind === "ok"
               ? "bg-emerald-50 text-[var(--success)] dark:bg-emerald-950/40"
               : "bg-red-50 text-[var(--destructive)] dark:bg-red-950/40"
-          }`}
+          }`)}
         >
           {message.text}
         </p>
@@ -232,19 +234,19 @@ export default function DocumentsPanel({
 
       {scopeFailures.map(doc => <section key={doc.document_id} role="status" className="mt-note mt-note-warning p-4">
         <p>{t("《{value0}》文件已导入，尚未确认设为总资料。最近确认的范围：{value1}。", { value0: doc.filename, value1: documentScopeLabel(doc, t) })}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button type="button" className="mt-btn" disabled={busyId !== null} onClick={() => void retryScope(doc)}>{t("重试设为总资料")}</button>
-          <button type="button" className="mt-btn" disabled={busyId !== null} onClick={() => setScopeFailures(list => list.filter(row => row.document_id !== doc.document_id))}>{t("暂不重试")}</button>
-          <button type="button" className="mt-btn" onClick={() => locate(doc)}>{t("查看已导入资料")}</button>
+        <div className={productClass("mt-2 flex flex-wrap gap-2")}>
+          <button type="button" className={productClass("mt-btn")} disabled={busyId !== null} onClick={() => void retryScope(doc)}>{t("重试设为总资料")}</button>
+          <button type="button" className={productClass("mt-btn")} disabled={busyId !== null} onClick={() => setScopeFailures(list => list.filter(row => row.document_id !== doc.document_id))}>{t("暂不重试")}</button>
+          <button type="button" className={productClass("mt-btn")} onClick={() => locate(doc)}>{t("查看已导入资料")}</button>
         </div>
       </section>)}
 
       {loading && !documents.length ? (
-        <p className="flex items-center gap-2 py-10 text-sm text-[var(--muted-foreground)]">
+        <p className={productClass("flex items-center gap-2 py-10 text-sm text-[var(--muted-foreground)]")}>
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           {t("正在加载资料…")}</p>
       ) : documents.length === 0 && destinations.length === 0 ? (
-        <div className="mt-card flex flex-col items-center gap-2 border-dashed px-6 py-12 text-center">
+        <div className={productClass("mt-card flex flex-col items-center gap-2 border-dashed px-6 py-12 text-center")}>
           <FolderOpen className="h-8 w-8 text-[var(--muted-foreground)]" aria-hidden="true" />
           <p className="text-sm font-medium text-[var(--foreground)]">{t("还没有学习资料")}</p>
           <p className="max-w-sm text-sm leading-relaxed text-[var(--muted-foreground)]">

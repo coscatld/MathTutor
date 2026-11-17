@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import { BadgeCheck, BrainCircuit, Check, Loader2, Pencil, Trash2, X } from "lucide-react";
@@ -84,12 +86,12 @@ export default function MemoryRow({
   };
 
   return (
-    <li data-memory-id={memory.memory_id} className="mt-card flex flex-col gap-3 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
+    <li data-memory-id={memory.memory_id} className={productClass("mt-card flex flex-col gap-3 p-4")}>
+      <div className={productClass("flex flex-wrap items-start justify-between gap-3")}>
+        <div className={productClass("flex min-w-0 flex-col gap-1")}>
+          <div className={productClass("flex flex-wrap items-center gap-2")}>
             <span className="text-sm font-medium text-[var(--foreground)]">{t(memoryTypeLabel(memory.memory_type))}</span>
-            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${SOURCE_STYLES[memory.source_type] ?? SOURCE_STYLES.USER_EXPLICIT}`}>
+            <span className={productClass(`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${SOURCE_STYLES[memory.source_type] ?? SOURCE_STYLES.USER_EXPLICIT}`)}>
               {inferred && <BrainCircuit className="h-3 w-3" aria-hidden="true" />}
               {t(memorySourceLabel(memory.source_type))}
             </span>
@@ -100,19 +102,19 @@ export default function MemoryRow({
           </div>
 
           {editing ? (
-            <div className="mt-2 flex flex-col gap-2">
+            <div className={productClass("mt-2 flex flex-col gap-2")}>
               <textarea
                 aria-label={t("记忆内容")}
                 value={value}
                 onChange={(e) => {editGeneration.current++; setValue(e.target.value);}}
-                className="mt-input min-h-24 py-3 leading-6"
+                className={productClass("mt-input min-h-24 py-3 leading-6")}
               />
-              <div className="flex gap-2">
+              <div className={productClass("flex gap-2")}>
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={saving || busy || Boolean(conflictLatest) || !value.trim()}
-                  className="mt-btn mt-btn-primary"
+                  className={productClass("mt-btn mt-btn-primary")}
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}
                   {t("保存")}</button>
@@ -120,7 +122,7 @@ export default function MemoryRow({
                   type="button"
                   onClick={() => setEditing(false)}
                   disabled={saving}
-                  className="mt-btn"
+                  className={productClass("mt-btn")}
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                   {t("取消")}</button>
@@ -136,7 +138,7 @@ export default function MemoryRow({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className={productClass("flex flex-wrap items-center gap-1.5")}>
           {inferred && (
             <button
               type="button"
@@ -149,7 +151,7 @@ export default function MemoryRow({
                 }
               }}
               disabled={busy || confirming || saving}
-              className="mt-btn mt-btn-primary"
+              className={productClass("mt-btn mt-btn-primary")}
             >
               {confirming ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <BadgeCheck className="h-4 w-4" aria-hidden="true" />}
               {t("确认")}</button>
@@ -158,7 +160,7 @@ export default function MemoryRow({
             type="button"
               onClick={() => { setValue(memoryObjectText(memory) || memory.predicate); setEditBaseline({updated_at: memory.updated_at, predicate: memoryObjectText(memory) ? memory.predicate : "内容"}); setConflictLatest(null); setError(""); editGeneration.current++; setEditing(true); }}
             disabled={busy || saving || editing}
-            className="mt-btn"
+            className={productClass("mt-btn")}
             aria-label={t("编辑这条记忆")}
           >
             <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -167,7 +169,7 @@ export default function MemoryRow({
             type="button"
             onClick={onDelete}
             disabled={busy || saving}
-            className="mt-btn mt-btn-danger"
+            className={productClass("mt-btn mt-btn-danger")}
             aria-label={t("删除这条记忆")}
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -179,12 +181,12 @@ export default function MemoryRow({
       {editing && conflictLatest ? <div role="group" aria-label={t("记忆版本冲突")} className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
         <p className="text-sm font-medium">{t("最新内容")}</p>
         <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{memoryObjectText(conflictLatest) || conflictLatest.predicate}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" className="mt-btn" onClick={() => {
+        <div className={productClass("mt-3 flex flex-wrap gap-2")}>
+          <button type="button" className={productClass("mt-btn")} onClick={() => {
             setEditBaseline({updated_at: conflictLatest.updated_at, predicate: memoryObjectText(conflictLatest) ? conflictLatest.predicate : "内容"});
             setConflictLatest(null); setError("已保留你的草稿，请检查后保存。");
           }}>{t("保留草稿，按最新版本继续编辑")}</button>
-          <button type="button" className="mt-btn" onClick={() => {
+          <button type="button" className={productClass("mt-btn")} onClick={() => {
             setValue(memoryObjectText(conflictLatest) || conflictLatest.predicate); editGeneration.current++;
             setEditBaseline({updated_at: conflictLatest.updated_at, predicate: memoryObjectText(conflictLatest) ? conflictLatest.predicate : "内容"});
             setConflictLatest(null); setError("");
@@ -192,7 +194,7 @@ export default function MemoryRow({
         </div>
       </div> : null}
       {!editing && (
-        <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 text-sm text-[var(--foreground)]">
+        <label className={productClass("flex min-h-[44px] cursor-pointer items-center gap-2.5 text-sm text-[var(--foreground)]")}>
           <input
             type="checkbox"
             checked={memory.retrieval_enabled}

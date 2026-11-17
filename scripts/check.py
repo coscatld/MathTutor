@@ -16,7 +16,7 @@ def run(command: list[str], *, cwd: Path = PROJECT_ROOT) -> None:
     print(f"[check] {cwd.name}: {' '.join(command)}", flush=True)
     # Verification must not depend on a writable global telemetry config.
     # Scope this to child processes; do not modify the user's preferences.
-    env = dict(os.environ, NEXT_TELEMETRY_DISABLED="1")
+    env = dict(os.environ, NEXT_TELEMETRY_DISABLED="1", PYTHON=sys.executable)
     subprocess.run(command, cwd=cwd, check=True, env=env)
 
 
@@ -24,6 +24,7 @@ def main() -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise SystemExit("npm is required to run frontend and desktop checks")
+    run([npm, "run", "api:check"], cwd=PROJECT_ROOT / "web")
     run([sys.executable, "-m", "pytest", "tests", "desktop/tests"])
     run([npm, "test"], cwd=PROJECT_ROOT / "web")
     run([npm, "run", "build"], cwd=PROJECT_ROOT / "web")

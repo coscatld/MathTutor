@@ -1,3 +1,4 @@
+import type { SettingsUpdate } from "../types";
 /**
  * Desktop product API client — typed fetch helpers for
  * /api/v2/math-tutor/desktop, plus pure display formatters.
@@ -124,16 +125,7 @@ export async function fetchPresets(): Promise<ProviderPreset[]> {
   return desktopFetch<ProviderPreset[]>("/settings/presets");
 }
 
-export async function saveSettings(input: {
-  expected_revision?: number;
-  expected_epoch?: string;
-  operation_id?: string;
-  vision_mode?: "auto" | "enabled" | "disabled";
-  preset_id: string;
-  api_key?: string;
-  base_url?: string;
-  model?: string;
-}): Promise<SettingsSaveResult> {
+export async function saveSettings(input: SettingsUpdate): Promise<SettingsSaveResult> {
   return desktopFetch<SettingsSaveResult>("/settings", {
     method: "PUT",
     body: JSON.stringify(input),

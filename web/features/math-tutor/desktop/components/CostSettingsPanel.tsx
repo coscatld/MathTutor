@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import { useI18n } from "@/lib/i18n";
 
 import { Loader2, Save } from "lucide-react";
@@ -33,7 +35,7 @@ export default function CostSettingsPanel() {
       setDraft(Object.fromEntries(FIELDS.map(field => [field.key, result[field.key] == null ? "" : String(result[field.key])])));
     }).catch(() => toast({ title: t("费用设置读取失败"), tone: "error" }));
   }, [toast]);
-  if (!settings) return <div className="flex items-center gap-2 py-6 text-sm text-[var(--muted-foreground)]"><Loader2 className="h-4 w-4 animate-spin" />{t("正在读取费用设置…")}</div>;
+  if (!settings) return <div className={productClass("flex items-center gap-2 py-6 text-sm text-[var(--muted-foreground)]")}><Loader2 className="h-4 w-4 animate-spin" />{t("正在读取费用设置…")}</div>;
   const save = async () => {
     setSaving(true);
     try {
@@ -51,18 +53,18 @@ export default function CostSettingsPanel() {
     }
   };
   const today = settings.today;
-  return <section className="max-w-2xl space-y-4">
+  return <section className={productClass("max-w-2xl space-y-4")}>
     <div><h2 className="text-xl font-bold tracking-tight">{t("模型费用与预算")}</h2><p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">{t("费用按你填写的单价估算，仅供参考，以服务商账单为准。超过预算后当天不再调用模型，数学核验和学习记录不受影响。")}</p></div>
-    <div className="mt-card p-5">
+    <div className={productClass("mt-card p-5")}>
       <p className="text-sm">{t("今天已用")} <strong>{today.tokens.toLocaleString(locale)}</strong> token{settings.input_price_per_mtok != null ? <>{t("，约")} <strong>{today.cost}</strong> {today.currency}</> : null}{settings.over_budget ? <span className="ml-2 text-[var(--danger,#b42318)]">{t("已达预算")}</span> : null}</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {FIELDS.map(field => <label key={field.key} className="block text-sm">
           <span className="mb-1 block font-medium">{t(field.label)}</span>
-          <input inputMode="decimal" value={draft[field.key] || ""} onChange={event => setDraft({ ...draft, [field.key]: event.target.value })} className="mt-input" placeholder={t("不填")} />
+          <input inputMode="decimal" value={draft[field.key] || ""} onChange={event => setDraft({ ...draft, [field.key]: event.target.value })} className={productClass("mt-input")} placeholder={t("不填")} />
           <span className="mt-1 block text-xs leading-5 text-[var(--muted-foreground)]">{t(field.hint)}</span>
         </label>)}
       </div>
-      <button type="button" onClick={save} disabled={saving} className="mt-btn mt-btn-primary mt-5 min-h-11 px-5">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{t("保存费用设置")}</button>
+      <button type="button" onClick={save} disabled={saving} className={productClass("mt-btn mt-btn-primary mt-5 min-h-11 px-5")}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{t("保存费用设置")}</button>
     </div>
   </section>;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 
 import { CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCw, ShieldAlert, TriangleAlert, XCircle } from "lucide-react";
@@ -91,18 +93,18 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
         onClick={onToggle}
         aria-expanded={open}
         aria-label={payload ? t("系统状态：{value0}", {value0: label}) : t("系统正在启动")}
-        className={`inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
+        className={productClass(`inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
           payload !== null && final && style !== null
             ? `${style.badge} ${style.text}`
             : "border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)]"
-        }`}
+        }`)}
       >
         <span aria-live="polite" className="sr-only">
           {payload ? t("系统状态：{value0}", {value0: label}) : t("系统正在启动")}
         </span>
         {payload !== null && final ? (
           <>
-            <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${STATUS_STYLES[payload.readiness].dot} ${payload.readiness === "DEGRADED" ? "animate-pulse" : ""}`} aria-hidden="true" />
+            <span className={productClass(`inline-block h-2 w-2 shrink-0 rounded-full ${STATUS_STYLES[payload.readiness].dot} ${payload.readiness === "DEGRADED" ? "animate-pulse" : ""}`)} aria-hidden="true" />
             <StatusIcon status={payload.readiness} />
             {label}
           </>
@@ -123,22 +125,22 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
         <div
           role="region"
           aria-label={t("启动步骤")}
-          className="mt-card absolute right-0 z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg"
+          className={productClass("mt-card absolute right-0 z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] p-3 text-sm shadow-lg")}
         >
           {steps.length === 0 ? (
-            <p className="flex items-center gap-2 px-1 py-2 text-[var(--muted-foreground)]">
+            <p className={productClass("flex items-center gap-2 px-1 py-2 text-[var(--muted-foreground)]")}>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               {t("正在启动本地服务，请稍候…")}</p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className={productClass("flex flex-col gap-2")}>
               {steps.map((step) => {
                 const stepIcon = STEP_ICONS[step.status] ?? STEP_ICONS.ok;
                 const StepIconComponent = stepIcon.icon;
                 return (
-                  <li key={step.key} className="flex items-start gap-2 text-[var(--foreground)]">
-                    <StepIconComponent className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${stepIcon.className}`} aria-hidden="true" />
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="flex flex-wrap items-baseline gap-x-2">
+                  <li key={step.key} className={productClass("flex items-start gap-2 text-[var(--foreground)]")}>
+                    <StepIconComponent className={productClass(`mt-0.5 h-3.5 w-3.5 shrink-0 ${stepIcon.className}`)} aria-hidden="true" />
+                    <span className={productClass("flex min-w-0 flex-col gap-0.5")}>
+                      <span className={productClass("flex flex-wrap items-baseline gap-x-2")}>
                         <span className="font-medium">{t(bootstrapStepLabel(step.key, step.label))}</span>
                         <span className="text-xs text-[var(--muted-foreground)]">
                           {t(BOOTSTRAP_STEP_STATUS_LABELS[step.status] ?? step.status)}
@@ -165,12 +167,12 @@ export function BootstrapStatusControl({ payload, open, refreshing, onToggle, on
               {t("核心练习与模板辅导仍可使用；配置 AI 模型后即可解锁全部功能。")}</p>
           ) : null}
 
-          <div className="mt-2 flex justify-end border-t border-[var(--border)] pt-2">
+          <div className={productClass("mt-2 flex justify-end border-t border-[var(--border)] pt-2")}>
             <button
               type="button"
               onClick={onRefresh}
               disabled={refreshing}
-              className="mt-btn mt-btn-ghost"
+              className={productClass("mt-btn mt-btn-ghost")}
             >
               {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
               {t("重新检测")}</button>

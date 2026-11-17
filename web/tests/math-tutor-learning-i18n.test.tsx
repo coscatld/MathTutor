@@ -27,7 +27,7 @@ test("English learning profile translates fixed observations and counts", () => 
 
 test("English recommendation keeps response modes and diagnostic counts distinct", () => {
   const html = english(<PracticeOfferCard offer={{offer_id:"offer",status:"ACCEPTED",display_status:"completed",parent_cycle_id:"parent",
-    title:"选择题诊断练习",skill_labels:["分数运算"],concept_labels:[],difficulty:"2",offered_at:"2026-10-28",expires_at:"2026-10-29",
+    title:"选择题诊断练习",skill_labels:["分数运算"],concept_labels:[],difficulty:2,offered_at:"2026-10-28",expires_at:"2026-10-29",
     response_mode:"single_choice",observation_kind:"diagnostic",reason:"用选择题观察当前知识点的作答情况；这类记录用于诊断，不作为首次独立自由作答。",
     evidence_href:"/math-tutor/profile?cycle=original",result_summary:{observations:3,diagnostic_correct:2,first_free_response:1,independent_correct:1,helped:0}}}
     accepting={false} onStart={noop} />);

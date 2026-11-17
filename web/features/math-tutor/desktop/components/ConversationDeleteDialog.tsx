@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import { useI18n } from "@/lib/i18n";
 
 import { useEffect, useRef, useState } from "react";
@@ -35,11 +37,11 @@ export default function ConversationDeleteDialog({ title, permanent = false, onC
   }
   return <dialog ref={dialog} aria-labelledby="delete-conversation-title" aria-describedby="delete-conversation-copy"
     onCancel={e => { e.preventDefault(); if (!inFlight.current) onCancel(); }}
-    className="mt-card m-auto w-[calc(100%-2rem)] max-w-md p-6 text-[var(--foreground)] shadow-xl backdrop:bg-black/35">
+    className={productClass("mt-card m-auto w-[calc(100%-2rem)] max-w-md p-6 text-[var(--foreground)] shadow-xl backdrop:bg-black/35")}>
     <Trash2 aria-hidden="true" className="mb-4 h-6 w-6 text-[var(--muted-foreground)]" />
     <h2 id="delete-conversation-title" className="text-lg font-semibold">{permanent ? t("彻底删除此对话？") : t("将此对话移入垃圾桶？")}</h2>
     <p className="mt-2 break-words text-sm font-medium">{title}</p>
-    <div id="delete-conversation-copy" className="mt-3 space-y-2 text-sm leading-6 text-[var(--muted-foreground)]">
+    <div id="delete-conversation-copy" className={productClass("mt-3 space-y-2 text-sm leading-6 text-[var(--muted-foreground)]")}>
       {permanent ? <>
         <p>{t("聊天记录和仅属于此对话的文件、图片将被删除，无法从垃圾桶恢复。")}</p>
         <p>{t("总资料、其他对话共用的附件、学习记录与已有备份不会删除。学习记录请在“我的数据”中管理。")}</p>
@@ -49,9 +51,9 @@ export default function ConversationDeleteDialog({ title, permanent = false, onC
       </>}
     </div>
     {error ? <p role="alert" className="mt-3 text-sm text-[var(--destructive)]">{t(error)}</p> : null}
-    <div className="mt-6 flex justify-end gap-3">
-      <button type="button" disabled={busy} onClick={() => { if (!inFlight.current) onCancel(); }} className="mt-btn min-h-11 px-4">{t("取消")}</button>
-      <button type="button" disabled={busy} onClick={() => void confirm()} className="mt-btn mt-btn-danger-solid min-h-11 px-4">{busy ? t("处理中…") : permanent ? t("彻底删除") : t("移入垃圾桶")}</button>
+    <div className={productClass("mt-6 flex justify-end gap-3")}>
+      <button type="button" disabled={busy} onClick={() => { if (!inFlight.current) onCancel(); }} className={productClass("mt-btn min-h-11 px-4")}>{t("取消")}</button>
+      <button type="button" disabled={busy} onClick={() => void confirm()} className={productClass("mt-btn mt-btn-danger-solid min-h-11 px-4")}>{busy ? t("处理中…") : permanent ? t("彻底删除") : t("移入垃圾桶")}</button>
     </div>
   </dialog>;
 }

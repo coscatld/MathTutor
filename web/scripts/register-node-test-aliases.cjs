@@ -17,3 +17,6 @@ Module._resolveFilename = function (request, parent, isMain, options) {
 
   return originalResolveFilename.call(this, request, parent, isMain, options);
 };
+
+// Node has no layout engine; the production build and browser smoke verify CSS.
+Module._extensions[".css"] = function(module) { module.exports = {}; };

@@ -164,6 +164,10 @@ Context Redundancy 记录值为 0.913，其中 0.831 来自 hard fixture 资料�
 
 以下改进已在源码中实现，后端、前端、生产构建、浏览器与安装包分别验收。[概念复查调研与实验](docs/11月11号更新文档/002-概念复查与学习闭环.md)记录本轮新功能、对照与验证边界；[资源与并发修复验收](docs/11月1号更新文档/001-资源限制与并发安全修复.md)保留对应历史结果。当前三平台运行结果见 [GitHub Actions](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml)。
 
+### 代码结构与开发一致性
+
+桌面接口按设置、资料、记忆、隐私、备份和启动诊断拆分；答题评估、对话意图分发与练习流程有独立服务。开发和测试统一使用真实 SQLite，前端 HTTP 类型由后端契约生成，CI 检查类型是否同步。主题变量与组件样式分开管理，设置和隐私页面也拆出了表单与数据操作。详见 [架构整理与验证记录](docs/ARCHITECTURE_REFACTOR.md)。
+
 ### 概念复查与间隔学习
 
 「学习画像 → 概念复查」先用最多三道可核验小题区分作答模式，再安排独立练习、跨日复习与改变未知量位置的题。两轮复查保留独立、受助、延迟与结构变化记录，刷新和重启后可继续。当前覆盖分数加法与有符号减法；模式观察允许撤回，未将模拟实验结果当作真实学习收益。详见 [功能、实验与复现](docs/11月11号更新文档/002-概念复查与学习闭环.md)。
@@ -323,7 +327,7 @@ python -m pip install -e ".[pdf-rich]"
 python scripts/check.py
 ```
 
-该入口执行后端与 Python 桌面测试、Web 测试、前端生产构建和 Node.js 桌面契约测试。发行运行时验证需要目标平台的独立 Python 运行时（见下文「构建安装包」）。
+该入口执行接口契约同步检查、后端与 Python 桌面测试、Web 测试、前端生产构建和 Node.js 桌面契约测试。发行运行时验证需要目标平台的独立 Python 运行时（见下文「构建安装包」）。
 
 评测分别记录检索、可见上下文、引用权限、语义支持、数学正确性、任务完成和性能成本。`PROVISIONAL_AI` 表示 AI 初审结果，`BUDGET_BLOCKED` 表示该次真实调用因预算限制跳过。具体口径与结果见 [RAG 评测报告](docs/RAG_EVALUATION.md)。
 
@@ -335,6 +339,15 @@ tests/          自动化测试与测试夹具
 scripts/        工程检查、评测与回放入口
 docs/           架构、实现、评测与版本文档
 ```
+
+修改桌面 HTTP 请求或响应字段后，重新生成并提交 Schema 与 TypeScript 类型：
+
+```bash
+npm run api:generate --prefix web
+npm run api:check --prefix web
+```
+
+命令默认使用当前环境的 `python`，也可通过 `PYTHON` 环境变量指定解释器。WebSocket 消息仍由独立的运行时校验器检查。
 
 测试夹具和评测资料不作为用户知识库的默认教学内容。
 
@@ -380,6 +393,14 @@ shasum -a 256 desktop/dist/MathTutor-*-mac-arm64.dmg
 ```
 
 普通虚拟环境不可重定位，不能作为打包运行时。下载 Electron 较慢时，可设置 `ELECTRON_MIRROR` 与 `ELECTRON_BUILDER_BINARIES_MIRROR` 使用镜像。
+
+构建结束后可预览旧安装包的清理范围：
+
+```bash
+python desktop/scripts/clean-build-artifacts.py
+```
+
+加 `--apply` 执行清理；默认保留各平台、架构和格式的最新安装包、README 下载链接对应的发布目录，以及日志、校验摘要和验收记录。额外保留某个目录可用 `--protect-build 目录名`。
 
 ## 文档导航
 

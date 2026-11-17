@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useI18n} from "@/lib/i18n";
 import { useEffect, useId, useRef, useState } from "react";
 import { formatTick, niceStep, valueAt, type GraphSpec } from "../lib/function-graph";
@@ -184,10 +186,10 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
   return (
     <figure className="my-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
       {named.length + spec.vertical.length > 1 ? (
-        <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]" aria-label={t("图例")}>
-          {named.map((series, index) => <li key={series.label} className="flex items-center gap-1.5">
+        <ul className={productClass("mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground)]")} aria-label={t("图例")}>
+          {named.map((series, index) => <li key={series.label} className={productClass("flex items-center gap-1.5")}>
             <svg width="18" height="6" aria-hidden="true"><line x1="1" y1="3" x2="17" y2="3" stroke={index === 0 ? "var(--primary)" : "#eb6834"} strokeWidth="2" strokeDasharray={index === 0 ? undefined : "5 3"} strokeLinecap="round" /></svg>{series.label}</li>)}
-          {spec.vertical.map(line => <li key={line.label} className="flex items-center gap-1.5">
+          {spec.vertical.map(line => <li key={line.label} className={productClass("flex items-center gap-1.5")}>
             <svg width="18" height="6" aria-hidden="true"><line x1="1" y1="3" x2="17" y2="3" stroke="#eb6834" strokeWidth="2" strokeDasharray="5 3" strokeLinecap="round" /></svg>{line.label}</li>)}
         </ul>
       ) : null}
@@ -204,15 +206,15 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
         <span className="sr-only">{t("图上标出的点：")}</span>{spec.marks.map(mark => mark.label).join(" · ")}
       </figcaption> : null}
       <form onSubmit={readValue} noValidate className="mt-3 border-t border-[var(--border)] pt-3" aria-label={t("按 x 坐标读取函数值")}>
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-0 flex-1 basis-40">
+        <div className={productClass("flex flex-wrap items-end gap-2")}>
+          <div className={productClass("min-w-0 flex-1 basis-40")}>
             <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-[var(--foreground)]">{t("x 坐标")}</label>
             <input id={inputId} name="x" type="number" min={x0} max={x1} step="any" required value={inputX}
               onChange={event => { setInputX(event.target.value); setInputError(false); }}
               aria-invalid={inputError ? true : undefined} aria-describedby={`${inputId}-help${inputError ? ` ${inputId}-error` : ""}`}
-              className="mt-input min-h-11 w-full min-w-0 text-base" />
+              className={productClass("mt-input min-h-11 w-full min-w-0 text-base")} />
           </div>
-          <button type="submit" className="mt-btn min-h-11 shrink-0 px-4">{t("读取")}</button>
+          <button type="submit" className={productClass("mt-btn min-h-11 shrink-0 px-4")}>{t("读取")}</button>
         </div>
         <p id={`${inputId}-help`} className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{t("范围：")}{x0} ≤ x ≤ {x1}{t("。读数按采样点作线性插值；分段空缺显示“无定义”，不跨段插值。")}</p>
         {inputError ? <p id={`${inputId}-error`} className="mt-1 text-xs leading-5 text-[var(--foreground)]">{t("请输入 {min} 到 {max} 之间的有限数值（含端点）。",{min:x0,max:x1})}</p> : null}

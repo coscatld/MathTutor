@@ -32,7 +32,7 @@ test("reading layout keeps context in header and composer outside the only trans
 
 test("shared pages and theme families retain responsive layout contracts", () => {
   for (const panel of ["DocumentsPanel", "MemoryPanel", "OffersPanel"]) {
-    assert.match(readFileSync(`features/math-tutor/desktop/components/${panel}.tsx`, "utf8"), /className="mt-page"/);
+    assert.match(readFileSync(`features/math-tutor/desktop/components/${panel}.tsx`, "utf8"), /className=\{productClass\("mt-page"\)\}/);
   }
   assert.match(readFileSync("tailwind.config.js", "utf8"), /safelist:.*"dark"/);
   assert.match(readFileSync("features/math-tutor/components/ChatComposer.tsx", "utf8"), /rows=\{1\}/);

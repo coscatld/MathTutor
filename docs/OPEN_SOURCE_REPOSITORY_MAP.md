@@ -30,6 +30,20 @@ MathTutor/
 - **做深度宿主扩展**：阅读 [创作者扩展接口](CREATOR_EXTENSIONS.md)。
 - **修改核心教学/数学能力**：在 `src/mathtutor` 改动并同步修改 `tests/`，特别说明答案披露与核验范围。
 
+## 教学、接口与存储边界
+
+| 改动内容 | 入口 |
+|---|---|
+| 答题评估与学习证据 | `application/attempt_evaluation.py` |
+| 对话意图与中断恢复 | `application/tutor_intent_dispatcher.py` |
+| 练习推荐与接受 | `application/practice_workflow.py` |
+| 桌面 HTTP 路由 | `api/routers/`；`desktop_api.py` 负责挂载 |
+| HTTP 请求与响应类型 | `api/routers/schemas.py`、`api/desktop_contracts.py`；前端运行 `npm run api:generate` |
+| 开发与测试数据库 | `infrastructure/memory_database.py`；与持久化模式使用同一套 SQLite 仓储 |
+| 前端主题与局部样式 | `web/styles/tokens.css`、`web/styles/product.module.css` |
+
+上述 Python 路径均相对于 `src/mathtutor/`。检索边界、迁移方式与本轮验收见 [架构整理记录](ARCHITECTURE_REFACTOR.md)。
+
 ## 不应改变的核心设计约束
 
 1. 受助作答、独立作答及看答案后的结果必须区别记录，不能把“懂了”直接当作掌握证据。

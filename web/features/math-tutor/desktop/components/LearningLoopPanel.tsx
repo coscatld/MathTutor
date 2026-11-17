@@ -1,5 +1,7 @@
 "use client";
 
+import { productClass } from "@/styles/product-classes";
+
 import {useCallback, useEffect, useId, useRef, useState} from "react";
 import {ArrowRight, RefreshCw} from "lucide-react";
 import {useI18n} from "@/lib/i18n";
@@ -56,8 +58,8 @@ export function LearningLoopCard({entry, busy, onAction}: {
     });
     if (ok && action === "answer") setInputError(false);
   };
-  return <article aria-label={label} className="mt-card min-w-0 p-5 sm:p-6">
-    <div className="flex flex-wrap items-start justify-between gap-3">
+  return <article aria-label={label} className={productClass("mt-card min-w-0 p-5 sm:p-6")}>
+    <div className={productClass("flex flex-wrap items-start justify-between gap-3")}>
       <h3 className="text-lg font-semibold">{label}</h3>
       <span className="rounded-md bg-[var(--primary-soft)] px-3 py-1 text-sm text-[var(--primary-text)]">
         {t(episode ? LOOP_PHASE_LABELS[episode.phase] : "尚未开始")}
@@ -65,7 +67,7 @@ export function LearningLoopCard({entry, busy, onAction}: {
     </div>
     {!episode && <div className="mt-4">
       <p className="leading-7 text-[var(--muted-foreground)]">{t("先用最多三道小题检查作答，再安排独立练习。")}</p>
-      <button type="button" className="mt-btn mt-btn-primary mt-4 min-h-11" disabled={busy}
+      <button type="button" className={productClass("mt-btn mt-btn-primary mt-4 min-h-11")} disabled={busy}
         onClick={() => void onAction("start", {domain: entry.domain})}>{t("开始检查")}<ArrowRight aria-hidden="true" className="h-4 w-4" /></button>
     </div>}
     {episode && <div className="mt-4 space-y-5">
@@ -93,23 +95,23 @@ export function LearningLoopCard({entry, busy, onAction}: {
           <span className="mt-paper mt-3 block break-words rounded-lg border border-[var(--border)] px-4 py-5 font-mono text-xl leading-9">{question.statement}</span>
         </h4>
         <label htmlFor={inputId} className="mb-2 mt-4 block font-medium">{t("填写数值答案")}</label>
-        <input ref={answerInput} id={inputId} className="mt-input min-h-11 w-full text-base"
+        <input ref={answerInput} id={inputId} className={productClass("mt-input min-h-11 w-full text-base")}
           value={answer} onChange={event => {setAnswer(event.target.value); setInputError(false);}}
           onBlur={() => {if (answer.length > 0 && !answer.trim()) setInputError(true);}}
           disabled={busy} maxLength={48} autoComplete="off" spellCheck={false}
           aria-invalid={inputError || feedback?.kind === "unknown" || undefined}
           aria-describedby={inputError ? `${inputId}-error` : feedback?.kind === "unknown" ? `${inputId}-feedback` : undefined} />
         {inputError && <p id={`${inputId}-error`} role="alert" className="mt-2 text-[var(--destructive)]">{t("请先填写答案。")}</p>}
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button className="mt-btn mt-btn-primary min-h-11" type="submit" disabled={busy}>{t(busy ? "正在保存…" : "提交答案")}</button>
-          <button className="mt-btn min-h-11 whitespace-normal text-left" type="button" disabled={busy}
+        <div className={productClass("mt-4 flex flex-wrap gap-3")}>
+          <button className={productClass("mt-btn mt-btn-primary min-h-11")} type="submit" disabled={busy}>{t(busy ? "正在保存…" : "提交答案")}</button>
+          <button className={productClass("mt-btn min-h-11 whitespace-normal text-left")} type="button" disabled={busy}
             onClick={() => void act("help")}>{t("看解法（计为受助练习）")}</button>
         </div>
       </form>}
       {episode.phase === "waiting" && <div>
         <p className="font-medium">{episode.can_start ? t("已到复习时间") : t("下次复习：{date}", {date: dueText})}</p>
         <p className="mt-2 leading-7 text-[var(--muted-foreground)]">{t("到时再用新题检查。错过时间也可以继续。")}</p>
-        {episode.can_start && <button type="button" disabled={busy} className="mt-btn mt-btn-primary mt-4 min-h-11"
+        {episode.can_start && <button type="button" disabled={busy} className={productClass("mt-btn mt-btn-primary mt-4 min-h-11")}
           onClick={() => void onAction("start", {domain: entry.domain})}>{t("开始复习")}</button>}
       </div>}
       {episode.phase === "complete" && <p className="leading-7">{t("已经留下本轮的延迟复习与结构变化题记录。")}</p>}
@@ -181,21 +183,21 @@ export default function LearningLoopPanel() {
     }
   };
   const entry = data?.domains.find(row => row.domain === selected) || data?.domains[0];
-  return <section aria-labelledby="learning-loop-title" className="space-y-4">
-    <div className="flex items-start justify-between gap-4">
+  return <section aria-labelledby="learning-loop-title" className={productClass("space-y-4")}>
+    <div className={productClass("flex items-start justify-between gap-4")}>
       <div><h2 id="learning-loop-title" className="mt-section-title">{t("概念复查")}</h2>
         <p className="mt-2 max-w-2xl leading-7 text-[var(--muted-foreground)]">{t("先辨别作答模式，再用间隔复习和结构变化题继续检查。")}</p></div>
-      <button type="button" className="mt-btn mt-btn-icon shrink-0" disabled={busy || loading} aria-label={t("同步进度")}
+      <button type="button" className={productClass("mt-btn mt-btn-icon shrink-0")} disabled={busy || loading} aria-label={t("同步进度")}
         onClick={() => void load()}><RefreshCw className="h-4 w-4" aria-hidden="true" /></button>
     </div>
     {error && <div ref={errorBox} tabIndex={-1} role="alert" className="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 focus-visible:outline">
-      <p>{t(error)}</p><button type="button" disabled={busy || loading} className="mt-btn mt-3 min-h-11" onClick={() => void load()}>{t("同步进度")}</button>
+      <p>{t(error)}</p><button type="button" disabled={busy || loading} className={productClass("mt-btn mt-3 min-h-11")} onClick={() => void load()}>{t("同步进度")}</button>
     </div>}
     {loading && !data && <p role="status">{t("正在加载概念复查…")}</p>}
-    {data && <div role="group" aria-label={t("选择复查内容")} className="flex flex-wrap gap-3">
+    {data && <div role="group" aria-label={t("选择复查内容")} className={productClass("flex flex-wrap gap-3")}>
       {data.domains.map(row => <button key={row.domain} type="button" disabled={busy || loading}
         aria-pressed={row.domain === entry?.domain} onClick={() => setSelected(row.domain)}
-        className="mt-btn min-h-11 aria-pressed:border-[var(--primary-border)] aria-pressed:bg-[var(--primary-soft)] aria-pressed:text-[var(--primary-text)]">
+        className={productClass("mt-btn min-h-11 aria-pressed:border-[var(--primary-border)] aria-pressed:bg-[var(--primary-soft)] aria-pressed:text-[var(--primary-text)]")}>
         {locale === "en" ? row.label_en : row.label_zh}
         {row.episode?.phase === "waiting" && row.episode.can_start && <span className="text-sm"> · {t("已到复习时间")}</span>}
       </button>)}
