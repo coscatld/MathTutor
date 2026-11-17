@@ -68,6 +68,7 @@ from mathtutor.infrastructure.schema import (
     mastery_evidence,
     misconception_observations,
     student_state_projections,
+    student_profiles,
     verification_logs,
     teaching_contexts,
 )
@@ -104,6 +105,8 @@ DATA_CATEGORY_VALUES: frozenset[str] = frozenset(
 
 #: table → category, covering EVERY business table in infrastructure/schema.py.
 DATA_CATEGORIES: dict[str, str] = {
+    "exploration_inquiries": CATEGORY_AUTHORITY_EDUCATIONAL,
+    "exploration_generations": CATEGORY_SYSTEM,
     "knowledge_spaces": CATEGORY_USER_CONTROLLED,
     "knowledge_members": CATEGORY_USER_CONTROLLED,
     "knowledge_bindings": CATEGORY_USER_CONTROLLED,
@@ -176,6 +179,8 @@ DATA_CATEGORIES: dict[str, str] = {
 
 #: 分类理由（表 → 一句话依据），来源：infrastructure/schema.py + 设计文档。
 DATA_CATEGORY_REASONS: dict[str, str] = {
+    "exploration_inquiries": "用户问题、来源摘要和理解检查，随教育历史删除",
+    "exploration_generations": "无内容的删除代次，阻止旧探索请求回写",
     "knowledge_spaces": "用户显式创建的资料空间，随资料清除",
     "knowledge_members": "显式资料归属，删除资料或空间时清除",
     "knowledge_bindings": "会话显式挂载，随会话或资料清除",
@@ -295,6 +300,7 @@ def classify_field(table_name: str, field: str) -> str | None:
 
 #: 教育结果事实表 —— delete_educational_history 整学生硬删（行无软删字段）。
 EDUCATIONAL_RESULT_TABLES: tuple[str, ...] = (
+    "exploration_inquiries",
     "learning_loop_episodes",
     "initial_assessments",
     "learning_events",
@@ -739,7 +745,10 @@ class DataLifecycleService:
             await conn.execute(insert(learning_generations).values(student_id=student_id, generation=1)
                 .on_conflict_do_update(index_elements=["student_id"], set_={"generation": learning_generations.c.generation + 1}))
             from mathtutor.infrastructure.knowledge_schema import reviews, preferences
-            for table in (learning_predictions, student_state_snapshots, learning_events, practice_feedback, initial_assessments, learning_loop_episodes, reviews, preferences):
+            from mathtutor.infrastructure.exploration_schema import inquiries
+            from mathtutor.repositories.exploration_repository import bump_generation
+            await bump_generation(conn, student_id)
+            for table in (learning_predictions, student_state_snapshots, learning_events, practice_feedback, initial_assessments, learning_loop_episodes, reviews, preferences, inquiries):
                 result = await conn.execute(sa_delete(table).where(table.c.student_id == student_id))
                 deleted_by_table[table.name] = result.rowcount
             teaching_rows = (await conn.execute(select(teaching_contexts).where(
@@ -787,9 +796,11 @@ class DataLifecycleService:
             total_deleted = sum(deleted_by_table.values())
 
             projection = await sqlite_education.load_student_projection(conn, student_id)
-            if total_deleted == 0 and projection is None:
+            profile = (await conn.execute(select(student_profiles.c.student_id).where(
+                student_profiles.c.student_id == student_id))).scalar_one_or_none()
+            if projection is None and (total_deleted == 0 or profile is None):
                 summary: dict[str, Any] = {
-                    "deleted_rows": 0,
+                    "deleted_rows": total_deleted,
                     "by_table": deleted_by_table,
                     "kept_skeleton_tables": list(EDUCATIONAL_SKELETON_KEPT),
                     "projection": None,

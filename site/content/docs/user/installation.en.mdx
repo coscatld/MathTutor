@@ -1,18 +1,18 @@
 ---
 title: Installation
-description: Windows and macOS 0.7.1 installers, upgrades, and first-launch guidance.
+description: Windows and macOS installers, upgrades, and first-launch guidance.
 ---
 
-Current release **0.7.1**, with recent fixes for graph interaction, draft protection, learning evidence, retrieval, and local services.
+Published installers include math tutoring, concept review, learning records, and document retrieval, with Python and Node bundled. **Knowledge exploration is a source preview and is not yet included in these installers.** See [Knowledge exploration](./knowledge-exploration.mdx).
 
 | OS | File |
 |---|---|
-| Windows 10/11 x64 | `MathTutor-0.7.1-win-x64.exe` |
-| macOS Apple Silicon | `MathTutor-0.7.1-mac-arm64.dmg` |
+| Windows 10/11 x64 | [MathTutor-windows-x64.exe](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-windows-x64.exe) |
+| macOS Apple Silicon | [MathTutor-mac-arm64.dmg](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-mac-arm64.dmg) |
 
-Release page: [v0.7.1 Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1). Checksums and platform acceptance records accompany the release assets.
+Release page: [Learning-loop update and download records](https://github.com/coscatld/MathTutor/releases/tag/build-20261111-6f84868). Checksums and platform acceptance records accompany the release assets.
 
-Before upgrading, create and verify an in-app backup, quit the old version, then install the update. The database migration head remains **024**, with no new schema migration in this release. Save community and plugin settings separately.
+Before upgrading, create and verify an in-app backup, quit the old version, then install the update. The app migrates its local database as needed. Save community and plugin settings separately.
 
 ## Windows
 
@@ -22,7 +22,7 @@ Before upgrading, create and verify an in-app backup, quit the old version, then
 
 ## macOS
 
-0.7.1 is fully ad-hoc signed locally, **without Developer ID and without notarization**. Gatekeeper rejects it by default. Check the file source and checksum before explicitly allowing it to open.
+The current installer is fully ad-hoc signed locally, **without Developer ID and without notarization**. Gatekeeper rejects it by default. Check the file source and checksum before explicitly allowing it to open.
 
 Follow [docs/MACOS_INSTALLATION.md](https://github.com/coscatld/MathTutor/blob/main/docs/MACOS_INSTALLATION.md): drag the app into Applications, and allow it under Privacy & Security if asked.
 
@@ -32,4 +32,4 @@ An AppImage target exists, but the platform matrix marks Linux **UNTESTED — NO
 
 ## From source
 
-See [Quick start](../quick-start) and [Development setup](../../developer/development-setup).
+See [Quick start](./quick-start.mdx) and [Development setup](../developer/development-setup.mdx).

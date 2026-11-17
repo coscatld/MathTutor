@@ -1,12 +1,12 @@
 ---
 title: Development Setup
-description: Python, Node, existing test entry points, and boundaries you should not cross.
+description: Install dependencies, run the local workbench and knowledge explorer, and check the project.
 ---
 
 ## Requirements
 
 - Python 3.12 recommended; declared `>=3.11,<3.14`
-- Node.js 20 in source CI; Windows packaging has been verified with Node 24.19.0
+- Node.js 24, matching current source CI
 - Use lockfiles and `npm ci`
 
 ## Install
@@ -19,6 +19,25 @@ cd ../desktop && npm ci
 
 Optional extras: `.[embedding]`, `.[pdf-rich]`.
 
+## Run the workbench
+
+Start the backend from the repository root after installing Python dependencies:
+
+```bash
+python -m mathtutor
+```
+
+Start the frontend in another terminal:
+
+```bash
+cd web
+npm run dev
+```
+
+Open `http://127.0.0.1:3000` in the browser. Use the repository's `npm run dev` entry point; it configures the environment and origin checks for local browser development.
+
+Knowledge exploration is at `/math-tutor/explore`. Configure the Zhihu Access Secret at `/math-tutor/settings?section=sources`, or set the server-only environment variable `MATHTUTOR_ZHIHU_ACCESS_SECRET` before starting Python. See [Knowledge exploration](../user/knowledge-exploration.mdx) for the workflow.
+
 ## Existing checks
 
 ```bash
@@ -27,7 +46,9 @@ python -m pytest tests/test_community_plugins.py tests/test_community_plugins_ap
 cd web && npm run test && npm run build
 ```
 
-Do not invent commands that are not in the repo. Website:
+## Run the documentation website
+
+The website and workbench are separate projects. From the repository root:
 
 ```bash
 cd site
@@ -35,6 +56,4 @@ npm ci
 npm run dev   # http://127.0.0.1:3000/MathTutor/
 ```
 
-## Hard boundary
-
-Do not change `web/` routes, Electron startup, or Python solving/teaching code to ship this website.
+The website exports statically to GitHub Pages. It does not run Python or store API credentials. Validate the export with `npm run build` and `npm run verify:export`.

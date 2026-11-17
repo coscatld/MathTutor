@@ -1,6 +1,6 @@
 <img src="resources/branding/mathtutor.svg" width="48" height="48" alt="MathTutor Logo" />
 
-# MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统
+# MathTutor——让数学推理、资料来源与学习过程有迹可循
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE) [![CI](https://img.shields.io/github/actions/workflow/status/coscatld/MathTutor/cross-platform.yml?branch=main&label=CI)](https://github.com/coscatld/MathTutor/actions/workflows/cross-platform.yml) [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Benchmarks-yellow.svg)](https://huggingface.co/datasets/coscatld/mathtutor)
 
@@ -8,11 +8,15 @@
 
 站点源码在 [`site/`](site/)，由 GitHub Actions 静态发布到 GitHub Pages。
 
-**面向小学至高中的本地数学辅导系统，连接学习过程、可追溯资料与有明确边界的解题核验。**
+**本地数学学习工作台：先尝试一道题，按需获得提示；也可以带着疑问探索不同解释，保留来源，再用自己的作答选择下一步。**
 
 MathTutor 把题目解析、受限求解与验证、分级提示、作答证据、学习画像、个人资料检索和引用追踪连接成一个可恢复的产品流程。学生可以先尝试、再逐级获得帮助；模型负责表达和整理，应用负责权限、证据、预算、答案披露与数据生命周期。
 
+**知识探索（源码预览）：** 用自己的知乎凭据检索数学解释，查看带作者和原始链接的有限片段；可选 AI 选择片段与阅读重点，应用提供固定阅读和比较问题。保存思考后，在覆盖范围内完成中英文理解检查，获得最多三步的学习建议。[体验与配置](#知识探索源码预览) · [中文指南](https://coscatld.github.io/MathTutor/zh/docs/user/knowledge-exploration/) · [English guide](https://coscatld.github.io/MathTutor/en/docs/user/knowledge-exploration/)
+
 **下载软件：** [macOS Apple Silicon](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-mac-arm64.dmg) · [Windows x64](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-windows-x64.exe) · [下载与校验记录](https://github.com/coscatld/MathTutor/releases/tag/build-20261111-6f84868) · [Mac 安装说明](docs/MACOS_INSTALLATION.md)
+
+上述已发布安装包尚不包含知识探索；体验该功能请运行当前源码。
 
 **近期改进：** 学习画像新增“概念复查”，将诊断追问、独立练习、间隔复习与结构变化题串联起来；设置支持中文与 English，学习记录区分独立与受助作答；备份恢复、配置保存及数学计算均有明确的恢复路径和预算。下文介绍当前源码实现，安装包的具体内容以其随附构建与验收记录为准。
 
@@ -21,6 +25,7 @@ MathTutor 把题目解析、受限求解与验证、分级提示、作答证据�
 | 你想做什么 | 从这里开始 |
 |---|---|
 | 安装使用 | [下载页](https://github.com/coscatld/MathTutor/releases)，查看实际安装文件、校验摘要及平台验收记录；桌面包内置 Python / Node |
+| 对照知乎中的数学解释 | [运行源码并配置知乎](#知识探索源码预览)，从问题与学习目标出发，保留来源、思考和检查记录 |
 | 了解或复现评测 | [Hugging Face 评测工具与阶段结果](https://huggingface.co/datasets/coscatld/mathtutor)及下文的指标说明 |
 | 导入自己的资料和插件 | [社区使用指南](docs/COMMUNITY.md)，资料和插件分别导入，代码插件需明确确认信任 |
 | 贡献题库或插件 | [贡献指南](CONTRIBUTING.md)、[题库投稿](docs/QUESTION_PACK_CONTRIBUTION.md)、[插件快速入门](docs/PLUGIN_QUICKSTART.md) |
@@ -53,6 +58,7 @@ flowchart LR
 
 | 场景 | 功能 |
 |---|---|
+| 知识探索 | `/math-tutor/explore` 保留问题与目标，展示知乎检索片段及原始链接；可选 AI 选择阅读重点，应用提供固定阅读和比较问题。保存思考，使用 16 道中英文固定理解检查题中的适用题，获得最多三步的下一步建议。当前为源码预览，检索摘要不等于全文，引用完整性不等于数学正确或语义支持 |
 | 数学辅导 | 对受支持的算术、整式、一元一次/二次方程、二元一次方程组、一元一次不等式和根为有理数的一元二次不等式解析、求解和验证，结合学生作答提供分级提示与反馈；未解决的题目先看过一次提示才能查看完整答案 |
 | 函数图像与数形结合 | 说「画出 y = x^2 - 2x - 3 的图像」或在题目下点「看图像」；也能画隐式曲线（椭圆、双曲线、圆等）、参数与极坐标曲线、不等式区域、点、线段、多边形、切线，参数带滑块和播放，动点留轨迹，距离 / 角度 / 面积等读数实时更新（如「演示椭圆 x^2/4+y^2/3=1 上的动点 P(2cos t, √3 sin t) 到焦点 F(1,0) 的距离」）。表达式由白名单解析器编译，坐标由应用计算；配置模型后，复杂描述可由模型提出定义，标注为未核验的示意图 |
 | 题库 | 小学一年级至高三共 383 个知识点、801 道原创课程题（附默认隐藏的参考答案与解题说明），另有 353 道支持本地步骤核验的练习与数形结合演示；可按学段和年级查看，跨年课程同时可查 |
@@ -287,6 +293,18 @@ npm start
 
 桌面壳使用项目根目录的 `.venv`，自动启动 Python 服务、Verifier Worker 和 Next.js 前端，并选择本机随机端口。无需同时保留浏览器开发模式的两个服务进程。
 
+### 知识探索（源码预览）
+
+1. 按上文启动当前源码，在应用的 `/math-tutor/settings?section=sources` 配置自己的知乎 Access Secret。也可在 Python 服务的启动环境设置 `MATHTUTOR_ZHIHU_ACCESS_SECRET`，不要使用 `NEXT_PUBLIC_` 变量或提交密钥。
+2. 打开 `/math-tutor/explore`，输入问题与学习目标，主动搜索。来源卡片保留作者、标题、检索片段和原始链接；公式或上下文缺失时回原文核对。
+3. 可选 AI 整理只选择已登记片段与阅读重点（定义、条件、推理或例子），应用提供固定阅读和比较问题，比较关系保持待核对。保存自己的理解，再完成适用的理解检查，查看最多三步的学习建议。
+
+知乎凭据仅由服务端使用，经现有 `SecretStore` 管理。桌面版使用系统凭据库；开发模式可能只在内存中保存，设置页显示持久化状态。删除应用内凭据不会移除服务器环境变量提供的凭据。
+
+16 道固定理解检查题提供中英文版本，覆盖有限概念。阅读、思考记录、独立作答和看过解释后的作答分开保留；不把一次答对写成掌握度。未覆盖的主题保留开放问题。搜索仅返回有界摘要，不能代表全文或整个知乎社区；来源绑定检查引文完整性，语义支持与数学真值仍需独立判断。
+
+详细操作与研究依据见[知识探索指南](site/content/docs/user/knowledge-exploration.mdx)。
+
 ## 资料问答与能力说明
 
 资料问答的基础路径为：**导入资料 → 本地解析与切片 → 检索与上下文组装 → 读取证据 → 回答与引用**。检索由共享 orchestrator 组织，工具读取受会话权限、资料版本和原文区间约束。
@@ -312,13 +330,13 @@ python -m pip install -e ".[pdf-rich]"
 
 ## 数据、模型配置与备份
 
-应用的数据库、上传资料和备份保存在本机。**使用外部模型服务时，请求中的问题、上下文和相关资料片段会发送给你配置的服务商**；只用本地模板教学或本机 Ollama 时，数据不出本机。
+应用的数据库、上传资料和备份保存在本机。**使用外部模型服务时，请求中的问题、上下文和相关资料片段会发送给你配置的服务商**。主动使用知乎搜索会发送检索问题；选择 AI 整理时，问题、学习目标和已登记片段会发送给知乎直答服务。仅使用本地模板或本机 Ollama，且不调用外部检索与服务时，数据保留在本机。
 
 - 源码后端默认使用当前目录下的 `data/`；可通过 `MATHTUTOR_DATA_ROOT` 指定数据目录，或通过 `MATHTUTOR_DB_PATH` 指定数据库路径。
 - 桌面版使用独立的用户数据目录，退出应用会停止本地子进程，并保留学习资料和历史。
 - API Key 通过 `SecretStore` 管理；macOS 使用 Keychain，Windows 使用 Credential Manager。
 - 数据库加密可选（默认关闭）：在「设置 → 高级 → 数据加密」开启后，下次启动时把本机数据库转换为 SQLCipher 加密库，转换前后都做完整性和行数校验，失败保持原样。密钥只存在系统钥匙串 / 凭据管理器中。只要系统密钥存储可用，备份文件始终加密；请在同一处「显示恢复密钥」并妥善保存，钥匙串条目丢失时恢复备份需要它。导入的资料原文件保存在数据目录，建议同时开启系统全盘加密（FileVault / BitLocker）。不要把凭据、私人配置、用户数据库或原始模型请求日志提交到仓库。
-- 当前数据库 migration head 为 **025**，新增按学习者隔离的概念复查记录表；已有记录保留，旧题库回合不会被新规则重新解释。升级前使用应用内备份功能创建并验证备份，再正常退出应用；社区与插件配置仍需单独保存。
+- 数据库通过版本化迁移管理概念复查与探索记录；已有记录保留，旧题库回合不会被新规则重新解释。升级前使用应用内备份功能创建并验证备份，再正常退出应用；社区与插件配置仍需单独保存。
 - 恢复旧备份可能缺少之后产生的新资料和聊天，请先保存当前数据。代码回滚不会自动恢复数据库；不要手动删除活跃数据库的 WAL/SHM 文件。
 
 ## 开发与测试
@@ -411,7 +429,7 @@ python desktop/scripts/clean-build-artifacts.py
 | [CHANGELOG](CHANGELOG.md) | 各版本改动与升级说明 |
 | [资源限制与并发安全](docs/11月1号更新文档/001-资源限制与并发安全修复.md) | 数学预算、停止响应、认证恢复与检索指标验收 |
 | [概念复查与学习闭环](docs/11月11号更新文档/002-概念复查与学习闭环.md) | 主动追问、间隔复习、结构变化练习、四路调研与固定实验 |
-| [安装包更新说明](docs/RELEASE_0.7.1.md) | 已发布安装包的图形、草稿、数据与验收范围 |
+| [历史安装包更新说明](docs/RELEASE_0.7.1.md) | 早期安装包的图形、草稿、数据与验收范围；当前下载以文首发布页为准 |
 | [固定多轮辅导评测](docs/eval/TUTOR_MULTITURN_EVAL.md) | 自动评分的多轮场景、六维度、发布门与最近结果 |
 | [初评与选择题](docs/INITIAL_ASSESSMENT.md) | 首次评估、跳过与恢复、练习起点的含义 |
 | [RAG 架构](docs/RAG_ARCHITECTURE.md) | 共享检索、上下文与证据工具路径 |

@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { JsonLd } from '@/components/json-ld';
+import { ExplorationFeature } from '@/components/exploration-feature';
 import { ScreenshotFrame } from '@/components/screenshot-frame';
 import { ReaderPaths } from '@/components/reader-paths';
 import { isLocale, localePath } from '@/lib/site';
@@ -76,6 +77,8 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
           </div>
         </div>
       </section>
+
+      <ExplorationFeature locale={locale} />
 
       <section className="mt-container py-12" aria-labelledby="reading-paths-title">
         <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">

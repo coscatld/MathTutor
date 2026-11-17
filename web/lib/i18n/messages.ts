@@ -3,6 +3,7 @@ import {settingsEnglish} from "./messages-settings";
 import {knowledgeEnglish} from "./messages-knowledge";
 import {learningEnglish} from "./messages-learning";
 import {loopEnglish} from "./messages-loop";
+import {explorationEnglish} from "./messages-exploration";
 
 export type Locale = "zh-CN" | "en";
 export type MessageParams = Record<string, string | number>;
@@ -10,7 +11,7 @@ export const DEFAULT_LOCALE: Locale = "zh-CN";
 export const LOCALE_STORAGE_KEY = "mathtutor-language";
 export const LOCALE_CHANGE_EVENT = "mathtutor-language-change";
 export const englishMessages: Readonly<Record<string, string>> = {
-  ...workspaceEnglish, ...settingsEnglish, ...knowledgeEnglish, ...learningEnglish, ...loopEnglish,
+  ...workspaceEnglish, ...settingsEnglish, ...knowledgeEnglish, ...learningEnglish, ...loopEnglish, ...explorationEnglish,
 };
 
 export function normalizeLocale(value: unknown): Locale {

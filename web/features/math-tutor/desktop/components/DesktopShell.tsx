@@ -3,7 +3,7 @@
 import { productClass } from "@/styles/product-classes";
 
 import {useI18n} from "@/lib/i18n";
-import { BookCheck, BookOpen, BrainCircuit, ChevronLeft, Compass, FileText, GraduationCap, Library, MessageSquarePlus, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import { BookCheck, BookOpen, BrainCircuit, ChevronLeft, Compass, FileText, GraduationCap, Library, MessageSquarePlus, Search, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -20,6 +20,7 @@ import { useToast } from "./ToastProvider";
 type Conversation = { conversation_id: string; title?: string; updated_at?: string };
 const NAV_ITEMS = [
   { href: "/math-tutor", label: "辅导", icon: GraduationCap },
+  { href: "/math-tutor/explore", label: "知识探索", icon: Search },
   { href: "/math-tutor/profile", label: "学习画像", icon: ShieldCheck },
   { href: "/math-tutor/offers", label: "推荐练习", icon: BookOpen },
   { href: "/math-tutor/question-bank", label: "题库", icon: BookCheck },
@@ -84,7 +85,7 @@ export default function DesktopShell({ children }: { children: React.ReactNode }
       </div> : <div className={productClass("flex-1")} />}
       <nav aria-label={t("主要功能")} className={productClass("flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto p-3")}>{NAV_ITEMS.map((item) => {
         const active = item.href === "/math-tutor" ? inTutor : pathname.startsWith(item.href);
-        const link = <Link key={item.href} href={item.href} aria-label={t(item.label)} aria-current={active ? "page" : undefined} className={productClass("mt-nav-item")}><item.icon className="h-4 w-4 shrink-0" />{!collapsed ? t(item.label) : null}</Link>;
+        const link = <Link key={item.href} href={item.href} aria-label={t(item.label)} aria-current={active ? "page" : undefined} className={productClass(`mt-nav-item ${item.href === "/math-tutor/explore" ? "min-h-11" : ""}`)}><item.icon className="h-4 w-4 shrink-0" />{!collapsed ? t(item.label) : null}</Link>;
         return collapsed ? <Tooltip key={item.href} label={t(item.label)} side="right" wrapperClassName="flex w-full">{link}</Tooltip> : link;
       })}</nav>
       <div className={productClass(`flex shrink-0 gap-1 border-t p-3 ${collapsed ? "flex-col items-center" : "items-center"}`)}>{collapsed ? <Tooltip label={t("设置")} side="right" wrapperClassName="flex w-full"><Link href="/math-tutor/settings" aria-label={t("设置")} aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className={productClass("mt-nav-item")}><Settings className="h-4 w-4" /></Link></Tooltip> : <Link href="/math-tutor/settings" aria-label={t("设置")} aria-current={pathname.startsWith("/math-tutor/settings") ? "page" : undefined} className={productClass("mt-nav-item")}><Settings className="h-4 w-4" />{t("设置")}</Link>}<ThemeQuickSwitch compact={collapsed} /></div>

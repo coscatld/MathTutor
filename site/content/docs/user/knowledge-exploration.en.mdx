@@ -1,0 +1,49 @@
+---
+title: Knowledge exploration
+description: Read attributed Zhihu search excerpts, compare explanations, save a reflection, and choose a next step with an understanding check.
+---
+
+Knowledge exploration connects a mathematical question to a reading and practice workflow: ask → compare sources → answer for yourself → choose a next step. Keep your learning goal, read explanations from different authors, and save what you understand.
+
+**This is a source preview.** Published macOS and Windows installers do not yet include it. Follow [Development setup](../developer/development-setup.mdx), run the current source, and open `/math-tutor/explore` in the app. This website provides documentation; it does not run Zhihu searches or accept credentials.
+
+## Start an exploration
+
+1. Configure your Zhihu Access Secret at `/math-tutor/settings?section=sources` in the app. Alternatively, set `MATHTUTOR_ZHIHU_ACCESS_SECRET` in the Python service environment. Do not use a `NEXT_PUBLIC_` variable or put the secret in the repository.
+2. Open `/math-tutor/explore`, enter a question and learning goal, then start a search. For example: “Why should I check whether an expression is zero before dividing by it?”
+3. Read the source cards with their authors, titles, search excerpts, and original links. Return to the original when an excerpt lacks context or a formula.
+
+The backend calls Zhihu. Credentials stay out of browser storage, the application database, and the repository. Desktop uses the OS credential store. Development mode may keep a secret only in memory; settings show whether it persists. Deleting an app-saved secret leaves an environment-provided credential active if the server still has one configured.
+
+## Compare explanations
+
+Search works without AI organization. Optional AI selects registered excerpts and a reading focus: definition, conditions, reasoning, or example. The application then supplies fixed reading and comparison questions. Text and links come from saved sources; the model cannot create a citation, replace a link, or publish a freely generated factual claim.
+
+Comparisons are **unverified reading leads**. They do not certify contradiction, equivalence, or mathematical correctness. Compare assumptions, notation, and reasoning, then check the original text to decide what the differences mean.
+
+## Record your understanding
+
+Save your explanation, an unresolved condition, or an example you want to try as a reflection. The original question, goal, and reflection stay together so you can return to them.
+
+There are currently **16 curated understanding checks in Chinese and English**, covering a limited set of mathematical concepts. Where a check is available, the app uses the actual response and assistance state to suggest up to three next steps. Topics outside this set keep an open question instead of receiving an unverified generated grading item.
+
+Reading, reflection, seeing an explanation, and independent responses are recorded separately. One correct response describes that attempt; it does not establish mastery or transfer to a new situation.
+
+## What a source establishes
+
+| Content | What is checked | What remains open |
+|---|---|---|
+| Quoted excerpt | A match to the saved search text and character range | Full text, formulas, or context outside the excerpt |
+| Author and original link | Attribution and a route back to the source | Accuracy and applicability to your question |
+| Reading question or comparison | AI selects registered excerpts; the app supplies fixed questions | Semantic support, equivalence, contradiction, or mathematical truth |
+| Understanding-check feedback | The response and assistance state for that fixed item | Long-term mastery, learning impact, and transfer |
+
+Zhihu returns bounded search excerpts, not complete articles or a representative sample of the community. Duplicate content does not count as independent support. Missing sources remain a visible gap rather than being filled with invented evidence.
+
+## What leaves your device
+
+Starting a search sends the question to Zhihu. Choosing AI organization sends the question, learning goal, and registered source excerpts to the Zhihu Zhida service. Reflections and check responses are saved in the local application. Keep personal information you do not want to send to an external service out of the search question.
+
+## Design references
+
+The separation of attribution and support draws on [AIS](https://aclanthology.org/2023.cl-4.2/), [ALCE](https://aclanthology.org/2023.emnlp-main.398/), and [Attribute First](https://aclanthology.org/2024.acl-long.182/). Source binding checks quotation integrity; semantic faithfulness and learning outcomes require separate evaluation.

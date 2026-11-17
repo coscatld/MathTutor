@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Current database contract. Keep this aligned with the
 # Alembic head; release manifests and packaged smoke assert the exact value.
-MIGRATION_HEAD = "026"
+MIGRATION_HEAD = "027"
 
 
 def alembic_config(db_path: str | None = None) -> Config:

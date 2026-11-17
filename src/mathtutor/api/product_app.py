@@ -305,6 +305,8 @@ def create_math_tutor_app(
     app.include_router(learning_profile_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
     from mathtutor.api.knowledge_api import router as knowledge_router
     app.include_router(knowledge_router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
+    from mathtutor.api.exploration_api import router as exploration_router
+    app.include_router(exploration_router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
     from mathtutor.api.content_api import router as content_router
     app.include_router(content_router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
     from mathtutor.api.creator_api import router as creator_router

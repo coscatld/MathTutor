@@ -38,6 +38,8 @@ const required = [
   'en/docs/index.html',
   'zh/docs/user/introduction/index.html',
   'en/docs/user/introduction/index.html',
+  'zh/docs/user/knowledge-exploration/index.html',
+  'en/docs/user/knowledge-exploration/index.html',
   'zh/docs/developer/architecture/index.html',
   'en/docs/developer/architecture/index.html',
   'sitemap.xml',

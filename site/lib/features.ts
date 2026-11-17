@@ -12,6 +12,25 @@ export type Feature = {
 
 export const features: Feature[] = [
   {
+    id: 'knowledge-exploration',
+    status: 'experimental',
+    icon: 'search',
+    zh: {
+      name: '知识探索 · 源码预览',
+      problem: '读到不同解释后，需要看清来源和适用条件，再判断自己理解了什么。',
+      how: '用自己的知乎凭据搜索，保留带作者与原始链接的检索片段。可选 AI 选择已登记片段和阅读重点，应用提供固定阅读与比较问题。',
+      visible: '保存问题、目标与思考记录；16 道中英文固定理解检查题在覆盖范围内提供反馈，学习建议最多三步。入口为 /math-tutor/explore，已发布安装包尚不包含。',
+      limits: '只使用有长度限制的搜索摘要；引文绑定不证明语义支持或数学真值。阅读和一次答对都不等于掌握，也不代表真实教学成效。',
+    },
+    en: {
+      name: 'Knowledge exploration · Source preview',
+      problem: 'Different explanations need attributable sources and explicit conditions before you can judge your own understanding.',
+      how: 'Search with your Zhihu credential and keep attributed excerpts with original links. Optional AI selects registered spans and a reading focus; the app supplies fixed reading and comparison questions.',
+      visible: 'Save questions, goals, and reflections. Sixteen bilingual fixed checks give feedback within their scope, followed by up to three next steps. Open /math-tutor/explore from source; published installers do not yet include it.',
+      limits: 'Search excerpts are bounded, not full text. Quotation integrity does not establish semantic support or mathematical truth. Reading and one correct answer do not establish mastery or learning impact.',
+    },
+  },
+  {
     id: 'math-verification',
     status: 'implemented',
     icon: 'shield',
@@ -135,14 +154,14 @@ export const features: Feature[] = [
       name: '本地优先桌面应用',
       problem: '浏览器演示无法长期保存密钥、资料和学习记录。',
       how: 'Electron 启动本机 Python 服务、Verifier Worker 与前端。API Key 进系统钥匙串/凭据管理器。可选 SQLCipher 整库加密。',
-      visible: 'Windows x64 EXE 与 macOS arm64 DMG（0.7.1）。安装包内置 Python/Node，不必另装开发环境。',
+      visible: 'Windows x64 EXE 与 macOS arm64 DMG。安装包内置 Python/Node，不必另装开发环境。',
       limits: '安装包未使用发行证书签名；Mac 未公证。Linux 没有经过目标机验证的公开发布包。使用云端模型时，题目与上下文会发送给所配置的服务商。',
     },
     en: {
       name: 'Local-first Desktop Application',
       problem: 'A browser demo cannot keep keys, notes, and learning history for the long run.',
       how: 'Electron launches a local Python service, verifier worker, and UI. API keys go to the OS credential store. SQLCipher whole-database encryption is optional.',
-      visible: 'Windows x64 EXE and macOS arm64 DMG (0.7.1). Installers bundle Python/Node, so users do not install a toolchain.',
+      visible: 'Windows x64 EXE and macOS arm64 DMG. Installers bundle Python/Node, so users do not install a toolchain.',
       limits: 'Installers are not release-certificate signed; macOS is not notarized. Linux has no target-machine-verified public package. Cloud models receive the problem and context you send them.',
     },
   },

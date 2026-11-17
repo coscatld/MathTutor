@@ -16,6 +16,8 @@ import { useSearchParams } from 'next/navigation'
 import AppearancePicker from '@/components/common/AppearancePicker'
 import LanguagePicker from '@/components/common/LanguagePicker'
 import ModelSettingsPanel, { type ModelSettingsPanelProps } from './ModelSettingsPanel'
+import ZhihuConnection from '../../exploration/ZhihuConnection'
+import { requestTutorNavigation } from '../../lib/navigation-guard'
 export { SettingsForm } from './SettingsForm'
 export type { FormMessage, SettingsFormData, SettingsFormHandlers } from './SettingsForm'
 export { ModelTestCard } from './ModelTestCard'
@@ -23,6 +25,7 @@ export { ModelTestCard } from './ModelTestCard'
 const SETTINGS_SECTIONS = [
   'general',
   'model',
+  'sources',
   'tutor',
   'stage',
   'data',
@@ -46,6 +49,7 @@ export default function SettingsPanel(props: ModelSettingsPanelProps) {
   const sections = [
     ['general', '通用'],
     ['model', '模型与 API'],
+    ['sources', '知识来源'],
     ['tutor', 'Tutor'],
     ['stage', '学段'],
     ['data', '数据与隐私'],
@@ -70,9 +74,9 @@ export default function SettingsPanel(props: ModelSettingsPanelProps) {
               key={id}
               type="button"
               aria-current={section === id ? 'page' : undefined}
-              onClick={() => setSection(id)}
+              onClick={() => { if (section !== 'sources' || id === 'sources' || requestTutorNavigation()) setSection(id) }}
               className={productClass(
-                `w-full rounded-lg px-3 py-2 text-left text-sm ${section === id ? 'bg-[var(--primary-soft)] font-semibold text-[var(--primary-text)]' : 'text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'}`
+                `w-full rounded-lg px-3 py-2 text-left text-sm ${id === 'sources' ? 'min-h-11' : ''} ${section === id ? 'bg-[var(--primary-soft)] font-semibold text-[var(--primary-text)]' : 'text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'}`
               )}
             >
               {t(label)}
@@ -102,6 +106,7 @@ export default function SettingsPanel(props: ModelSettingsPanelProps) {
           <div hidden={section !== 'model'}>
             <ModelSettingsPanel {...props} />
           </div>
+          {section === 'sources' ? <ZhihuConnection /> : null}
           {section === 'tutor' ? (
             <div className="space-y-8">
               <TutorPersonalityPanel />

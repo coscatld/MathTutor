@@ -29,8 +29,13 @@ export const roadmap: {
   },
   {
     status: 'completed',
-    zh: 'Windows x64 与 macOS arm64 0.7.1 安装包及跨平台源码 CI。',
-    en: 'Windows x64 and macOS arm64 0.7.1 installers, plus cross-platform source CI.',
+    zh: 'Windows x64 与 macOS arm64 安装包及跨平台源码 CI。',
+    en: 'Windows x64 and macOS arm64 installers, plus cross-platform source CI.',
+  },
+  {
+    status: 'in-progress',
+    zh: '知识探索源码预览：知乎来源片段、待核对的解释对照、思考记录与有限范围的理解检查；尚未进入桌面安装包。',
+    en: 'Knowledge exploration source preview: attributed Zhihu excerpts, unverified comparisons, reflections, and bounded understanding checks. Not yet in desktop installers.',
   },
   {
     status: 'in-progress',
@@ -64,8 +69,8 @@ export const roadmap: {
   },
   {
     status: 'planned',
-    zh: '国际化界面与文档社区建设（本站点是其中一步）。',
-    en: 'Product UI internationalization and community docs (this site is one step).',
+    zh: '扩充已有中英文界面与文档，并建设更多语言的社区贡献流程。',
+    en: 'Expand the existing Chinese and English UI and docs, with community contributions for additional languages.',
   },
 ];
 

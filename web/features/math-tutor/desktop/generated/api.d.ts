@@ -355,6 +355,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/math-tutor/desktop/exploration/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Configuration */
+        get: operations["configuration_api_v2_math_tutor_desktop_exploration_configuration_get"];
+        /** Configure */
+        put: operations["configure_api_v2_math_tutor_desktop_exploration_configuration_put"];
+        post?: never;
+        /** Disconnect */
+        delete: operations["disconnect_api_v2_math_tutor_desktop_exploration_configuration_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/exploration/inquiries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inquiries */
+        get: operations["inquiries_api_v2_math_tutor_desktop_exploration_inquiries_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_api_v2_math_tutor_desktop_exploration_inquiries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read */
+        get: operations["read_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete */
+        delete: operations["delete_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Explanation */
+        post: operations["explanation_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__explanation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/organize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Organize */
+        post: operations["organize_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__organize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/reflection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reflection */
+        put: operations["reflection_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__reflection_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Respond */
+        post: operations["respond_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__response_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/math-tutor/desktop/initial-assessment": {
         parameters: {
             query?: never;
@@ -1413,6 +1536,37 @@ export interface components {
             status: "ok" | "degraded" | "blocked";
         };
         BootstrapStepStatus: "ok" | "degraded" | "blocked";
+        /** CheckChoice */
+        CheckChoice: {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+        };
+        /** CheckPrompt */
+        CheckPrompt: {
+            /** Check Id */
+            check_id: string;
+            /**
+             * Choices
+             * @default []
+             */
+            choices?: components["schemas"]["CheckChoice"][];
+            /** Concept Id */
+            concept_id: string;
+            /** Prompt */
+            prompt: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "boundary" | "transfer";
+            /**
+             * Response Type
+             * @enum {string}
+             */
+            response_type: "choice" | "number";
+        };
         CheckValue: "ok" | "degraded" | "error";
         /** ConfigOperation */
         ConfigOperation: {
@@ -1741,12 +1895,120 @@ export interface components {
             /** Enabled */
             enabled: boolean;
         };
+        /** EvidenceCard */
+        EvidenceCard: {
+            /** Author */
+            author: string | null;
+            /** Context */
+            context: string;
+            /**
+             * Mathematical Status
+             * @default not_evaluated
+             * @constant
+             */
+            mathematical_status?: "not_evaluated";
+            /** Original Url */
+            original_url: string;
+            /** Quote */
+            quote: string;
+            /**
+             * Quote Integrity
+             * @default exact_snapshot_text
+             * @constant
+             */
+            quote_integrity?: "exact_snapshot_text";
+            /** Reading Question */
+            reading_question?: string | null;
+            /**
+             * Semantic Support
+             * @default not_evaluated
+             * @constant
+             */
+            semantic_support?: "not_evaluated";
+            /** Source Id */
+            source_id: string;
+            /**
+             * Source Scope
+             * @default search_excerpt
+             * @constant
+             */
+            source_scope?: "search_excerpt";
+            /** Span Id */
+            span_id: string;
+            /** Title */
+            title: string;
+        };
+        /** EvidenceGap */
+        EvidenceGap: {
+            /** Code */
+            code: string;
+            /**
+             * Source Ids
+             * @default []
+             */
+            source_ids?: string[];
+        };
         /** EvidencePage */
         EvidencePage: {
             /** Items */
             items: components["schemas"]["LearningEvidence"][];
             /** Next Cursor */
             next_cursor: number | null;
+        };
+        /** EvidencePlan */
+        EvidencePlan: {
+            /** Cards */
+            cards: components["schemas"]["EvidenceCard"][];
+            /** Comparisons */
+            comparisons: components["schemas"]["UnverifiedComparison"][];
+            /** Distinct Excerpt Count */
+            distinct_excerpt_count: number;
+            /** Gaps */
+            gaps: components["schemas"]["EvidenceGap"][];
+            /** Interpretations */
+            interpretations: components["schemas"]["UnverifiedInterpretation"][];
+            /** Question */
+            question: string;
+            /** Rejected Candidate Items */
+            rejected_candidate_items: string[];
+            /** Source Rejections */
+            source_rejections: components["schemas"]["SourceRejection"][];
+            /** Sources */
+            sources: components["schemas"]["SourceSnapshot"][];
+            /** Spans */
+            spans: components["schemas"]["EvidenceSpan"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "evidence_available" | "no_evidence";
+            /** Unselected Source Ids */
+            unselected_source_ids: string[];
+        };
+        /** EvidenceSpan */
+        EvidenceSpan: {
+            /** Context */
+            context: string;
+            /** Context End */
+            context_end: number;
+            /** Context Start */
+            context_start: number;
+            /** End */
+            end: number;
+            /**
+             * Offset Unit
+             * @default unicode_codepoint
+             * @constant
+             */
+            offset_unit?: "unicode_codepoint";
+            /** Source Id */
+            source_id: string;
+            /** Span Id */
+            span_id: string;
+            /** Start */
+            start: number;
+            /** Text */
+            text: string;
         };
         /** EvidenceSummary */
         EvidenceSummary: {
@@ -1762,6 +2024,59 @@ export interface components {
             status?: string;
             /** Ungradable */
             ungradable: number;
+        };
+        /** ExplorationConfiguration */
+        ExplorationConfiguration: {
+            /** Configured */
+            configured: boolean;
+            /** Environment Managed */
+            environment_managed: boolean;
+            /** Has Saved Secret */
+            has_saved_secret: boolean;
+            /** Persistent */
+            persistent: boolean;
+        };
+        /** ExplorationCredential */
+        ExplorationCredential: {
+            /**
+             * Api Key
+             * Format: password
+             */
+            api_key: string;
+        };
+        /** ExplorationView */
+        ExplorationView: {
+            /**
+             * Ai Status
+             * @enum {string}
+             */
+            ai_status: "not_requested" | "ready" | "unavailable";
+            evidence: components["schemas"]["EvidencePlan"];
+            /**
+             * Goal
+             * @enum {string}
+             */
+            goal: "understand" | "apply" | "compare";
+            /** Inquiry Id */
+            inquiry_id: string;
+            last_check: components["schemas"]["CheckPrompt"] | null;
+            /** Last Correctness */
+            last_correctness: ("correct" | "incorrect" | "unknown" | "explanation") | null;
+            /** Last Feedback */
+            last_feedback: string;
+            learning: components["schemas"]["LearningPlan"];
+            /** Observation Count */
+            observation_count: number;
+            /** Organization Attempts */
+            organization_attempts: number;
+            /** Question */
+            question: string;
+            /** Reflection */
+            reflection: string;
+            /** Revision */
+            revision: number;
+            /** Updated At */
+            updated_at: string;
         };
         /** ExportEvidenceCounts */
         ExportEvidenceCounts: {
@@ -1850,6 +2165,105 @@ export interface components {
         InitialRun: {
             /** Run Id */
             run_id: string;
+        };
+        /** InquiryCreate */
+        InquiryCreate: {
+            /** Generation */
+            generation: number;
+            /**
+             * Goal
+             * @default understand
+             * @enum {string}
+             */
+            goal?: "understand" | "apply" | "compare";
+            /**
+             * Inquiry Id
+             * Format: uuid
+             */
+            inquiry_id: string;
+            /**
+             * Language
+             * @default zh
+             * @enum {string}
+             */
+            language?: "zh" | "en";
+            /** Question */
+            question: string;
+        };
+        /** InquiryExplanation */
+        InquiryExplanation: {
+            /** Check Id */
+            check_id: string;
+            /**
+             * Language
+             * @default zh
+             * @enum {string}
+             */
+            language?: "zh" | "en";
+            /** Revision */
+            revision: number;
+        };
+        /** InquiryList */
+        InquiryList: {
+            /** Generation */
+            generation: number;
+            /** Items */
+            items: components["schemas"]["InquirySummary"][];
+        };
+        /** InquiryOperation */
+        InquiryOperation: {
+            /**
+             * Language
+             * @default zh
+             * @enum {string}
+             */
+            language?: "zh" | "en";
+            /** Revision */
+            revision: number;
+        };
+        /** InquiryReflection */
+        InquiryReflection: {
+            /**
+             * Language
+             * @default zh
+             * @enum {string}
+             */
+            language?: "zh" | "en";
+            /** Reflection */
+            reflection: string;
+            /** Revision */
+            revision: number;
+        };
+        /** InquiryResponse */
+        InquiryResponse: {
+            /** Answer */
+            answer: string;
+            /** Check Id */
+            check_id: string;
+            /**
+             * Language
+             * @default zh
+             * @enum {string}
+             */
+            language?: "zh" | "en";
+            /** Revision */
+            revision: number;
+        };
+        /** InquirySummary */
+        InquirySummary: {
+            /**
+             * Goal
+             * @enum {string}
+             */
+            goal: "understand" | "apply" | "compare";
+            /** Inquiry Id */
+            inquiry_id: string;
+            /** Question */
+            question: string;
+            /** Revision */
+            revision: number;
+            /** Updated At */
+            updated_at: string;
         };
         /** ItemErrorObservation */
         ItemErrorObservation: {
@@ -1945,6 +2359,63 @@ export interface components {
              * @enum {string}
              */
             domain: "fraction_addition" | "signed_subtraction";
+        };
+        /** LearningPlan */
+        LearningPlan: {
+            /** Basis Observation Ids */
+            basis_observation_ids: string[];
+            check: components["schemas"]["CheckPrompt"] | null;
+            /** Concept Title */
+            concept_title: string;
+            /**
+             * Evidence State
+             * @enum {string}
+             */
+            evidence_state: "unknown" | "assisted_only" | "needs_check" | "mixed_observations" | "independent_observed";
+            /**
+             * Goal
+             * @enum {string}
+             */
+            goal: "understand" | "apply" | "compare";
+            /** Independent Successes */
+            independent_successes: number;
+            /** Original Question */
+            original_question: string;
+            /**
+             * Policy
+             * @default exploration_learning_v1
+             */
+            policy?: string;
+            /**
+             * Prerequisite Basis
+             * @enum {string}
+             */
+            prerequisite_basis: "authored_curriculum" | "provided_curriculum" | "none";
+            /** Steps */
+            steps: components["schemas"]["LearningStep"][];
+            /** Target Concept */
+            target_concept: string;
+        };
+        /** LearningStep */
+        LearningStep: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "read" | "worked_example" | "compare_methods" | "independent_check" | "clarify_conflict" | "transfer_check" | "review_prerequisite" | "choose_goal";
+            /**
+             * Basis Observation Ids
+             * @default []
+             */
+            basis_observation_ids?: string[];
+            /** Concept Id */
+            concept_id: string;
+            /** Reason */
+            reason: string;
+            /** Step Id */
+            step_id: string;
+            /** Title */
+            title: string;
         };
         /** LocalEmbeddingDownloadRequest */
         LocalEmbeddingDownloadRequest: {
@@ -2282,6 +2753,75 @@ export interface components {
             /** Incorrect */
             incorrect: number;
         };
+        /** SourceRejection */
+        SourceRejection: {
+            /** Item Index */
+            item_index: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "invalid_item" | "invalid_url" | "missing_identity" | "empty_excerpt" | "duplicate_item";
+        };
+        /** SourceSnapshot */
+        SourceSnapshot: {
+            /** Author */
+            author: string | null;
+            /** Content Id */
+            content_id: string;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Content Warnings
+             * @default []
+             */
+            content_warnings?: string[];
+            /** Duplicate Of */
+            duplicate_of?: string | null;
+            /**
+             * Normalization
+             * @default zhihu-highlight-v1
+             * @constant
+             */
+            normalization?: "zhihu-highlight-v1";
+            /** Original Url */
+            original_url: string;
+            /**
+             * Provider
+             * @default zhihu
+             * @constant
+             */
+            provider?: "zhihu";
+            /** Raw Excerpt */
+            raw_excerpt: string;
+            /** Raw Excerpt Sha256 */
+            raw_excerpt_sha256: string;
+            /** Received Text Sha256 */
+            received_text_sha256: string;
+            /** Request Id */
+            request_id: string;
+            /** Retrieved At */
+            retrieved_at: string;
+            /**
+             * Scope
+             * @default search_excerpt
+             * @constant
+             */
+            scope?: "search_excerpt";
+            /** Source Id */
+            source_id: string;
+            /** Text */
+            text: string;
+            /** Text Sha256 */
+            text_sha256: string;
+            /** Title */
+            title: string;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated?: boolean;
+        };
         /** StudentExport */
         StudentExport: {
             /** Documents */
@@ -2415,6 +2955,51 @@ export interface components {
              * @default patient
              */
             personality?: string;
+        };
+        /** UnverifiedComparison */
+        UnverifiedComparison: {
+            /** Proposed Relation */
+            proposed_relation: string;
+            /** Reading Question */
+            reading_question: string;
+            /** Span Ids */
+            span_ids: [
+                string,
+                string
+            ];
+            /**
+             * Status
+             * @default unverified
+             * @constant
+             */
+            status?: "unverified";
+        };
+        /** UnverifiedInterpretation */
+        UnverifiedInterpretation: {
+            /** Claim Id */
+            claim_id: string;
+            /**
+             * Kind
+             * @default model_interpretation
+             * @constant
+             */
+            kind?: "model_interpretation";
+            /**
+             * Mathematical Status
+             * @default not_evaluated
+             * @constant
+             */
+            mathematical_status?: "not_evaluated";
+            /**
+             * Semantic Support
+             * @default unknown
+             * @constant
+             */
+            semantic_support?: "unknown";
+            /** Span Ids */
+            span_ids: string[];
+            /** Text */
+            text: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -3228,6 +3813,407 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    configuration_api_v2_math_tutor_desktop_exploration_configuration_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationConfiguration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    configure_api_v2_math_tutor_desktop_exploration_configuration_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExplorationCredential"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationConfiguration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disconnect_api_v2_math_tutor_desktop_exploration_configuration_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationConfiguration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inquiries_api_v2_math_tutor_desktop_exploration_inquiries_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquiryList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_v2_math_tutor_desktop_exploration_inquiries_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InquiryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__get: {
+        parameters: {
+            query?: {
+                language?: "zh" | "en";
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                inquiry_id: string;
+            };
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                inquiry_id: string;
+            };
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquiryList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    explanation_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__explanation_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                inquiry_id: string;
+            };
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InquiryExplanation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    organize_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__organize_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                inquiry_id: string;
+            };
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InquiryOperation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reflection_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__reflection_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                inquiry_id: string;
+            };
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InquiryReflection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    respond_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__response_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                inquiry_id: string;
+            };
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InquiryResponse"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationView"];
                 };
             };
             /** @description Validation Error */

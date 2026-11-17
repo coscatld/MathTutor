@@ -20,10 +20,10 @@ export const messages = {
     langSwitch: '切换语言',
     search: '搜索文档',
     hero: {
-      eyebrow: '开源数学智能辅导系统 · 0.7.1',
+      eyebrow: '开源数学学习工作台',
       title: '让每一步推理，都有迹可循。',
       subtitle:
-        '从自己尝试一道题开始，在需要时获得提示，再用一道新题检验理解。MathTutor 把数学辅导、参考资料和作答证据放进同一个本地学习工作台。',
+        '从自己尝试一道题开始，在需要时获得提示，再用一道新题检验理解。也可以带着疑问探索不同解释，把资料来源、自己的思考和下一步练习连起来。',
       getStarted: '开始使用',
       documentation: '阅读文档',
       download: '下载安装包',
@@ -44,9 +44,9 @@ export const messages = {
       { title: '独立迁移验证', body: '练习发布走同一验证门；LLM 不参与核验权威。' },
       { title: '开源与本地优先', body: '数据在本机 SQLite 与系统凭据库中。未配置云端模型时，本地求解、验证与模板教学仍可用。' },
     ],
-    screenshotCaption: '真实 0.7.x 产品界面截图，不是示意稿。',
+    screenshotCaption: '图中为已有教学与资料工作台的实际界面。知识探索的使用方式见源码预览指南。',
     ctaTitle: '从安装包或源码开始',
-    ctaBody: 'Windows x64 与 macOS Apple Silicon 提供 0.7.1 安装包。开发者可按文档在本地运行 Python 服务与 Next.js 工作台。',
+    ctaBody: 'Windows x64 与 macOS Apple Silicon 提供桌面安装包。知识探索目前通过源码体验，按文档在本地运行 Python 服务与 Next.js 工作台。',
     footer: {
       license: 'Apache-2.0',
       deeptutor: '在 DeepTutor 基础上二次开发，保留上游 Apache-2.0 与 HKU Data Intelligence Lab 版权声明。',
@@ -58,7 +58,7 @@ export const messages = {
     },
     downloadPage: {
       title: '下载 MathTutor',
-      intro: '当前正式版本 0.7.1，汇总图形交互、草稿保护、学习证据、资料检索与本地服务的近期修复。',
+      intro: '桌面安装包包含数学辅导、概念复查、学习记录和资料检索，并内置所需的 Python 与 Node 运行时。',
       notes: '安装说明',
       releases: 'GitHub Releases',
       macGuide: 'macOS 安装说明',
@@ -73,7 +73,7 @@ export const messages = {
     },
     roadmapPage: {
       title: '路线图',
-      intro: '状态与仓库当前研发一致。完成项覆盖 0.7.1；进行中与规划来自社区路线图与学生模型文档。',
+      intro: '区分现有能力、源码预览和后续计划。安装包包含的内容以发布页为准；学习效果需要独立验证。',
       completed: '已完成',
       inProgress: '进行中',
       planned: '规划中',
@@ -105,10 +105,10 @@ export const messages = {
     langSwitch: 'Switch language',
     search: 'Search docs',
     hero: {
-      eyebrow: 'Open-source math tutoring · 0.7.1',
-      title: 'MathTutor — Beyond Answers, Toward Real Understanding.',
+      eyebrow: 'An open-source math learning workbench',
+      title: 'A clear path through every step of your reasoning.',
       subtitle:
-        'Verifiable math reasoning, graded Socratic guidance, learning-process evidence, independent transfer practice, and a local-first open-source desktop app. The model writes; the product owns permissions, evidence, answer disclosure, and data boundaries.',
+        'Try a problem, ask for a hint, and check your understanding on a new one. Or follow a question into different explanations, connecting their sources with your own reflection and next practice.',
       getStarted: 'Get Started',
       documentation: 'Documentation',
       download: 'Download',
@@ -129,9 +129,9 @@ export const messages = {
       { title: 'Independent transfer', body: 'Released exercises share one verification gate. The LLM is not the verifier of record.' },
       { title: 'Open source, local-first', body: 'Data stays in local SQLite and the OS credential store. Local solve, verify, and template tutoring work without a cloud model.' },
     ],
-    screenshotCaption: 'Screenshots from the real 0.7.x app, not mockups.',
+    screenshotCaption: 'Actual screens from the existing tutoring and document workbench. See the source-preview guide for knowledge exploration.',
     ctaTitle: 'Start from an installer or from source',
-    ctaBody: '0.7.1 installers are available for Windows x64 and macOS Apple Silicon. Developers can run the Python service and Next.js workbench locally.',
+    ctaBody: 'Desktop installers are available for Windows x64 and macOS Apple Silicon. Knowledge exploration is a source preview: run the Python service and Next.js workbench locally using the guide.',
     footer: {
       license: 'Apache-2.0',
       deeptutor: 'Derived from DeepTutor. Upstream Apache-2.0 and the HKU Data Intelligence Lab copyright notice are preserved.',
@@ -143,7 +143,7 @@ export const messages = {
     },
     downloadPage: {
       title: 'Download MathTutor',
-      intro: 'Current release: 0.7.1, with recent fixes for graph interaction, draft protection, learning evidence, retrieval, and local services.',
+      intro: 'Desktop installers include math tutoring, concept review, learning records, and document retrieval, with Python and Node runtimes bundled.',
       notes: 'Install notes',
       releases: 'GitHub Releases',
       macGuide: 'macOS install guide',
@@ -158,7 +158,7 @@ export const messages = {
     },
     roadmapPage: {
       title: 'Roadmap',
-      intro: 'Aligned with the current repository. Completed items cover 0.7.1. In-progress and planned items come from the community roadmap and student-model docs.',
+      intro: 'Existing capabilities, source previews, and future plans are listed separately. Release pages describe what installers contain; learning outcomes need independent evaluation.',
       completed: 'Completed',
       inProgress: 'In progress',
       planned: 'Planned',

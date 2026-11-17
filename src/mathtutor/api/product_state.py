@@ -301,6 +301,8 @@ class ProductState:
         # ``_relay_wake`` reads the relay lazily — it does not exist yet
         # during the first repository constructions below.
         self.uow = MathTutorUow(engine, on_commit=self._relay_wake)
+        from mathtutor.application.exploration import ExplorationService
+        self.exploration = ExplorationService(engine, self.secret_store)
         self.memory_repository = SQLiteMemoryRepository(engine)
         self.document_repository = SQLiteDocumentRepository(engine)
         self.practice_repository = SQLitePracticeRepository(self.uow)

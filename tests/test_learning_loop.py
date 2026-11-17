@@ -243,7 +243,7 @@ def test_upgrade_real_024_adds_loop_without_losing_rows_and_is_idempotent(tmp_pa
     upgrade_db(str(path))
     upgrade_db(str(path))
     with closing(sqlite3.connect(path)) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("026",)]
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("027",)]
         assert conn.execute("SELECT value FROM migration_sentinel").fetchall() == [("kept",)]
         assert conn.execute("SELECT count(*) FROM learning_loop_episodes").fetchone()[0] == 0
 

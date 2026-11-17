@@ -1,18 +1,18 @@
 ---
 title: 安装
-description: Windows 与 macOS 0.7.1 安装包、升级与首次打开说明。
+description: Windows 与 macOS 安装包、升级与首次打开说明。
 ---
 
-当前正式版本 **0.7.1**，包含近期图形交互、草稿保护、学习证据、资料检索和本地服务修复。
+已发布安装包包含数学辅导、概念复查、学习记录与资料检索，内置 Python 和 Node 运行时。**知识探索目前为源码预览，尚未包含在这些安装包中**，见[知识探索](./knowledge-exploration.mdx)。
 
 | 系统 | 文件 |
 |---|---|
-| Windows 10/11 x64 | `MathTutor-0.7.1-win-x64.exe` |
-| macOS Apple Silicon | `MathTutor-0.7.1-mac-arm64.dmg` |
+| Windows 10/11 x64 | [MathTutor-windows-x64.exe](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-windows-x64.exe) |
+| macOS Apple Silicon | [MathTutor-mac-arm64.dmg](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-mac-arm64.dmg) |
 
-发布页：[v0.7.1 Releases](https://github.com/coscatld/MathTutor/releases/tag/v0.7.1)。文件摘要和分平台验收记录随发布资产提供。
+发布页：[学习闭环更新与下载记录](https://github.com/coscatld/MathTutor/releases/tag/build-20261111-6f84868)。文件摘要和分平台验收记录随发布资产提供。
 
-升级前创建并验证应用内备份，正常退出旧版，再安装新版。数据库 migration head 保持 **024**，本版未新增结构迁移；社区与插件配置需要单独保存。
+升级前创建并验证应用内备份，正常退出旧版，再安装新版。应用按需迁移本地数据库；社区与插件配置需要单独保存。
 
 ## Windows
 
@@ -22,7 +22,7 @@ description: Windows 与 macOS 0.7.1 安装包、升级与首次打开说明。
 
 ## macOS
 
-0.7.1 使用完整本地 ad-hoc 签名，**没有 Developer ID、未公证**，Gatekeeper 默认拒绝。请先核对文件来源与摘要，再明确允许打开。
+当前安装包使用完整本地 ad-hoc 签名，**没有 Developer ID、未公证**，Gatekeeper 默认拒绝。请先核对文件来源与摘要，再明确允许打开。
 
 步骤见仓库 [docs/MACOS_INSTALLATION.md](https://github.com/coscatld/MathTutor/blob/main/docs/MACOS_INSTALLATION.md)：把应用拖入“应用程序”，必要时在“隐私与安全性”中允许。
 
@@ -32,4 +32,4 @@ description: Windows 与 macOS 0.7.1 安装包、升级与首次打开说明。
 
 ## 从源码运行
 
-见 [快速开始](../quick-start) 与开发者 [开发环境](../../developer/development-setup)。
+见[快速开始](./quick-start.mdx)与[开发环境](../developer/development-setup.mdx)。

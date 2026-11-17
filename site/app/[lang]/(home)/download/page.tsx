@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Apple, Monitor } from 'lucide-react';
-import { CURRENT_ASSETS, CURRENT_VERSION, LINUX_STATUS, RELEASE_TAG, RELEASE_URL } from '@/lib/releases';
+import { CURRENT_ASSETS, LINUX_STATUS, RELEASE_URL } from '@/lib/releases';
 import { t } from '@/lib/messages';
-import { absUrl, isLocale, type Locale } from '@/lib/site';
+import { absUrl, isLocale, localePath, type Locale } from '@/lib/site';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
@@ -22,9 +23,21 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
 
   return (
     <div className="mt-container py-16">
-      <p className="text-sm font-medium text-[var(--mt-blue)]">{CURRENT_VERSION}</p>
+      <p className="text-sm font-medium text-[var(--mt-blue)]">{locale === 'zh' ? '本地学习工作台' : 'Your local learning workbench'}</p>
       <h1 className="mt-2 text-4xl font-semibold tracking-tight">{copy.title}</h1>
       <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--mt-muted)]">{copy.intro}</p>
+
+      <aside className="mt-8 border-l-2 border-[var(--mt-blue)] pl-5">
+        <h2 className="font-semibold">{locale === 'zh' ? '想体验知识探索？' : 'Want to try knowledge exploration?'}</h2>
+        <p className="mt-2 max-w-3xl leading-7 text-[var(--mt-muted)]">
+          {locale === 'zh'
+            ? '知识探索目前通过源码体验。下方已发布的安装包尚不包含这一功能。'
+            : 'Knowledge exploration is currently a source preview. The published installers below do not yet include it.'}
+        </p>
+        <Link href={localePath(locale, '/docs/user/knowledge-exploration')} className="mt-1 inline-flex min-h-11 items-center text-[var(--mt-blue)] hover:underline">
+          {locale === 'zh' ? '查看源码体验与知乎配置 →' : 'See the source preview and Zhihu setup →'}
+        </Link>
+      </aside>
 
       <div className="mt-10 grid gap-5 md:grid-cols-2">
         {CURRENT_ASSETS.map((asset) => {
@@ -77,12 +90,9 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
               </a>
             </li>
             <li>
-              <a
-                href={`https://github.com/coscatld/MathTutor/blob/${RELEASE_TAG}/docs/RELEASE_${CURRENT_VERSION}.md`}
-                className="underline"
-              >
-                {locale === 'zh' ? '更新说明' : 'Release Notes'} {CURRENT_VERSION}
-              </a>
+              <Link href={localePath(locale, '/docs/user/installation')} className="underline">
+                {locale === 'zh' ? '安装与升级指南' : 'Installation and upgrade guide'}
+              </Link>
             </li>
           </ul>
         </article>

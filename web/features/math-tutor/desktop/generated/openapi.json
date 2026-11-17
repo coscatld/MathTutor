@@ -431,6 +431,75 @@
           }
         ]
       },
+      "CheckChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "CheckChoice",
+        "type": "object"
+      },
+      "CheckPrompt": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "choices": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CheckChoice"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "concept_id": {
+            "title": "Concept Id",
+            "type": "string"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "boundary",
+              "transfer"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "response_type": {
+            "enum": [
+              "choice",
+              "number"
+            ],
+            "title": "Response Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check_id",
+          "concept_id",
+          "prompt",
+          "response_type",
+          "purpose"
+        ],
+        "title": "CheckPrompt",
+        "type": "object"
+      },
       "CheckValue": {
         "anyOf": [
           {
@@ -1580,6 +1649,114 @@
         "title": "EncryptionUpdate",
         "type": "object"
       },
+      "EvidenceCard": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "context": {
+            "title": "Context",
+            "type": "string"
+          },
+          "mathematical_status": {
+            "const": "not_evaluated",
+            "default": "not_evaluated",
+            "title": "Mathematical Status",
+            "type": "string"
+          },
+          "original_url": {
+            "title": "Original Url",
+            "type": "string"
+          },
+          "quote": {
+            "title": "Quote",
+            "type": "string"
+          },
+          "quote_integrity": {
+            "const": "exact_snapshot_text",
+            "default": "exact_snapshot_text",
+            "title": "Quote Integrity",
+            "type": "string"
+          },
+          "reading_question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading Question"
+          },
+          "semantic_support": {
+            "const": "not_evaluated",
+            "default": "not_evaluated",
+            "title": "Semantic Support",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_scope": {
+            "const": "search_excerpt",
+            "default": "search_excerpt",
+            "title": "Source Scope",
+            "type": "string"
+          },
+          "span_id": {
+            "title": "Span Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "span_id",
+          "title",
+          "author",
+          "original_url",
+          "quote",
+          "context"
+        ],
+        "title": "EvidenceCard",
+        "type": "object"
+      },
+      "EvidenceGap": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "source_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "EvidenceGap",
+        "type": "object"
+      },
       "EvidencePage": {
         "additionalProperties": false,
         "properties": {
@@ -1607,6 +1784,161 @@
           "next_cursor"
         ],
         "title": "EvidencePage",
+        "type": "object"
+      },
+      "EvidencePlan": {
+        "additionalProperties": false,
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceCard"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "comparisons": {
+            "items": {
+              "$ref": "#/components/schemas/UnverifiedComparison"
+            },
+            "title": "Comparisons",
+            "type": "array"
+          },
+          "distinct_excerpt_count": {
+            "title": "Distinct Excerpt Count",
+            "type": "integer"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceGap"
+            },
+            "title": "Gaps",
+            "type": "array"
+          },
+          "interpretations": {
+            "items": {
+              "$ref": "#/components/schemas/UnverifiedInterpretation"
+            },
+            "title": "Interpretations",
+            "type": "array"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "rejected_candidate_items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rejected Candidate Items",
+            "type": "array"
+          },
+          "source_rejections": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRejection"
+            },
+            "title": "Source Rejections",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSnapshot"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSpan"
+            },
+            "title": "Spans",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "evidence_available",
+              "no_evidence"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "unselected_source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unselected Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "question",
+          "sources",
+          "spans",
+          "cards",
+          "interpretations",
+          "comparisons",
+          "gaps",
+          "rejected_candidate_items",
+          "source_rejections",
+          "unselected_source_ids",
+          "distinct_excerpt_count",
+          "status"
+        ],
+        "title": "EvidencePlan",
+        "type": "object"
+      },
+      "EvidenceSpan": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "title": "Context",
+            "type": "string"
+          },
+          "context_end": {
+            "title": "Context End",
+            "type": "integer"
+          },
+          "context_start": {
+            "title": "Context Start",
+            "type": "integer"
+          },
+          "end": {
+            "title": "End",
+            "type": "integer"
+          },
+          "offset_unit": {
+            "const": "unicode_codepoint",
+            "default": "unicode_codepoint",
+            "title": "Offset Unit",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "span_id": {
+            "title": "Span Id",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "span_id",
+          "source_id",
+          "start",
+          "end",
+          "text",
+          "context_start",
+          "context_end",
+          "context"
+        ],
+        "title": "EvidenceSpan",
         "type": "object"
       },
       "EvidenceSummary": {
@@ -1645,6 +1977,158 @@
           "ungradable"
         ],
         "title": "EvidenceSummary",
+        "type": "object"
+      },
+      "ExplorationConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "environment_managed": {
+            "title": "Environment Managed",
+            "type": "boolean"
+          },
+          "has_saved_secret": {
+            "title": "Has Saved Secret",
+            "type": "boolean"
+          },
+          "persistent": {
+            "title": "Persistent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "environment_managed",
+          "persistent",
+          "has_saved_secret"
+        ],
+        "title": "ExplorationConfiguration",
+        "type": "object"
+      },
+      "ExplorationCredential": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "format": "password",
+            "maxLength": 4096,
+            "title": "Api Key",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "api_key"
+        ],
+        "title": "ExplorationCredential",
+        "type": "object"
+      },
+      "ExplorationView": {
+        "additionalProperties": false,
+        "properties": {
+          "ai_status": {
+            "enum": [
+              "not_requested",
+              "ready",
+              "unavailable"
+            ],
+            "title": "Ai Status",
+            "type": "string"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidencePlan"
+          },
+          "goal": {
+            "enum": [
+              "understand",
+              "apply",
+              "compare"
+            ],
+            "title": "Goal",
+            "type": "string"
+          },
+          "inquiry_id": {
+            "title": "Inquiry Id",
+            "type": "string"
+          },
+          "last_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckPrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_correctness": {
+            "anyOf": [
+              {
+                "enum": [
+                  "correct",
+                  "incorrect",
+                  "unknown",
+                  "explanation"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Correctness"
+          },
+          "last_feedback": {
+            "title": "Last Feedback",
+            "type": "string"
+          },
+          "learning": {
+            "$ref": "#/components/schemas/LearningPlan"
+          },
+          "observation_count": {
+            "title": "Observation Count",
+            "type": "integer"
+          },
+          "organization_attempts": {
+            "title": "Organization Attempts",
+            "type": "integer"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "reflection": {
+            "title": "Reflection",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inquiry_id",
+          "question",
+          "goal",
+          "revision",
+          "updated_at",
+          "reflection",
+          "evidence",
+          "learning",
+          "ai_status",
+          "organization_attempts",
+          "last_feedback",
+          "last_check",
+          "last_correctness",
+          "observation_count"
+        ],
+        "title": "ExplorationView",
         "type": "object"
       },
       "ExportEvidenceCounts": {
@@ -1913,6 +2397,237 @@
           "run_id"
         ],
         "title": "InitialRun",
+        "type": "object"
+      },
+      "InquiryCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "generation": {
+            "minimum": 0.0,
+            "title": "Generation",
+            "type": "integer"
+          },
+          "goal": {
+            "default": "understand",
+            "enum": [
+              "understand",
+              "apply",
+              "compare"
+            ],
+            "title": "Goal",
+            "type": "string"
+          },
+          "inquiry_id": {
+            "format": "uuid",
+            "title": "Inquiry Id",
+            "type": "string"
+          },
+          "language": {
+            "default": "zh",
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inquiry_id",
+          "generation",
+          "question"
+        ],
+        "title": "InquiryCreate",
+        "type": "object"
+      },
+      "InquiryExplanation": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Check Id",
+            "type": "string"
+          },
+          "language": {
+            "default": "zh",
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "check_id"
+        ],
+        "title": "InquiryExplanation",
+        "type": "object"
+      },
+      "InquiryList": {
+        "additionalProperties": false,
+        "properties": {
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InquirySummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generation",
+          "items"
+        ],
+        "title": "InquiryList",
+        "type": "object"
+      },
+      "InquiryOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "default": "zh",
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "InquiryOperation",
+        "type": "object"
+      },
+      "InquiryReflection": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "default": "zh",
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "reflection": {
+            "maxLength": 3000,
+            "title": "Reflection",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "reflection"
+        ],
+        "title": "InquiryReflection",
+        "type": "object"
+      },
+      "InquiryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Answer",
+            "type": "string"
+          },
+          "check_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Check Id",
+            "type": "string"
+          },
+          "language": {
+            "default": "zh",
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "check_id",
+          "answer"
+        ],
+        "title": "InquiryResponse",
+        "type": "object"
+      },
+      "InquirySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "goal": {
+            "enum": [
+              "understand",
+              "apply",
+              "compare"
+            ],
+            "title": "Goal",
+            "type": "string"
+          },
+          "inquiry_id": {
+            "title": "Inquiry Id",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inquiry_id",
+          "question",
+          "goal",
+          "revision",
+          "updated_at"
+        ],
+        "title": "InquirySummary",
         "type": "object"
       },
       "ItemErrorObservation": {
@@ -2215,6 +2930,152 @@
           "domain"
         ],
         "title": "LearningLoopStart",
+        "type": "object"
+      },
+      "LearningPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "basis_observation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Basis Observation Ids",
+            "type": "array"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckPrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concept_title": {
+            "title": "Concept Title",
+            "type": "string"
+          },
+          "evidence_state": {
+            "enum": [
+              "unknown",
+              "assisted_only",
+              "needs_check",
+              "mixed_observations",
+              "independent_observed"
+            ],
+            "title": "Evidence State",
+            "type": "string"
+          },
+          "goal": {
+            "enum": [
+              "understand",
+              "apply",
+              "compare"
+            ],
+            "title": "Goal",
+            "type": "string"
+          },
+          "independent_successes": {
+            "title": "Independent Successes",
+            "type": "integer"
+          },
+          "original_question": {
+            "title": "Original Question",
+            "type": "string"
+          },
+          "policy": {
+            "default": "exploration_learning_v1",
+            "title": "Policy",
+            "type": "string"
+          },
+          "prerequisite_basis": {
+            "enum": [
+              "authored_curriculum",
+              "provided_curriculum",
+              "none"
+            ],
+            "title": "Prerequisite Basis",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/LearningStep"
+            },
+            "maxItems": 3,
+            "title": "Steps",
+            "type": "array"
+          },
+          "target_concept": {
+            "title": "Target Concept",
+            "type": "string"
+          }
+        },
+        "required": [
+          "original_question",
+          "goal",
+          "target_concept",
+          "concept_title",
+          "evidence_state",
+          "independent_successes",
+          "basis_observation_ids",
+          "steps",
+          "check",
+          "prerequisite_basis"
+        ],
+        "title": "LearningPlan",
+        "type": "object"
+      },
+      "LearningStep": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "read",
+              "worked_example",
+              "compare_methods",
+              "independent_check",
+              "clarify_conflict",
+              "transfer_check",
+              "review_prerequisite",
+              "choose_goal"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "basis_observation_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Basis Observation Ids",
+            "type": "array"
+          },
+          "concept_id": {
+            "title": "Concept Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step_id",
+          "concept_id",
+          "action",
+          "title",
+          "reason"
+        ],
+        "title": "LearningStep",
         "type": "object"
       },
       "LocalEmbeddingDownloadRequest": {
@@ -3483,6 +4344,157 @@
         "title": "SkillSummaryCountsValue",
         "type": "object"
       },
+      "SourceRejection": {
+        "additionalProperties": false,
+        "properties": {
+          "item_index": {
+            "title": "Item Index",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "invalid_item",
+              "invalid_url",
+              "missing_identity",
+              "empty_excerpt",
+              "duplicate_item"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_index",
+          "reason"
+        ],
+        "title": "SourceRejection",
+        "type": "object"
+      },
+      "SourceSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "content_id": {
+            "title": "Content Id",
+            "type": "string"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "content_warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Content Warnings",
+            "type": "array"
+          },
+          "duplicate_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Of"
+          },
+          "normalization": {
+            "const": "zhihu-highlight-v1",
+            "default": "zhihu-highlight-v1",
+            "title": "Normalization",
+            "type": "string"
+          },
+          "original_url": {
+            "title": "Original Url",
+            "type": "string"
+          },
+          "provider": {
+            "const": "zhihu",
+            "default": "zhihu",
+            "title": "Provider",
+            "type": "string"
+          },
+          "raw_excerpt": {
+            "maxLength": 16000,
+            "title": "Raw Excerpt",
+            "type": "string"
+          },
+          "raw_excerpt_sha256": {
+            "title": "Raw Excerpt Sha256",
+            "type": "string"
+          },
+          "received_text_sha256": {
+            "title": "Received Text Sha256",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "scope": {
+            "const": "search_excerpt",
+            "default": "search_excerpt",
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 16000,
+            "title": "Text",
+            "type": "string"
+          },
+          "text_sha256": {
+            "title": "Text Sha256",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source_id",
+          "content_id",
+          "content_type",
+          "title",
+          "author",
+          "original_url",
+          "request_id",
+          "retrieved_at",
+          "raw_excerpt",
+          "raw_excerpt_sha256",
+          "received_text_sha256",
+          "text",
+          "text_sha256"
+        ],
+        "title": "SourceSnapshot",
+        "type": "object"
+      },
       "StudentExport": {
         "additionalProperties": false,
         "properties": {
@@ -3867,6 +4879,91 @@
           }
         },
         "title": "TutorSettingsUpdate",
+        "type": "object"
+      },
+      "UnverifiedComparison": {
+        "additionalProperties": false,
+        "properties": {
+          "proposed_relation": {
+            "title": "Proposed Relation",
+            "type": "string"
+          },
+          "reading_question": {
+            "title": "Reading Question",
+            "type": "string"
+          },
+          "span_ids": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Span Ids",
+            "type": "array"
+          },
+          "status": {
+            "const": "unverified",
+            "default": "unverified",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "span_ids",
+          "proposed_relation",
+          "reading_question"
+        ],
+        "title": "UnverifiedComparison",
+        "type": "object"
+      },
+      "UnverifiedInterpretation": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "model_interpretation",
+            "default": "model_interpretation",
+            "title": "Kind",
+            "type": "string"
+          },
+          "mathematical_status": {
+            "const": "not_evaluated",
+            "default": "not_evaluated",
+            "title": "Mathematical Status",
+            "type": "string"
+          },
+          "semantic_support": {
+            "const": "unknown",
+            "default": "unknown",
+            "title": "Semantic Support",
+            "type": "string"
+          },
+          "span_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Span Ids",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_id",
+          "text",
+          "span_ids"
+        ],
+        "title": "UnverifiedInterpretation",
         "type": "object"
       },
       "ValidationError": {
@@ -5581,6 +6678,814 @@
           }
         },
         "summary": "Get Question Bank Point"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/configuration": {
+      "delete": {
+        "operationId": "disconnect_api_v2_math_tutor_desktop_exploration_configuration_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationConfiguration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Disconnect"
+      },
+      "get": {
+        "operationId": "configuration_api_v2_math_tutor_desktop_exploration_configuration_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationConfiguration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Configuration"
+      },
+      "put": {
+        "operationId": "configure_api_v2_math_tutor_desktop_exploration_configuration_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplorationCredential"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationConfiguration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Configure"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/inquiries": {
+      "get": {
+        "operationId": "inquiries_api_v2_math_tutor_desktop_exploration_inquiries_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inquiries"
+      },
+      "post": {
+        "operationId": "create_api_v2_math_tutor_desktop_exploration_inquiries_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InquiryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}": {
+      "delete": {
+        "operationId": "delete_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inquiry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inquiry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete"
+      },
+      "get": {
+        "operationId": "read_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inquiry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inquiry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "default": "zh",
+              "enum": [
+                "zh",
+                "en"
+              ],
+              "title": "Language",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/explanation": {
+      "post": {
+        "operationId": "explanation_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__explanation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inquiry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inquiry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InquiryExplanation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Explanation"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/organize": {
+      "post": {
+        "operationId": "organize_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__organize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inquiry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inquiry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InquiryOperation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Organize"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/reflection": {
+      "put": {
+        "operationId": "reflection_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__reflection_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inquiry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inquiry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InquiryReflection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reflection"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/response": {
+      "post": {
+        "operationId": "respond_api_v2_math_tutor_desktop_exploration_inquiries__inquiry_id__response_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inquiry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inquiry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InquiryResponse"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Respond"
       }
     },
     "/api/v2/math-tutor/desktop/initial-assessment": {

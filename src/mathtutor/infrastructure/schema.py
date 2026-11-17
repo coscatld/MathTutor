@@ -738,3 +738,9 @@ from mathtutor.infrastructure.knowledge_schema import metadata as _knowledge_met
 for _knowledge_table in _knowledge_metadata.sorted_tables:
     globals()[_knowledge_table.name] = _knowledge_table.to_metadata(metadata)
     __all__.append(_knowledge_table.name)
+
+from mathtutor.infrastructure.exploration_schema import metadata as _exploration_metadata
+
+for _exploration_table in _exploration_metadata.sorted_tables:
+    globals()[_exploration_table.name] = _exploration_table.to_metadata(metadata)
+    __all__.append(_exploration_table.name)

@@ -200,7 +200,7 @@ function auditReleaseLogs(namedOutputs) {
     dmg_artifact: path.relative(desktop, dmg),
     dmg_size_bytes: dmgBytes.length,
     dmg_sha256: dmgSha256,
-    packaged_migration_head: "026",
+    packaged_migration_head: "027",
     packaged_migration_file: migrationRelative.split(path.sep).join("/"),
     runner_isolation: { cwd_outside_checkout: true, inherited_pythonpath: false, inherited_conda_or_virtualenv: false },
     consecutive_runs: consecutiveRunResults.length,
