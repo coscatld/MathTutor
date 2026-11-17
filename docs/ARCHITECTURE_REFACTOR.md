@@ -26,7 +26,7 @@ python desktop/scripts/clean-build-artifacts.py
 python desktop/scripts/clean-build-artifacts.py --apply
 ```
 
-默认只预览。工具按平台、架构和格式保留最新安装包，同时保护 README 下载链接对应的发布目录；`--protect-build` 可增加保留目录。它只处理顶层及一层构建目录内的 `MathTutor` 安装文件与对应 blockmap，不清理日志、验收记录、源代码或 Python 运行时，也不跟随目录符号链接。删除前再次检查文件大小和修改时间。
+默认只预览。工具按平台、架构和格式保留最新安装包，同时保护 README 下载链接对应的发布目录；`--protect-build` 可增加保留目录。它只处理顶层及一层构建目录内的 `MathTutor` DMG、EXE、AppImage 安装文件与对应 blockmap；全部 ZIP 文件作为可能的验收材料保留，不清理日志、验收记录、源代码或 Python 运行时，也不跟随目录符号链接。删除前再次检查文件大小和修改时间。
 
 ## 后端职责
 

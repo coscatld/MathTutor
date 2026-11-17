@@ -26,6 +26,10 @@ def test_keep_latest_each_platform_current_readme_release_and_evidence(tmp_path)
     latest = artifact(tmp_path, "new/MathTutor-mac-arm64.dmg", 3)
     windows = artifact(tmp_path, "old/MathTutor-windows-x64.exe", 1)
     receipt = artifact(tmp_path, "old/release.json", 1)
+    evidence = artifact(tmp_path, "old/MathTutor-mac-arm64-evidence.zip", 1)
+    acceptance = artifact(tmp_path, "old/MathTutor-windows-startup-acceptance.zip", 1)
+    artifact(tmp_path, "new/MathTutor-mac-arm64-evidence.zip", 3)
+    artifact(tmp_path, "new/MathTutor-windows-startup-acceptance.zip", 3)
     readme = "[download](https://github.com/owner/repo/releases/download/published/MathTutor-mac-arm64.dmg)"
     plan = cleaner["prune_plan"](tmp_path, cleaner["release_tags"](readme))
     assert {r["path"] for r in plan} == {
@@ -34,7 +38,7 @@ def test_keep_latest_each_platform_current_readme_release_and_evidence(tmp_path)
     assert old.exists()  # Preview has no side effects.
     cleaner["apply_plan"](tmp_path, plan)
     assert not old.exists() and not blockmap.exists()
-    assert all(p.exists() for p in (published, latest, windows, receipt))
+    assert all(p.exists() for p in (published, latest, windows, receipt, evidence, acceptance))
 
 
 def test_changed_artifact_aborts_before_any_deletion(tmp_path):

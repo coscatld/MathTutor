@@ -400,7 +400,7 @@ shasum -a 256 desktop/dist/MathTutor-*-mac-arm64.dmg
 python desktop/scripts/clean-build-artifacts.py
 ```
 
-加 `--apply` 执行清理；默认保留各平台、架构和格式的最新安装包、README 下载链接对应的发布目录，以及日志、校验摘要和验收记录。额外保留某个目录可用 `--protect-build 目录名`。
+加 `--apply` 执行清理；默认保留各平台、架构和格式的最新安装包、README 下载链接对应的发布目录，以及日志、校验摘要、验收记录和全部 ZIP 文件。额外保留某个目录可用 `--protect-build 目录名`。
 
 ## 文档导航
 

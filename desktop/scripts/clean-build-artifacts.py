@@ -9,7 +9,8 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-INSTALLERS = {".dmg", ".exe", ".zip", ".AppImage"}
+# ZIP files also carry acceptance evidence and CI logs; keep them all.
+INSTALLERS = {".dmg", ".exe", ".AppImage"}
 
 
 def release_tags(readme: str) -> set[str]:
