@@ -18,13 +18,14 @@ const result = spawnSync(
 if (result.error) throw result.error
 if (result.status !== 0) process.exit(result.status ?? 1)
 const directory = path.join(root, 'web/features/math-tutor/desktop/generated')
-const output = astToString(
+const normalizeNewlines = value => value.replace(/\r\n/g, '\n')
+const output = normalizeNewlines(astToString(
   await openapiTS(JSON.parse(readFileSync(path.join(directory, 'openapi.json'), 'utf8')), {
     defaultNonNullable: false,
   })
-)
+))
 const target = path.join(directory, 'api.d.ts')
 if (check) {
-  if (readFileSync(target, 'utf8') !== output)
+  if (normalizeNewlines(readFileSync(target, 'utf8')) !== output)
     throw new Error('HTTP types are stale; run npm run api:generate.')
 } else writeFileSync(target, output)

@@ -3,3 +3,6 @@ tests/fixtures/** text eol=lf
 
 # Bundled student-model packages are hash-pinned; never convert their bytes.
 src/mathtutor/learning/knowledge_tracing/assets/** -text
+
+# Generated HTTP contracts have reproducible bytes on all CI platforms.
+web/features/math-tutor/desktop/generated/** text eol=lf

@@ -79,7 +79,7 @@ npm run api:check --prefix web
 python scripts/check.py
 ```
 
-`check.py` 将当前 Python 解释器传给生成器，所有 CI 平台都会检查 schema 和类型是否过期。生成器采用 UTF-8，并将具有服务端默认值的请求字段保留为可选。已有桌面 `types.ts` 改为生成类型的别名，首次对齐修正了练习难度、删除历史回执和导出内容等既有字段偏差。
+`check.py` 将当前 Python 解释器传给生成器，所有 CI 平台都会检查 schema 和类型是否过期。生成器采用 UTF-8、固定 LF 换行，检查时兼容 Windows 的 CRLF；具有服务端默认值的请求字段保留为可选。已有桌面 `types.ts` 改为生成类型的别名，首次对齐修正了练习难度、删除历史回执和导出内容等既有字段偏差。
 
 WebSocket 的 `protocol.ts` 仍承担运行时过滤和公开数据投影，不能由 HTTP OpenAPI 替代。初评、概念复查等其他 HTTP 接口的既有前端类型尚未全部改为生成别名；本轮覆盖原桌面公共类型及其对应端点。
 
