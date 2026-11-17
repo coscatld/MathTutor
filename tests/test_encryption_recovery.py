@@ -18,6 +18,9 @@ from mathtutor.infrastructure.secret_store import InMemorySecretStore
 
 
 TEST_KEY = "a" * 64  # Synthetic test-only credential, also used by child workers.
+# These are crash-consistency tests, not startup latency assertions. SQLCipher
+# verification and Windows runner startup can exceed the old 12-second budget.
+WORKER_TIMEOUT = 60
 
 
 def database(tmp_path, encrypted):
@@ -159,14 +162,15 @@ import sys, time
 from mathtutor.infrastructure import db_crypto
 from mathtutor.infrastructure.migrate import upgrade_db
 from mathtutor.infrastructure.secret_store import InMemorySecretStore
-root, phase, name = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+root, phase, name = Path(sys.argv[1]).resolve(), sys.argv[2], sys.argv[3]
+worker_timeout = float(sys.argv[4])
 path = root / '中文数据.db'
 store = InMemorySecretStore()
 db_crypto._run(store.put(db_crypto.DB_KEY_NAME, 'a' * 64))
 db_crypto.use_keystore(store)
 def pause():
     (root / 'paused').touch()
-    deadline = time.monotonic() + 20
+    deadline = time.monotonic() + 2 * worker_timeout
     while not (root / 'resume').exists():
         assert time.monotonic() < deadline, 'coordinator timeout'
         time.sleep(.01)
@@ -196,21 +200,35 @@ upgrade_db(str(path))
 '''
 
 
-def wait_file(path):
-    deadline = time.monotonic() + 12
+def worker_failed(process, reason):
+    if process.poll() is None:
+        process.kill()
+    output, error = process.communicate(timeout=5)
+    details = (output + error).decode("utf-8", errors="replace")[-6000:]
+    pytest.fail(f"{reason}; worker exit={process.returncode}\n{details}")
+
+
+def wait_file(path, process, *, timeout=WORKER_TIMEOUT):
+    deadline = time.monotonic() + timeout
     while not path.exists():
-        assert time.monotonic() < deadline, f"worker did not reach {path.name}"
+        if process.poll() is not None:
+            worker_failed(process, f"worker exited before {path.name}")
+        if time.monotonic() >= deadline:
+            worker_failed(process, f"timed out waiting for {path.name}")
         time.sleep(.01)
 
 
 def worker(root, phase, name):
-    return subprocess.Popen([sys.executable, "-c", WORKER, str(root), phase, name],
+    return subprocess.Popen([sys.executable, "-c", WORKER, str(root), phase, name, str(WORKER_TIMEOUT)],
                             env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 def finish(process):
-    output, error = process.communicate(timeout=20)
+    try:
+        output, error = process.communicate(timeout=WORKER_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        worker_failed(process, "worker did not complete")
     assert process.returncode == 0, (output, error)
 
 
@@ -218,7 +236,32 @@ def stop(process):
     if process is not None:
         if process.poll() is None:
             process.kill()
-        process.communicate()
+        process.communicate(timeout=5)
+
+
+def test_phase_wait_reports_worker_exit_without_hiding_its_error(tmp_path):
+    process = subprocess.Popen(
+        [sys.executable, "-c", "raise RuntimeError('startup failure sentinel')"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    try:
+        with pytest.raises(pytest.fail.Exception, match="worker exited before paused[\\s\\S]*startup failure sentinel"):
+            wait_file(tmp_path / "paused", process)
+    finally:
+        stop(process)
+
+
+def test_phase_wait_times_out_and_reaps_a_stalled_worker(tmp_path):
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    try:
+        with pytest.raises(pytest.fail.Exception, match="timed out waiting for paused"):
+            wait_file(tmp_path / "paused", process, timeout=.1)
+        assert process.poll() is not None
+    finally:
+        stop(process)
 
 
 @pytest.mark.parametrize("encrypted", [False, True])
@@ -227,7 +270,8 @@ def test_process_termination_resumes_verified_conversion(tmp_path, encrypted, ph
     path = database(tmp_path, encrypted)
     process = worker(tmp_path, phase, "first")
     try:
-        wait_file(tmp_path / "paused")
+        wait_file(tmp_path / "first-attempt", process)
+        wait_file(tmp_path / "paused", process)
         with pytest.raises(TimeoutError):
             with migration_lock(path, timeout=.1):
                 pytest.fail("conversion must retain startup writer lock")
@@ -246,9 +290,10 @@ def test_two_startups_share_conversion_and_migration_writer_boundary(tmp_path, e
     first = worker(tmp_path, "ready", "first")
     second = None
     try:
-        wait_file(tmp_path / "paused")
+        wait_file(tmp_path / "first-attempt", first)
+        wait_file(tmp_path / "paused", first)
         second = worker(tmp_path, "normal", "second")
-        wait_file(tmp_path / "second-attempt")
+        wait_file(tmp_path / "second-attempt", second)
         with pytest.raises(TimeoutError):
             with migration_lock(path, timeout=.1):
                 pytest.fail("conversion and migration must share the writer lock")
@@ -261,6 +306,17 @@ def test_two_startups_share_conversion_and_migration_writer_boundary(tmp_path, e
     finally:
         stop(first)
         stop(second)
+
+
+def test_crash_phase_hook_matches_the_canonical_database_path(tmp_path):
+    real = tmp_path / "real"
+    real.mkdir()
+    alias = tmp_path / "alias"
+    try:
+        alias.symlink_to(real, target_is_directory=True)
+    except OSError:
+        pytest.skip("creating directory symlinks is unavailable on this platform")
+    test_process_termination_resumes_verified_conversion(alias, False, "ready")
 
 
 def test_invalid_marker_and_journal_fail_closed(tmp_path):
