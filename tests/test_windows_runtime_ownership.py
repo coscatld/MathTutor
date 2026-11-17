@@ -151,7 +151,7 @@ async def test_cancelled_backup_waits_for_owned_thread_before_shutdown(tmp_path)
 
 @pytest.mark.asyncio
 async def test_checked_out_connection_prevents_restore_and_can_be_released(tmp_path):
-    from mathtutor.api.desktop_api import _restore_backup_while_quiesced
+    from mathtutor.application.restore_runtime import _restore_backup_while_quiesced
     path = tmp_path / "isolated.db"
     upgrade_db(str(path))
     engine = create_db_engine(path)

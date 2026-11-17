@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Current database contract. Keep this aligned with the
 # Alembic head; release manifests and packaged smoke assert the exact value.
-MIGRATION_HEAD = "025"
+MIGRATION_HEAD = "026"
 
 
 def alembic_config(db_path: str | None = None) -> Config:
@@ -82,6 +82,8 @@ def _validate_recovery_schema(connection) -> None:
         columns = connection.execute(f'PRAGMA table_info("{table.name}")').fetchall()
         actual = {row[1]: row for row in columns}
         for column in table.columns:
+            if table.name == "verification_logs" and column.name in {"policy_id", "policy_version"}:
+                continue  # Added after the historical 024 recovery contract.
             row = actual.get(column.name)
             if row is None or affinity(row[2]) != affinity(str(column.type.compile(dialect=dialect()))):
                 problems.append(f"{table.name}.{column.name}")

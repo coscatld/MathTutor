@@ -9,7 +9,7 @@ degradation is the DEFAULT and stays tested).
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -42,9 +42,7 @@ from mathtutor.infrastructure.lexical import (
     normalize_latex_plain,
     tokenize_lexical,
 )
-from mathtutor.repositories.document_repository import (
-    InMemoryDocumentRepository,
-)
+from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 from mathtutor.security.scopes import student_uuid
 
 pytestmark = pytest.mark.asyncio
@@ -168,7 +166,7 @@ def _pdf_with_text_and_image(text: str, *, include_text: bool = True) -> bytes:
 @pytest_asyncio.fixture()
 async def service(tmp_path: Path) -> DocumentIngestionService:
     storage = DocumentStorage(tmp_path / "data")
-    repo = InMemoryDocumentRepository()
+    repo = SQLiteDocumentRepository()
     return DocumentIngestionService(
         repository=repo,
         storage=storage,

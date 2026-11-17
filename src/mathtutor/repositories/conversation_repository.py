@@ -30,97 +30,13 @@ def _title(text: str) -> str:
     return (compact[:38] + "…") if len(compact) > 38 else (compact or "新对话")
 
 
-class InMemoryConversationRepository:
-    def __init__(self) -> None:
-        self._conversations: dict[tuple[str, str], dict] = {}
-        self._messages: dict[tuple[str, str], list[dict]] = {}
-        self._documents: dict[tuple[str, str], set[UUID]] = {}
-
-    async def ensure(self, student_id: str, conversation_id: str, *, title: str = "新对话") -> dict:
-        key = (student_id, conversation_id)
-        now = _now()
-        self._conversations.setdefault(key, {"conversation_id": conversation_id, "title": title, "created_at": now, "updated_at": now})
-        return dict(self._conversations[key])
-
-    async def append_message(self, student_id: str, conversation_id: str, *, role: str, content: str, action: str = "", assistance_level: int = 0, event_key: str = "", status: str = "COMPLETED", finish_reason: str = "FINAL_ANSWER", turn_id: str = "", continuation_context: str = "", attachments: list | None = None) -> None:
-        if not content.strip() and not attachments:
-            return
-        await self.ensure(student_id, conversation_id)
-        key = (student_id, conversation_id)
-        rows = self._messages.setdefault(key, [])
-        unique = event_key or str(uuid4())
-        if any(row["event_key"] == unique for row in rows):
-            return
-        rows.append({"message_id": message_id_for(student_id, conversation_id, unique), "role": role, "content": content.strip(), "action": action, "assistance_level": assistance_level, "event_key": unique, "created_at": _now(), "status": status, "finish_reason": finish_reason, "turn_id": turn_id, "continuation_context": continuation_context, "attachments": attachments or []})
-        item = self._conversations[key]
-        if role == "student" and item["title"] == "新对话":
-            item["title"] = _title(content or ("图片问题" if attachments else ""))
-        item["updated_at"] = _now()
-
-    async def finalize_turn(self, student_id, conversation_id, turn_id, *, status, finish_reason):
-        for row in self._messages.get((student_id, conversation_id), []):
-            if row.get("turn_id") == turn_id and row["role"] == "tutor":
-                row.update(status=status, finish_reason=finish_reason)
-
-    async def save_turn_message(self, student_id, conversation_id, turn_id, **values):
-        """Replace the approved snapshot in the single result for this request."""
-        event_key = f"tutor:{turn_id}:result"
-        await self.append_message(student_id, conversation_id, event_key=event_key, turn_id=turn_id, **values)
-        for row in self._messages.get((student_id, conversation_id), []):
-            if row["event_key"] == event_key:
-                row.update(values)
-
-    async def list(self, student_id: str, *, trashed: bool = False, all_records: bool = False) -> list[dict]:
-        rows = [
-            dict(value)
-            for (owner, conversation_id), value in self._conversations.items()
-            if owner == student_id and not value.get("purged_at")
-            and (all_records or bool(value.get("trashed_at")) == trashed)
-            and any(
-                row.get("role") == "student"
-                for row in self._messages.get((owner, conversation_id), [])
-            )
-        ]
-        return sorted(rows, key=lambda row: row["updated_at"], reverse=True)
-
-    async def get(self, student_id: str, conversation_id: str) -> dict | None:
-        item = self._conversations.get((student_id, conversation_id))
-        return dict(item) if item else None
-
-    async def messages(self, student_id: str, conversation_id: str) -> list[dict]:
-        return [dict(row) for row in self._messages.get((student_id, conversation_id), [])]
-
-    async def attach_document(self, student_id: str, conversation_id: str, document_id: UUID) -> None:
-        await self.ensure(student_id, conversation_id)
-        self._documents.setdefault((student_id, conversation_id), set()).add(document_id)
-
-    async def detach_document(self, student_id: str, conversation_id: str, document_id: UUID) -> bool:
-        docs = self._documents.get((student_id, conversation_id), set())
-        if document_id not in docs:
-            return False
-        docs.remove(document_id)
-        return True
-
-    async def document_ids(self, student_id: str, conversation_id: str) -> list[UUID]:
-        return sorted(self._documents.get((student_id, conversation_id), set()), key=str)
-
-    async def conversation_ids_for_document(self, student_id: str, document_id: UUID) -> list[str]:
-        return sorted(cid for (owner, cid), docs in self._documents.items() if owner == student_id and document_id in docs)
-
-
-    async def set_trash(self, owner, cid, trashed):
-        row = self._conversations[(owner, cid)]
-        row["trashed_at"] = _now() if trashed else None
-
-    async def purge(self, owner, cid):
-        key = (owner, cid)
-        self._messages.pop(key, None)
-        self._documents.pop(key, None)
-        self._conversations[key].update(title="", purged_at=_now())
 
 
 class SQLiteConversationRepository:
-    def __init__(self, engine: Any) -> None:
+    def __init__(self, engine: Any = None) -> None:
+        if engine is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            engine = create_memory_engine()
         self.uow = MathTutorUow(engine)
 
     async def ensure(self, student_id: str, conversation_id: str, *, title: str = "新对话") -> dict:

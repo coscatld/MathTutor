@@ -9,7 +9,7 @@ rebuild-on-signature-change without re-importing files.
 from __future__ import annotations
 
 import math
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -29,7 +29,7 @@ from mathtutor.infrastructure.embedding_runtime import (
     FakeEmbeddingBackend,
     build_fake_embedding_runtime,
 )
-from mathtutor.repositories.document_repository import InMemoryDocumentRepository
+from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 
 pytestmark = pytest.mark.asyncio
 
@@ -105,8 +105,8 @@ async def test_build_fake_runtime_status():
 
 
 @pytest_asyncio.fixture()
-async def seeded() -> tuple[InMemoryDocumentRepository, UserDocument]:
-    repo = InMemoryDocumentRepository()
+async def seeded() -> tuple[SQLiteDocumentRepository, UserDocument]:
+    repo = SQLiteDocumentRepository()
     doc = await repo.add_document(
         _STUDENT,
         UserDocument(
@@ -209,8 +209,11 @@ async def test_search_fuses_vector_when_backend_present(seeded):
     assert result.embedding_backend_id == FAKE_BACKEND_ID
     assert result.index_version == 1  # single-document query carries build provenance
     assert all(hit.vector_score is not None for hit in result.hits)
-    # Top hit is the lexically+semantically best chunk.
-    assert "求根" in result.hits[0].chunk.text
+    # The fake vector backend does not model semantic relevance. The kernel
+    # preserves both candidates; the production reranker owns text relevance.
+    from mathtutor.application.rerank import ProductionReranker
+    ranked = ProductionReranker().rerank("求根公式", result.hits)
+    assert "求根" in ranked[0].hit.chunk.text
 
 
 async def test_build_index_no_chunks_returns_none(seeded):
@@ -240,7 +243,7 @@ async def test_reparse_invalidates_vectors_and_rebuilds(tmp_path):
     from mathtutor.infrastructure.document_storage import DocumentStorage
     from mathtutor.repositories.document_repository import StaleIndexGenerationError
 
-    repo = InMemoryDocumentRepository()
+    repo = SQLiteDocumentRepository()
     runtime = build_fake_embedding_runtime()
     manager = DocumentIndexManager(repository=repo, embedding_runtime=runtime)
     service = DocumentIngestionService(

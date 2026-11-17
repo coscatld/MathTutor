@@ -41,7 +41,10 @@ def _restore(snapshot: rt.CycleSnapshot, student_id: str) -> TutoringSession:
 class SQLiteSessionStore:
     """Durable owner-keyed cycle store over the product database."""
 
-    def __init__(self, engine: Any) -> None:
+    def __init__(self, engine: Any = None) -> None:
+        if engine is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            engine = create_memory_engine()
         self.uow = MathTutorUow(engine)
         from mathtutor.repositories.teaching_repository import TeachingRepository
         self.teaching = TeachingRepository(engine)

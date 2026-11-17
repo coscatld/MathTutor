@@ -5,10 +5,8 @@ from __future__ import annotations
 import pytest
 
 from mathtutor.application.math_tutor_service import MathTutorApplicationService
-from mathtutor.repositories.solution_repository import (
-    AttestationDeniedError,
-    InMemorySolutionRepository,
-)
+from mathtutor.repositories.solution_repository import AttestationDeniedError
+from mathtutor.repositories.sqlite_math_facts import SQLiteSolutionRepository
 
 pytestmark = pytest.mark.asyncio
 
@@ -67,7 +65,7 @@ class TestAttestationFailClosed:
     async def test_repository_refuses_unverified(self) -> None:
         from mathtutor.domain.solution import VerificationCheck
 
-        repo = InMemorySolutionRepository()
+        repo = SQLiteSolutionRepository()
         service = MathTutorApplicationService(solutions=repo)
         result = await service.submit_problem("2x + 3 = 7")
         assert result.kind == "verified"

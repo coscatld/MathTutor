@@ -57,7 +57,7 @@ from mathtutor.application.conversation_scope import (
     reset_document_scope,
     set_document_scope,
 )
-from mathtutor.repositories.memory_repository import InMemoryMemoryRepository
+from mathtutor.repositories.sqlite_knowledge import SQLiteMemoryRepository
 from mathtutor.security.scopes import student_uuid
 
 pytestmark = pytest.mark.asyncio
@@ -494,7 +494,7 @@ async def test_document_selection_projected_ranked_and_capped():
 async def test_personal_memory_disabled_enforced_at_data_layer():
     from mathtutor.application.personal_memory_service import PersonalMemoryService
 
-    repo = InMemoryMemoryRepository()
+    repo = SQLiteMemoryRepository()
     svc = PersonalMemoryService(repo)
     node = await svc.add_explicit(
         _STUDENT,
@@ -513,7 +513,7 @@ async def test_personal_memory_disabled_enforced_at_data_layer():
 
 
 async def test_personal_memory_empty_data_for_new_student():
-    provider = PersonalMemorySourceProvider(InMemoryMemoryRepository())
+    provider = PersonalMemorySourceProvider(SQLiteMemoryRepository())
     outcome = await provider.load(
         student_id=_STUDENT, intent=RetrievalIntent.SOLVE_PROBLEM
     )

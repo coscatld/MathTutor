@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from uuid import UUID, uuid4
 
 from alembic import command
 import pytest
@@ -209,7 +208,7 @@ def test_migration_006_backfills_old_rows_and_is_idempotent(tmp_path: Path) -> N
     conn.close()
     assert columns["attempt_id"] == 1 and columns["skill_id"] == 1
     assert row == ("att", SKILL_LINEAR_EQUATION, "idem")
-    assert version == "025"
+    assert version == "026"
 
 
 @pytest.mark.asyncio

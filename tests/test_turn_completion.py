@@ -141,15 +141,14 @@ def test_step_cap_returns_partial():
 
 @pytest.mark.asyncio
 async def test_partial_persistence():
-    from mathtutor.repositories.conversation_repository import InMemoryConversationRepository
-    repo = InMemoryConversationRepository()
+    from mathtutor.repositories.conversation_repository import SQLiteConversationRepository
+    repo = SQLiteConversationRepository()
     await repo.append_message('s', 'c', role='tutor', content='部分', status='PARTIAL', finish_reason='TOKEN_LIMIT', turn_id='t')
     message = (await repo.messages('s', 'c'))[0]
     assert message['status'] == 'PARTIAL' and message['turn_id'] == 't'
 
 
 def test_partial_message_can_continue(tmp_path):
-    import json
     from fastapi.testclient import TestClient
     from mathtutor.api.product_app import create_math_tutor_app
     from mathtutor.api.product_state import reset_product_state, get_product_state

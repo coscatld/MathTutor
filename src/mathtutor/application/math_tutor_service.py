@@ -11,9 +11,14 @@ reference solution, no student-model update.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
+from mathtutor.application.verification_backend import (
+    InProcessVerificationBackend,
+    VerificationBackend,
+    VerificationBackendError,
+)
 from mathtutor.domain.problem import MathProblem
 from mathtutor.domain.solution import (
     MathSolutionCandidate,
@@ -21,15 +26,12 @@ from mathtutor.domain.solution import (
     VerifiedSolutionRef,
 )
 from mathtutor.repositories.solution_repository import (
-    InMemoryProblemRepository,
-    InMemorySolutionRepository,
     ProblemRepository,
     SolutionRepository,
 )
-from mathtutor.application.verification_backend import (
-    InProcessVerificationBackend,
-    VerificationBackend,
-    VerificationBackendError,
+from mathtutor.repositories.sqlite_math_facts import (
+    SQLiteProblemRepository,
+    SQLiteSolutionRepository,
 )
 from mathtutor.solving import parse_problem, solve_problem
 
@@ -57,10 +59,34 @@ class MathTutorApplicationService:
         problems: ProblemRepository | None = None,
         solutions: SolutionRepository | None = None,
         verification_backend: VerificationBackend | None = None,
+        *,
+        engine=None,
     ) -> None:
-        self.problems: ProblemRepository = problems or InMemoryProblemRepository()
-        self.solutions: SolutionRepository = solutions or InMemorySolutionRepository()
-        self.verification_backend = verification_backend or InProcessVerificationBackend()
+        from mathtutor.infrastructure.memory_database import create_memory_engine
+        from mathtutor.repositories.uow import MathTutorUow
+
+        if engine is None and problems is not None:
+            engine = getattr(getattr(problems, "_uow", None), "engine", None)
+        if engine is None and solutions is not None:
+            engine = getattr(getattr(solutions, "_uow", None), "engine", None)
+        self._owned_engine = (
+            create_memory_engine()
+            if engine is None and (problems is None or solutions is None)
+            else None
+        )
+        engine = engine or self._owned_engine
+        uow = MathTutorUow(engine) if engine is not None else None
+        self.problems: ProblemRepository = problems or SQLiteProblemRepository(uow)
+        self.solutions: SolutionRepository = solutions or SQLiteSolutionRepository(uow)
+        self.verification_backend = (
+            verification_backend or InProcessVerificationBackend()
+        )
+
+    async def aclose(self) -> None:
+        """Release the private ephemeral database, when construction created one."""
+        if self._owned_engine is not None:
+            await self._owned_engine.dispose()
+            self._owned_engine = None
 
     async def submit_problem(self, text: str) -> SubmitProblemResult:
         """Parse, solve, verify and (only then) commit the verified reference.
@@ -75,7 +101,9 @@ class MathTutorApplicationService:
         if outcome.kind == "unparseable":
             return SubmitProblemResult("unparseable", reason=outcome.reason)
         if outcome.kind == "unsupported":
-            return SubmitProblemResult("unsupported", reason=outcome.reason, code=outcome.code)
+            return SubmitProblemResult(
+                "unsupported", reason=outcome.reason, code=outcome.code
+            )
         parsed = outcome.problem
         assert parsed is not None
 
@@ -90,7 +118,9 @@ class MathTutorApplicationService:
 
         solved = solve_problem(problem, parsed)
         if solved.kind == "unsupported":
-            return SubmitProblemResult("unsupported", problem=problem, reason=solved.reason, code=solved.code)
+            return SubmitProblemResult(
+                "unsupported", problem=problem, reason=solved.reason, code=solved.code
+            )
         candidate = solved.candidate
         assert candidate is not None
 
@@ -113,4 +143,10 @@ class MathTutorApplicationService:
             )
 
         ref = await self.solutions.issue_attestation(problem, candidate, decision)
-        return SubmitProblemResult("verified", problem=problem, candidate=candidate, decision=decision, verified_ref=ref)
+        return SubmitProblemResult(
+            "verified",
+            problem=problem,
+            candidate=candidate,
+            decision=decision,
+            verified_ref=ref,
+        )

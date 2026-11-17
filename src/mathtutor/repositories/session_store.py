@@ -1,10 +1,8 @@
-"""Session store contract + in-memory implementation (Phase 1B + 3).
+"""Session store contract (Phase 1B + 3).
 
-The capability depends ONLY on this Protocol: the in-memory implementation
-keeps tests and the dev loop free of files, and ``SQLiteSessionStore``
-(repositories/sqlite_store.py) provides durability + CAS + owner isolation
-with the same interface. The database is authoritative when it is in use;
-the in-memory store is authoritative only for its own process.
+The controller depends on this Protocol. ``SQLiteSessionStore`` supplies
+transactional storage, CAS and owner isolation in both durable and ephemeral
+SQLite databases.
 
 Ownership: keys are ``(student_id, client_session_id)`` — the client session
 name is a namespace, never an identity; the owner half always comes from the
@@ -20,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Protocol
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from mathtutor.application.state_machine import TutoringSession
 from mathtutor.domain.problem import MathProblem
@@ -30,7 +28,6 @@ from mathtutor.domain.solution import (
 )
 from mathtutor.domain.tutoring import CycleTransition, TutorAction
 from mathtutor.pedagogy.planner import CycleAssistance
-from mathtutor.security.scopes import student_uuid
 
 
 class PracticeOfferAcceptError(Exception):
@@ -43,8 +40,7 @@ class LearningCommit:
 
     The SQLite implementation commits ALL rows (submission/attempt/
     assessment/observation/evidence/student-state CAS/transition/outbox) in
-    ONE short transaction; the in-memory implementation appends to its
-    per-process history. Either way the caller (capability) computes first
+    ONE short transaction. The caller (controller) computes first
     and commits last — READ → COMPUTE → SHORT COMMIT.
     """
 
@@ -76,11 +72,17 @@ class LearningCommit:
 class SessionStoreProtocol(Protocol):
     """Async persistence contract the capability drives each turn."""
 
-    async def load(self, student_id: str, client_session_id: str) -> TutoringSession | None: ...
+    async def load(
+        self, student_id: str, client_session_id: str
+    ) -> TutoringSession | None: ...
 
-    async def create(self, student_id: str, client_session_id: str) -> TutoringSession: ...
+    async def create(
+        self, student_id: str, client_session_id: str
+    ) -> TutoringSession: ...
 
-    async def start_new_cycle(self, student_id: str, client_session_id: str, *, teaching_context=None) -> TutoringSession: ...
+    async def start_new_cycle(
+        self, student_id: str, client_session_id: str, *, teaching_context=None
+    ) -> TutoringSession: ...
 
     async def persist_transition(
         self,
@@ -96,7 +98,9 @@ class SessionStoreProtocol(Protocol):
         action: TutorAction,
     ) -> None: ...
 
-    async def load_assistance(self, student_id: str, cycle_id: UUID) -> CycleAssistance: ...
+    async def load_assistance(
+        self, student_id: str, cycle_id: UUID
+    ) -> CycleAssistance: ...
 
     async def load_verified(
         self, student_id: str, cycle_id: UUID
@@ -121,7 +125,9 @@ class SessionStoreProtocol(Protocol):
 
     async def load_attempt_index(self, student_id: str, cycle_id: UUID) -> int: ...
 
-    async def iter_for_student(self, student_id: str) -> list[tuple[str, TutoringSession]]: ...
+    async def iter_for_student(
+        self, student_id: str
+    ) -> list[tuple[str, TutoringSession]]: ...
 
     async def clear(self) -> None: ...
 
@@ -135,7 +141,8 @@ class SessionStoreProtocol(Protocol):
         parent_transition: CycleTransition,
         child: TutoringSession,
         outbox_events: list[dict[str, Any]] = (),
-        *, teaching_context: dict[str, Any] | None = None,
+        *,
+        teaching_context: dict[str, Any] | None = None,
         learning_events: tuple[Any, ...] = (),
     ) -> None:
         """Consume the offer + close the parent + create the child cycle.
@@ -155,222 +162,6 @@ class SessionStoreProtocol(Protocol):
         ...
 
 
-class InMemorySessionStore:
-    """Process-local store keyed by owner (Phase 0 behavior, async surface).
-
-    Phase 3: tutor actions and the verified chain are held HERE (per cycle)
-    instead of inside the capability — the capability only ever talks to the
-    store, so in-memory and SQLite backends behave identically.
-    """
-
-    def __init__(
-        self,
-        practice_repository: "Any | None" = None,
-    ) -> None:
-        self._sessions: dict[tuple[str, str], TutoringSession] = {}
-        self._actions: dict[UUID, list[TutorAction]] = {}
-        self._verified: dict[UUID, tuple[MathProblem, MathSolutionCandidate, VerifiedSolutionRef]] = {}
-        self._attempt_counts: dict[UUID, int] = {}
-        self._evidence_history: dict[str, list[Any]] = {}
-        self._observation_history: dict[str, list[Any]] = {}
-        # Phase 5: exact-snapshot fallback for child cycles (mirror of the
-        # SQLite path); the capability also store_verified()s at accept.
-        self.practice_repository = practice_repository
-        from mathtutor.repositories.teaching_repository import TeachingRepository
-        self.teaching = TeachingRepository()
-        self.student_state = None
-        self._cycle_archive = {}
-
-    async def load(self, student_id: str, client_session_id: str) -> TutoringSession | None:
-        return self._sessions.get((student_id, client_session_id))
-
-    async def create(self, student_id: str, client_session_id: str) -> TutoringSession:
-        session = TutoringSession(session_id=uuid4(), student_id=student_uuid(student_id))
-        self._sessions[(student_id, client_session_id)] = session
-        self._cycle_archive[(student_id, str(session.cycle.cycle_id))] = session
-        return session
-
-    async def focus_cycle(self, student_id, client_session_id, cycle_id):
-        target = self._cycle_archive.get((student_id, str(cycle_id)))
-        if target is None:
-            raise ValueError("cycle not found")
-        self._sessions[(student_id, client_session_id)] = target
-        return target
-
-    async def start_new_cycle(self, student_id: str, client_session_id: str, *, teaching_context=None) -> TutoringSession:
-        session = await self.create(student_id, client_session_id)
-        if teaching_context is not None:
-            from copy import deepcopy
-            context = deepcopy(teaching_context)
-            context["task_context"]["cycle_id"] = str(session.cycle.cycle_id)
-            await self.teaching.save(student_id, session.cycle.cycle_id, context)
-        return session
-
-    async def persist_transition(
-        self,
-        student_id: str,
-        transition: CycleTransition,
-        problem_id: "UUID | None" = None,
-    ) -> None:
-        # The in-memory session object IS the record: mutation already
-        # happened inside the state machine; nothing further to persist.
-        pass
-
-    async def persist_transitions(self, student_id, transitions):
-        return None
-
-    async def persist_tutor_action(
-        self,
-        student_id: str,
-        cycle_id: UUID,
-        action: TutorAction,
-    ) -> None:
-        actions = self._actions.setdefault(cycle_id, [])
-        if not any(saved.action_id == action.action_id for saved in actions):
-            actions.append(action)
-
-    async def commit_teaching_action(self, student_id, cycle_id, transitions, action, context):
-        await self.persist_tutor_action(student_id, cycle_id, action)
-        await self.teaching.save(student_id, cycle_id, context)
-
-    async def load_assistance(self, student_id: str, cycle_id: UUID) -> CycleAssistance:
-        return _assistance_from_actions(self._actions.get(cycle_id, []))
-
-    async def load_verified(
-        self, student_id: str, cycle_id: UUID
-    ) -> tuple[MathProblem, MathSolutionCandidate, VerifiedSolutionRef] | None:
-        stored = self._verified.get(cycle_id)
-        if stored is not None:
-            return stored
-        # Child cycle (practice_offer_id, no problem_id — XOR): resolve the
-        # release's EXACT snapshot from the practice catalog, mirroring the
-        # SQLite path (exact-snapshot invariant §11.3).
-        if self.practice_repository is not None:
-            for (owner, _client_id), session in self._sessions.items():
-                if (
-                    owner == student_id
-                    and session.cycle.cycle_id == cycle_id
-                    and session.cycle.practice_offer_id is not None
-                ):
-                    offer = await self.practice_repository.load_offer(
-                        session.cycle.practice_offer_id
-                    )
-                    if offer is None:
-                        return None
-                    release = await self.practice_repository.load_release(
-                        offer.exercise_release_id
-                    )
-                    if release is None:
-                        return None
-                    return await self.practice_repository.load_exact_verified(release)
-        return None
-
-    async def store_verified(
-        self,
-        student_id: str,
-        cycle_id: UUID,
-        verified: tuple[MathProblem, MathSolutionCandidate, VerifiedSolutionRef],
-    ) -> None:
-        self._verified[cycle_id] = verified
-
-    async def commit_learning_transaction(
-        self,
-        student_id: str,
-        commit: LearningCommit,
-    ) -> None:
-        # In-memory: the session object already mutated; append the learning
-        # facts to the per-process history so projections can replay.
-        cycle_id = commit.transitions[0].cycle_id
-        if commit.teaching_context is not None:
-            await self.teaching.save(student_id, cycle_id, commit.teaching_context)
-        if self.student_state is not None and commit.tracking_attempt is not None:
-            await self.student_state.record_attempt(student_id, **commit.tracking_attempt)
-        self._attempt_counts[cycle_id] = self._attempt_counts.get(cycle_id, 0) + 1
-        if commit.evidence is not None:
-            self._evidence_history.setdefault(student_id, []).append(
-                _evidence_from_commit(student_id, commit)
-            )
-        if commit.observation is not None:
-            self._observation_history.setdefault(student_id, []).append(
-                _observation_from_commit(student_id, commit)
-            )
-
-    async def load_learning_history(
-        self, student_id: str
-    ) -> tuple[list[Any], list[Any]]:
-        return (
-            list(self._evidence_history.get(student_id, [])),
-            list(self._observation_history.get(student_id, [])),
-        )
-
-    async def load_attempt_index(self, student_id: str, cycle_id: UUID) -> int:
-        # Next index for this cycle (count of committed attempts + 1).
-        return self._attempt_counts.get(cycle_id, 0) + 1
-
-    async def iter_for_student(self, student_id: str) -> list[tuple[str, TutoringSession]]:
-        return [
-            (client_session_id, session)
-            for (owner_id, client_session_id), session in self._sessions.items()
-            if owner_id == student_id
-        ]
-
-    async def accept_practice_offer(
-        self,
-        student_id: str,
-        client_session_id: str,
-        offer_id: UUID,
-        parent_transition: CycleTransition,
-        child: TutoringSession,
-        outbox_events: list[dict[str, Any]] = (),
-        *, teaching_context: dict[str, Any] | None = None,
-        learning_events: tuple[Any, ...] = (),
-    ) -> None:
-        """Register the accepted offer + child cycle (in-memory).
-
-        The parent session object already mutated in place (CLOSED) and the
-        child carries its 3 transitions; the offer CAS lives in the practice
-        repository. This makes the in-memory path behave like the SQLite
-        accept transaction: after accept, the client session's current
-        cycle IS the child (mirror of load_cycle's newest-first order).
-        """
-        if self.practice_repository is None:
-            raise PracticeOfferAcceptError("practice repository 未配置")
-        for event in learning_events:
-            await self.student_state.append_event(event)
-        accepted = await self.practice_repository.accept_offer(student_id, offer_id)
-        if not accepted:
-            raise PracticeOfferAcceptError("offer 不是 ACTIVE 或已过期")
-        self._sessions[(student_id, client_session_id)] = child
-        self._cycle_archive[(student_id, str(child.cycle.cycle_id))] = child
-        if teaching_context is not None:
-            await self.teaching.save(student_id, child.cycle.cycle_id, teaching_context)
-
-    async def load_child_cycle_for_offer(
-        self, student_id: str, offer_id: UUID
-    ) -> TutoringSession | None:
-        for (owner, _cycle_id), session in self._cycle_archive.items():
-            if owner == student_id and session.cycle.practice_offer_id == offer_id:
-                return session
-        return None
-
-    async def clear(self) -> None:
-        self._sessions.clear()
-        self._actions.clear()
-        self._verified.clear()
-        self._attempt_counts.clear()
-        self._evidence_history.clear()
-        self._observation_history.clear()
-
-    def clear_sync(self) -> None:
-        """Sync convenience for test fixtures (in-memory store only)."""
-        self._sessions.clear()
-        self._actions.clear()
-        self._verified.clear()
-        self._attempt_counts.clear()
-        self._evidence_history.clear()
-        self._observation_history.clear()
-
-
 def _assistance_from_actions(actions: list[TutorAction]) -> CycleAssistance:
     """Rebuild the assistance ledger from append-only tutor actions (§7.1).
 
@@ -378,7 +169,9 @@ def _assistance_from_actions(actions: list[TutorAction]) -> CycleAssistance:
     always be rebuilt after a restart.
     """
     hints = sum(1 for a in actions if a.action == "GIVE_HINT")
-    explanations = sum(1 for a in actions if a.action in ("EXPLAIN_CONCEPT", "SHOW_EXAMPLE"))
+    explanations = sum(
+        1 for a in actions if a.action in ("EXPLAIN_CONCEPT", "SHOW_EXAMPLE")
+    )
     max_level = max((a.effective_assistance_level for a in actions), default=0)
     return CycleAssistance(
         hints_issued=hints,
@@ -387,48 +180,7 @@ def _assistance_from_actions(actions: list[TutorAction]) -> CycleAssistance:
     )
 
 
-def _evidence_from_commit(student_id: str, commit: LearningCommit):
-    """Rebuild a LearningEvidence from an in-memory commit (history replay)."""
-    from uuid import uuid4
-
-    from mathtutor.learning.evidence import LearningEvidence
-
-    row = commit.evidence or {}
-    return LearningEvidence(
-        evidence_id=uuid4(),
-        student_id=student_uuid(student_id),
-        attempt_id=commit.attempt_id,
-        skill_id=str(row.get("skill_id") or "UNKNOWN_SKILL"),
-        problem_id=str(commit.problem_id),
-        correctness=commit.correctness,
-        score=float(commit.score if commit.score is not None else 0.0),
-        difficulty=int(row.get("difficulty") or 1),
-        effective_assistance_level=int(row.get("effective_assistance_level") or 0),
-        attempt_index=commit.attempt_index,
-        evidence_version=str(row.get("evidence_version") or "mt-evidence-v1"),
-        idempotency_key=str(row.get("idempotency_key") or ""),
-    )
-
-
-def _observation_from_commit(student_id: str, commit: LearningCommit):
-    """Rebuild a MisconceptionObservation from an in-memory commit."""
-    from uuid import uuid4
-
-    from mathtutor.learning.diagnosis import MisconceptionObservation
-
-    row = commit.observation or {}
-    return MisconceptionObservation(
-        observation_id=uuid4(),
-        student_id=student_uuid(student_id),
-        attempt_id=commit.attempt_id,
-        rule_id=str(row.get("rule_id") or ""),
-        confidence=float(row.get("confidence") or 0.0),
-        detail=dict(row.get("detail") or {}),
-    )
-
-
 __all__ = [
-    "InMemorySessionStore",
     "LearningCommit",
     "PracticeOfferAcceptError",
     "SessionStoreProtocol",

@@ -261,6 +261,8 @@ verification_logs = Table(
     Column("problem_id", String(64), ForeignKey("math_problems.problem_id"), nullable=False),
     Column("verdict", String(32), nullable=False),
     Column("checks", JSON, nullable=False),
+    Column("policy_id", Text, nullable=False, server_default=""),
+    Column("policy_version", Text, nullable=False, server_default=""),
     Column("attestation_hash", String(64), nullable=True),
     Column("created_at", Text, nullable=False),
     CheckConstraint(

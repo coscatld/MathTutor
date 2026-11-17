@@ -39,7 +39,7 @@ def binding_error(envelope, session, verified):
 
 
 async def session_contract(store, owner_id, session, *, processing=False):
-    from mathtutor.application.controller import student_allowed_inputs
+    from mathtutor.application.tutor_contracts import student_allowed_inputs
     verified = await store.load_verified(owner_id, session.cycle.cycle_id) if session else None
     valid = verified_binding(verified)
     allowed = student_allowed_inputs(session.state) if session else []

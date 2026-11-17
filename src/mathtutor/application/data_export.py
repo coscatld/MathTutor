@@ -177,14 +177,14 @@ def validate_export(export: dict[str, Any]) -> None:
 
 def _default_document_projector() -> Callable[[UserDocument], dict[str, Any]]:
     """The single existing public document projection (reused, never copied)."""
-    from mathtutor.api.desktop_api import _project_document
+    from mathtutor.application.public_projections import _project_document
 
     return _project_document  # type: ignore[return-value]
 
 
 def _default_memory_projector() -> Callable[[PersonalMemoryNode], dict[str, Any]]:
     """The single existing public memory projection (reused, never copied)."""
-    from mathtutor.api.desktop_api import _project_memory
+    from mathtutor.application.public_projections import _project_memory
 
     return _project_memory  # type: ignore[return-value]
 

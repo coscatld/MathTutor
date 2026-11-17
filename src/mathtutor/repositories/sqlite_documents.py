@@ -526,7 +526,7 @@ async def record_index_build(
         parser_version=record.parser_version,
         embedding_normalization=record.embedding_normalization,
         embedding_runtime_version=record.embedding_runtime_version,
-        built_at=_now(),
+        built_at=record.built_at.isoformat(),
     )
     await conn.execute(document_index_builds.delete().where(
         document_index_builds.c.student_id == student_id,

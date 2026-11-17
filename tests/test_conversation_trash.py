@@ -3,7 +3,7 @@ from contextlib import closing
 import pytest
 from test_tutor_p0 import client_at, send
 from mathtutor.api.product_state import get_product_state
-from mathtutor.repositories.conversation_repository import InMemoryConversationRepository
+from mathtutor.repositories.conversation_repository import SQLiteConversationRepository
 
 BASE = "/api/v2/math-tutor"
 
@@ -101,7 +101,7 @@ def test_busy_conversation_cannot_be_deleted(tmp_path):
 
 @pytest.mark.asyncio
 async def test_memory_repository_matches_durable_trash_contract():
-    repo = InMemoryConversationRepository()
+    repo = SQLiteConversationRepository()
     await repo.append_message("s", "c", role="student", content="test")
     await repo.set_trash("s", "c", True)
     assert not await repo.list("s")

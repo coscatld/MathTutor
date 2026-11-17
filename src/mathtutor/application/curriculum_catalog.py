@@ -28,18 +28,15 @@ from mathtutor.domain.curriculum import (
     CurriculumNode,
     CurriculumVersion,
 )
-from mathtutor.repositories.sqlite_curriculum import (
-    CurriculumCatalogError,
-    CurriculumGraph,
-    DuplicateCodeError,
-    InMemoryCurriculumRepository,
-    InvalidEdgeError,
-    ValidationIssue,
-    VersionImmutableError,
-    VersionNotFoundError,
-    check_edge,
-    validate_graph,
-)
+from mathtutor.repositories.sqlite_curriculum import CurriculumCatalogError
+from mathtutor.repositories.sqlite_curriculum import CurriculumGraph
+from mathtutor.repositories.sqlite_curriculum import DuplicateCodeError
+from mathtutor.repositories.sqlite_curriculum import SQLiteCurriculumRepository
+from mathtutor.repositories.sqlite_curriculum import InvalidEdgeError
+from mathtutor.repositories.sqlite_curriculum import ValidationIssue
+from mathtutor.repositories.sqlite_curriculum import VersionImmutableError
+from mathtutor.repositories.sqlite_curriculum import VersionNotFoundError
+from mathtutor.repositories.sqlite_curriculum import check_edge
 
 __all__ = [
     "CurriculumCatalogError",
@@ -95,7 +92,7 @@ class CurriculumCatalogService:
     """
 
     def __init__(self, repository: Any | None = None) -> None:
-        self.repository = repository or InMemoryCurriculumRepository()
+        self.repository = repository or SQLiteCurriculumRepository()
 
     # ------------------------------------------------------- lifecycle
 

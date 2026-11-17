@@ -92,8 +92,7 @@ async def issue_solution_attestation(
 ) -> VerifiedSolutionRef:
     """Persist the verification log + attestation; re-validate every binding.
 
-    Identical fail-closed rules to the in-memory repository — the SQLite
-    implementation adds persistence, not trust.
+    The same fail-closed rules apply to durable and ephemeral SQLite.
     """
     from datetime import datetime, timezone
 
@@ -165,6 +164,8 @@ async def issue_solution_attestation(
             attempt_id=None,
             problem_id=str(problem.problem_id),
             verdict=decision.verdict,
+            policy_id=decision.policy_id,
+            policy_version=decision.policy_version,
             checks=[check.model_dump(mode="json") for check in decision.checks],
             attestation_hash=attestation.attestation_hash,
             created_at=datetime.now(timezone.utc).isoformat(),
@@ -183,39 +184,29 @@ async def issue_solution_attestation(
     )
 
 
-async def load_attestation_for_problem(
-    conn: AsyncConnection, problem_id: UUID
-) -> VerifiedSolutionRef | None:
-    row = (
-        await conn.execute(
-            select(
-                verification_logs,
-                math_problems.c.content_hash,
-                solution_candidates.c.payload_hash,
-            )
+def _attestation_query():
+    return (select(verification_logs, math_problems.c.content_hash, solution_candidates.c.payload_hash)
             .join(math_problems, math_problems.c.problem_id == verification_logs.c.problem_id)
-            .join(
-                solution_candidates,
-                solution_candidates.c.candidate_id == verification_logs.c.candidate_id,
-            )
-            .where(verification_logs.c.problem_id == str(problem_id))
-            .where(verification_logs.c.attestation_hash.is_not(None))
-            .order_by(verification_logs.c.created_at.desc())
-            .limit(1)
-        )
-    ).first()
+            .join(solution_candidates, solution_candidates.c.candidate_id == verification_logs.c.candidate_id)
+            .where(verification_logs.c.attestation_hash.is_not(None)))
+
+
+def _attestation_from_row(row) -> VerifiedSolutionRef | None:
     if row is None:
         return None
     return VerifiedSolutionRef(
-        verification_log_id=UUID(row.log_id),
-        problem_id=problem_id,
-        problem_content_hash=row.content_hash,
-        solution_candidate_id=UUID(row.candidate_id),
-        solution_payload_hash=row.payload_hash,
-        policy_id="",
-        policy_version="",
-        attestation_hash=row.attestation_hash,
+        verification_log_id=UUID(row.log_id), problem_id=UUID(row.problem_id),
+        problem_content_hash=row.content_hash, solution_candidate_id=UUID(row.candidate_id),
+        solution_payload_hash=row.payload_hash, policy_id=row.policy_id,
+        policy_version=row.policy_version, attestation_hash=row.attestation_hash,
     )
+
+
+async def load_attestation_for_problem(conn: AsyncConnection, problem_id: UUID) -> VerifiedSolutionRef | None:
+    row = (await conn.execute(_attestation_query()
+        .where(verification_logs.c.problem_id == str(problem_id))
+        .order_by(verification_logs.c.created_at.desc()).limit(1))).first()
+    return _attestation_from_row(row)
 
 
 async def load_problem(conn: AsyncConnection, problem_id: UUID) -> MathProblem | None:
@@ -281,8 +272,8 @@ async def load_verified_for_problem(
         problem_content_hash=row.content_hash,
         solution_candidate_id=UUID(row.candidate_id),
         solution_payload_hash=row.payload_hash,
-        policy_id="",
-        policy_version="",
+        policy_id=row.policy_id,
+        policy_version=row.policy_version,
         attestation_hash=row.attestation_hash,
     )
     return problem, candidate, ref
@@ -291,7 +282,11 @@ async def load_verified_for_problem(
 class SQLiteProblemRepository:
     """ProblemRepository over the product database (short UoW transactions)."""
 
-    def __init__(self, uow: Any) -> None:
+    def __init__(self, uow: Any = None) -> None:
+        if uow is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            from mathtutor.repositories.uow import MathTutorUow
+            uow = MathTutorUow(create_memory_engine())
         self._uow = uow
 
     async def get_or_create(self, problem: MathProblem) -> MathProblem:
@@ -304,10 +299,13 @@ class SQLiteProblemRepository:
 
 
 class SQLiteSolutionRepository:
-    """SolutionRepository over the product database; attestation fail-closed
-    rules identical to the in-memory implementation."""
+    """SolutionRepository over the product database, with fail-closed attestations."""
 
-    def __init__(self, uow: Any) -> None:
+    def __init__(self, uow: Any = None) -> None:
+        if uow is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            from mathtutor.repositories.uow import MathTutorUow
+            uow = MathTutorUow(create_memory_engine())
         self._uow = uow
 
     async def save_problem(self, problem: MathProblem) -> None:
@@ -324,7 +322,9 @@ class SQLiteSolutionRepository:
             return await issue_solution_attestation(conn, problem, candidate, decision)
 
     async def get_attestation(self, verification_log_id: UUID) -> VerifiedSolutionRef | None:
-        raise NotImplementedError("attestation lookup by log id lands with attempt judging")
+        async with self._uow.transaction() as conn:
+            row = (await conn.execute(_attestation_query().where(verification_logs.c.log_id == str(verification_log_id)))).first()
+            return _attestation_from_row(row)
 
     async def get_attestation_for_problem(self, problem_id: UUID) -> VerifiedSolutionRef | None:
         async with self._uow.transaction() as conn:

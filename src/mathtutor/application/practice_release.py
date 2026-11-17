@@ -32,7 +32,7 @@ repository transaction.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any, Sequence
 from uuid import UUID, uuid4, uuid5
 
@@ -74,7 +74,6 @@ from mathtutor.repositories.practice_repository import (
     validate_release_binding,
 )
 from mathtutor.solving import parse_problem, solve_problem
-from mathtutor.solving.verifier import VerificationPolicy
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -228,11 +227,9 @@ class ExerciseReleaseService:
         repository: PracticeRepository | None = None,
         verification_backend: VerificationBackend | None = None,
     ) -> None:
-        from mathtutor.repositories.practice_repository import (
-            InMemoryPracticeRepository,
-        )
+        from mathtutor.repositories.sqlite_practice import SQLitePracticeRepository
 
-        self.repository = repository or InMemoryPracticeRepository()
+        self.repository = repository or SQLitePracticeRepository()
         self.verification_backend = verification_backend or InProcessVerificationBackend()
 
     # ----------------------------------------------------------- publish

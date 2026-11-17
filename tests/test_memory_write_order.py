@@ -13,7 +13,6 @@ from mathtutor.domain.memory import PersonalMemoryNode
 from mathtutor.domain.retrieval_policy import RetrievalIntent
 from mathtutor.infrastructure import create_db_engine
 from mathtutor.infrastructure.schema import metadata
-from mathtutor.repositories import memory_repository as memory
 from mathtutor.repositories import sqlite_memory as sqlite
 from mathtutor.repositories.sqlite_knowledge import SQLiteMemoryRepository
 from mathtutor.security.scopes import student_uuid
@@ -35,7 +34,6 @@ def node(owner, number, *, text="saved preference", inferred=False):
 
 def freeze_clocks(monkeypatch):
     clock = [TICK]
-    monkeypatch.setattr(memory, "_now", lambda: clock[0])
     monkeypatch.setattr(sqlite, "_now", lambda: clock[0].isoformat())
     return clock
 
@@ -52,7 +50,7 @@ async def repository(request, tmp_path, monkeypatch):
     clock = freeze_clocks(monkeypatch)
     engine = None
     if request.param == "memory":
-        repo = memory.InMemoryMemoryRepository()
+        repo = SQLiteMemoryRepository()
     else:
         engine = await database(tmp_path / "memory-order.db")
         repo = SQLiteMemoryRepository(engine)

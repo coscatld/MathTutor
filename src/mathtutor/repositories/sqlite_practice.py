@@ -268,8 +268,8 @@ async def load_exact_verified_by_release(
         problem_content_hash=row.content_hash,
         solution_candidate_id=release.solution_candidate_id,
         solution_payload_hash=row.payload_hash,
-        policy_id="",
-        policy_version="",
+        policy_id=row.policy_id,
+        policy_version=row.policy_version,
         attestation_hash=row.attestation_hash,
     )
     from mathtutor.repositories.practice_repository import practice_problem_surface
@@ -329,7 +329,11 @@ async def mark_offer_declined(
 class SQLitePracticeRepository:
     """Practice catalog over the product database (short UoW transactions)."""
 
-    def __init__(self, uow: Any) -> None:
+    def __init__(self, uow: Any = None) -> None:
+        if uow is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            from mathtutor.repositories.uow import MathTutorUow
+            uow = MathTutorUow(create_memory_engine())
         self.uow = uow
 
     # ------------------------------------------------------- release gate

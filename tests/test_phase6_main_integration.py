@@ -539,7 +539,7 @@ def test_restore_migration_failure_atomically_rolls_back_live_db(
     Capture the endpoint's protected snapshot hash at copy time; this avoids
     comparing against a pre-checkpoint WAL representation of the same DB.
     """
-    from mathtutor.api import desktop_api
+    from mathtutor.application import restore_runtime as restore_api
     from mathtutor.infrastructure import migrate
 
     db_file = tmp_path / "math_tutor.db"
@@ -556,7 +556,7 @@ def test_restore_migration_failure_atomically_rolls_back_live_db(
     reset_product_state()
 
     captured: dict[str, str] = {}
-    real_copy2 = desktop_api.shutil.copy2
+    real_copy2 = restore_api.shutil.copy2
 
     def capture_protected_snapshot(src, dst, *args, **kwargs):
         result = real_copy2(src, dst, *args, **kwargs)
@@ -568,7 +568,7 @@ def test_restore_migration_failure_atomically_rolls_back_live_db(
         raise RuntimeError("injected migration failure")
 
     with _client(db_file) as client:
-        monkeypatch.setattr(desktop_api.shutil, "copy2", capture_protected_snapshot)
+        monkeypatch.setattr(restore_api.shutil, "copy2", capture_protected_snapshot)
         monkeypatch.setattr(migrate, "upgrade_db", fail_migration)
         response = client.post(
             "/api/v2/math-tutor/desktop/backup/restore",

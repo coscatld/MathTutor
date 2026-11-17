@@ -109,7 +109,7 @@ async def test_invalid_cloud_embedding_does_not_fail_ingestion(tmp_path) -> None
         DocumentIngestionService,
     )
     from mathtutor.infrastructure.document_storage import DocumentStorage
-    from mathtutor.repositories.document_repository import InMemoryDocumentRepository
+    from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"error": {"message": "invalid key"}})
@@ -123,7 +123,7 @@ async def test_invalid_cloud_embedding_does_not_fail_ingestion(tmp_path) -> None
                 http=client,
             )
         )
-        repository = InMemoryDocumentRepository()
+        repository = SQLiteDocumentRepository()
         service = DocumentIngestionService(
             repository=repository,
             storage=DocumentStorage(tmp_path / "data"),
@@ -154,9 +154,9 @@ async def test_model_identity_mismatch_never_scores_old_vectors() -> None:
     from mathtutor.application.document_ingestion import DocumentIndexManager
     from mathtutor.domain.documents import DocumentChunk, UserDocument
     from mathtutor.infrastructure.embedding_runtime import build_fake_embedding_runtime
-    from mathtutor.repositories.document_repository import InMemoryDocumentRepository
+    from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 
-    repository = InMemoryDocumentRepository()
+    repository = SQLiteDocumentRepository()
     doc = await repository.add_document(
         "student-a",
         UserDocument(

@@ -40,9 +40,7 @@ from mathtutor.domain.retrieval_policy import RetrievalIntent, RetrievalSource
 from mathtutor.infrastructure.db import create_db_engine
 from mathtutor.infrastructure.document_storage import DocumentStorage
 from mathtutor.infrastructure.migrate import upgrade_db
-from mathtutor.repositories.document_repository import InMemoryDocumentRepository
 from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
-from mathtutor.repositories.uow import MathTutorUow
 from mathtutor.security.scopes import student_uuid
 
 pytestmark = pytest.mark.asyncio
@@ -197,10 +195,12 @@ async def test_scoped_retrieval_still_works():
 # ------------------------------------------- D11 visibility gate (memory)
 
 
-def _memory_repo(doc: UserDocument, chunks: list[DocumentChunk]) -> InMemoryDocumentRepository:
-    repo = InMemoryDocumentRepository()
-    repo._documents[doc.document_id] = doc
-    repo._chunks[doc.document_id] = chunks
+async def _memory_repo(doc: UserDocument, chunks: list[DocumentChunk]) -> SQLiteDocumentRepository:
+    repo = SQLiteDocumentRepository()
+    await repo.add_document(_OWNER, doc)
+    await repo.replace_chunks(_OWNER, doc.document_id, chunks)
+    if doc.deleted_at is not None:
+        await repo.soft_delete_document(_OWNER, doc.document_id)
     return repo
 
 
@@ -217,7 +217,7 @@ def _memory_repo(doc: UserDocument, chunks: list[DocumentChunk]) -> InMemoryDocu
 )
 async def test_list_retrievable_chunks_enforces_document_visibility(overrides, visible):
     doc = _doc(**overrides)
-    repo = _memory_repo(doc, [_chunk(doc.document_id)])
+    repo = await _memory_repo(doc, [_chunk(doc.document_id)])
 
     result = await repo.list_retrievable_chunks(_OWNER, doc.document_id)
 
@@ -228,11 +228,11 @@ async def test_list_retrievable_chunks_rejects_soft_deleted_and_cross_owner():
     from datetime import datetime, timezone
 
     doc = _doc(deleted_at=datetime.now(timezone.utc))
-    repo = _memory_repo(doc, [_chunk(doc.document_id)])
+    repo = await _memory_repo(doc, [_chunk(doc.document_id)])
     assert await repo.list_retrievable_chunks(_OWNER, doc.document_id) == []
 
     live = _doc()
-    repo = _memory_repo(live, [_chunk(live.document_id)])
+    repo = await _memory_repo(live, [_chunk(live.document_id)])
     assert await repo.list_retrievable_chunks(_OTHER, live.document_id) == []
     assert await repo.list_retrievable_chunks(_OWNER, live.document_id) != []
 
@@ -240,7 +240,7 @@ async def test_list_retrievable_chunks_rejects_soft_deleted_and_cross_owner():
 async def test_list_chunks_stays_permissive_for_versioning():
     """snapshot()/build_index() must still read disabled documents."""
     doc = _doc(retrieval_enabled=False)
-    repo = _memory_repo(doc, [_chunk(doc.document_id)])
+    repo = await _memory_repo(doc, [_chunk(doc.document_id)])
 
     assert len(await repo.list_chunks(_OWNER, doc.document_id)) == 1
     assert await repo.list_retrievable_chunks(_OWNER, doc.document_id) == []

@@ -1,15 +1,8 @@
 """SQLite curriculum catalog (Phase 6 §9.1): versions, nodes, edges.
 
-Contract + in-memory implementation + SQLite implementation, one file:
-
-- ``CurriculumRepository`` — the async contract the catalog service uses.
-- ``InMemoryCurriculumRepository`` — process-local (dev/tests), mirrors the
-  SQLite structural constraints (version existence, code uniqueness, node
-  existence) so the two implementations stay behaviorally aligned.
-- ``SQLiteCurriculumRepository`` — durable store over ``MathTutorUow`` on
-  the Phase 6 tables (``curriculum_versions`` / ``curriculum_nodes`` /
-  ``curriculum_edges``), short UoW transactions, FK + unique constraints
-  enforced by the database itself.
+``CurriculumRepository`` defines the async catalog contract. The SQLite
+implementation uses short UoW transactions for both durable and ephemeral
+storage; foreign keys and unique constraints are enforced by SQLite.
 
 Business rules are enforced by the catalog SERVICE
 (``application/curriculum_catalog.py``) — version immutability after
@@ -420,116 +413,6 @@ class CurriculumRepository(Protocol):
 # ------------------------------------------------------- in-memory store
 
 
-class InMemoryCurriculumRepository:
-    """Process-local curriculum catalog (dev/tests).
-
-    Mirrors the SQLite structural constraints: version code unique, node
-    code unique within a version, version/node existence on write. Business
-    rules (immutability after publish, edge kinds, cross-version, self-loop)
-    live in the catalog service — same as with the SQLite store.
-    """
-
-    def __init__(self) -> None:
-        self._versions: dict[str, CurriculumVersion] = {}
-        self._nodes: dict[str, CurriculumNode] = {}
-        self._edges: dict[str, CurriculumEdge] = {}
-
-    async def create_version(self, version: CurriculumVersion) -> CurriculumVersion:
-        key = str(version.version_id)
-        if key in self._versions:
-            raise DuplicateCodeError(f"version_id 已存在: {key}")
-        self._versions[key] = version
-        return version
-
-    async def add_node(self, node: CurriculumNode) -> CurriculumNode:
-        if str(node.version_id) not in self._versions:
-            raise VersionNotFoundError(f"版本不存在: {node.version_id}")
-        for existing in self._nodes.values():
-            if (
-                existing.version_id == node.version_id
-                and existing.code == node.code
-            ):
-                raise DuplicateCodeError(
-                    f"节点 code {node.code!r} 在该版本中已存在"
-                )
-        self._nodes[str(node.node_id)] = node
-        return node
-
-    async def add_edge(self, edge: CurriculumEdge) -> CurriculumEdge:
-        if str(edge.version_id) not in self._versions:
-            raise VersionNotFoundError(f"版本不存在: {edge.version_id}")
-        for node_id in (str(edge.from_node_id), str(edge.to_node_id)):
-            if node_id not in self._nodes:
-                raise NodeNotFoundError(f"端点节点不存在: {node_id}")
-        self._edges[str(edge.edge_id)] = edge
-        return edge
-
-    async def publish(self, version_id: UUID) -> CurriculumVersion:
-        version = self._versions.get(str(version_id))
-        if version is None:
-            raise VersionNotFoundError(f"版本不存在: {version_id}")
-        if version.status == "published":
-            return version  # idempotent re-publish
-        if version.status == "archived":
-            raise VersionImmutableError("archived 版本不能重新发布")
-        node_count = sum(1 for n in self._nodes.values() if n.version_id == version_id)
-        edge_count = sum(1 for e in self._edges.values() if e.version_id == version_id)
-        published = version.model_copy(
-            update={
-                "status": "published",
-                "node_count": node_count,
-                "edge_count": edge_count,
-                "released_at": datetime.now(timezone.utc),
-            }
-        )
-        self._versions[str(version_id)] = published
-        return published
-
-    async def archive(self, version_id: UUID) -> CurriculumVersion:
-        version = self._versions.get(str(version_id))
-        if version is None:
-            raise VersionNotFoundError(f"版本不存在: {version_id}")
-        if version.status == "archived":
-            return version
-        archived = version.model_copy(update={"status": "archived"})
-        self._versions[str(version_id)] = archived
-        return archived
-
-    async def load_version(self, version_id: UUID) -> CurriculumVersion | None:
-        return self._versions.get(str(version_id))
-
-    async def find_version_by_code(self, code: str) -> CurriculumVersion | None:
-        for version in self._versions.values():
-            if version.code == code:
-                return version
-        return None
-
-    async def find_node(self, node_id: UUID) -> CurriculumNode | None:
-        return self._nodes.get(str(node_id))
-
-    async def list_versions(self) -> list[CurriculumVersion]:
-        return list(self._versions.values())
-
-    async def load_graph(self, version_id: UUID) -> CurriculumGraph:
-        version = self._versions.get(str(version_id))
-        if version is None:
-            raise VersionNotFoundError(f"版本不存在: {version_id}")
-        nodes = tuple(
-            n for n in self._nodes.values() if n.version_id == version_id
-        )
-        edges = tuple(
-            e for e in self._edges.values() if e.version_id == version_id
-        )
-        return CurriculumGraph(version=version, nodes=nodes, edges=edges)
-
-    async def validate_graph(self, version_id: UUID) -> list[ValidationIssue]:
-        graph = await self.load_graph(version_id)
-        return validate_graph(graph.nodes, graph.edges)
-
-    async def clear(self) -> None:
-        self._versions.clear()
-        self._nodes.clear()
-        self._edges.clear()
 
 
 # -------------------------------------------------------------- sqlite
@@ -538,7 +421,11 @@ class InMemoryCurriculumRepository:
 class SQLiteCurriculumRepository:
     """Curriculum catalog over the product database (short UoW transactions)."""
 
-    def __init__(self, uow: Any) -> None:
+    def __init__(self, uow: Any = None) -> None:
+        if uow is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            from mathtutor.repositories.uow import MathTutorUow
+            uow = MathTutorUow(create_memory_engine())
         self.uow = uow
 
     async def create_version(self, version: CurriculumVersion) -> CurriculumVersion:
@@ -761,7 +648,6 @@ __all__ = [
     "CurriculumGraph",
     "CurriculumRepository",
     "DuplicateCodeError",
-    "InMemoryCurriculumRepository",
     "InvalidEdgeError",
     "NodeNotFoundError",
     "SQLiteCurriculumRepository",

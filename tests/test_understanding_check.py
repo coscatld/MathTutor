@@ -147,12 +147,12 @@ async def test_focused_practice_at_each_difficulty_passes_the_full_release_gate(
     from mathtutor.application.adaptive_practice import practice_context_from_assembled
     from mathtutor.application.llm_candidate_generator import TemplateCandidateExerciseGenerator
     from mathtutor.application.practice_release import ExerciseReleaseService
-    from mathtutor.repositories.practice_repository import InMemoryPracticeRepository
+    from mathtutor.repositories.sqlite_practice import SQLitePracticeRepository
     from test_adaptive_practice import _assembled
     context = practice_context_from_assembled(_assembled(), target_skill_ids=("LINEAR_EQUATION",), desired_difficulty=difficulty)
     context = context.model_copy(update={"foundation_focus": focus})
     candidates = await TemplateCandidateExerciseGenerator().generate(context)
-    released = await ExerciseReleaseService(repository=InMemoryPracticeRepository()).release_candidate(candidates[0], source_type="TEMPLATE")
+    released = await ExerciseReleaseService(repository=SQLitePracticeRepository()).release_candidate(candidates[0], source_type="TEMPLATE")
     assert released.problem.problem_type == "linear"
     assert released.release.status == "released"
     assert released.ref.problem_content_hash == released.problem.content_hash

@@ -14,7 +14,7 @@ from mathtutor.application.personal_memory_service import PersonalMemoryService
 from mathtutor.domain.retrieval_policy import RetrievalIntent
 from mathtutor.infrastructure.generative_gateway import ModelRole
 from mathtutor.infrastructure.tutor_chat import TutorChatResponder
-from mathtutor.repositories.memory_repository import InMemoryMemoryRepository
+from mathtutor.repositories.sqlite_knowledge import SQLiteMemoryRepository
 from test_tutor_output_contract_integration import Replies
 from test_tutor_p0 import client_at, send, count
 
@@ -175,7 +175,7 @@ def test_continuation_refreshes_memory_and_keeps_original_current_request(tmp_pa
 
 
 async def test_recent_edit_survives_more_than_twenty_memories_and_oversized_note():
-    repo = InMemoryMemoryRepository()
+    repo = SQLiteMemoryRepository()
     service = PersonalMemoryService(repo)
     nodes = [await service.add_explicit("owner", memory_type="user_note", subject="数学",
         predicate="备注", object_json={"text": f"偏好{i}"}) for i in range(25)]
@@ -195,7 +195,7 @@ async def test_memory_survives_history_budget_with_current_document_and_request(
     from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway
     from mathtutor.infrastructure.secret_store import InMemorySecretStore
     from mathtutor.infrastructure.vision import content_token_estimate
-    repo = InMemoryMemoryRepository()
+    repo = SQLiteMemoryRepository()
     await PersonalMemoryService(repo).add_explicit("owner", memory_type="example_preference", subject="数学",
         predicate="偏好例子", object_json={"text": "跑步配速"})
     context = (await PersonalMemorySourceProvider(repo).load(student_id="owner", intent=RetrievalIntent.SOLVE_PROBLEM)).payload

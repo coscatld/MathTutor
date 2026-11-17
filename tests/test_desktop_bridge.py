@@ -25,6 +25,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from mathtutor import application  # noqa: F401  (module for source scan)
+from mathtutor.api.routers import documents as documents_api
+from mathtutor.api.routers import settings as settings_api
 from mathtutor.api import desktop_api
 from mathtutor.api.product_app import create_math_tutor_app
 from mathtutor.api.product_state import (
@@ -562,7 +564,7 @@ def test_picker_source_never_scans_directories() -> None:
     for forbidden in ("os.walk", "os.scandir", ".iterdir", "scandir(", "glob("):
         assert forbidden not in source, f"directory enumeration found: {forbidden}"
 
-    api_source = Path(desktop_api.__file__).read_text(encoding="utf-8")
+    api_source = Path(documents_api.__file__).read_text(encoding="utf-8")
     for forbidden in ("os.walk", "os.scandir", ".iterdir", "glob("):
         assert forbidden not in api_source, f"directory enumeration found: {forbidden}"
 
@@ -573,9 +575,9 @@ def test_picker_source_never_scans_directories() -> None:
 
 
 def test_mask_secret_tail_only():
-    assert desktop_api.mask_secret("sk-abcdef-1234") == "••••••••1234"
-    assert desktop_api.mask_secret("ab") == "••••••••ab"
-    assert desktop_api.mask_secret("") == ""
+    assert settings_api.mask_secret("sk-abcdef-1234") == "••••••••1234"
+    assert settings_api.mask_secret("ab") == "••••••••ab"
+    assert settings_api.mask_secret("") == ""
 
 
 def test_desktop_production_secret_store_shared_with_gateway(monkeypatch) -> None:
@@ -594,7 +596,7 @@ def test_desktop_production_secret_store_shared_with_gateway(monkeypatch) -> Non
         # The gateway resolves keys through THIS store at call time.
         assert state.gateway._secret_store is state.secret_store
         # The settings surface resolves to the same instance.
-        assert desktop_api._desktop_secret_store() is state.secret_store
+        assert settings_api._desktop_secret_store() is state.secret_store
     finally:
         reset_product_state()
 
@@ -626,7 +628,7 @@ async def test_put_settings_never_returns_key_and_stores_it() -> None:
         body = response.json()
         assert "api_key" not in body
         assert SECRET not in response.text
-        assert body["key_masked"] == desktop_api.mask_secret(SECRET)
+        assert body["key_masked"] == settings_api.mask_secret(SECRET)
         assert body["key_masked"].endswith("1234")
         assert body["preset_id"] == "openai"
         assert body["is_configured"] is True
@@ -974,7 +976,7 @@ def test_resource_parse_failure_has_actionable_public_message(classification, ex
         status="failed", classification=classification,
         parse_error="internal-parser-detail-and-private-path",
     )
-    projection = desktop_api._project_document(document)
+    projection = documents_api._project_document(document)
     assert expected in projection["error"]
     assert "private" not in str(projection)
     assert "parse_error" not in projection
@@ -1112,7 +1114,7 @@ def test_document_pick_cancelled_and_unsupported(monkeypatch) -> None:
     reset_product_state()
 
     monkeypatch.setattr(
-        desktop_api.__name__ + "._document_picker",
+        documents_api.__name__ + "._document_picker",
         lambda: NativeDesktopFilePicker(InMemoryPickedFilePicker().pick_document_file),
     )
     with _client() as client:
@@ -1121,7 +1123,7 @@ def test_document_pick_cancelled_and_unsupported(monkeypatch) -> None:
         assert response.json() == {"status": "cancelled"}
 
     monkeypatch.setattr(
-        desktop_api.__name__ + "._document_picker",
+        documents_api.__name__ + "._document_picker",
         lambda: NativeDesktopFilePicker(),
     )
     with _client() as client:
@@ -1137,7 +1139,7 @@ def test_document_pick_imports_explicit_pick(monkeypatch) -> None:
         PickedFile(filename="picked.md", data=b"picked content", mime_type="text/markdown")
     )
     monkeypatch.setattr(
-        desktop_api.__name__ + "._document_picker",
+        documents_api.__name__ + "._document_picker",
         lambda: NativeDesktopFilePicker(picker.pick_document_file),
     )
     with _client() as client:

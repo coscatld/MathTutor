@@ -18,8 +18,8 @@ Construction rules:
 - the embedding runtime starts WITHOUT a backend; an explicitly enabled,
   complete local/cloud setting may attach one later. Documents always retain
   lexical retrieval and vector indexing remains optional/best-effort;
-- SQLite mode wires the knowledge repositories to the same database;
-  in-memory mode keeps process-local implementations;
+- both durable and ephemeral modes wire the same SQLite repositories to
+  one shared database;
 - the ContextAssembler is the ONLY path from these repositories to LLM
   consumers (writer/practice generators).
 """
@@ -30,6 +30,10 @@ import asyncio
 from contextlib import asynccontextmanager
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mathtutor.application.data_lifecycle import DataLifecycleService
 
 from mathtutor.application.adaptive_practice import AdaptivePracticeService
 from mathtutor.application.context_assembler import (
@@ -66,12 +70,10 @@ from mathtutor.pedagogy.writer_settings import (
     load_math_tutor_writer_settings,
 )
 from mathtutor.infrastructure.tutor_chat import TutorChatResponder
-from mathtutor.repositories.document_repository import InMemoryDocumentRepository
-from mathtutor.repositories.memory_repository import InMemoryMemoryRepository
-from mathtutor.repositories.session_store import (
-    InMemorySessionStore,
-    SessionStoreProtocol,
-)
+from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
+from mathtutor.repositories.sqlite_knowledge import SQLiteMemoryRepository
+from mathtutor.repositories.sqlite_store import SQLiteSessionStore
+from mathtutor.repositories.session_store import SessionStoreProtocol
 
 
 def _build_writer(gateway: GenerativeModelGateway, personality_instruction: str = ""):
@@ -210,7 +212,11 @@ class ProductState:
         verification_backend: VerificationBackend | None = None,
         extension_registry=None,
     ) -> None:
-        self.store: SessionStoreProtocol = store or InMemorySessionStore()
+        from mathtutor.infrastructure.memory_database import create_memory_engine, is_memory_engine
+        if engine is None:
+            engine = getattr(getattr(store, "uow", None), "engine", None) or create_memory_engine()
+        durable = not is_memory_engine(engine)
+        self.store: SessionStoreProtocol = store or SQLiteSessionStore(engine)
         # Request-level maintenance barrier.  Restore is the only operation
         # that replaces the live SQLite file; it first closes this gate, waits
         # for already-admitted HTTP/WebSocket requests to drain, and keeps it
@@ -248,7 +254,7 @@ class ProductState:
         # in-process backend is an explicit development/test profile only;
         # production never falls back to it after a worker failure.
         if verification_backend is None:
-            if engine is not None:
+            if durable:
                 from mathtutor.infrastructure.verifier_worker import (
                     VerifierWorkerManager,
                 )
@@ -259,7 +265,7 @@ class ProductState:
         self.verification_backend = verification_backend
         if service is None:
             service = MathTutorApplicationService(
-                verification_backend=self.verification_backend
+                verification_backend=self.verification_backend, engine=engine
             )
         else:
             service.verification_backend = self.verification_backend
@@ -267,7 +273,7 @@ class ProductState:
         # restore orchestration needs it to stop→dispose→restore→rebuild.
         if db_path is not None:
             self.db_path: Path | None = Path(db_path)
-        elif engine is not None and engine.url.database:
+        elif durable and engine.url.database:
             self.db_path = Path(engine.url.database)
         else:
             self.db_path = None
@@ -281,46 +287,25 @@ class ProductState:
         from mathtutor.repositories.image_repository import ImageRepository
         self.images = ImageRepository(engine)
 
-        if engine is not None:
-            from mathtutor.repositories.sqlite_curriculum import (
-                SQLiteCurriculumRepository,
-            )
-            from mathtutor.repositories.sqlite_knowledge import (
-                SQLiteDocumentRepository,
-                SQLiteMemoryRepository,
-            )
-            from mathtutor.repositories.sqlite_practice import (
-                SQLitePracticeRepository,
-            )
-            from mathtutor.repositories.uow import MathTutorUow
-            from mathtutor.repositories.conversation_repository import SQLiteConversationRepository
+        from mathtutor.repositories.sqlite_curriculum import (
+            SQLiteCurriculumRepository,
+        )
+        from mathtutor.repositories.sqlite_practice import (
+            SQLitePracticeRepository,
+        )
+        from mathtutor.repositories.uow import MathTutorUow
+        from mathtutor.repositories.conversation_repository import SQLiteConversationRepository
 
-            # The UoW wakes the resident outbox relay after every committed
-            # transaction (best-effort accelerator; the loop also polls).
-            # ``_relay_wake`` reads the relay lazily — it does not exist yet
-            # during the first repository constructions below.
-            self.uow = MathTutorUow(engine, on_commit=self._relay_wake)
-            self.memory_repository = SQLiteMemoryRepository(engine)
-            self.document_repository = SQLiteDocumentRepository(engine)
-            self.practice_repository = SQLitePracticeRepository(self.uow)
-            self.curriculum_repository = SQLiteCurriculumRepository(self.uow)
-            self.conversations = SQLiteConversationRepository(engine)
-        else:
-            from mathtutor.repositories.practice_repository import (
-                InMemoryPracticeRepository,
-            )
-            from mathtutor.repositories.sqlite_curriculum import (
-                InMemoryCurriculumRepository,
-            )
-            from mathtutor.repositories.conversation_repository import InMemoryConversationRepository
-
-            self.uow = None
-            self.memory_repository = InMemoryMemoryRepository()
-            self.document_repository = InMemoryDocumentRepository()
-            self.practice_repository = InMemoryPracticeRepository()
-            self.curriculum_repository = InMemoryCurriculumRepository()
-            self.conversations = InMemoryConversationRepository()
-
+        # The UoW wakes the resident outbox relay after every committed
+        # transaction (best-effort accelerator; the loop also polls).
+        # ``_relay_wake`` reads the relay lazily — it does not exist yet
+        # during the first repository constructions below.
+        self.uow = MathTutorUow(engine, on_commit=self._relay_wake)
+        self.memory_repository = SQLiteMemoryRepository(engine)
+        self.document_repository = SQLiteDocumentRepository(engine)
+        self.practice_repository = SQLitePracticeRepository(self.uow)
+        self.curriculum_repository = SQLiteCurriculumRepository(self.uow)
+        self.conversations = SQLiteConversationRepository(engine)
         # Phase 5 verified-release catalog: offers/accepts go through this
         # repository ONLY (the store's accept transaction re-validates the
         # offer with a CAS against the same rows). The capability receives
@@ -333,10 +318,8 @@ class ProductState:
             self.practice_repository,
             verification_backend=self.verification_backend,
         )
-        # Phase 6 (first round): versioned curriculum catalog + the outbox
-        # relay. The relay is SQLite-only (it reads domain_outbox through a
-        # UoW); in-memory mode keeps it None. Scheduling the relay loop is
-        # the app factory's job (startup hook, idempotent + restart-safe).
+        # Durable and ephemeral databases share the catalog and outbox relay.
+        # The app factory schedules the idempotent, restart-safe relay loop.
         from mathtutor.application.curriculum_catalog import (
             CurriculumCatalogService,
         )
@@ -391,7 +374,7 @@ class ProductState:
         # triggers backups; the scheduler is built but NOT started here
         # (the startup hook / restore orchestration own its lifecycle).
         # Backups live in a controlled subdirectory of the data dir.
-        if self.uow is not None:
+        if durable:
             from mathtutor.infrastructure.backup import (
                 BackupPolicy,
                 BackupScheduler,
@@ -755,36 +738,25 @@ class ProductState:
         trace(id(self), "shutdown_complete")
 
     def _build_context_assembler(self, engine) -> ContextAssembler:
-        """Wire the six sources; SQLite-backed education loaders when the
-        product database is present, empty-backed in dev/in-memory mode."""
-        if engine is not None:
-            from mathtutor.repositories import sqlite_education
-            from mathtutor.repositories.uow import MathTutorUow
+        """Wire the six sources to the same SQLite-backed education loaders."""
+        from mathtutor.repositories import sqlite_education
+        from mathtutor.repositories.uow import MathTutorUow
 
-            uow = MathTutorUow(engine)
+        uow = MathTutorUow(engine)
 
-            async def load_projection(student_id: str):
-                async with uow.transaction() as conn:
-                    return await sqlite_education.load_student_projection(conn, student_id)
+        async def load_projection(student_id: str):
+            async with uow.transaction() as conn:
+                return await sqlite_education.load_student_projection(conn, student_id)
 
-            async def load_observations(student_id: str):
-                async with uow.transaction() as conn:
-                    return await sqlite_education.load_misconception_observations_for_student(
-                        conn, student_id
-                    )
+        async def load_observations(student_id: str):
+            async with uow.transaction() as conn:
+                return await sqlite_education.load_misconception_observations_for_student(
+                    conn, student_id
+                )
 
-            async def load_evidence(student_id: str):
-                async with uow.transaction() as conn:
-                    return await sqlite_education.load_evidence_for_student(conn, student_id)
-        else:
-            async def load_projection(student_id: str):
-                return None
-
-            async def load_observations(student_id: str):
-                return []
-
-            async def load_evidence(student_id: str):
-                return []
+        async def load_evidence(student_id: str):
+            async with uow.transaction() as conn:
+                return await sqlite_education.load_evidence_for_student(conn, student_id)
 
         return ContextAssembler(
             providers={
@@ -804,20 +776,6 @@ class ProductState:
                 ),
             }
         )
-
-    def reset(self) -> None:
-        """Drop all in-memory sessions (test fixtures / dev reset only).
-
-        SQLite-backed state is reset per-test with a fresh tmp database file
-        (see ``reset_product_state``) — never silently wiped here.
-        """
-        clear_sync = getattr(self.store, "clear_sync", None)
-        if clear_sync is None:
-            raise RuntimeError(
-                "SQLite store cannot be reset synchronously — use a fresh "
-                "tmp db path and reset_product_state() in tests"
-            )
-        clear_sync()
 
 
 _default_state: ProductState | None = None

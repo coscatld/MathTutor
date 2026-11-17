@@ -13,7 +13,6 @@ import asyncio
 import json
 from contextlib import closing
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -243,7 +242,7 @@ async def test_curriculum_catalog_wired_sqlite_and_in_memory(tmp_path: Path) -> 
 
     reset_product_state()
     memory_state = get_product_state()
-    assert memory_state.outbox_relay is None  # relay is SQLite-only
+    assert memory_state.outbox_relay is not None  # both modes use real SQLite
     version2 = await memory_state.curriculum.create_version("v-mt-2", "内存版课程")
     await memory_state.curriculum.publish_version(version2.version_id)
     assert len((await memory_state.curriculum.load_graph(version2.version_id)).nodes) == 0

@@ -29,7 +29,7 @@ from mathtutor.pedagogy.events import StudentPublicEvent
 from mathtutor.api.event_stream import MathTutorEventStream
 from mathtutor.api.product_state import get_product_state
 from mathtutor.application.controller import MathTutorRequest
-from mathtutor.application.controller import LEGACY_COMMAND_ALIASES
+from mathtutor.application.tutor_contracts import LEGACY_COMMAND_ALIASES
 from mathtutor.application.message_projection import project_turn_error
 from mathtutor.domain.hashing import content_hash
 from mathtutor.repositories.conversation_repository import message_id_for

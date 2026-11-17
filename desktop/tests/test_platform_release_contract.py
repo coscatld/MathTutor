@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from mathtutor.api import desktop_api
+from mathtutor.api.routers import readiness as readiness_api
 from mathtutor.infrastructure import keychain_secret_store as keychain
 
 
@@ -37,7 +37,7 @@ async def test_linux_secret_tool_absent_is_degraded_and_never_plaintext(
             await operation()
         assert secret not in str(error.value)
 
-    status, detail = await desktop_api._secret_store_check(
+    status, detail = await readiness_api._secret_store_check(
         SimpleNamespace(secret_store=store)
     )
     assert status == "degraded"

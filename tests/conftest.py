@@ -35,3 +35,11 @@ def _isolated_encryption_keys():
     db_crypto.use_keystore(InMemorySecretStore())
     yield
     db_crypto.use_keystore(InMemorySecretStore())
+
+
+@pytest.fixture(autouse=True)
+def _dispose_ephemeral_databases():
+    yield
+    import asyncio
+    from mathtutor.infrastructure.memory_database import dispose_memory_engines
+    asyncio.run(dispose_memory_engines())

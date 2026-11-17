@@ -7,6 +7,7 @@ with PostgreSQL composite-FK owner constraints.
 """
 
 from __future__ import annotations
+from mathtutor.api.desktop_contracts import PracticeOffer
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -162,7 +163,7 @@ async def get_cycle(
     raise HTTPException(status_code=404, detail="Cycle not found")
 
 
-@router.get("/offers")
+@router.get("/offers", response_model=list[PracticeOffer])
 async def list_offers(
     owner: StudentOwnerScope = Depends(require_student_owner),
 ) -> list[dict]:

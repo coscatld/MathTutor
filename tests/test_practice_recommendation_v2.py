@@ -1,7 +1,5 @@
 """Purpose, bounded candidate selection, provenance and independent offer lifecycle."""
 import asyncio
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -14,7 +12,6 @@ from mathtutor.application.practice_release import ExerciseReleaseService, Pract
 from mathtutor.domain.practice_context import AttemptSummaryEntry
 from mathtutor.domain.practice_recommendation import PracticeRecommendation
 from mathtutor.infrastructure.schema import metadata
-from mathtutor.repositories.practice_repository import InMemoryPracticeRepository
 from mathtutor.repositories.sqlite_practice import SQLitePracticeRepository
 from mathtutor.repositories.sqlite_store import SQLiteSessionStore
 from mathtutor.repositories.uow import MathTutorUow
@@ -39,7 +36,9 @@ async def stack(request, tmp_path):
         repo = SQLitePracticeRepository(MathTutorUow(engine))
         parent = (await SQLiteSessionStore(engine).create(str(student_uuid(OWNER)), "practice-v2")).cycle.cycle_id
     else:
-        repo, parent = InMemoryPracticeRepository(), uuid4()
+        repo = SQLitePracticeRepository()
+        engine = repo.uow.engine
+        parent = (await SQLiteSessionStore(engine).create(str(student_uuid(OWNER)), "practice-v2")).cycle.cycle_id
     service = AdaptivePracticeService(assembler=Assembler(), generator=PracticeGeneratorChain(),
                                       release_service=ExerciseReleaseService(repository=repo))
     yield repo, service, parent

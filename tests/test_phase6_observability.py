@@ -93,7 +93,7 @@ async def test_readiness_three_state_matrix():
 
 # ----------------------------------------------------- RAG telemetry (§20)
 
-from mathtutor.domain.evidence import Evidence, RetrievalExecution, build_evidence_pack
+from mathtutor.domain.evidence import RetrievalExecution
 
 
 def _execution(**overrides) -> RetrievalExecution:
@@ -282,9 +282,7 @@ async def test_product_state_constructs_the_metrics_registry():
         state.metrics.record_retrieval(_execution())
         assert state.metrics.rag()["rag_retrieval_requested_total"] == 1
     finally:
-        reset = getattr(ProductState, "reset", None)
-        if reset is not None:
-            state.reset()
+        await state.shutdown_runtime()
 
 
 @pytest.mark.asyncio

@@ -332,11 +332,12 @@ async def test_educational_history_never_touches_personal_memory(
     reset_product_state()
 
 
-async def test_educational_history_in_memory_mode_fails_closed() -> None:
+async def test_educational_history_in_ephemeral_sqlite_uses_real_contract() -> None:
     reset_product_state()
     with _client(None) as client:
         response = client.post("/api/v2/math-tutor/desktop/privacy/educational-history")
-        assert response.status_code == 409
+        assert response.status_code == 200
+        assert response.json()["deleted_rows"] == 0
     reset_product_state()
 
 
@@ -406,6 +407,6 @@ async def test_export_in_memory_mode_returns_empty_summary() -> None:
             "active_misconceptions": [],
             "item_error_observations": [],
             "learning_loop": [],
-            "model_status": "not_trained",
+            "model_status": "shadow",
         }
     reset_product_state()

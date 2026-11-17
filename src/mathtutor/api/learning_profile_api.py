@@ -1,6 +1,7 @@
 """Owner-scoped learning evidence reads, exclusions and explicit replay."""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from mathtutor.api.auth_deps import require_student_owner
+from mathtutor.api.desktop_contracts import EvidencePage
 from mathtutor.api.product_state import get_product_state
 from mathtutor.security.scopes import StudentOwnerScope
 from mathtutor.application.learning_profile import evidence_page, revoke_pending
@@ -78,7 +79,7 @@ def tracking_state():
     return state
 
 
-@router.get("/student-evidence")
+@router.get("/student-evidence", response_model=EvidencePage)
 async def evidence(skill_id: str | None = None, cycle_id: str | None = None,
                    cursor: int | None = Query(None, ge=1), owner: StudentOwnerScope = Depends(require_student_owner)):
     state = tracking_state()

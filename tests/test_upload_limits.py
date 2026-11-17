@@ -9,7 +9,7 @@ import pytest
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from starlette.formparsers import MultiPartParser
 
-from mathtutor.api import desktop_api
+from mathtutor.api.routers import documents as documents_api
 from mathtutor.api.upload_limits import (
     UploadBodyLimitMiddleware,
     read_upload_limited,
@@ -46,14 +46,14 @@ async def test_legacy_import_reads_only_limit_plus_one_and_closes(monkeypatch, s
         calls.append(len(picked.data))
         return {"status": "ready"}
 
-    monkeypatch.setattr(desktop_api, "_ingest", ingest)
+    monkeypatch.setattr(documents_api, "_ingest", ingest)
     owner = SimpleNamespace(student_id="owner")
     if accepted:
-        assert await desktop_api.import_document(file=uploaded, owner=owner) == {"status": "ready"}
+        assert await documents_api.import_document(file=uploaded, owner=owner) == {"status": "ready"}
         assert calls == [size]
     else:
         with pytest.raises(HTTPException) as error:
-            await desktop_api.import_document(file=uploaded, owner=owner)
+            await documents_api.import_document(file=uploaded, owner=owner)
         assert error.value.status_code == 413
         assert calls == []
     assert uploaded.reads == [MAX_DOCUMENT_BYTES + 1]

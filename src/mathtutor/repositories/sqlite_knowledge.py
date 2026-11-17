@@ -38,7 +38,10 @@ from mathtutor.repositories.uow import MathTutorUow
 class SQLiteMemoryRepository:
     """MemoryRepository over the product database (short transactions)."""
 
-    def __init__(self, engine: Any) -> None:
+    def __init__(self, engine: Any = None) -> None:
+        if engine is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            engine = create_memory_engine()
         self.uow = MathTutorUow(engine)
 
     async def add_node(self, student_id: str, node: PersonalMemoryNode) -> PersonalMemoryNode:
@@ -152,7 +155,10 @@ class SQLiteMemoryRepository:
 class SQLiteDocumentRepository:
     """DocumentRepository over the product database (short transactions)."""
 
-    def __init__(self, engine: Any) -> None:
+    def __init__(self, engine: Any = None) -> None:
+        if engine is None:
+            from mathtutor.infrastructure.memory_database import create_memory_engine
+            engine = create_memory_engine()
         self.uow = MathTutorUow(engine)
 
     async def add_document(self, student_id: str, doc: UserDocument) -> UserDocument:

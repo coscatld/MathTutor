@@ -1090,6 +1090,7 @@ def test_schema_table_count_unchanged_and_migrations_are_explicit() -> None:
         "023_citation_receipts.py",
         "024_turn_traces.py",
         "025_learning_loop.py",
+        "026_attestation_policy.py",
     ]
 
 

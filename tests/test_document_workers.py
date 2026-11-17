@@ -20,7 +20,7 @@ from mathtutor.infrastructure.chunking import TextChunker
 from mathtutor.infrastructure.document_parser import DocumentParseLimits, LocalDocumentParser
 from mathtutor.infrastructure.document_storage import DocumentStorage
 from mathtutor.infrastructure.document_workers import DocumentWorkerPool
-from mathtutor.repositories.document_repository import InMemoryDocumentRepository
+from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 from mathtutor.security.scopes import student_uuid
 
 
@@ -251,7 +251,7 @@ async def test_partial_image_output_is_removed_at_asset_limit(tmp_path, monkeypa
 
 def _service(tmp_path, *, parser=None, chunker=None):
     return DocumentIngestionService(
-        repository=InMemoryDocumentRepository(),
+        repository=SQLiteDocumentRepository(),
         storage=DocumentStorage(tmp_path / "data"),
         parser=parser,
         chunker=chunker,
@@ -406,7 +406,7 @@ async def test_failed_reparse_preserves_complete_previous_chunks_and_assets(tmp_
 
 @pytest.mark.asyncio
 async def test_cancellation_during_publication_joins_complete_write(tmp_path):
-    class PausedRepository(InMemoryDocumentRepository):
+    class PausedRepository(SQLiteDocumentRepository):
         def __init__(self):
             super().__init__()
             self.publishing = asyncio.Event()
@@ -526,7 +526,7 @@ async def test_simultaneous_reparse_is_claimed_before_repository_read_and_delete
 
 @pytest.mark.asyncio
 async def test_cancellation_during_initial_add_drains_and_marks_visible_import_failed(tmp_path):
-    class PausedAdd(InMemoryDocumentRepository):
+    class PausedAdd(SQLiteDocumentRepository):
         def __init__(self):
             super().__init__()
             self.added = asyncio.Event()
@@ -563,7 +563,7 @@ async def test_cancellation_during_initial_add_drains_and_marks_visible_import_f
 
 @pytest.mark.asyncio
 async def test_cancellation_during_initial_add_failure_removes_unregistered_file(tmp_path):
-    class FailedAdd(InMemoryDocumentRepository):
+    class FailedAdd(SQLiteDocumentRepository):
         def __init__(self):
             super().__init__()
             self.adding = asyncio.Event()
@@ -595,7 +595,7 @@ async def test_cancellation_during_initial_add_failure_removes_unregistered_file
 
 @pytest.mark.asyncio
 async def test_cancellation_during_reparse_status_write_does_not_leave_parsing(tmp_path):
-    class PausedUpdate(InMemoryDocumentRepository):
+    class PausedUpdate(SQLiteDocumentRepository):
         def __init__(self):
             super().__init__()
             self.parsing = asyncio.Event()
@@ -607,15 +607,15 @@ async def test_cancellation_during_reparse_status_write_does_not_leave_parsing(t
                 await asyncio.Future()
             return result
 
-    repository = InMemoryDocumentRepository()
+    repository = SQLiteDocumentRepository()
     storage = DocumentStorage(tmp_path / "data")
     service = DocumentIngestionService(repository=repository, storage=storage)
     doc = await service.ingest("alice", PickedFile(
         filename="note.txt", mime_type="text/plain", data=b"lesson",
     ))
     paused = PausedUpdate()
-    paused._documents = repository._documents
-    paused._chunks = repository._chunks
+    await paused.uow.engine.dispose()
+    paused.uow = repository.uow
     service._repo = paused
     task = asyncio.create_task(service.reparse("alice", doc.document_id))
     try:
@@ -632,40 +632,20 @@ async def test_cancellation_during_reparse_status_write_does_not_leave_parsing(t
 
 
 @pytest.mark.asyncio
-async def test_memory_publication_prepares_metadata_before_replacing_chunks(tmp_path, monkeypatch):
-    service = _service(tmp_path)
-    try:
-        doc = await service.ingest("alice", PickedFile(
-            filename="note.txt", mime_type="text/plain", data=b"old lesson",
-        ))
-        before = await service._repo.list_chunks("alice", doc.document_id)
-        new_chunks = [before[0].model_copy(update={"text": "new lesson"})]
-        original = type(doc).model_copy
-
-        def fail_metadata(value, **kwargs):
-            if value is doc:
-                raise OSError("metadata construction failed")
-            return original(value, **kwargs)
-
-        monkeypatch.setattr(type(doc), "model_copy", fail_metadata)
-        with pytest.raises(OSError, match="metadata construction"):
-            await service._repo.publish_parse_result("alice", doc, new_chunks)
-        assert await service._repo.list_chunks("alice", doc.document_id) == before
-        assert (await service.get_document("alice", doc.document_id)).status == "ready"
-    finally:
-        await service.aclose()
-
-
-@pytest.mark.asyncio
-async def test_sqlite_metadata_failure_rolls_back_chunks_vectors_fts_and_assets(tmp_path, monkeypatch):
+@pytest.mark.parametrize("storage_mode", ["memory", "disk"])
+async def test_sqlite_metadata_failure_rolls_back_chunks_vectors_fts_and_assets(tmp_path, monkeypatch, storage_mode):
     from mathtutor.infrastructure.db import create_db_engine
     from mathtutor.infrastructure.migrate import upgrade_db
     from mathtutor.repositories import sqlite_documents
     from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 
     database = tmp_path / "documents.db"
-    upgrade_db(str(database))
-    engine = create_db_engine(database)
+    if storage_mode == "memory":
+        from mathtutor.infrastructure.memory_database import create_memory_engine
+        engine = create_memory_engine()
+    else:
+        upgrade_db(str(database))
+        engine = create_db_engine(database)
     repository = SQLiteDocumentRepository(engine)
     storage = DocumentStorage(tmp_path / "data")
     service = DocumentIngestionService(repository=repository, storage=storage)

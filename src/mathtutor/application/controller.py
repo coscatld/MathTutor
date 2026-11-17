@@ -31,38 +31,25 @@ import re
 
 import json
 import logging
-from dataclasses import dataclass, field
-from enum import Enum
-from fractions import Fraction
-from typing import Any, Literal, Protocol
+from typing import Any
 from uuid import UUID, uuid4
 
 from mathtutor.application.math_tutor_service import MathTutorApplicationService
-from mathtutor.application.verification_backend import (
-    VerificationBackendError,
-)
 from mathtutor.application.state_machine import (
     CycleCommand,
     CycleState,
     InvalidTransitionError,
-    STUDENT_TRANSITION_FAILURE,
     TutoringSession,
     VersionConflictError,
     allowed_next_commands,
 )
 from mathtutor.domain.hashing import content_hash
 from mathtutor.domain.problem import MathProblem
-from mathtutor.learning.attempt_parser import parse_student_attempt
 from mathtutor.learning.attempt_verifier import (
-    AttemptAssessment,
     Correctness,
 )
-from mathtutor.learning.diagnosis import diagnose
-from mathtutor.learning.evidence import EvidenceFactory
-from mathtutor.learning.projection import project_student_state
 from mathtutor.learning.skills import skill_for_problem
 from mathtutor.pedagogy.disclosure import SolutionDisclosureProjector
-from mathtutor.pedagogy.exceptions import DisclosurePolicyViolation
 from mathtutor.pedagogy.output_guard import TutorOutputGuard
 from mathtutor.pedagogy.planner import CycleAssistance, PedagogyPlanner
 from mathtutor.pedagogy.stage_policy import ADAPTIVE_POLICY, StagePolicy
@@ -75,91 +62,27 @@ from mathtutor.application.constraint_layer import (
     ConstraintStatus,
     evaluate_constraints,
 )
-from mathtutor.application.message_intent import (
-    ConversationIntent,
-    classify_user_message,
-    fallback_tutor_reply,
-)
 from mathtutor.application.message_projection import (
     project_assistant_message,
     project_turn_error,
 )
-from mathtutor.repositories.session_store import (
-    InMemorySessionStore,
-    LearningCommit,
-    SessionStoreProtocol,
-)
-from mathtutor.security.scopes import (
-    StudentOwnerScope,
-)
-from mathtutor.solving import nodes as n
-from mathtutor.solving import parse_problem
-from mathtutor.solving.parser import ParsedProblem
-from mathtutor.solving.strategies import _common as common
-from mathtutor.solving.strategies import quadratic as q
+from mathtutor.repositories.sqlite_store import SQLiteSessionStore
+from mathtutor.repositories.session_store import SessionStoreProtocol
 
-USER_COMMANDS: dict[str, CycleCommand] = {
-    "submit_problem": CycleCommand.SUBMIT_PROBLEM,
-    "clarify_problem": CycleCommand.CLARIFY_PROBLEM,
-    "submit_attempt": CycleCommand.SUBMIT_ATTEMPT,
-    "clarify_attempt": CycleCommand.CLARIFY_ATTEMPT,
-    "request_hint": CycleCommand.REQUEST_HINT,
-    "request_explanation": CycleCommand.REQUEST_EXPLANATION,
-    "request_example": CycleCommand.REQUEST_EXAMPLE,
-    "request_solution": CycleCommand.SOLUTION_SHOWN_PERMITTED,  # L5 (design §2.1 请求完整解析)
-    "accept_practice_offer": CycleCommand.ACCEPT_PRACTICE_OFFER,
-    "decline_practice_offer": CycleCommand.DECLINE_PRACTICE_OFFER,
-    "cancel_turn": CycleCommand.CANCEL_TURN,
-    "request_practice": CycleCommand.REQUEST_HINT,
-    "request_foundation": CycleCommand.REQUEST_HINT,
-    "request_review": CycleCommand.REQUEST_HINT,
-    "resume_problem": CycleCommand.REQUEST_HINT,
-    "end_problem": CycleCommand.CANCEL_TURN,
-    "start_diagnostic": CycleCommand.REQUEST_HINT,
-    "skip_diagnostic": CycleCommand.REQUEST_HINT,
-    "request_options": CycleCommand.REQUEST_HINT,
-}
 
 # Legacy protocol (no version / v1) only. Remove after v1 clients retire.
-LEGACY_COMMAND_ALIASES = {"solution_shown_permitted": "request_solution"}
-SEND_MESSAGE_COMMAND = "send_message"
+from mathtutor.application.attempt_evaluation import AttemptEvaluationService
+from mathtutor.application.practice_workflow import PracticeWorkflowService
+from mathtutor.application.tutor_intent_dispatcher import TutorIntentDispatcher
+from mathtutor.application.tutor_contracts import LEGACY_COMMAND_ALIASES as LEGACY_COMMAND_ALIASES
+from mathtutor.application.tutor_contracts import (
+    USER_COMMANDS, SEND_MESSAGE_COMMAND, student_allowed_inputs, MathTutorRequest, MathTutorEventType, MathTutorEvent, MathTutorEventSink, MathTutorManifest, _parse_envelope
+)
+
 logger = logging.getLogger(__name__)
 
 
-def student_allowed_inputs(state: CycleState) -> list[str]:
-    """Student-channel commands only: internal outcomes (e.g.
-    ``solution_shown_permitted``) never appear in the UI contract — the
-    client can only ever send what it is shown (design doc §13.3)."""
-    allowed = set(allowed_next_commands(state))
-    return [name for name, command in USER_COMMANDS.items() if command in allowed]
-
-
-# The capability persists cycles through the SessionStoreProtocol: the
-# in-memory implementation (repositories/session_store.py) keeps dev/test
-# free of files; SQLiteSessionStore (Phase 1B) makes the database the
-# authoritative record with CAS + owner isolation. The capability logic is
-# identical for both — only the storage implementation changes.
-
-
-# ---------------------------------------------------------------------------
-# Attempt judging (MVP exact-match stub; replaced by AttemptVerifier in Phase 4)
-# ---------------------------------------------------------------------------
-
-
-def _assessment_attestation_hash(
-    attempt, *, reference_log_id=None, verdict: str = ""
-) -> str:
-    """Deterministic assessment attestation bound to attempt payload, the
-    reference solution log and the verdict (matches solution-attestation
-    binding strength)."""
-    return content_hash(
-        {
-            "attempt_id": str(attempt.attempt_id),
-            "payload_hash": attempt.payload_hash,
-            "reference_solution_log_id": str(reference_log_id) if reference_log_id else "",
-            "verdict": verdict,
-        }
-    )
+# Both durable and ephemeral runtimes use the same transactional SQLite store.
 
 
 def _concept_hint_for(problem: MathProblem | None) -> str:
@@ -193,63 +116,6 @@ def _strategy_hint_for(problem: MathProblem | None) -> str:
 # ---------------------------------------------------------------------------
 # Controller request/event boundary
 # ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class MathTutorRequest:
-    """Trusted request accepted by the product controller.
-
-    ``owner`` is constructed by the server auth boundary and cannot be
-    deserialized from an HTTP/WS payload.
-    """
-
-    session_id: str
-    user_message: str
-    owner: StudentOwnerScope
-    conversation_messages: tuple[dict[str, Any], ...] = ()
-
-
-class MathTutorEventType(str, Enum):
-    CONTENT = "content"
-    ERROR = "error"
-
-
-@dataclass(frozen=True, slots=True)
-class MathTutorEvent:
-    """Narrow internal event; only student-public content/error can exist."""
-
-    type: MathTutorEventType
-    content: str = ""
-    source: str = "math_tutor"
-    stage: str = ""
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-class MathTutorEventSink(Protocol):
-    async def emit(self, event: MathTutorEvent) -> None: ...
-
-    async def content(
-        self,
-        text: str,
-        source: str = "",
-        stage: str = "",
-        metadata: dict[str, Any] | None = None,
-    ) -> None: ...
-
-    async def error(
-        self,
-        message: str,
-        source: str = "",
-        metadata: dict[str, Any] | None = None,
-    ) -> None: ...
-
-
-@dataclass(frozen=True, slots=True)
-class MathTutorManifest:
-    name: str
-    description: str
-    stages: tuple[str, ...]
-    tools_used: tuple[()] = ()
 
 
 class MathTutorController:
@@ -286,16 +152,16 @@ class MathTutorController:
         chat_responder: Any | None = None,
         semantic_interpreter: Any | None = None,
     ) -> None:
-        self.service = service or MathTutorApplicationService()
-        self.sessions: SessionStoreProtocol = store or InMemorySessionStore()
+        if store is None and practice_repository is not None:
+            store = SQLiteSessionStore(practice_repository.uow.engine)
+        self.sessions: SessionStoreProtocol = store or SQLiteSessionStore()
+        self.service = service or MathTutorApplicationService(engine=self.sessions.uow.engine)
         # Phase 5 (§7.2): the verified-release catalog behind every offer.
         # Offers/accepts go through THIS repository only — the store's
         # accept transaction re-validates the offer with a CAS.
-        from mathtutor.repositories.practice_repository import (
-            InMemoryPracticeRepository,
-        )
+        from mathtutor.repositories.sqlite_practice import SQLitePracticeRepository
 
-        self.practice: Any = practice_repository or InMemoryPracticeRepository()
+        self.practice: Any = practice_repository or SQLitePracticeRepository(self.sessions.uow)
         # Phase 5 (§7.5 E2E): server-driven practice offers after a solved
         # cycle. None → no offer is generated (cycles end at SOLVED; used by
         # capability-only tests). Product construction always wires the
@@ -320,6 +186,58 @@ class MathTutorController:
         # Gateway for model-proposed scene definitions (None: deterministic only).
         self.scene_gateway: Any = None
         self.community_plugins: Any = None
+
+    def _intent_workflow(self) -> TutorIntentDispatcher:
+        return TutorIntentDispatcher(
+            begin_or_replace_problem=self._begin_or_replace_problem,
+            continue_active_problem=self._continue_active_problem,
+            dialogue=self._dialogue,
+            emit=self._emit,
+            emit_state=self._emit_state,
+            offer_after_solved=self._offer_after_solved,
+            personal_memory_context=self._personal_memory_context,
+            realize_utterance=self._realize_utterance,
+            redraw_on_canvas=self._redraw_on_canvas,
+            remember_recovery=self._remember_recovery,
+            run_explicit=self._run_explicit,
+            start_understanding_check=self._start_understanding_check,
+            submit_attempt=self._submit_attempt,
+            teaching_context=self._teaching_context,
+            chat_documents=getattr(self, 'chat_documents', None),
+            chat_responder=self.chat_responder,
+            image_repository=getattr(self, 'image_repository', None),
+            learner_settings=getattr(self, 'learner_settings', None),
+            planner=self.planner,
+            policy=self.policy,
+            practice_service=self.practice_service,
+            semantic_interpreter=self.semantic_interpreter,
+            service=self.service,
+            sessions=self.sessions,
+        )
+
+    def _attempt_workflow(self) -> AttemptEvaluationService:
+        return AttemptEvaluationService(
+            advance_diagnostic=self._advance_diagnostic,
+            dialogue=self._dialogue,
+            emit=self._emit,
+            offer_after_solved=self._offer_after_solved,
+            step=self._step,
+            teaching_context=self._teaching_context,
+            service=self.service,
+            sessions=self.sessions,
+        )
+
+    def _practice_workflow(self) -> PracticeWorkflowService:
+        return PracticeWorkflowService(
+            cycle_fact=self._cycle_fact,
+            dialogue=self._dialogue,
+            emit=self._emit,
+            prepare_presentation=self._prepare_presentation,
+            teaching_context=self._teaching_context,
+            practice=self.practice,
+            practice_service=self.practice_service,
+            sessions=self.sessions,
+        )
 
     async def _teaching_context(self, owner_id, session, verified):
         from mathtutor.pedagogy.teaching_plan import initial_context
@@ -605,196 +523,8 @@ class MathTutorController:
         envelope: dict[str, Any],
         stream: MathTutorEventSink,
     ) -> None:
-        text = str(payload.get("text", ""))
-        previous = next((m for m in reversed(request.conversation_messages) if m.get("role") == "tutor"), None)
-        if text.strip() == "继续" and previous and previous.get("status") == "PARTIAL":
-            if previous.get("action") in {"TUTOR_CHAT", "TUTOR_CHAT_FIGURE"}:
-                chat_context = json.loads(previous.get("continuation_context") or "{}")
-                history = request.conversation_messages
-                if chat_context.get("raw_text"):
-                    # App labels and a nearby exercise do not close a truncated
-                    # model sentence. Resume from its actual saved boundary.
-                    history = tuple({**item, "content": chat_context["raw_text"]} if item is previous else item
-                                    for item in history)
-                if chat_context.get("boundary_unverified"):
-                    from mathtutor.application.tutor_runtime import current_turn
-                    continuation_turn = current_turn.get()
-                    if continuation_turn is not None:
-                        continuation_turn.error_code = "CONTINUATION_BOUNDARY_UNVERIFIED"
-                await self._chat_message(session, text, history, stream,
-                    owner_id=request.owner.student_id,
-                    client_session_id=request.session_id,
-                    follow_up=bool(chat_context.get("follow_up")),
-                    response_request=chat_context.get("response_request"),
-                    plugin_context=chat_context.get("plugin_context"),
-                    unstructured_math=bool(chat_context.get("unstructured_math")))
-                return
-            context = json.loads(previous.get("continuation_context") or "{}")
-            if session is not None and context.get("cycle_id") == str(session.cycle.cycle_id) and context.get("action"):
-                from mathtutor.domain.tutoring import TutorAction
-                from mathtutor.application.tutor_runtime import continuation_text
-                action = TutorAction.model_validate(context["action"])
-                verified = await self.sessions.load_verified(request.owner.student_id, session.cycle.cycle_id)
-                token = continuation_text.set(str(previous.get("content") or ""))
-                try:
-                    utterance = await self._realize_utterance(session, verified, action,
-                        owner_id=request.owner.student_id,
-                        student_request=str(context.get("student_request", "")), continuing=True)
-                finally:
-                    continuation_text.reset(token)
-                await stream.emit(MathTutorEvent(type=MathTutorEventType.CONTENT, content=utterance.text,
-                    source=self.manifest.name, metadata={"event_type": "tutor_message", "action": utterance.action,
-                    "effective_assistance_level": utterance.assistance_level,
-                    "cycle_state": session.state.value, "cycle_state_version": session.version}))
-                return
-        from mathtutor.application.student_contract import problem_variable, verified_binding
-        verified = await self.sessions.load_verified(request.owner.student_id, session.cycle.cycle_id) if session else None
-        learner_settings = getattr(self, "learner_settings", None)
-        if (not verified and learner_settings is not None and learner_settings.current().stage == "high"
-                and self.chat_responder is not None and getattr(self.chat_responder, "is_configured", True)):
-            from mathtutor.application.message_intent import is_concrete_math_input
-            if is_concrete_math_input(text):
-                # Pasted high-school homework starts an agent-led lesson.
-                # Explicit submit_problem/practice commands keep the verified
-                # exercise protocol and its independent evidence accounting.
-                await self._chat_message(session, text, request.conversation_messages, stream,
-                    owner_id=request.owner.student_id, client_session_id=request.session_id,
-                    unstructured_math=True, agent_discussion=True)
-                return
-        import re
-        if not verified and re.fullmatch(r"[+-]?\d+(?:\.\d+)?", text.strip()):
-            await self._dialogue(stream, session, f"你希望对 {text.strip()} 做什么任务？请补充题目要求，例如计算、分解或检验某个结论。", "ASK_STUDENT")
-            return
-        perception = None
-        if verified and re.search(r"[\u4e00-\u9fff]|\b(?:understand|explain|confused|hint)\b", text, re.I):
-            from mathtutor.application.teaching_intent import rule_teaching_intent
-            from mathtutor.pedagogy.teaching_plan import current_subgoal
-            context = await self._teaching_context(request.owner.student_id, session, verified)
-            visible_context = {"problem_id": context["problem_id"], "display_text": context["display_text"],
-                "skill_ids": context["skill_ids"], "current_subgoal": current_subgoal(context),
-                "recent_teaching": context.get("last_plan"), "stuck_count": context["stuck_count"],
-                "help_without_progress": context["help_without_progress"],
-                "recent_messages": [{"role": m.get("role"), "content": str(m.get("content", ""))[-600:]}
-                                    for m in request.conversation_messages[-4:]]}
-            if self.semantic_interpreter is not None:
-                perception = await self.semantic_interpreter.interpret(text, context=visible_context)
-            else:
-                perception = rule_teaching_intent(text, context=visible_context)
-            context["language_understanding"] = perception.model_dump()
-            context["language_input_hash"] = content_hash({"text": text})
-            context["language_request_id"] = str(envelope.get("idempotency_key", ""))
-            await self.sessions.teaching.save(request.owner.student_id, session.cycle.cycle_id, context)
-        if verified and perception and perception.intent == "self_report" and perception.confusion == "none":
-            if perception.resolved:
-                context = await self.sessions.teaching.load(request.owner.student_id, session.cycle.cycle_id)
-                context["stuck_count"] = 0
-                context["language_signal_consumed_request"] = context.get("language_request_id")
-                await self.sessions.teaching.save(request.owner.student_id, session.cycle.cycle_id, context)
-            tracking = getattr(self.sessions, "student_state", None)
-            if tracking:
-                from mathtutor.learning.knowledge_tracing.events import LearningEvent
-                from mathtutor.learning.skill_graph import skills_for_problem
-                await tracking.append_event(LearningEvent(event_id=f"self-report:{envelope.get('idempotency_key') or uuid4()}",
-                    student_id=request.owner.student_id, session_id=str(session.session_id), cycle_id=str(session.cycle.cycle_id),
-                    event_type="self_explanation", problem_id=str(verified[0].problem_id), problem_revision=verified[0].content_hash,
-                    item_family_id=verified[0].problem_type, skill_ids=skills_for_problem(verified[0]), completion_scope="reflection"))
-            if (perception.resolved and perception.scope in {"current_goal", "current_problem", "same_skill"}
-                    and session.state != CycleState.CLOSED):
-                await self._start_understanding_check(request.owner.student_id, request.session_id, session, verified, stream)
-            else:
-                await self._dialogue(stream, session, "已记下你的理解反馈。先写出你能确定的一步，我来检查。", "SELF_REPORT")
-            return
-        pending = ""
-        if previous and previous.get("action") == "CLARIFY_INTENT":
-            prior = list(request.conversation_messages)
-            previous_index = next((i for i, m in reversed(list(enumerate(prior))) if m is previous), -1)
-            pending = next((m.get("content", "") for m in reversed(prior[:previous_index]) if m.get("role") == "student"), "")
-        from mathtutor.solving.parser import stored_math_ast
-        routed = classify_user_message(text, cycle_state=session.state if session else None,
-                                       variable=problem_variable(verified),
-                                       skill_id=skill_for_problem(verified[0]) if verified else "",
-                                       pending_math_text=pending,
-                                       variables=tuple(n.variables(n.from_dict(stored_math_ast(verified[0].normalized_ast)))) if verified else (),
-                                       related_to_active=__import__("mathtutor.learning.skill_graph", fromlist=["related_question"]).related_question(text, verified[0]) if verified else False)
-        if (perception and perception.confidence >= 0.7 and perception.scope == "other"
-                and routed.intent in {ConversationIntent.GENERAL_CHAT, ConversationIntent.PROBLEM_CONTINUATION,
-                                      ConversationIntent.TEACHING_REQUEST}):
-            from dataclasses import replace
-            # A discussion of a quoted phrase or a different subject isn't
-            # evidence that the student is stuck on this mathematical goal.
-            routed = replace(routed, intent=ConversationIntent.GENERAL_CHAT, command="")
-        if perception and perception.confidence >= 0.7 and perception.scope in {"current_goal", "current_problem", "same_skill"}:
-            from dataclasses import replace
-            semantic_command = {"explanation": "request_explanation", "confusion": "request_explanation",
-                "hint": "request_hint", "example": "request_example", "solution": "request_solution",
-                "practice": "request_practice", "followup": "request_explanation"}.get(perception.intent)
-            # Only the structural route may create/replace a problem or submit
-            # a candidate answer. The model selects support, never correctness.
-            if semantic_command and routed.intent is ConversationIntent.ATTEMPT:
-                routed = replace(routed, command=semantic_command)
-            elif semantic_command and routed.intent in {ConversationIntent.GENERAL_CHAT,
-                    ConversationIntent.PROBLEM_CONTINUATION, ConversationIntent.TEACHING_REQUEST}:
-                routed = replace(routed, intent=ConversationIntent.TEACHING_REQUEST, command=semantic_command)
-            elif perception.intent == "ambiguous" and routed.intent is ConversationIntent.GENERAL_CHAT:
-                await self._dialogue(stream, session, "你想让我重讲刚才的小目标，还是换一个例子演示？我们可以继续围绕当前题目。", "ASK_STUDENT")
-                return
-        if session and routed.intent is ConversationIntent.CLARIFY_INTENT:
-            context = await self.sessions.teaching.load(request.owner.student_id, session.cycle.cycle_id)
-            if context and context.get("teacher_error_example", {}).get("awaiting_response"):
-                from dataclasses import replace
-                routed = replace(routed, intent=ConversationIntent.ATTEMPT, answer_text=text)
-        logger.info(
-            "tutor_orchestration conversation_id=%s intent=%s mode=%s state=%s",
-            request.session_id,
-            routed.intent.value,
-            routed.mode.value,
-            session.state.value if session is not None else "",
-        )
-        if routed.intent is ConversationIntent.GENERAL_CHAT:
-            await self._chat_message(
-                session,
-                text,
-                request.conversation_messages,
-                stream,
-                owner_id=request.owner.student_id,
-                client_session_id=request.session_id,
-            )
-            return
-        if routed.intent is ConversationIntent.CLARIFY_INTENT:
-            await self._dialogue(stream, session, "这是你推到的下一步，还是一道新题？请回复“这是步骤”或“这是新题”。", "CLARIFY_INTENT")
-            return
-        if routed.intent is ConversationIntent.TEACHING_REQUEST:
-            if not verified_binding(verified):
-                # A conceptual follow-up does not require a structured algebra
-                # binding. Keep the actual high-school question in its history.
-                await self._chat_message(session, text, request.conversation_messages, stream,
-                    owner_id=request.owner.student_id, client_session_id=request.session_id,
-                    follow_up=True, unstructured_math=True)
-            else:
-                await self._run_explicit(request, session, routed.command, {"student_request": text}, envelope, stream)
-            return
-        if routed.intent is ConversationIntent.ATTEMPT:
-            if session is None or not verified_binding(verified):
-                await self._dialogue(stream, session, "当前题目还没有可用的验证记录，请先补充完整题目。", "ASK_STUDENT")
-                return
-            if session.state not in {CycleState.AWAITING_ATTEMPT, CycleState.AWAITING_RETRY, CycleState.AWAITING_ATTEMPT_CLARIFICATION, CycleState.SOLUTION_SHOWN}:
-                await self._dialogue(stream, session, "本题已经完成。你可以继续追问原题，或用“换题：…”开始另一道题。", "ASK_STUDENT")
-                return
-            assistance = await self.sessions.load_assistance(request.owner.student_id, session.cycle.cycle_id)
-            await self._submit_attempt(session, request.owner.student_id, {"answer": routed.answer_text},
-                envelope.get("expected_state_version", envelope.get("expected_cycle_version")),
-                str(envelope.get("idempotency_key", "")), verified, assistance, stream,
-                raw_text_override=f"{pending}\n{text}" if pending and routed.answer_text == pending else text,
-                offer_after=not bool(routed.command), followup_command=routed.command or "",
-                followup_request=text)
-            if routed.command:
-                followup = {**envelope, "expected_state_version": session.version, "expected_cycle_version": session.version}
-                await self._run_explicit(request, session, routed.command, {"student_request": text}, followup, stream)
-            return
-        if routed.intent is ConversationIntent.PROBLEM_CONTINUATION:
-            await self._continue_active_problem(request, session, text, envelope, stream)
-            return
-        await self._begin_or_replace_problem(request, session, routed.problem_text or text, envelope, stream)
+        workflow = self._intent_workflow()
+        return await workflow.route_send_message(request, session, payload, envelope, stream)
 
     async def _dialogue(self, stream, session, text, action, level=0):
         await stream.content(text, source=self.manifest.name, metadata={
@@ -817,7 +547,6 @@ class MathTutorController:
         """
         from mathtutor.application.function_graph import (
             GRAPH_ACTION, GRAPHABLE_TYPES, GraphInputError, extract_function_text, graph_for_function, graph_for_problem)
-        import re
         from mathtutor.application.scene import author_scene, example_scene_from_text, has_math_content, render_scene, scene_from_text
         from mathtutor.application.student_contract import REVIEW_STATES, verified_binding
         bound = bool(session and verified_binding(verified) and session.state != CycleState.CLOSED)
@@ -1159,295 +888,8 @@ class MathTutorController:
         response_request: str | None = None,
         plugin_context: dict | None = None,
     ) -> None:
-        request_text = text if response_request is None else response_request
-        recovery = None
-        if plugin_context is None and not images and text.strip() != "继续" and not follow_up and not agent_discussion:
-            session, recovery = await self._remember_recovery(session, owner_id, text,
-                client_session_id=client_session_id, mathematical=unstructured_math)
-        from mathtutor.application.discussion_notebook import SCHEMA, model_context, starts_new_question
-        notebook = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id) if plugin_context is None and session and owner_id else None
-        saved_discussion = model_context(notebook)
-        if unstructured_math and not follow_up and owner_id and not recovery and (images or not saved_discussion or starts_new_question(text)):
-            if session is None and client_session_id:
-                session = await self.sessions.create(owner_id, client_session_id)
-            if session is not None:
-                bound = await self.sessions.load_verified(owner_id, session.cycle.cycle_id)
-                if bound is None:
-                    notebook = {"schema_version": SCHEMA, "problem_id": f"discussion-{uuid4()}",
-                        "display_text": text or "图片中的数学题（原图已保存在本会话）", "skill_ids": [], "lifecycle": "discussion",
-                        "original_image_ids": [image["id"] for image in images or []],
-                        "student_focus": "", "discussed": [], "assessments": []}
-                    await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, notebook)
-                    saved_discussion = model_context(notebook)
-        if saved_discussion and text != saved_discussion["original_question"]:
-            notebook["student_focus"] = text
-            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, notebook)
-            saved_discussion = model_context(notebook)
-        responder = self.chat_responder
-        document_context = None
-        document_source = getattr(self, "chat_documents", None)
-        if document_source is not None and plugin_context is None:
-            try:
-                document_context = await document_source.build(owner_id, text, history)
-            except Exception:
-                logger.warning("Chat document retrieval unavailable")
-                document_context = {"status": "retrieval_failed", "files": [], "chunks": []}
-        if plugin_context is None and images is None and getattr(self, "image_repository", None) is not None:
-            if saved_discussion and notebook.get("original_image_ids"):
-                try:
-                    images = await self.image_repository.resolve(owner_id, notebook["original_image_ids"])
-                except ValueError:
-                    await stream.error("原题图片已删除或不可用，请重新上传。", source=self.manifest.name)
-                    return
-            # Reattach the latest image turn for conversational follow-ups and
-            # continuation. A new structured math task still uses its own route.
-            previous = next((m for m in reversed(history[-20:]) if m.get("role") == "student" and m.get("attachments")), None)
-            if previous and images is None:
-                try:
-                    images = await self.image_repository.resolve(owner_id, [a["id"] for a in previous["attachments"]])
-                except ValueError:
-                    await stream.error("之前的图片已删除或不可用，请重新上传。", source=self.manifest.name)
-                    return
-        problem_context = ""
-        if saved_discussion:
-            problem_context = json.dumps(saved_discussion, ensure_ascii=False)
-        if follow_up and session is not None and owner_id:
-            verified = await self.sessions.load_verified(
-                owner_id, session.cycle.cycle_id
-            )
-            if verified is not None:
-                problem_context = getattr(verified[0], "display_latex", "") or ""
-        provider_result = "fallback"
-        math_verify = None
-        draw_offered = False
-        verification_notice = ""
-        learner_context = None
-        personal_memory = None
-        execution_context = None
-        if responder is None:
-            if images:
-                raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。")
-            if plugin_context is not None:
-                from mathtutor.application.plugin_commands import format_plugin_receipt
-                message = format_plugin_receipt(plugin_context)
-            else:
-                message = fallback_tutor_reply(text)
-        else:
-            from mathtutor.application.tutor_runtime import TutorResponseUnavailable
-            try:
-                extra = {"images": images} if images else {}
-                if document_context is not None:
-                    extra["document_context"] = document_context
-                # Free chat streams: verified sentences are previewed as they arrive.
-                from mathtutor.application.math_claims import VerifiedPreview, anchor_for
-                from mathtutor.application.tutor_runtime import stream_preview
-                bound_for_preview = await self.sessions.load_verified(owner_id, session.cycle.cycle_id) if session and owner_id else None
-
-                async def emit_preview(verified_text):
-                    # The preview never shows a figure: those come only with the final message.
-                    from mathtutor.skills.canvas_drawing.enforce import sanitize_figures
-                    verified_text = sanitize_figures(verified_text)[0]
-                    if verified_text:
-                        await stream.content(verified_text, source=self.manifest.name, metadata={"event_type": "tutor_preview"})
-                preview_token = stream_preview.set(VerifiedPreview(
-                    self.service.verification_backend, emit_preview,
-                    anchor=anchor_for(bound_for_preview[0]) if bound_for_preview else None))
-                from mathtutor.application.message_intent import is_concrete_math_input
-                import inspect
-                accepts = inspect.signature(responder.respond).parameters
-                if plugin_context is not None and "plugin_context" in accepts:
-                    extra["plugin_context"] = plugin_context
-                if "execution_context" in accepts and owner_id and client_session_id:
-                    from mathtutor.extensions import ExecutionContext
-                    from mathtutor.application.tutor_runtime import current_turn
-                    active_turn = current_turn.get()
-                    execution_context = ExecutionContext(owner_id=owner_id, conversation_id=client_session_id,
-                        request_id=active_turn.turn_id if active_turn and active_turn.turn_id else str(uuid4()))
-                    extra["execution_context"] = execution_context
-                if "authorization_request" in accepts:
-                    # Authorization belongs to this authenticated turn, whereas
-                    # response_request may retain a historical explanation goal.
-                    extra["authorization_request"] = text
-                personal_memory = await self._personal_memory_context(owner_id)
-                if personal_memory is not None and "personal_memory" in accepts:
-                    extra["personal_memory"] = personal_memory
-                if response_request is not None and "response_request" in accepts:
-                    extra["response_request"] = request_text
-                if "learner_context" in accepts:
-                    from mathtutor.pedagogy.adaptive_dialogue import build_adaptive_context, resolve_dialogue_skills
-                    # One owner-scoped, read-only snapshot per answer. Repairs
-                    # reuse it; generating advice never manufactures a student
-                    # observation or rewrites a presentation-time prediction.
-                    skills = resolve_dialogue_skills(request_text,
-                        problem=bound_for_preview[0] if bound_for_preview and follow_up else None,
-                        original_question=saved_discussion["original_question"] if saved_discussion else "")
-                    learner_context = await build_adaptive_context(
-                        getattr(self.sessions, "student_state", None), owner_id or "", skills)
-                    extra["learner_context"] = learner_context
-                    from mathtutor.application.tutor_runtime import note_turn
-                    strategy = learner_context["strategy"]
-                    note_turn(adaptation={"strategy": strategy,
-                        "evidence_count": learner_context["evidence_count"],
-                        "skill_ids": learner_context["skill_ids"],
-                        "reason_codes": learner_context["reason_codes"],
-                        "model_sha256": learner_context["forecast"].get("source_model", {}).get("model_sha256"),
-                        "forecast_status": learner_context["forecast"]["status"]})
-                    if strategy != "neutral":
-                        from mathtutor.pedagogy.dkt_policy import note_dkt
-                        note_dkt("dialogue", strategy)
-                takes_tools = "math_verify" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
-                takes_figures = "draw_figures" in accepts or any(p.kind is p.VAR_KEYWORD for p in accepts.values())
-                from mathtutor.skills.canvas_drawing import can_offer_drawing
-                drawing_relevant = can_offer_drawing(text, history)
-                math_history = any(is_concrete_math_input(str(item.get("content", ""))) for item in history[-6:])
-                if plugin_context is None and takes_tools and (unstructured_math or follow_up or drawing_relevant or math_history or is_concrete_math_input(text)):
-                    # Maths questions: the model may verify its own claims first,
-                    # and show a figure only through the canvas (draw_scene).
-                    from mathtutor.application.math_verification import verify_math
-
-                    async def math_verify(expression, answer):
-                        return await verify_math(self.service.verification_backend, expression, answer)
-                    extra = {**extra, "math_verify": math_verify}
-                    if takes_figures and drawing_relevant:
-                        draw_offered = True
-                        extra["draw_figures"] = True
-                try:
-                    message = await responder.respond(
-                        text,
-                        history=history,
-                        problem_context=problem_context,
-                        unstructured_math=unstructured_math,
-                        **extra,
-                    )
-                finally:
-                    stream_preview.reset(preview_token)
-                provider_result = "success"
-            except TutorResponseUnavailable as exc:
-                await stream.error(str(exc), source=self.manifest.name,
-                                   metadata={"error_code": exc.code})
-                return
-            except TypeError:
-                if images:
-                    raise ValueError("当前模型不支持图片输入，请切换到支持视觉输入的模型。") from None
-                message = await responder.respond(text, history=history)
-                provider_result = "success"
-            except ValueError as exc:
-                if not images:
-                    raise
-                await stream.error(str(exc), source=self.manifest.name)
-                return
-        logger.info(
-            "tutor_orchestration intent=general_chat provider_result=%s state=%s",
-            provider_result,
-            session.state.value if session is not None else "",
-        )
-        visible = project_assistant_message(message) or fallback_tutor_reply(text)
-        using_fallback = visible == fallback_tutor_reply(text)
-        if recovery and using_fallback:
-            visible = "这道题的完整过程还不能逐步核验。你可以写出下一步的想法，或先练下面的相关基础题。"
-        # Canvas drawing skill: a figure the model drew by itself never reaches the student.
-        from mathtutor.application.tutor_runtime import current_turn, note_turn
-        from mathtutor.skills.canvas_drawing.enforce import sanitize_figures
-        turn = current_turn.get()
-        visible, removed = sanitize_figures(visible)
-        visible = visible or fallback_tutor_reply(text)
-        if removed:
-            note_turn(figures={"removed": removed})
-        if (removed and draw_offered and turn is not None and not getattr(turn, "figures", None)
-                and provider_result == "success" and not recovery):
-            visible = await self._redraw_on_canvas(responder, turn, text, history, visible, problem_context=problem_context,
-                unstructured_math=unstructured_math, images=images, math_verify=math_verify,
-                response_request=request_text, learner_context=learner_context, document_context=document_context,
-                personal_memory=personal_memory, execution_context=execution_context)
-        raw_visible = visible
-        from mathtutor.application.problem_recovery import simple_greeting
-        from mathtutor.application.math_claims import strip_notice
-        if not simple_greeting(text, visible):
-            # Each formula goes through verify_math; prose stays unverified.
-            from mathtutor.application.math_claims import anchor_for, certify_and_annotate
-            bound = await self.sessions.load_verified(owner_id, session.cycle.cycle_id) if session and owner_id else None
-            regenerate = None
-            if responder is not None and provider_result == "success" and not recovery:
-                first_answer = raw_visible
-
-                async def regenerate(feedback):
-                    retry_history = (*history, {"role": "student", "content": text}, {"role": "tutor", "content": first_answer})
-                    # Internal repair feedback must not replace the student's
-                    # language, answer-disclosure or presentation constraints.
-                    repair_options = {"images": images} if images else {}
-                    repair_parameters = inspect.signature(responder.respond).parameters
-                    if "response_request" in repair_parameters:
-                        repair_options["response_request"] = request_text
-                    if "authorization_request" in repair_parameters:
-                        repair_options["authorization_request"] = text
-                    if document_context is not None and "document_context" in repair_parameters:
-                        repair_options["document_context"] = document_context
-                    if math_verify is not None and "math_verify" in repair_parameters:
-                        repair_options["math_verify"] = math_verify
-                    if learner_context is not None:
-                        repair_options["learner_context"] = learner_context
-                    if personal_memory is not None and "personal_memory" in repair_parameters:
-                        repair_options["personal_memory"] = personal_memory
-                    if execution_context is not None and "execution_context" in repair_parameters:
-                        repair_options["execution_context"] = execution_context
-                    if plugin_context is not None and "plugin_context" in repair_parameters:
-                        repair_options["plugin_context"] = plugin_context
-                    return sanitize_figures(project_assistant_message(await responder.respond(
-                        feedback, history=retry_history, problem_context=problem_context,
-                        unstructured_math=unstructured_math, **repair_options)) or "")[0]
-            visible, checked = await certify_and_annotate(visible, self.service.verification_backend,
-                                                          anchor=anchor_for(bound[0]) if bound else None,
-                                                          regenerate=regenerate)
-            raw_visible = strip_notice(visible) if not checked.refuted else raw_visible
-            if not checked.refuted:
-                # The same public receipt remains visible in the UI, replay
-                # and restored history, without becoming an unsolicited
-                # Chinese sentence in a student's requested answer format.
-                from mathtutor.application.math_claims import notice_for
-                verification_notice = notice_for(checked).removeprefix("> ")
-                visible = strip_notice(visible)
-        from mathtutor.application.response_contract import extract_response_contract
-        violations = extract_response_contract(request_text).violations(raw_visible)
-        if violations:
-            # Observe failures honestly. Never truncate a proof or select a
-            # yes/no label just to make the answer look compliant.
-            note_turn(response_contract={"violations": len(violations), "codes": list(violations)})
-        action = "TUTOR_CHAT"
-        figures = list(getattr(turn, "figures", None) or []) if turn is not None else []
-        if figures:
-            # Scenes the application built from draw_scene calls, appended only
-            # to the final message (never to the streamed preview).
-            from mathtutor.application.scene import render_scene
-            visible += "".join("\n\n" + render_scene(scene) for scene in figures)
-            action = "TUTOR_CHAT_FIGURE"
-            note_turn(figures={"delivered": len(figures)})
-        if recovery and using_fallback:
-            visible += f"\n\n原题还保留在对话里。可以先练一道相关基础题：\\( {recovery['text']} \\)。{recovery['relation']}"
-        if saved_discussion and session is not None and provider_result == "success":
-            notebook["discussed"] = [*notebook.get("discussed", []), raw_visible[:1200]][-6:]
-            await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, notebook)
-        if turn is not None:
-            turn.continuation_context = json.dumps({"kind": "chat", "unstructured_math": unstructured_math,
-                "follow_up": follow_up, "raw_text": raw_visible,
-                "response_request": request_text,
-                "plugin_context": plugin_context,
-                "verification_notice": verification_notice,
-                "boundary_unverified": turn.error_code == "CONTINUATION_BOUNDARY_UNVERIFIED"}, ensure_ascii=False)
-        await stream.emit(
-            MathTutorEvent(
-                type=MathTutorEventType.CONTENT,
-                content=visible,
-                source=self.manifest.name,
-                metadata={
-                    "event_type": "tutor_message",
-                    "action": action,
-                    "verification_notice": verification_notice,
-                    "cycle_state": session.state.value if session is not None else "",
-                    "cycle_state_version": session.version if session is not None else 0,
-                    "allowed_next_inputs": student_allowed_inputs(session.state) if session is not None else [],
-                },
-            )
-        )
+        workflow = self._intent_workflow()
+        return await workflow.chat_message(session, text, history, stream, owner_id=owner_id, follow_up=follow_up, unstructured_math=unstructured_math, images=images, client_session_id=client_session_id, agent_discussion=agent_discussion, response_request=response_request, plugin_context=plugin_context)
 
     async def _redraw_on_canvas(self, responder, turn, text, history, first_answer, *, problem_context,
                                 unstructured_math, images, math_verify, response_request=None,
@@ -1892,308 +1334,8 @@ class MathTutorController:
         followup_command: str = "",
         followup_request: str = "",
     ) -> None:
-        submit_command = CycleCommand.CLARIFY_ATTEMPT if session.state == CycleState.AWAITING_ATTEMPT_CLARIFICATION else CycleCommand.SUBMIT_ATTEMPT
-        # ---- READ is done by run(): cycle/verified/assistance restored. ----
-        # A child practice cycle (practice_offer_id set, problem_id NULL —
-        # ck_cycle_source_xor) judges against the offer→release EXACT
-        # snapshot restored by load_verified; the verified chain must exist
-        # either way or the attempt cannot be judged (fail closed).
-        if verified is None or (
-            session.problem_id is None and session.practice_offer_id is None
-        ):
-            transition = await self._step(
-                owner_id, session, submit_command,
-                expected_version=expected_version, idempotency_key=idempotency_key,
-            )
-            transition = await self._step(owner_id, session, CycleCommand.DIAGNOSIS_AMBIGUOUS)
-            await self._emit(stream, session, transition, "没有已验证的题目可供判题")
-            return
-
-        problem, candidate, ref = verified
-        if (
-            ref.problem_id != problem.problem_id
-            or ref.problem_content_hash != problem.content_hash
-            or ref.solution_candidate_id != candidate.candidate_id
-            or ref.solution_payload_hash != candidate.payload_hash
-        ):
-            transition = await self._step(
-                owner_id, session, submit_command,
-                expected_version=expected_version, idempotency_key=idempotency_key,
-            )
-            transition = await self._step(
-                owner_id, session, CycleCommand.DIAGNOSIS_AMBIGUOUS
-            )
-            await self._emit(
-                stream, session, transition,
-                "已保存的验证记录无法通过绑定校验，请重新提交题目。",
-                detail="verification_binding_invalid",
-            )
-            return
-        answer = str(payload.get("answer", ""))
-        from mathtutor.learning.skill_graph import skills_for_problem
-        from mathtutor.pedagogy.teaching_plan import apply_assessment, assessment_feedback, current_subgoal
-        context = await self._teaching_context(owner_id, session, verified)
-        if "choice_id" in payload:
-            from mathtutor.application.multiple_choice import resolve_choice
-            try:
-                answer = resolve_choice(context.get("choices"), payload["choice_id"], payload.get("choice_version"))
-            except ValueError as exc:
-                await stream.error(str(exc), source=self.manifest.name)
-                return
-            raw_text_override = f"{payload['choice_id']}. {answer}"
-        if context.get("teacher_error_example", {}).get("awaiting_response"):
-            await self._assess_teacher_error(session, owner_id, context, answer, expected_version, idempotency_key, stream)
-            return
-        deliveries = await self.sessions.teaching.for_cycle(owner_id, session.cycle.cycle_id)
-        shown = [row for row in deliveries if row["status"] in {"possibly_exposed", "presented"}]
-        factual_level = 5 if any(row.get("target_answer_exposed") for row in shown) else 1 if shown else 0
-        # Old actions without delivery provenance cannot certify independence.
-        actual_assistance = CycleAssistance(max_level_issued=factual_level)
-        tracking = getattr(self.sessions, "student_state", None)
-        if tracking is not None:
-            exposure = await tracking.exposure_context(owner_id, problem.content_hash)
-            factual_level = max(factual_level, exposure["assistance_level"])
-            actual_assistance = CycleAssistance(max_level_issued=factual_level)
-            context["legacy_provenance_uncertain"] |= exposure["provenance_uncertain"]
-            context["options_exposed"] = context.get("options_exposed", False) or exposure["options_exposed"]
-        prediction_id = f"prediction:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
-        submission_event_id = ""
-        if tracking is not None:
-            presentation = await tracking.presentation(owner_id, session.cycle.cycle_id)
-            if presentation is not None:
-                prediction_id = presentation["prediction_id"]
-            else:
-                # Pre-upgrade open cycles have no trustworthy presentation record.
-                context["legacy_provenance_uncertain"] = True
-            submission_event_id = f"submission:{session.cycle.cycle_id}:{idempotency_key or uuid4()}"
-            await tracking.record_submission(owner_id, event_id=submission_event_id,
-                session_id=session.session_id, cycle_id=session.cycle.cycle_id,
-                problem_id=problem.problem_id, problem_revision=problem.content_hash,
-                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem),
-                response_fingerprint=content_hash({"raw_response": raw_text_override if raw_text_override is not None else answer}),
-                prediction_id=prediction_id, task_purpose="diagnostic" if context.get("diagnostic_item") else "practice")
-
-        # ---- COMPUTE: Phase 4 learning loop, pure and deterministic. ----
-        attempt_index = await self.sessions.load_attempt_index(
-            owner_id, session.cycle.cycle_id
-        )
-        submission_id = uuid4()
-        student_attempt = parse_student_attempt(
-            attempt_submission_id=submission_id,
-            student_id=session.student_id,
-            cycle_id=session.cycle.cycle_id,
-            raw_text=answer,
-            attempt_index=attempt_index,
-        )
-        try:
-            assessment = await self.service.verification_backend.verify_attempt(
-                student_attempt, problem, candidate
-            )
-            if problem.problem_type == "linear_system" and assessment.correctness is Correctness.PARTIAL:
-                # Accumulate only independently verified coordinate claims,
-                # then reverify the combined answer against BOTH original equations.
-                coordinates = {}
-                for prior in context["progress"]:
-                    for claim in prior["verified_claims"]:
-                        if claim.get("claim") == "variable_value":
-                            coordinates[claim["variable"]] = claim["value"]
-                for claim in assessment.verified_claims:
-                    if claim.get("claim") == "variable_value":
-                        coordinates[claim["variable"]] = claim["value"]
-                if len(coordinates) == 2:
-                    merged = ";".join(f"{name}={value['n']}/{value['d']}" for name, value in coordinates.items())
-                    joint_attempt = parse_student_attempt(attempt_submission_id=submission_id,
-                        student_id=session.student_id, cycle_id=session.cycle.cycle_id,
-                        raw_text=merged, attempt_index=attempt_index)
-                    joint = await self.service.verification_backend.verify_attempt(joint_attempt, problem, candidate)
-                    if joint.correctness is Correctness.CORRECT:
-                        student_attempt, assessment = joint_attempt, joint
-        except VerificationBackendError as exc:
-            # Infrastructure failure is not a mathematical assessment.  We
-            # preserve the legal cycle transition but persist no attempt
-            # assessment, evidence, misconception, mastery, or attestation.
-            transition = await self._step(
-                owner_id, session, submit_command,
-                expected_version=expected_version, idempotency_key=idempotency_key,
-            )
-            transition = await self._step(
-                owner_id, session, CycleCommand.DIAGNOSIS_AMBIGUOUS
-            )
-            await self._emit(
-                stream, session, transition,
-                "数学验证服务暂时不可用，请稍后重试。",
-                detail=f"verification_unavailable:{type(exc).__name__}",
-            )
-            return
-
-        # State machine transitions in memory (persisted in ONE transaction
-        # together with the education rows below — READ→COMPUTE→COMMIT).
-        submit_transition = session.step(
-            submit_command,
-            expected_version=expected_version,
-            idempotency_key=idempotency_key,
-        )
-        if assessment.correctness is Correctness.UNDETERMINED:
-            diag_command = CycleCommand.DIAGNOSIS_AMBIGUOUS
-            message, detail = "作答无法理解，请澄清", "undetermined"
-        elif assessment.correctness is Correctness.CORRECT:
-            diag_command = CycleCommand.DIAGNOSIS_CORRECT
-            message, detail = "回答正确！", "correct"
-        elif assessment.correctness is Correctness.PARTIAL:
-            diag_command = CycleCommand.DIAGNOSIS_PARTIAL
-            message, detail = "方向对了，但还没做完，继续！", "partial"
-        else:
-            diag_command = CycleCommand.DIAGNOSIS_INCORRECT
-            message, detail = "回答不正确，再试一次", "incorrect"
-        diag_transition = session.step(diag_command)
-        context, scoped_assessment = apply_assessment(context, assessment,
-            raw_text_override if raw_text_override is not None else answer, actual_assistance)
-        if context.get("legacy_provenance_uncertain") and scoped_assessment["evidence_kind"] == "independent":
-            scoped_assessment["evidence_kind"] = "ungradable"
-        if shown and any(row["status"] != "presented" for row in shown) and scoped_assessment["evidence_kind"] == "assisted":
-            scoped_assessment["evidence_kind"] = "ungradable"
-        message = assessment_feedback(scoped_assessment)
-        if followup_command:
-            from mathtutor.application.tutor_runtime import current_turn
-            active_turn = current_turn.get()
-            context["pending_expression"] = {
-                "phase": "assessment_committed", "request_id": active_turn.turn_id if active_turn else idempotency_key,
-                "command": followup_command, "student_request": followup_request,
-                "cycle_version": session.version, "problem_revision": problem.content_hash,
-                "feedback": message, "assessment_id": scoped_assessment["assessment_id"],
-            }
-
-        observation = diagnose(
-            assessment=assessment, problem=problem, attempt=student_attempt
-        )
-        # An understanding check has its own diagnostic assessment ledger.
-        # It must not create a legacy mastery or misconception projection for
-        # the original task, nor turn a self report into independent success.
-        if context.get("understanding_check"):
-            observation = None
-        evidence_obj = None
-        projection_obj = None
-        if assessment.correctness is not Correctness.UNDETERMINED and not context.get("understanding_check"):
-            factory = EvidenceFactory()
-            evidence_obj = factory.build_evidence(
-                assessment=assessment,
-                verified_ref=ref,
-                skill_id=skill_for_problem(problem),
-                assistance=assistance,
-                attempt_index=attempt_index,
-                observation=observation,
-                idempotency_key=idempotency_key,
-            )
-            history_evidence, history_observations = await self.sessions.load_learning_history(
-                owner_id
-            )
-            projection_obj = project_student_state(
-                student_id=session.student_id,
-                evidence=[*history_evidence, evidence_obj] if evidence_obj else history_evidence,
-                observations=[*history_observations, observation]
-                if observation is not None
-                else history_observations,
-            )
-
-        # ---- SHORT COMMIT: one atomic transaction (§C14). ----
-        evidence_row = None
-        if evidence_obj is not None:
-            evidence_row = {
-                "skill_id": skill_for_problem(problem),
-                "difficulty": 1,
-                "effective_assistance_level": evidence_obj.effective_assistance_level,
-                "evidence_version": evidence_obj.evidence_version,
-                "idempotency_key": evidence_obj.idempotency_key,
-            }
-        projection_row = None
-        if projection_obj is not None:
-            projection_row = {
-                "estimator_version": projection_obj.estimator_version,
-                "projection_version": projection_obj.projection_version,
-                "concept_mastery": projection_obj.concept_mastery,
-                "skill_mastery": projection_obj.skill_mastery,
-                "active_misconceptions": [
-                    m["rule_id"] if isinstance(m, dict) else getattr(m, "rule_id")
-                    for m in projection_obj.active_misconceptions
-                ],
-            }
-        commit = LearningCommit(
-            transitions=[submit_transition, diag_transition],
-            problem_id=problem.problem_id,
-            attempt_submission_id=submission_id,
-            attempt_id=student_attempt.attempt_id,
-            raw_text=raw_text_override if raw_text_override is not None else answer,
-            parsed_steps=list(student_attempt.parsed_steps),
-            attempt_index=attempt_index,
-            payload_hash=student_attempt.payload_hash,
-            reference_solution_log_id=ref.verification_log_id,
-            correctness=assessment.correctness.value,
-            score=assessment.score,
-            assessment_attestation_hash=_assessment_attestation_hash(
-                student_attempt,
-                reference_log_id=ref.verification_log_id,
-                verdict=assessment.correctness.value,
-            ),
-            assessment_policy_version=assessment.policy_version,
-            idempotency_key=idempotency_key,
-            verified_claims=assessment.verified_claims,
-            teaching_context=context,
-            tracking_attempt={
-                "session_id": str(session.session_id), "cycle_id": str(session.cycle.cycle_id),
-                "problem_id": str(problem.problem_id), "problem_revision": problem.content_hash,
-                "item_family_id": problem.problem_type, "skill_ids": skills_for_problem(problem),
-                "assessment_id": str(student_attempt.attempt_id), "attempt_id": str(student_attempt.attempt_id),
-                "correctness": assessment.correctness.value, "prediction_id": prediction_id,
-                "submission_event_id": submission_event_id,
-                "response_format": "single_choice" if context.get("choices") or context.get("options_exposed") else "free_response",
-                "completion_scope": "full_problem" if assessment.correctness is Correctness.CORRECT else "subgoal" if assessment.correctness is Correctness.PARTIAL else "full_problem",
-                "subgoal_id": current_subgoal(context)["id"],
-                "provenance_uncertain": context.get("legacy_provenance_uncertain", False),
-                "task_purpose": "diagnostic" if context.get("diagnostic_item") else "practice",
-                "misconception_codes": assessment.signals,
-                "response_fingerprint": content_hash({"parsed_steps": list(student_attempt.parsed_steps)}),
-            } if tracking is not None else None,
-            invalid_claims=assessment.invalid_claims,
-            remaining_requirements=assessment.remaining_requirements,
-            observation=(
-                {
-                    "rule_id": observation.rule_id,
-                    "confidence": observation.confidence,
-                    "detail": observation.detail,
-                }
-                if observation is not None
-                else None
-            ),
-            evidence=evidence_row,
-            projection=projection_row,
-            outbox_events=[
-                {
-                    "aggregate_type": "attempt",
-                    "aggregate_id": str(student_attempt.attempt_id),
-                    "aggregate_version": attempt_index,
-                    "event_sequence": 1,
-                    "event_type": "attempt_assessed",
-                    "audience": "student",
-                    "payload": {"correctness": assessment.correctness.value},
-                }
-            ],
-        )
-        await self.sessions.commit_learning_transaction(owner_id, commit)
-
-        await self._emit(stream, session, diag_transition, message, detail=detail)
-
-        # Phase 5 (§7.5 E2E): a solved cycle is followed by a server-driven
-        # practice offer — SOLVED →(REFLECTED)→ REFLECTION →(PRACTICE_OFFERED).
-        if context.get("diagnostic_item"):
-            await self._advance_diagnostic(session, owner_id, context, assessment, stream)
-        elif assessment.correctness is Correctness.CORRECT and offer_after:
-            await self._offer_after_solved(
-                session,
-                owner_id,
-                skill_id=skill_for_problem(problem),
-                stream=stream,
-                problem_text=problem.display_latex,
-            )
+        workflow = self._attempt_workflow()
+        return await workflow.submit_attempt(session, owner_id, payload, expected_version, idempotency_key, verified, assistance, stream, raw_text_override=raw_text_override, offer_after=offer_after, followup_command=followup_command, followup_request=followup_request)
 
     # ------------------------------------------------- practice offer flow
 
@@ -2210,112 +1352,8 @@ class MathTutorController:
         prerequisite_skill_ids: tuple[str, ...] = (),
         review_due: bool = False,
     ) -> None:
-        """Server-driven practice offer after a solved cycle (§7.5 E2E).
-
-        ``prepare_offer`` runs the FULL release gate (candidate → parser →
-        solver → verifier → attestation → ExerciseRelease → PracticeOffer)
-        inside the adaptive-practice service — this helper never touches the
-        verifier, releases or the student model itself (Invariant A), and it
-        persists each state step as its own short transaction (restart-safe).
-
-        The offer is a recommendation: when no candidate passes the gate (or
-        the service is unavailable) the cycle STILL advances to
-        PRACTICE_OFFERED and a degraded message is emitted — the student
-        exits via decline/cancel. The emitted projection is the same public
-        shape as GET /offers (offer id, curriculum labels, difficulty,
-        timestamps) — never a solution, answer key, verification log,
-        attestation or mastery value.
-        """
-        if self.practice_service is None:
-            return
-        verified = await self.sessions.load_verified(owner_id, session.cycle.cycle_id)
-        assistance = await self.sessions.load_assistance(owner_id, session.cycle.cycle_id)
-        deliveries = await self.sessions.teaching.for_cycle(owner_id, session.cycle.cycle_id)
-        exposure = 5 if any(x.get("target_answer_exposed") for x in deliveries
-                            if x["status"] in {"possibly_exposed", "presented"}) else assistance.max_level_issued
-        tracking = getattr(self.sessions, "student_state", None)
-        if tracking is not None and verified:
-            exposure = max(exposure, (await tracking.exposure_context(owner_id, verified[0].content_hash))["assistance_level"])
-        purpose = purpose or ("B" if exposure >= 5 else "A2" if exposure else "A1")
-        from mathtutor.learning.knowledge_tracing.events import valid_events
-        history = await tracking.events(owner_id) if tracking else []
-        from mathtutor.application.evidence_projection import teaching_evidence, teaching_practice_focus
-        context = await self._teaching_context(owner_id, session, verified) if verified else None
-        focus, practice_guidance = "", ""
-        if context:
-            context["learner_evidence"] = teaching_evidence(history, context["skill_ids"])
-            focus, practice_guidance = teaching_practice_focus(context)
-        basis_events = [e for e in valid_events(history)
-            if e.cycle_id == str(session.cycle.cycle_id) and e.event_type == "attempt_assessed"]
-        from mathtutor.application.evidence_projection import PRACTICE_ERROR_CODES
-        if focus and context:
-            basis_events.extend(e for e in valid_events(history)
-                if e.independent_target and e.correctness == "incorrect"
-                and set(e.skill_ids) & set(context["skill_ids"])
-                and set(e.misconception_codes) & PRACTICE_ERROR_CODES)
-        offer = None
-        try:
-            offer = await self.practice_service.prepare_offer(
-                owner_id,
-                parent_cycle_id=session.cycle.cycle_id,
-                target_skill_ids=(skill_id,) if skill_id else (),
-                problem_text=problem_text,
-                purpose=purpose,
-                target_revision=verified[0].content_hash if verified else "",
-                exposure_level=exposure,
-                full_task_completed=session.state == CycleState.SOLVED,
-                prerequisite_skill_ids=prerequisite_skill_ids,
-                review_due=review_due,
-                history_cutoff_seq=max((e.event_seq for e in history), default=0) if tracking else None,
-                evidence_ids=tuple(e.event_id for e in basis_events),
-                foundation_focus=focus,
-            )
-        except Exception:
-            offer = None
-        from types import SimpleNamespace
-        transition = SimpleNamespace(from_state=session.state.value, to_state=session.state.value,
-                                     trigger_command="request_practice")
-        if offer is None:
-            await self._emit(
-                stream,
-                session,
-                transition,
-                "这次没有生成通过验证的练习题。当前题目和作答记录保留，你可以继续辅导或稍后重试。",
-                detail="practice_unavailable",
-            )
-            return
-        from mathtutor.application.practice_release import (
-            labels_for_mapping_ids,
-        )
-
-        labels = labels_for_mapping_ids(offer.target_mapping_ids)
-        release = await self.practice.load_release(offer.exercise_release_id)
-        exercise = (
-            await self.practice.load_exercise(release.exercise_id)
-            if release is not None
-            else None
-        )
-        await self._emit(
-            stream,
-            session,
-            transition,
-            practice_guidance + {"A1": "这道题已经独立完成，可以换一道题检验迁移。",
-             "A2": "这道题在帮助后完成了，可以换一道题独立巩固。",
-             "B": "已展示解答；这不等于已经掌握。可以换一道题独立检测。",
-             "D": "练习题已经通过验证。你可以开始，原题会保留。"}.get(purpose, "练习题已经准备好。"),
-            detail="practice_offered",
-            extra={
-                "offer_id": str(offer.offer_id),
-                "status": offer.status,
-                "skill_labels": labels["skill_labels"],
-                "concept_labels": labels["concept_labels"],
-                "difficulty": exercise.difficulty if exercise is not None else None,
-                "offered_at": offer.offered_at.isoformat(),
-                "expires_at": offer.expires_at.isoformat(),
-                "parent_cycle_id": str(offer.parent_cycle_id),
-                "purpose": purpose,
-            },
-        )
+        workflow = self._practice_workflow()
+        return await workflow.offer_after_solved(session, owner_id, skill_id=skill_id, stream=stream, reflected=reflected, problem_text=problem_text, purpose=purpose, prerequisite_skill_ids=prerequisite_skill_ids, review_due=review_due)
 
     async def _prompt_command(
         self,
@@ -2332,117 +1370,8 @@ class MathTutorController:
         student_request: str = "",
         resume_checkpoint: dict | None = None,
     ) -> None:
-        from mathtutor.application.student_contract import verified_binding
-        if not verified_binding(verified):
-            await stream.error("当前题目还没有可用的验证解答，请先补充题目。", source=self.manifest.name,
-                               metadata={"error_code": "NO_VERIFIED_SOLUTION"})
-            return
-        # PLAN FIRST: a policy refusal must never advance the state machine
-        # (e.g. request_solution before the stage's hint threshold).
-        problem, candidate, ref = verified if verified else (None, None, None)
-        try:
-            action = self.planner.plan(
-                state=session.state,
-                command=command,
-                policy=self.policy,
-                assistance=assistance,
-                verified_ref=ref,
-            )
-        except DisclosurePolicyViolation as exc:
-            # A refusal leaves the cycle version unchanged, so an open
-            # checkpoint would make a replay rerun only this refused half.
-            from mathtutor.application.tutor_runtime import current_turn
-            turn = current_turn.get()
-            context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
-            pending = (context or {}).get("pending_expression") or {}
-            if pending.get("request_id") in {turn.turn_id if turn else None, idempotency_key}:
-                context.pop("pending_expression")
-                await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, context)
-            code = getattr(exc, "error_code", "")
-            await stream.error(
-                str(exc) if code else f"当前策略不允许这个操作：{exc}",
-                source=self.manifest.name,
-                metadata={"cycle_state": session.state.value, **({"error_code": code} if code else {})},
-            )
-            return
-        from mathtutor.domain.tutoring import TutorAction
-        from mathtutor.application.tutor_runtime import current_turn
-        from mathtutor.pedagogy.output_guard import GuardedTutorUtterance
-        teaching_context = await self._teaching_context(owner_id, session, verified)
-        turn = current_turn.get()
-        request_id = turn.turn_id if turn else idempotency_key
-        if resume_checkpoint and resume_checkpoint.get("action"):
-            action = TutorAction.model_validate(resume_checkpoint["action"])
-        checkpoint = dict(resume_checkpoint or teaching_context.get("pending_expression") or {})
-        if checkpoint.get("request_id") != request_id:
-            checkpoint = {}
-        checkpoint.update(request_id=request_id, command={
-            CycleCommand.REQUEST_HINT: "request_hint", CycleCommand.REQUEST_EXPLANATION: "request_explanation",
-            CycleCommand.REQUEST_EXAMPLE: "request_example", CycleCommand.SOLUTION_SHOWN_PERMITTED: "request_solution",
-        }[command], student_request=student_request, problem_revision=problem.content_hash,
-            cycle_version=session.version, action=action.model_dump(mode="json"))
-        checkpoint.setdefault("phase", "planned")
-        teaching_context["pending_expression"] = checkpoint
-        await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, teaching_context)
-        # Phase 3 teaching control chain: projector → writer → guard (the
-        # action is already planner-sanctioned).
-        if checkpoint.get("approved_utterance"):
-            utterance = GuardedTutorUtterance.model_validate(checkpoint["approved_utterance"])
-            if turn:
-                turn.continuation_context = checkpoint.get("continuation_context", "")
-        else:
-            utterance = await self._realize_utterance(session, verified, action, student_request=student_request, owner_id=owner_id)
-        # Keep the previous actionable state while the writer runs. Commit
-        # the request + delivery transition together, never strand a restart
-        # in HINTED/EXPLAINING after a provider failure or cancellation.
-        actual_command = command
-        return_state = session.state
-        if command == CycleCommand.SOLUTION_SHOWN_PERMITTED and utterance.assistance_level < 5:
-            actual_command = CycleCommand.REQUEST_HINT
-        transition = session.step(actual_command, expected_version=expected_version, idempotency_key=idempotency_key)
-        if actual_command == CycleCommand.REQUEST_HINT:
-            delivered = CycleCommand.HINT_DELIVERED
-        elif actual_command == CycleCommand.SOLUTION_SHOWN_PERMITTED:
-            delivered = None
-        else:
-            delivered = CycleCommand.EXPLANATION_DELIVERED
-        if delivered is not None and return_state == CycleState.AWAITING_RETRY:
-            delivered = CycleCommand.SUPPORT_RETURNED_TO_RETRY
-        transitions = [transition]
-        if delivered is not None:
-            transitions.append(session.step(delivered))
-        teaching_context = await self.sessions.teaching.load(owner_id, session.cycle.cycle_id)
-        teaching_context["pending_expression"].update(phase="action_committed", cycle_version=session.version)
-        actual_action = action.model_copy(update={"action": utterance.action,
-            "effective_assistance_level": utterance.assistance_level,
-            "solution_visibility": {0: "none", 1: "hint", 2: "hint", 3: "step", 4: "partial", 5: "full"}[utterance.assistance_level]})
-        await self.sessions.commit_teaching_action(owner_id, session.cycle.cycle_id, transitions, actual_action, teaching_context)
-        await self._emit(
-            stream,
-            session,
-            transition,
-            utterance.text,
-            detail=utterance.action,
-            extra={
-                "action": utterance.action,
-                "effective_assistance_level": utterance.assistance_level,
-            },
-        )
-        if delivered is None and self.practice_service is not None:
-            # L5 shown → REFLECTION → server-driven practice offer (§7.5 E2E).
-            # The helper emits the final event (offer projection / degraded),
-            # so no state-only emit follows.
-            await self._offer_after_solved(
-                session,
-                owner_id,
-                skill_id=skill_for_problem(problem) if problem is not None else None,
-                stream=stream,
-                reflected=True,
-                problem_text=problem.display_latex if problem is not None else "",
-                purpose="B",
-            )
-        else:
-            await self._emit_state(stream, session)
+        workflow = self._intent_workflow()
+        return await workflow.prompt_command(session, owner_id, command, label, expected_version, idempotency_key, verified, assistance, stream, student_request=student_request, resume_checkpoint=resume_checkpoint)
 
     async def recover_expression(self, request, checkpoint, stream):
         """Resume only the persisted expression checkpoint, never re-assess input."""
@@ -2768,51 +1697,8 @@ class MathTutorController:
             prerequisites + targets, context["diagnosis"], stream)
 
     async def _assess_teacher_error(self, session, owner_id, context, answer, expected_version, request_id, stream):
-        example = context["teacher_error_example"]
-        result = await self.service.submit_problem(example["problem_text"])
-        if result.kind != "verified":
-            await stream.error("这个教师示例暂时无法验证，原题记录没有改变。", source=self.manifest.name)
-            return
-        problem, candidate, ref = result.problem, result.candidate, result.verified_ref
-        attempt_index = await self.sessions.load_attempt_index(owner_id, session.cycle.cycle_id)
-        submission_id = uuid4()
-        attempt = parse_student_attempt(attempt_submission_id=submission_id, student_id=session.student_id,
-            cycle_id=session.cycle.cycle_id, raw_text=answer, attempt_index=attempt_index)
-        prediction_id = f"error-analysis:{session.cycle.cycle_id}:{request_id or submission_id}"
-        tracking = getattr(self.sessions, "student_state", None)
-        from mathtutor.learning.skill_graph import skills_for_problem
-        item = {"session_id": str(session.session_id), "cycle_id": str(session.cycle.cycle_id),
-                "problem_id": str(problem.problem_id), "problem_revision": problem.content_hash,
-                "item_family_id": problem.problem_type, "skill_ids": skills_for_problem(problem)}
-        if tracking:
-            await tracking.prepare_prediction(owner_id, prediction_id=prediction_id, **item)
-        assessment = await self.service.verification_backend.verify_attempt(attempt, problem, candidate)
-        from mathtutor.pedagogy.error_example import assess_teacher_error_repair
-        assessment = assess_teacher_error_repair(example=example, raw_text=answer, assessment=assessment)
-        transition = session.step(CycleCommand.TEACHER_ERROR_ANALYZED, expected_version=expected_version)
-        valid = assessment.correctness in {Correctness.CORRECT, Correctness.PARTIAL}
-        if valid:
-            context["teacher_error_example"]["awaiting_response"] = False
-        context.setdefault("error_analyses", []).append({"assessment_id": str(attempt.attempt_id),
-            "correctness": assessment.correctness.value, "student_text": answer, "teacher_authored": True})
-        commit = LearningCommit(transitions=[transition], problem_id=problem.problem_id,
-            attempt_submission_id=submission_id, attempt_id=attempt.attempt_id, raw_text=answer,
-            parsed_steps=list(attempt.parsed_steps), attempt_index=attempt_index, payload_hash=attempt.payload_hash,
-            reference_solution_log_id=ref.verification_log_id, correctness=assessment.correctness.value,
-            score=assessment.score, assessment_attestation_hash=_assessment_attestation_hash(attempt,
-                reference_log_id=ref.verification_log_id, verdict=assessment.correctness.value),
-            assessment_policy_version=assessment.policy_version, idempotency_key=request_id,
-            verified_claims=assessment.verified_claims, invalid_claims=assessment.invalid_claims,
-            remaining_requirements=assessment.remaining_requirements, teaching_context=context,
-            tracking_attempt={**item, "attempt_id": str(attempt.attempt_id), "assessment_id": str(attempt.attempt_id),
-                "correctness": assessment.correctness.value, "prediction_id": prediction_id,
-                "task_purpose": "error_analysis", "completion_scope": "error_analysis",
-                "response_fingerprint": content_hash({"parsed_steps": list(attempt.parsed_steps)})} if tracking else None)
-        await self.sessions.commit_learning_transaction(owner_id, commit)
-        await self._dialogue(stream, session,
-            "已验证这一步修正成立。这是教师错误示例的分析证据，不代表原题已经完成；现在回到原题。" if valid
-            else "这次修正还没有通过验证；示例中的错误是老师故意设置的，不会算作你原题做错。请继续检查等式两边的运算。",
-            "ERROR_ANALYSIS")
+        workflow = self._attempt_workflow()
+        return await workflow.assess_teacher_error(session, owner_id, context, answer, expected_version, request_id, stream)
 
     async def _start_understanding_check(self, owner_id, client_id, session, verified, stream):
         """Move to one fresh, verified check, keeping the original task intact."""
@@ -3041,185 +1927,8 @@ class MathTutorController:
         idempotency_key: str,
         stream: MathTutorEventSink,
     ) -> None:
-        """Accept one practice offer — the client sends ONLY ``offer_id``.
-
-        Nine steps (§7.7), all READ→COMPUTE, ONE short SHORT COMMIT:
-        1. owner check; 2. offer ACTIVE; 3. release active; 4. exact
-        snapshot (fail closed without VERIFIED bytes); 5. idempotency
-        (already ACCEPTED → replay the SAME child cycle); 6. create the
-        child cycle (SAME state machine, §7.8 — PROBLEM_RECEIVED v0
-        auto-advanced to AWAITING_ATTEMPT); 7. parent relation
-        (child.practice_offer_id = offer; parent closed); 8. outbox;
-        9. atomic commit (offer CAS + parent transition + child cycle +
-        child transitions + outbox in ONE transaction).
-        """
-        from datetime import datetime, timezone
-        from uuid import UUID
-
-        from mathtutor.domain.tutoring import CycleTransition
-
-        raw_offer_id = payload.get("offer_id")
-        try:
-            offer_id = UUID(str(raw_offer_id))
-        except (ValueError, TypeError):
-            await stream.error("offer_id 无效", source=self.manifest.name)
-            return
-        offer = await self.practice.load_offer(offer_id)
-        # 1. Owner isolation: the offer must belong to THIS student.
-        if offer is None or str(offer.student_id) != str(session.student_id):
-            await stream.error("offer 不存在", source=self.manifest.name)
-            return
-        # 5. Idempotent replay: an accepted offer returns the SAME child.
-        if offer.status == "ACCEPTED":
-            child = await self.sessions.load_child_cycle_for_offer(owner_id, offer_id)
-            if child is None:
-                await stream.error(
-                    "offer 已接受，但子周期不可恢复", source=self.manifest.name
-                )
-                return
-            replay = CycleTransition(
-                cycle_id=session.cycle.cycle_id,
-                from_state="practice_offered",
-                to_state="closed",
-                trigger_command="accept_practice_offer",
-                prior_version=session.version,
-                new_version=session.version,
-            )
-            await self._emit(
-                stream,
-                session,
-                replay,
-                "已接受练习",
-                detail="practice_started",
-                extra={
-                    "child_cycle_id": str(child.cycle.cycle_id),
-                    "idempotent_replay": True,
-                },
-            )
-            return
-        # 2/3. ACTIVE offer bound to a RELEASED (not revoked/superseded) release.
-        if offer.status != "ACTIVE":
-            await stream.error("offer 已失效（已撤销或已过期）", source=self.manifest.name)
-            return
-        if offer.expires_at <= datetime.now(timezone.utc):
-            await stream.error("offer 已过期", source=self.manifest.name)
-            return
-        if offer.parent_cycle_id != session.cycle.cycle_id:
-            await stream.error("offer 不属于当前周期", source=self.manifest.name)
-            return
-        release = await self.practice.load_release(offer.exercise_release_id)
-        if release is None or release.status != "released":
-            await stream.error("练习题已下架（发布被撤销或已替换）", source=self.manifest.name)
-            return
-        # 4. Exact snapshot — no VERIFIED bytes ⇒ no child cycle (fail closed).
-        exact = await self.practice.load_exact_verified(release)
-        if exact is None:
-            await stream.error(
-                "练习题未通过独立验证，无法开始练习", source=self.manifest.name
-            )
-            return
-        problem, _candidate, _ref = exact
-        recommendation = await self.practice.recommendation_for_offer(owner_id, offer_id)
-        response_mode = recommendation.response_mode if recommendation else "single_choice"
-        choices = None
-        if response_mode == "single_choice":
-            from mathtutor.application.multiple_choice import make_choices
-            try:
-                choices = make_choices(problem, _candidate, salt=str(release.release_id))
-            except ValueError:
-                await stream.error("这道旧练习暂不支持选择题，请重新邀请练习。", source=self.manifest.name)
-                return
-
-        # 6/7. Parent closes (in memory); the child is a NEW TutoringCycle in
-        # the SAME session + SAME state machine (§7.8), practice-bound only
-        # (problem_id NULL — the XOR invariant; the problem binding lives in
-        # the offer→release exact snapshot resolved by load_verified).
-        child = TutoringSession(
-            session_id=session.session_id,
-            student_id=session.student_id,
-            practice_offer_id=offer_id,
-        )
-        child.step(CycleCommand.SUBMIT_PROBLEM)
-        child.step(CycleCommand.GROUNDING_OK)
-        child.step(CycleCommand.VERIFICATION_VERIFIED)
-        from mathtutor.pedagogy.teaching_plan import initial_context
-        child_context = initial_context(problem, _candidate, verified_solution_ref=_ref, cycle_id=child.cycle.cycle_id)
-        child_context.update(resume_parent_cycle_id=str(session.cycle.cycle_id),
-            client_session_id=client_session_id, choices=choices, response_mode=response_mode,
-            observation_kind=recommendation.observation_kind if recommendation else "diagnostic",
-            options_exposed=choices is not None)
-        choice_events = ()
-        if choices and getattr(self.sessions, "student_state", None) is not None:
-            from mathtutor.learning.knowledge_tracing.events import LearningEvent
-            from mathtutor.learning.skill_graph import skills_for_problem
-            choice_events = (LearningEvent(event_id=f"options_exposed:{child.cycle.cycle_id}",
-                student_id=owner_id, session_id=str(child.session_id), cycle_id=str(child.cycle.cycle_id),
-                event_type="options_exposed", problem_id=str(problem.problem_id), problem_revision=problem.content_hash,
-                item_family_id=problem.problem_type, skill_ids=skills_for_problem(problem), options_exposed=True),)
-        await self._prepare_presentation(owner_id, child, exact)
-        parent_transition = session.step(
-            CycleCommand.ACCEPT_PRACTICE_OFFER,
-            expected_version=expected_version,
-            idempotency_key=idempotency_key,
-        )
-
-        # 8. Outbox events (written in the same transaction, §7.10).
-        outbox_events = [
-            {
-                "aggregate_type": "cycle",
-                "aggregate_id": str(session.cycle.cycle_id),
-                "aggregate_version": session.version,
-                "event_sequence": 1,
-                "event_type": "cycle_state_committed",
-                "audience": "student",
-                "payload": {
-                    "from_state": parent_transition.from_state,
-                    "to_state": parent_transition.to_state,
-                    "trigger_command": parent_transition.trigger_command,
-                },
-            },
-            {
-                "aggregate_type": "practice_offer",
-                "aggregate_id": str(offer_id),
-                "aggregate_version": 1,
-                "event_sequence": 2,  # seq 1 is practice_offer_issued
-                "event_type": "practice_offer_accepted",
-                "audience": "student",
-                "payload": {"child_cycle_id": str(child.cycle.cycle_id)},
-            },
-        ]
-        # 9. ONE short transaction: offer CAS + parent transition + child
-        #    cycle + child transitions + outbox (§7.7 step 9, §7.10).
-        await self.sessions.accept_practice_offer(
-            owner_id,
-            client_session_id,
-            offer_id,
-            parent_transition,
-            child,
-            outbox_events,
-            teaching_context=child_context,
-            learning_events=choice_events,
-        )
-        # Restart-safe verified chain for the child (SQLite: no-op — the DB
-        # resolves the exact snapshot; in-memory: cached per cycle).
-        await self.sessions.store_verified(
-            owner_id, child.cycle.cycle_id, exact
-        )
-        await self._cycle_fact(owner_id, child, exact, "problem_started",
-            task_purpose="transfer" if recommendation and recommendation.purpose in {"A1", "A2", "B"} else "practice")
-        await self._emit(
-            stream,
-            session,
-            parent_transition,
-            "开始练习！",
-            detail="practice_started",
-            extra={
-                "child_cycle_id": str(child.cycle.cycle_id),
-                # Student-facing problem surface ONLY — no answer key.
-                "problem_latex": problem.display_latex,
-                "problem_type": problem.problem_type,
-            },
-        )
+        workflow = self._practice_workflow()
+        return await workflow.accept_practice_offer(session, owner_id, client_session_id, payload, expected_version, idempotency_key, stream)
 
     async def _request_options(self, session, owner_id, verified, stream):
         """Persist exposure before returning options; typed answers cannot undo it."""
@@ -3254,42 +1963,8 @@ class MathTutorController:
         idempotency_key: str,
         stream: MathTutorEventSink,
     ) -> None:
-        """Decline the session's pending offer (owner + parent cycle scoped).
-
-        Payload ``offer_id`` is optional — the ACTIVE offer of the current
-        parent cycle is used when omitted.
-        """
-        from uuid import UUID
-
-        offer_id = payload.get("offer_id")
-        offer = None
-        if offer_id:
-            try:
-                candidate_offer = await self.practice.load_offer(UUID(str(offer_id)))
-            except (ValueError, TypeError):
-                candidate_offer = None
-            if (
-                candidate_offer is not None
-                and str(candidate_offer.student_id) == str(session.student_id)
-                and candidate_offer.parent_cycle_id == session.cycle.cycle_id
-            ):
-                offer = candidate_offer
-        if offer is None or offer.status != "ACTIVE":
-            offers = await self.practice.offers_for_student(owner_id)
-            offer = next(
-                (
-                    o
-                    for o in offers
-                    if o.status == "ACTIVE"
-                    and o.parent_cycle_id == session.cycle.cycle_id
-                ),
-                None,
-            )
-        if offer is None:
-            await stream.error("没有可拒绝的练习 offer", source=self.manifest.name)
-            return
-        await self.practice.mark_offer_declined(owner_id, offer.offer_id)
-        await self._dialogue(stream, session, "已略过这次练习邀请，原题保持不变。", "PRACTICE_DECLINED")
+        workflow = self._practice_workflow()
+        return await workflow.decline_practice_offer(session, owner_id, payload, expected_version, idempotency_key, stream)
 
     # ---------------------------------------------------------------- events
 
@@ -3348,25 +2023,6 @@ class MathTutorController:
                 },
             )
         )
-
-
-def _parse_envelope(user_message: str) -> tuple[str, dict[str, Any]]:
-    """Parse the command envelope; plain text enters the intent router."""
-    text = user_message.strip()
-    if not text:
-        return (SEND_MESSAGE_COMMAND, {"payload": {"text": ""}})
-    if text.startswith("{"):
-        try:
-            envelope = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"命令 envelope 不是合法 JSON: {exc}") from exc
-        command = str(envelope.get("command") or SEND_MESSAGE_COMMAND)
-        if envelope.get("protocol_version", 1) == 1:
-            command = LEGACY_COMMAND_ALIASES.get(command, command)
-        if command not in USER_COMMANDS and command != SEND_MESSAGE_COMMAND:
-            raise ValueError(f"未知命令: {command}")
-        return (command, envelope)
-    return (SEND_MESSAGE_COMMAND, {"payload": {"text": text}})
 
 
 __all__ = [

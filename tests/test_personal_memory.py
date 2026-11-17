@@ -20,10 +20,8 @@ from mathtutor.domain.memory import (
     assert_memory_writable,
     confirm_inference,
 )
-from mathtutor.repositories.memory_repository import (
-    InMemoryMemoryRepository,
-    MemoryRepository,
-)
+from mathtutor.repositories.sqlite_knowledge import SQLiteMemoryRepository
+from mathtutor.repositories.memory_repository import MemoryRepository
 
 pytestmark = pytest.mark.asyncio
 
@@ -32,8 +30,8 @@ _STUDENT_B = "student-b"
 
 
 @pytest.fixture()
-def repo() -> InMemoryMemoryRepository:
-    return InMemoryMemoryRepository()
+def repo() -> SQLiteMemoryRepository:
+    return SQLiteMemoryRepository()
 
 
 def service(repository: MemoryRepository) -> PersonalMemoryService:

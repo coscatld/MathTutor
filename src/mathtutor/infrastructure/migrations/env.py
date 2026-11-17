@@ -7,7 +7,6 @@ always migrate the same file the app opens.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from pathlib import Path
 
@@ -21,7 +20,6 @@ config = context.config
 
 
 def _database_url() -> str:
-    from pathlib import Path
 
     explicit = config.attributes.get("db_path")
     if explicit:
@@ -51,9 +49,13 @@ def do_run_migrations(connection) -> None:
 
 
 def run_migrations_online() -> None:
+    supplied = config.attributes.get("connection")
+    if supplied is not None:
+        do_run_migrations(supplied)
+        return
+
     from sqlalchemy import create_engine, event
 
-    from pathlib import Path
 
     from mathtutor.infrastructure import db_crypto
 

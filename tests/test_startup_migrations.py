@@ -2,7 +2,6 @@
 
 from contextlib import closing
 import os
-from pathlib import Path
 import sqlite3
 import subprocess
 import sys
@@ -40,7 +39,7 @@ def test_recover_observed_heads_only_after_backup_and_preserve_data(tmp_path, en
         db_crypto.request_change(path, True)
         db_crypto.apply_pending(path)
     upgrade_db(str(path))
-    assert revisions(path) == [("025",)]
+    assert revisions(path) == [("026",)]
     backup, = (path.parent / "backups").glob("*.sqlite3")
     assert revisions(backup) == [("023",), ("024",)]
     for database in (path, backup):
@@ -165,7 +164,7 @@ def test_two_processes_serialize_the_exact_fresh_install_race(tmp_path):
         for process in (first, second):
             out, err = process.communicate(timeout=20)
             assert process.returncode == 0, (out, err)
-        assert revisions(path) == [("025",)]
+        assert revisions(path) == [("026",)]
     finally:
         (tmp_path / "resume").touch()
         for process in (first, second):

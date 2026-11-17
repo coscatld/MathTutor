@@ -13,7 +13,6 @@ from mathtutor.application.personal_memory_service import PersonalMemoryService
 from mathtutor.domain.memory import PersonalMemoryNode
 from mathtutor.infrastructure.db import create_db_engine
 from mathtutor.infrastructure.schema import metadata, personal_memory_nodes
-from mathtutor.repositories.memory_repository import InMemoryMemoryRepository
 from mathtutor.repositories.sqlite_knowledge import SQLiteMemoryRepository
 from mathtutor.repositories.sqlite_runtime import ensure_student
 from mathtutor.security.scopes import student_uuid
@@ -106,14 +105,15 @@ async def test_pages_skip_oversized_entries_and_prioritize_recent_edit(database)
     assert result.payload == select_memory_context(await repo.list_retrievable("owner"))
 
 
-async def test_keyset_ties_and_owner_filters_match_inmemory(database):
+async def test_keyset_ties_and_owner_filters_match_memory_and_disk(database):
     engine, repo = database
     records = [node(i).model_copy(update={"updated_at": TICK}) for i in range(1, 11)]
     await seed(engine, records)
     await seed(engine, [node(20, owner="other")], owner="other")
-    memory = InMemoryMemoryRepository()
+    memory = SQLiteMemoryRepository()
     # Synthetic tied historical versions exercise the stable cursor suffixes.
-    memory._nodes = {n.memory_id: n for n in records + [node(20, owner="other")]}
+    await seed(memory.uow.engine, records)
+    await seed(memory.uow.engine, [node(20, owner="other")], owner="other")
     for source in (repo, memory):
         result, before = [], None
         while True:

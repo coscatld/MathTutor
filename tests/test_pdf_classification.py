@@ -32,7 +32,7 @@ from mathtutor.domain.documents import (
 from mathtutor.infrastructure.chunking import TextChunker
 from mathtutor.infrastructure.document_parser import LocalDocumentParser, PARSER_VERSION
 from mathtutor.infrastructure.document_storage import DocumentStorage
-from mathtutor.repositories.document_repository import InMemoryDocumentRepository
+from mathtutor.repositories.sqlite_knowledge import SQLiteDocumentRepository
 
 pytestmark = pytest.mark.asyncio
 
@@ -172,7 +172,7 @@ def _encrypted_pdf() -> bytes:
 @pytest_asyncio.fixture()
 async def service(tmp_path: Path) -> DocumentIngestionService:
     return DocumentIngestionService(
-        repository=InMemoryDocumentRepository(),
+        repository=SQLiteDocumentRepository(),
         storage=DocumentStorage(tmp_path / "data"),
     )
 

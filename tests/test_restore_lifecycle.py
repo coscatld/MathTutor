@@ -12,8 +12,10 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import text
 
-from mathtutor.api import desktop_api, product_state
-from mathtutor.api.desktop_api import BackupPathRequest, restore_backup_endpoint
+from mathtutor.application import restore_runtime as restore_api
+from mathtutor.api import product_state
+from mathtutor.api.routers.schemas import BackupPathRequest
+from mathtutor.api.routers.backup import restore_backup_endpoint
 from mathtutor.api.product_state import ProductState, current_product_state, get_product_state, reset_product_state
 from mathtutor.infrastructure import backup as backup_module, db_crypto, migrate
 from mathtutor.infrastructure.backup import BackupError, BackupService
@@ -116,7 +118,7 @@ async def test_file_worker_terminal_before_rebuild_or_rollback(world, monkeypatc
     barrier = Barrier()
     fired = False
     replacements = []
-    copy = desktop_api.shutil.copy2
+    copy = restore_api.shutil.copy2
     replace = backup_module.os.replace
     upgrade = migrate.upgrade_db
     build = product_state._build_product_state
@@ -161,7 +163,7 @@ async def test_file_worker_terminal_before_rebuild_or_rollback(world, monkeypatc
         assert not barrier.active and barrier.finished, "runtime opened before file worker finished"
         return build(*args, **kwargs)
 
-    monkeypatch.setattr(desktop_api.shutil, "copy2", copy_file)
+    monkeypatch.setattr(restore_api.shutil, "copy2", copy_file)
     monkeypatch.setattr(backup_module.os, "replace", replace_file)
     monkeypatch.setattr(migrate, "upgrade_db", migration)
     monkeypatch.setattr(product_state, "_build_product_state", build_when_idle)

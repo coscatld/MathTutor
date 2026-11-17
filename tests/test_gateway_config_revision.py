@@ -9,6 +9,7 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
+from mathtutor.api.routers import settings as settings_api
 from mathtutor.api import desktop_api
 from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.infrastructure import gateway_config
@@ -155,7 +156,7 @@ async def test_restart_uses_durable_revision_but_rejects_previous_runtime_epoch(
 async def test_api_receipts_expose_runtime_success_persistence_failure_and_stale_probe(tmp_path, monkeypatch):
     service, gateway, store, path = await configured(tmp_path)
     state = SimpleNamespace(gateway_config=service, secret_store=store, initial_assessment=None, refresh_model_writer=lambda: None)
-    monkeypatch.setattr(desktop_api, "get_product_state", lambda: state)
+    monkeypatch.setattr(settings_api, "get_product_state", lambda: state)
     app = FastAPI()
     app.include_router(desktop_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
     app.dependency_overrides[require_student_owner] = lambda: SimpleNamespace(student_id="owner")

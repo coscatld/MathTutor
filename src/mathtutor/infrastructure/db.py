@@ -43,6 +43,9 @@ def resolve_db_path() -> Path:
 
 def create_db_engine(db_path: Path | None = None) -> AsyncEngine:
     """Create the async SQLite engine with the production PRAGMA set."""
+    if str(db_path) == ":memory:":
+        from mathtutor.infrastructure.memory_database import create_memory_engine
+        return create_memory_engine()
     path = Path(db_path) if db_path is not None else resolve_db_path()
     path = path.resolve()
     path.parent.mkdir(parents=True, exist_ok=True)

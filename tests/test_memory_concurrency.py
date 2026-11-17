@@ -15,7 +15,6 @@ from mathtutor.infrastructure.generative_gateway import GenerativeModelGateway, 
 from mathtutor.infrastructure.schema import metadata
 from mathtutor.infrastructure.secret_store import InMemorySecretStore
 from mathtutor.infrastructure.tutor_chat import TutorChatResponder
-from mathtutor.repositories.memory_repository import InMemoryMemoryRepository
 from mathtutor.repositories.sqlite_knowledge import SQLiteMemoryRepository
 from test_tutor_output_contract_integration import Replies
 
@@ -27,7 +26,7 @@ async def pair(request, tmp_path):
     connections = set()
     engines = []
     if request.param == "memory":
-        first = second = InMemoryMemoryRepository()
+        first = second = SQLiteMemoryRepository()
     else:
         path = tmp_path / "race.db"
         for _ in range(2):
