@@ -16,6 +16,7 @@ from mathtutor.infrastructure.secret_store import SecretStore
 
 BASE_URL = "https://developer.zhihu.com"
 MAX_RESPONSE_BYTES = 2_000_000
+MAX_RESPONSE_DEPTH = 32
 ENV_SECRET = "MATHTUTOR_ZHIHU_ACCESS_SECRET"
 
 
@@ -66,6 +67,16 @@ def secret_name(owner: str) -> str:
     return f"zhihu.exploration.{owner}"
 
 
+def _validate_response_depth(value: object, depth: int = 1) -> None:
+    if not isinstance(value, (dict, list)):
+        return
+    if depth > MAX_RESPONSE_DEPTH:
+        raise ValueError("Response nesting limit exceeded")
+    children = value.values() if isinstance(value, dict) else value
+    for child in children:
+        _validate_response_depth(child, depth + 1)
+
+
 class ZhihuClient:
     def __init__(self, secret_store: SecretStore, *, transport=None, clock: Callable = time.time):
         self.secret_store = secret_store
@@ -110,6 +121,7 @@ class ZhihuClient:
             data = json.loads(body)
             if not isinstance(data, dict):
                 raise TypeError("Expected object")
+            _validate_response_depth(data)
             json.dumps(data, ensure_ascii=False).encode("utf-8")
             return data
         except (httpx.HTTPError, TimeoutError) as error:

@@ -198,6 +198,25 @@ async def test_provider_errors_are_bounded_and_never_echo_credentials(response, 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("depth,accepted", [(32, True), (33, False)])
+@pytest.mark.parametrize("container", [dict, list])
+async def test_provider_nesting_limit_is_independent_of_python_recursion(depth, accepted, container):
+    nested = "braces inside text: " + "{" * 100 + "}" * 100
+    for _ in range(depth - 1):
+        nested = {"child": nested} if container is dict else [nested]
+    payload = {"Code": 0, "Data": {"Items": [ITEM]}, "Metadata": nested}
+    store = InMemorySecretStore()
+    await store.put(secret_name("alice"), TEST_SECRET)
+    client = ZhihuClient(store, transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)))
+    if accepted:
+        assert (await client.search("alice", "根式的条件"))["Items"] == [ITEM]
+    else:
+        with pytest.raises(ZhihuError) as error:
+            await client.search("alice", "根式的条件")
+        assert error.value.kind == "invalid_response"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("candidate", [
     {"selections": [{"span_id": "known", "lens": "conditions", "reading_question": "连续不一定可导是错误命题吗？"}]},
     {"selections": [{"span_id": "known", "lens": "verified"}]},
