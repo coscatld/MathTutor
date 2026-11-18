@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import hashlib
 import importlib.util
 import json
@@ -39,8 +40,8 @@ def preserve_disposable_evidence(data: Path, output: Path, report: dict) -> None
             raise TimeoutError('Evidence database snapshot exceeded10seconds')
 
     try:
-        with sqlite3.connect(f'file:{database.as_posix()}?mode=ro', uri=True, timeout=5) as source:
-            with sqlite3.connect(retained) as destination:
+        with closing(sqlite3.connect(f'file:{database.as_posix()}?mode=ro', uri=True, timeout=5)) as source:
+            with closing(sqlite3.connect(retained)) as destination:
                 source.backup(destination, pages=128, progress=progress)
         report['retained_database'] = {
             'path': retained.name,
@@ -142,6 +143,7 @@ def main() -> None:
             report['status'] = 'AUTOMATIC_SCOPE_COMPLETE'
             report['not_a_full_product_pass'] = result['overall_product_acceptance'] != 'passed'
     except BaseException:
+        report['status'] = 'FAIL'
         report['error'] = traceback.format_exc()
         raise
     finally:

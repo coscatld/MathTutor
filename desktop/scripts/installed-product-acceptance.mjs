@@ -319,15 +319,30 @@ async function captureSurface(name) {
 
 async function retryProfileRecommendation(pattern, caseId) {
     const retry = page.getByRole('button', {name: '重新加载学习推荐', exact: true});
-    await retry.scrollIntoViewIfNeeded();
+    await retry.click({trial: true});
     await captureSurface(`${caseId}-visible-error`);
-    await page.unroute(pattern);
-    await retry.click();
+    await page.evaluate(() => {
+        window.recommendationRetryClicked = false;
+        document.addEventListener('click', function observe(event) {
+            if (event.target.closest('button')?.textContent.trim() === '重新加载学习推荐') {
+                window.recommendationRetryClicked = true;
+                document.removeEventListener('click', observe, true);
+            }
+        }, true);
+    });
+    await page.route(pattern, async route => {
+        if (await page.evaluate(() => window.recommendationRetryClicked)) return route.continue();
+        return route.fallback();
+    });
+    await Promise.all([
+        page.waitForResponse(response => response.url().includes('/recommendations/start?')
+            && response.request().method() === 'POST' && response.ok()),
+        retry.click(),
+    ]);
     await retry.waitFor({state: 'hidden'});
     const expected = await plan();
     const section = page.getByRole('region', {name: '下一步学习资料', exact: true});
     await section.getByText(expected.plan.title, {exact: true}).waitFor();
-    await section.scrollIntoViewIfNeeded();
     await captureSurface(`${caseId}-after-real-retry`);
 }
 
