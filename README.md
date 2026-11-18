@@ -27,4 +27,4 @@ MathTutor 是面向学习者的桌面 AI 数学学习与知识探索软件。你
 
 ## 许可证
 
-MathTutor 基于 DeepTutor 开发，保留香港大学 Data Intelligence Lab 的版权声明，采用 [Apache-2.0](LICENSE) 许可证。第三方内容的归属见[第三方声明](THIRD_PARTY_NOTICES.md)。
+MathTutor 采用 [Apache-2.0 许可证](LICENSE)。第三方内容的归属见[第三方声明](THIRD_PARTY_NOTICES.md)。
