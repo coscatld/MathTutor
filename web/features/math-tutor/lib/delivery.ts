@@ -2,6 +2,12 @@ import type { StudentFrame, TutorMessage } from "../types";
 
 export interface PendingPresentation { deliveryId: string; turnId: string; messageId: string; }
 
+/** A durable partial reply acknowledges the submitted draft, not a complete answer. */
+export function draftWasDelivered(frame: StudentFrame): boolean {
+  return frame.event_type === "assistant_complete" || (frame.event_type === "assistant_partial"
+    && frame.payload.status === "PARTIAL" && Boolean(frame.payload.final_text?.trim()));
+}
+
 export function presentationFromFrame(frame: StudentFrame): PendingPresentation | null {
   if (!frame.delivery_id || !["assistant_complete", "assistant_partial", "turn_end"].includes(frame.event_type)) return null;
   if (!frame.payload.turn_id && !frame.payload.message_id) return null;

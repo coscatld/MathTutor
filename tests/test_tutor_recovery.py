@@ -41,8 +41,9 @@ def test_out_of_domain_question_offers_verified_scaffold_without_replacing_origi
         assert restored["state"] in {"problem_received", "unsupported"}
         assert restored["messages"][0]["content"] == question
         assert "原题" in restored["messages"][-1]["content"]
+        assert restored["problem_context"]["display_text"] == question
         assert not any(action["enabled"] for action in restored["allowed_actions"]
-                       if action["command"] in {"request_hint", "request_solution"})
+                       if action["command"] == "request_solution")
         assert events(db) == 0
         # The student accepts the distinct exercise using the public new-task path.
         accepted = send(ws, "send_message", "accept-scaffold", {"text": "换题：" + recovery["text"]})
@@ -69,7 +70,8 @@ def test_unparseable_task_preserves_bound_problem_and_empty_evidence(tmp_path):
         assert after["state"] == before["state"]
         assert events(db) == count_before
         assert after["evidence_summary"]["independent"] == 0
-        assert after["messages"][-1]["verification_notice"] == UNVERIFIED_NOTICE.removeprefix("> ")
+        assert "补充已知条件" in after["messages"][-1]["content"]
+        assert not after["messages"][-1].get("verification_notice")
 
 
 class ReplayProvider:
@@ -92,6 +94,9 @@ def test_free_explanation_and_continue_survive_restart_with_raw_boundary(tmp_pat
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         get_product_state().gateway.register_provider(ModelRole.TUTOR_WRITER, provider)
         first = send(ws, "send_message", "first", {"text": question})
+        assert terminal(first)["event_type"] == "assistant_complete" and not provider.calls
+        assert summary(client)["problem_context"]["display_text"] == question
+        first = send(ws, "request_explanation", "explain", {})
         result = terminal(first)
         assert result["event_type"] == "assistant_partial"
         assert result["recovery_problem"] is None
@@ -100,10 +105,10 @@ def test_free_explanation_and_continue_survive_restart_with_raw_boundary(tmp_pat
         assert not body.startswith(UNVERIFIED_NOTICE)
         assert result["payload"]["verification_notice"] == UNVERIFIED_NOTICE.removeprefix("> ")
         assert summary(client)["messages"][-1]["content"] == body
-        assert provider.calls[0][1]["max_tokens"] == 1024
+        assert provider.calls[0][1]["max_tokens"] == 4096
         assert len(provider.calls) == 2 and events(db) == 0
         with closing(sqlite3.connect(db)) as connection:
-            saved = json.loads(connection.execute("SELECT continuation_context FROM conversation_messages WHERE role='tutor'").fetchone()[0])
+            saved = json.loads(connection.execute("SELECT continuation_context FROM conversation_messages WHERE role='tutor' AND turn_id='explain'").fetchone()[0])
         assert saved["raw_text"] == "先确定题目中的数量关系。\n\n再把未知数设为x。"
         assert saved["unstructured_math"] is True
     resumed_provider = ReplayProvider([("stop", "接下来写出一个等式，先不要计算答案。")])

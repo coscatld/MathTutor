@@ -50,14 +50,18 @@ def test_default_middle_school_user_gets_the_original_derivative_task_and_local_
     with client_at(tmp_path / "derivative.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         bind(replies, requests)
         frames = send(ws, "send_message", "differentiate", {"text": text})
+        assert not requests
+        initial = next(frame["payload"] for frame in frames if frame["event_type"] == "assistant_complete")
+        assert "已核验导数" in initial["final_text"] and "2x" in initial["final_text"]
         restored = summary(client)
         assert restored["problem_context"]["display_text"] == text
         assert restored["recovery_problem"] is None
         assert restored["messages"][0]["content"] == text
         assert count(tmp_path / "derivative.db", "attempt_assessments") == 0
+        frames = send(ws, "request_explanation", "explain", {})
     assert len(requests) == 2
     assert requests[0].get("tools") and not requests[0].get("stream")
-    assert requests[0]["messages"][-1]["content"] == text
+    assert any(text in message["content"] for message in requests[0]["messages"])
     receipt = json.loads(next(message for message in requests[1]["messages"] if message["role"] == "tool")["content"])
     assert receipt == {"status": "verified", "signals": ["exact_polynomial_derivative"]}
     terminal = next(frame["payload"] for frame in frames if frame["event_type"] == "assistant_complete")
@@ -70,6 +74,9 @@ def test_nonpolynomial_derivative_remains_unchecked_on_the_same_real_tool_path(t
     with client_at(tmp_path / "trigonometric.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         bind(replies, requests)
         frames = send(ws, "send_message", "differentiate", {"text": "Find the derivative of sin(x)."})
+        assert not requests
+        assert "超出当前" in next(frame["payload"]["final_text"] for frame in frames if frame["event_type"] == "assistant_complete")
+        frames = send(ws, "request_explanation", "explain", {})
     receipt = json.loads(next(message for message in requests[1]["messages"] if message["role"] == "tool")["content"])
     assert receipt["status"] == "unchecked"
     terminal = next(frame["payload"] for frame in frames if frame["event_type"] == "assistant_complete")

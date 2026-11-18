@@ -25,7 +25,7 @@ import {
   initialMathTutorState,
   mathTutorReducer,
 } from "../lib/reducer";
-import { presentationAcknowledgement, presentationFromFrame, type PendingPresentation } from "../lib/delivery";
+import { draftWasDelivered, presentationAcknowledgement, presentationFromFrame, type PendingPresentation } from "../lib/delivery";
 import { ImageUploadRepository, type ChatAttachment, type MessageAttachment } from "../lib/attachments";
 import { deliverBoundAttempt, type AttemptBinding } from "../lib/attempt";
 
@@ -228,8 +228,9 @@ export function useMathTutorSession(explicitSessionId?: string) {
       dispatch({ type: "frame", frame });
       const completion = completionRef.current;
       if (completion && ["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type) && frame.payload.turn_id === completion.id) {
-        completion.resolve(frame.event_type === "assistant_complete");
-        if (frame.event_type === "assistant_complete") imageRetry.current = null;
+        const delivered = draftWasDelivered(frame);
+        completion.resolve(delivered);
+        if (delivered) imageRetry.current = null;
         completionRef.current = null;
       }
       if (["assistant_complete", "assistant_partial", "assistant_error"].includes(frame.event_type)

@@ -16,6 +16,7 @@ import SceneCanvas from "./SceneCanvas";
 import { FIGURE_ACTION, GRAPH_ACTION, splitGraphMessage } from "../lib/function-graph";
 import { splitSceneBlocks } from "../lib/scene-eval";
 import { splitVerificationNotice } from "../lib/verification-notice";
+import { partialReason } from "../lib/partial-reason";
 
 function TutorMessageContent({ messageId, action, body }: { messageId: string; action: string; body: string }) {
   // Keep parsing out of unrelated parent updates. SceneCanvas also owns a
@@ -82,7 +83,7 @@ export default function TutorActionCard({ message, onContinue, onRecover }: { me
         </div>
         <div className={productClass("mt-answer-text")}>
           <TutorMessageContent messageId={message.id} action={message.action} body={body} />
-          {message.status === "PARTIAL" && <div role="status" className="mt-3 border-l-2 border-[var(--border)] pl-3 text-sm leading-6 text-[var(--muted-foreground)]">{t("这段还没讲完，末尾的公式和结论可能不完整。")}{onContinue ? <button type="button" className="ml-2 min-h-9 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>{t("继续讲完")}</button> : t("请接着查看后续回复。")}</div>}
+          {message.status === "PARTIAL" && <div role="status" className="mt-3 border-l-2 border-[var(--border)] pl-3 text-sm leading-6 text-[var(--muted-foreground)]">{t(partialReason(message.finishReason))}{t("这段还没讲完，末尾的公式和结论可能不完整。")}{onContinue ? <button type="button" className="ml-2 min-h-9 text-[var(--primary-text)] underline underline-offset-2" onClick={onContinue}>{t("继续讲完")}</button> : t("请接着查看后续回复。")}</div>}
           {message.status === "FAILED" && onRecover && <button type="button" className="mt-3 text-sm text-[var(--primary-text)] underline underline-offset-2" onClick={onRecover}>{t("重新同步")}</button>}
         </div>
         {scope ? <details aria-label={t("本条回复的核验范围")} className="mt-3 text-xs leading-6 text-[var(--muted-foreground)]">

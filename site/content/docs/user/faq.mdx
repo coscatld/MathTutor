@@ -1,28 +1,20 @@
 ---
 title: 常见问题
-description: 安装、核验范围、DKT、Linux 与开源归属。
+description: 首次打开、知乎来源、核验范围与学习记录。
 ---
 
-## 为什么 macOS 说应用已损坏或无法打开？
+## 第一次打开时出现系统提示，怎么办？
 
-请使用[安装指南](./installation.mdx)中的当前 DMG。它采用完整本地 ad-hoc 签名，仍无 Developer ID、未公证；核对来源和摘要后，需在系统设置中明确允许。
+从官方发布页核对下载文件和摘要。不同平台的操作见[安装指南](./installation.mdx)。
 
-## 为什么安装后看不到知识探索？
+## 怎样查看知乎来源？
 
-已发布的安装包尚不包含此功能。按[知识探索指南](./knowledge-exploration.mdx)运行当前源码并配置知乎凭据，再打开 `/math-tutor/explore`。
+在知识来源设置中连接知乎，并在聊天中开启“联网”。点击回答下方的引用可查看资料片段和原文。 [知识探索](./knowledge-exploration.mdx)
 
-## 为什么有的题目不能逐步核验？
+## 为什么有些题会要求补条件？
 
-核验覆盖受支持的代数题型。证明题、超出解析器语法的问题会走未核验或未支持路径。
+同一题面可能对应多个答案，例如只给周长求长方形面积。补上缺失条件后可以继续。超出本地核验范围的问题会标明范围。
 
-## DKT 是不是已经证明能提高成绩？
+## 看过解答会怎样记录？
 
-不是。DKT 权重来自 ASSISTments 公开数据上的研究管道，对 MathTutor 学生的学习效果未验证。
-
-## 有 Linux 安装包吗？
-
-没有经过目标机验证的公开发布包。
-
-## MathTutor 和 DeepTutor 是什么关系？
-
-MathTutor 从 DeepTutor 的数学辅导能力中抽出独立产品，许可证 Apache-2.0。版权页仍包含 Data Intelligence Lab, The University of Hong Kong。第三方概念见 `THIRD_PARTY_NOTICES.md`。
+看过提示或解答后的作答和独立完成分别记录。用一道同类新题可以检查自己是否能独立完成。 [学习画像与证据](./learning-evidence.mdx)

@@ -1,42 +1,16 @@
 ---
-title: Make MathTutor yours
-description: Start with a first problem, understand your learning records, or contribute to the project. Choose a guide for the task at hand.
+title: MathTutor guide
+description: Install the desktop app, practice math, review your progress and explore sources.
 ---
 
-## What would you like to do?
+Start with [installation](user/installation). Open MathTutor to try a problem or explore a question.
 
-| Your goal | Start here |
-|---|---|
-| Install and try a first problem | [Installation](user/installation) → [Quick start](user/quick-start) |
-| Configure a model and API key | [Model configuration](user/model-configuration) |
-| Bring your notes into a conversation | [Knowledge and documents](user/knowledge-base) |
-| Compare Zhihu explanations and save your understanding | [Knowledge exploration: source preview](user/knowledge-exploration.mdx) |
-| Understand independent and assisted attempts | [Learning evidence](user/learning-evidence) |
-| Back up or delete personal data | [Privacy and data](user/privacy) |
-| Run the source and build extensions | [Development setup](developer/development-setup) → [Contributing](developer/contributing) |
+| What would you like to do? | Guide |
+| --- | --- |
+| Solve a first problem with hints | [First steps](user/quick-start) · [Tutoring workflow](user/tutoring-workflow) |
+| Understand independent and assisted practice | [Learning evidence](user/learning-evidence) |
+| Compare Zhihu explanations and read the originals | [Knowledge exploration](user/knowledge-exploration) |
+| Use your own notes in a conversation | [Reference materials](user/knowledge-base) |
+| Configure a model or manage local data | [Model settings](user/model-configuration) · [Privacy](user/privacy) |
 
-## Four learning entry points
-
-**Math conversation: work through a problem.** Make an attempt, ask for a hint when needed, then check your understanding on a new problem. See the [tutoring workflow](user/tutoring-workflow).
-
-**Knowledge library: organize reference material.** Store notes and question packs, choose the sources in a conversation, and follow citations back to the text. Importing a document does not establish learning evidence.
-
-**Knowledge exploration: compare explanations around a question.** Read attributed Zhihu search excerpts, save a reflection, try an in-scope understanding check, and choose a next step. This is a source preview, not yet included in published installers.
-
-**Learning profile: review evidence from actual attempts.** Independent work, assisted work, and attempts after seeing a solution are recorded separately. Use those records to choose your next practice. Model predictions and self-reports cannot replace independent checks.
-
-## A reading route for developers
-
-First [run the project](developer/development-setup), then explore:
-
-- [Architecture](developer/architecture): frontend, desktop shell, and Python service boundaries.
-- [Teaching state machine](developer/teaching-state-machine) and [math solver](developer/math-solver): how teaching connects to verification.
-- [Retrieval and RAG](developer/retrieval-rag): source selection, retrieval, and citations.
-- [Evidence and DKT](developer/evidence-dkt): facts, projections, and predictions.
-- [Testing and evaluation](developer/testing-evaluation): engineering checks and product evaluations.
-
-## Source, installers, and evidence
-
-Published installers include math tutoring, concept review, learning records, and document handling. See [installation](user/installation) for files and platform acceptance records. Knowledge exploration runs from current source; see the [exploration guide](user/knowledge-exploration.mdx) for setup.
-
-Implemented features have corresponding repository code; partial and experimental features state their limits. Engineering tests, fixture evaluations, and real student learning outcomes are assessed separately. DKT training and synthetic evaluations are not classroom evidence.
+Project maintainers can visit the [developer documentation](developer/architecture).

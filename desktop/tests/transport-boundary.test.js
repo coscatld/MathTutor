@@ -5,7 +5,7 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 const { BACKEND_ENTRY } = require("../runtime/paths");
-const { rendererHeaders, validBridgeHeader, secretRedactor } = require("../runtime/transport-boundary");
+const { rendererHeaders, validBridgeHeader, secretRedactor, isZhihuSourceLink } = require("../runtime/transport-boundary");
 const frontend = "http://127.0.0.1:31245";
 const secret = "per-launch-" + "s".repeat(48);
 const details = { webContentsId: 17, frame: { url: frontend + "/math-tutor" },
@@ -61,4 +61,16 @@ test("service output redacts credentials even across arbitrary pipe chunk bounda
   redactor.end();
   assert.equal(logged, "request header: [redacted]\nready\n");
   assert.equal(logged.includes(secret), false);
+});
+
+test("desktop source clicks open only HTTPS Zhihu content pages", () => {
+  for (const url of [
+    "https://www.zhihu.com/question/12/answer/34?utm_medium=openapi_platform",
+    "https://zhuanlan.zhihu.com/p/22", "https://zhihu.com/en/answer/44",
+  ]) assert.equal(isZhihuSourceLink(url), true);
+  for (const url of [
+    "https://www.zhihu.com/", "http://www.zhihu.com/question/12",
+    "https://www.zhihu.com:8080/question/12", "https://example.org/question/12",
+    "file:///question/12", "https://www.zhihu.com/redirect?target=other", undefined,
+  ]) assert.equal(isZhihuSourceLink(url), false);
 });

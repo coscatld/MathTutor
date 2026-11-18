@@ -602,7 +602,7 @@ def poly_to_latex(coeffs: dict[int, Fraction], var_name: str) -> str:
             parts.append(("-" if coeff < 0 else "") + abs_part)
         else:
             parts.append((" + " if coeff > 0 else " - ") + abs_part)
-    return "".join(parts)
+    return "".join(parts) or "0"
 
 
 __all__ = [

@@ -1,5 +1,5 @@
 {
-  "version": "zhihu-curated-20261118",
+  "version": "zhihu-curated-20261118-r2",
   "review_scope": "bounded_visible_provider_summary_units",
   "full_articles_reviewed": 0,
   "human_expert_reviewed": 0,
@@ -221,16 +221,14 @@
       "source_time_kind": "published_or_updated",
       "summary": "区分一次代入相等与公共定义域内处处相等的恒等关系。",
       "knowledge_points": [
-        "equality_preservation",
-        "combine_like_terms"
+        "equality_preservation"
       ],
       "prerequisites": [
         "signed_operations"
       ],
       "tags": [
         "数学基础",
-        "equality_preservation",
-        "combine_like_terms"
+        "equality_preservation"
       ],
       "recommendation_reason": "适合纠正“试一个数相等就证明恒等”的误解，先明确取值范围。",
       "claim_kind": "mathematical_explanation",
@@ -1599,6 +1597,93 @@
         "source_file": "dd5efd9c6667.json",
         "source_index": 7,
         "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-ebb78e75fc8c84be",
+      "title": "初中数学基础知识 第四章 整式",
+      "author": "阿巴酱",
+      "url": "https://zhuanlan.zhihu.com/p/91571883",
+      "published_at": null,
+      "source_time": "2019-11-13T03:13:17+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "给出同类项的两个判断条件：字母相同且对应指数相同，并用-5a与3a、-4与5举例；合并时只将系数相加，字母和指数不变。",
+      "knowledge_points": [
+        "combine_like_terms"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "数学基础",
+        "combine_like_terms"
+      ],
+      "recommendation_reason": "适合先分清“哪些项可以合并”：从两个判断条件和可见正例入手，再按只合并系数的规则练习；只推荐已审核片段。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T08:45:43.089684+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "独立核对两次真实检索的原始 SourceSnapshot；原始摘要和规范化哈希一致，作者名只按平台字段记录，不独立担保身份。",
+          "correctness_for_use": "仅审核同类项的字母与对应指数两个条件、-5a与3a及-4与5的正例、系数相加而字母和指数不变的规则；符合通常实系数整式定义。本地既有验证器另核对-5a+3a=-2a及-4+5=1，不以有限例子证明整个定义。",
+          "visible_completeness": "选中范围完整保留两个必要条件、例子、系数和字母顺序的说明及合并规则；止于“考点三”之前，不借用被拒的生成声明。",
+          "goal_stage_fit": "适合刚能展开括号、尚需辨别哪些项可以合并的起点；只要求阅读这一定义片段，不预设学生已通过符号运算或分配律独立测评。",
+          "readability": "选中段落可直接阅读，不依赖图片或丢失的上标公式；来源后半部幂运算的扁平化公式和文字疏误不在审核范围内。",
+          "timeliness": "同类项定义是稳定数学内容；平台EditTime显示2019-11-13发布或更新，首发时间未知，不声称最新。"
+        },
+        "notes": "另行审核原始摘要，不沿用第三包被拒的c1或其依赖。仅接纳“考点一：同类项”至“考点二：合并同类项”的完整段落；后文幂的乘方存在“指数相加”等文字错误及公式格式损失，明确不接纳。全文未审核，非人工专家审核。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "c496a5977a78f6cee0c2f27dc1b6050c",
+        "retrieved_at": "2026-11-18T08:32:06.302934+00:00",
+        "excerpt_sha256": "6001171a8e83ed29f4f2143542c2a93b398c387d6db3bfebb8e99f32e135314a",
+        "excerpt": "考点一：同类项\n1. 所含字母相同，并且相同字母的指数也分别相同的项叫做同类项；如-5a和3a是同类项， -4和5也是同类项\n2. 判别同类项的标准有两个：（1）所含字母相同 （2）相同字母的指数也分别相同， 两者缺一不可\n3. 同类项与系数无关，与字母的排列顺序无关\n考点二：合并同类项\n把同类项的系数相加，所得结果作为合并后的系数，字母和字母的指数保持不变",
+        "start": 226,
+        "end": 406,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "48e49e0328c841cd57c46971dc5a049fc3e930ed567518d84629edaa529c02b1",
+        "raw_response_sha256": null,
+        "snapshot_file_sha256": "fa29d871c272dbba80469a8309f4132f13def1acc925f8ea96fc776482b6ecac",
+        "evidence_format": "installed_source_snapshot_v1",
+        "provider_content_id": "7646948458431309877",
+        "provider_content_type": "Article",
+        "provider_create_time": null,
+        "provider_edit_time": 1573614797,
+        "original_url": "https://zhuanlan.zhihu.com/p/91571883?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "live-third-a-E02-sources.json",
+        "source_index": 2,
+        "date_semantics": "EditTime: published or updated; initial publication unknown; CreateTime not retained in installed snapshot",
+        "capture_scope": "Original API search excerpt preserved by installed app; full API response bytes were not captured, so raw_response_sha256 remains null.",
+        "corroborating_retrievals": [
+          {
+            "request_id": "9802423e9b151f8b73c361d3d0e4073a",
+            "retrieved_at": "2026-11-18T08:07:07.493298+00:00",
+            "provider_content_id": "7646948458431309877",
+            "provider_summary_sha256": "48e49e0328c841cd57c46971dc5a049fc3e930ed567518d84629edaa529c02b1",
+            "source_file": "live-plan-02-b-E02-sources.json",
+            "source_index": 2,
+            "snapshot_file_sha256": "89ac3319263a500cc848db2191776ea1fc434880a56b873eea23d43ecb0ce37a"
+          },
+          {
+            "request_id": "c496a5977a78f6cee0c2f27dc1b6050c",
+            "retrieved_at": "2026-11-18T08:32:06.302934+00:00",
+            "provider_content_id": "7646948458431309877",
+            "provider_summary_sha256": "48e49e0328c841cd57c46971dc5a049fc3e930ed567518d84629edaa529c02b1",
+            "source_file": "live-third-a-E02-sources.json",
+            "source_index": 2,
+            "snapshot_file_sha256": "fa29d871c272dbba80469a8309f4132f13def1acc925f8ea96fc776482b6ecac"
+          }
+        ]
       }
     }
   ]

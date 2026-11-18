@@ -50,4 +50,16 @@ function rendererHeaders(details, webContentsId, frontendOrigin, secret) {
   return headers;
 }
 
-module.exports = { validBridgeHeader, rendererHeaders, secretRedactor };
+function isZhihuSourceLink(value) {
+  if (typeof value !== "string" || value.length > 2048 || /[\x00-\x20\x7f\\]/.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password && !url.port &&
+      ["zhihu.com", "www.zhihu.com", "zhuanlan.zhihu.com"].includes(url.hostname) &&
+      /^\/(?:question\/\d+(?:\/answer\/\d+)?|(?:en\/)?answer\/\d+|p\/\d+)\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { validBridgeHeader, rendererHeaders, secretRedactor, isZhihuSourceLink };

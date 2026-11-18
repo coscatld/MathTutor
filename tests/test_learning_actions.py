@@ -36,7 +36,7 @@ def event(number=1, skill="equality_preservation", correctness="incorrect", kind
 
 
 def test_prerequisite_difficulty_is_localized_and_has_real_evidence():
-    plan = plan_learning_actions([event()], "linear_isolation", catalog())
+    plan = plan_learning_actions([event(0, skill="signed_operations", correctness="correct"), event()], "linear_isolation", catalog())
     assert (plan["target"], plan["action"], plan["reason_code"]) == (
         "equality_preservation", "review_prerequisite", "prerequisite_difficulty")
     assert plan["evidence_ids"] == ["event-1"]
@@ -46,7 +46,7 @@ def test_prerequisite_difficulty_is_localized_and_has_real_evidence():
 def test_unknown_and_assisted_are_not_failed_or_mastered():
     empty = plan_learning_actions([], "equality_preservation", catalog())
     assisted = plan_learning_actions([event(correctness="correct", kind="assisted")], "equality_preservation", catalog())
-    assert empty["reason_code"] == "unobserved" and not empty["evidence_ids"]
+    assert empty["reason_code"] == "prerequisite_unconfirmed" and not empty["evidence_ids"]
     assert assisted["action"] == "check" and assisted["reason_code"] == "assisted_observation"
     assert "mastery" not in assisted
 
@@ -61,7 +61,9 @@ def test_independent_success_and_invalidation_replay():
 
 def test_joint_answer_does_not_diagnose_component_or_outside_scope():
     joint = event().model_copy(update={"skill_ids": ("equality_preservation", "linear_isolation")})
-    assert plan_learning_actions([joint], "linear_isolation", catalog())["reason_code"] == "unobserved"
+    plan = plan_learning_actions([joint], "linear_isolation", catalog())
+    assert plan["reason_code"] == "task_needs_review"
+    assert not any(row["observed"] for row in plan["prerequisites"])
     advanced = plan_learning_actions([event(correctness="correct")], "calculus", catalog())
     assert advanced["reason_code"] == "outside_assessment_scope" and advanced["action"] == "explore"
 
@@ -72,7 +74,9 @@ def test_catalog_integrity_and_no_popularity_ranking(tmp_path):
     path.write_text(json.dumps(value))
     assert load_catalog(path) == value
     value["resources"][0]["votes"] = 999999
-    assert plan_learning_actions([], "equality_preservation", value)["resources"][0]["selection_reason"]
+    assert plan_learning_actions([], "equality_preservation", value)["resources"] == []
+    assert plan_learning_actions([event(skill="signed_operations", correctness="correct")],
+                                 "equality_preservation", value)["resources"][0]["selection_reason"]
     value["resources"][0]["provenance"]["excerpt"] += "changed"
     path.write_text(json.dumps(value))
     with pytest.raises(ValueError, match="verifiable excerpt"):

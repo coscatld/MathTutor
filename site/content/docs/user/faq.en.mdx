@@ -1,28 +1,20 @@
 ---
-title: FAQ
-description: Installers, verification scope, DKT, Linux, and upstream attribution.
+title: Frequently asked questions
+description: First launch, sources, math verification and learning records.
 ---
 
-## Why does macOS say the app is damaged?
+## What if my system prompts me on first launch?
 
-Use the current DMG linked in [Installation](./installation.mdx). It is fully ad-hoc signed locally, without Developer ID or notarization. After checking its source and checksum, explicitly allow it in system settings.
+Check the downloaded file and checksum against the official release page. See [installation](./installation.mdx) for platform-specific steps.
 
-## Why is knowledge exploration missing from my installed app?
+## How do I see Zhihu sources?
 
-Published installers do not yet include it. Follow the [knowledge exploration guide](./knowledge-exploration.mdx) to run current source, configure your Zhihu credential, and open `/math-tutor/explore`.
+Connect Zhihu under Knowledge sources and enable Online in chat. Open a citation below an answer to read the excerpt and original. [Knowledge exploration](./knowledge-exploration.mdx)
 
-## Why are some items not step-checked?
+## Why does MathTutor ask for more information?
 
-Verification covers supported algebraic families. Proofs and out-of-grammar items take an unverified or unsupported path.
+Several answers can fit the same description. For example, a rectangle’s perimeter alone does not determine its area. Add the missing information to continue. The tutor identifies questions beyond its local verification scope.
 
-## Does DKT prove learning gains?
+## How is work after a hint recorded?
 
-No. The weights come from a research pipeline on public ASSISTments data. Learning effect on MathTutor students is unverified.
-
-## Is there a Linux installer?
-
-There is no target-machine-verified public package.
-
-## How does MathTutor relate to DeepTutor?
-
-MathTutor is a standalone product extracted from DeepTutor’s math-tutoring work, licensed Apache-2.0. The copyright notice still includes Data Intelligence Lab, The University of Hong Kong. See `THIRD_PARTY_NOTICES.md` for other attributions.
+Independent attempts and work after hints or a solution are recorded separately. A fresh exercise lets you check whether you can solve a similar problem independently. [Learning evidence](./learning-evidence.mdx)

@@ -20,7 +20,7 @@
  * file, and directory selection returns a path without granting access.
  */
 
-const { app, BrowserWindow, dialog, utilityProcess } = require("electron");
+const { app, BrowserWindow, dialog, shell, utilityProcess } = require("electron");
 // Under plain node (or with ELECTRON_RUN_AS_NODE=1, which some dev shells
 // export) require("electron") returns the binary path string and the API
 // objects are undefined. Headless modes (--smoke / --smoke-full) still work
@@ -42,7 +42,7 @@ const {
   resolveWebRoot,
 } = require("./runtime/paths");
 const { claimSingleInstance, monitorService, waitForService } = require("./runtime/startup");
-const { validBridgeHeader, rendererHeaders, secretRedactor } = require("./runtime/transport-boundary");
+const { validBridgeHeader, rendererHeaders, secretRedactor, isZhihuSourceLink } = require("./runtime/transport-boundary");
 // Per-process capability: only main and the two controlled child servers see
 // it. Never use NEXT_PUBLIC_, preload globals, URLs, or logs for this value.
 const bridgeSecret = crypto.randomBytes(32).toString("hex");
@@ -1531,7 +1531,7 @@ app.whenReady().then(async () => {
     minWidth: 960,
     minHeight: 640,
     icon: path.join(DESKTOP_DIR, "build", "icon.png"),
-    title: "MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统",
+    title: "MathTutor",
     webPreferences: {
       preload: path.join(DESKTOP_DIR, "preload.js"),
       contextIsolation: true,
@@ -1544,23 +1544,29 @@ app.whenReady().then(async () => {
   win.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
     callback({ requestHeaders: rendererHeaders(details, win.webContents.id, frontendUrl, bridgeSecret) });
   });
-  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  function openSourceLink(target) {
+    if (!isZhihuSourceLink(target) || !win.webContents.getURL().startsWith(frontendUrl + "/")) return;
+    shell.openExternal(target).catch(() => {
+      dialog.showErrorBox("MathTutor", app.getLocale().startsWith("zh")
+        ? "无法打开原文，请检查默认浏览器设置。" : "Could not open the source. Check your default browser settings.");
+    });
+  }
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openSourceLink(url);
+    return { action: "deny" };
+  });
   win.webContents.on("will-navigate", (event, target) => {
     try { if (new URL(target).origin === frontendUrl) return; } catch {}
     event.preventDefault();
+    openSourceLink(target);
   });
   await win.loadURL(frontendUrl);
   log("startup: ready");
 }).catch((error) => fail(error && error.message ? error.message : String(error)));
 
-app.on("window-all-closed", () => {
-  app.isQuitting = true;
-  stopChildren();
-  stopPickerServer();
-  app.quit();
-});
+app.on("window-all-closed", () => app.quit());
 
-app.on("before-quit", () => {
+app.on("will-quit", () => {
   app.isQuitting = true;
   stopChildren();
   stopPickerServer();

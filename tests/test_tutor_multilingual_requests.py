@@ -43,14 +43,12 @@ class Teacher:
         self.calls.append((messages,kwargs))
         return CompletionResult(text='No',provider_id=self.provider_id,model=self.model,finish_reason='stop')
 
-def test_successful_current_answer_is_not_followed_by_unrelated_recovery(tmp_path):
+def test_unparsed_word_problem_is_not_judged_by_a_model_yes_no_answer(tmp_path):
     provider=Teacher()
     with client_at(tmp_path/'requests.db') as client,client.websocket_connect('/api/v2/math-tutor/ws') as ws:
         state=get_product_state();state.learner_settings.update('middle',8)
         state.gateway.register_provider(ModelRole.TUTOR_WRITER,provider)
         send(ws,'send_message','check',{'text':'Check this student solution.\nProblem: A box has 9 red and 8 blue balls. How many balls?\nStudent: 9+8=17.\nIs it incorrect? Write only Yes or No.'})
         text=summary(client)['messages'][-1]['content']
-        assert text.endswith('No') and '相关基础题' not in text
-        prompt=provider.calls[0][0][0]['content']
-        assert '默认跟随学生当前请求的语言' in prompt
-        assert '首次接触' not in prompt
+        assert '不能把其中一小段式子的结果当作整题答案' in text
+        assert not provider.calls

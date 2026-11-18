@@ -114,7 +114,7 @@ def test_real_evidence_removal_clears_cached_basis_and_rejects_late_discovery(tm
             assert response.json()["by_table"]["learning_events"] == 1
         after = client.get(RECOMMENDATIONS).json()
         assert after["discovery"] is None and not after["plan"]["evidence_ids"]
-        assert after["plan"]["reason_code"] == "unobserved"
+        assert after["plan"]["reason_code"] == ("prerequisite_unconfirmed" if operation == "exclude" else "unobserved")
         assert after["enabled"] is (operation == "exclude")
         assert after["goal"] == ("linear_isolation" if operation == "exclude" else "math_foundations")
         row = client.portal.call(service.repository.get, OWNER)
@@ -156,7 +156,8 @@ def test_secret_store_failure_returns_local_plan_without_request_or_sensitive_er
         assert client.put(RECOMMENDATIONS + "/configuration", json={"enabled": True, "goal": "probability"}).status_code == 200
         response = client.post(RECOMMENDATIONS + "/start")
         assert response.status_code == 200, response.text
-        assert response.json()["status"] == "failed" and response.json()["plan"]["resources"]
+        assert response.json()["status"] == "failed" and response.json()["plan"]["goal"] == "probability"
+        assert response.json()["plan"]["reason_code"] == "outside_assessment_scope"
         assert "private-keychain" not in response.text and not calls
         row = client.portal.call(service.repository.get, OWNER)
         assert row["budget_calls"] == 0 and row["lease_token"] == ""

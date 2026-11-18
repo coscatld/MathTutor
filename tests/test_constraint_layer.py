@@ -135,16 +135,16 @@ async def test_controller_zero_over_zero_goes_to_tutor() -> None:
 
 
 @pytest.mark.asyncio
-async def test_controller_limit_soft_fallback() -> None:
+async def test_controller_limit_is_not_decided_by_an_unverified_model_answer() -> None:
     class ChatResponder:
         async def respond(self, text, *, history=(), problem_context="", unstructured_math=False):
-            return "这是一个标准极限，结果是 1。我们先从图像上看 sin x 和 x 在 0 附近的关系。"
+            pytest.fail("An unsupported solving operation cannot obtain an answer from the model")
 
     controller = MathTutorController(chat_responder=ChatResponder())
     events = await _turn(controller, "lim", r"求 \lim_{x\to0}\frac{\sin x}{x}")
     blob = _blob(events)
     assert "没法确定" not in blob
-    assert "极限" in blob or "1" in blob
+    assert "超出当前可逐步核验" in blob
 
 
 @pytest.mark.asyncio

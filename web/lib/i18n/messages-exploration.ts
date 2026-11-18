@@ -1,4 +1,5 @@
 export const explorationEnglish: Readonly<Record<string, string>> = {
+  "请求过于频繁，请稍后重试。": "Too many requests. Please try again later.",
   "探索更新于": "Discovery updated",
   "学习推荐暂时无法更新。": "Learning recommendations could not be updated.",
   "为下一步学习找资料": "Resources for your next step",
@@ -18,7 +19,6 @@ export const explorationEnglish: Readonly<Record<string, string>> = {
   "本次发现": "New discoveries",
   "连接知乎后可发现更多资料。": "Connect Zhihu to discover more resources.",
   "本次探索未完成，已保留可用的学习资料。": "Discovery could not finish. Available learning resources are still here.",
-  "查看学习依据与资料": "View learning evidence and resources",
   "调整学习方向与探索设置": "Adjust learning direction and discovery settings",
   "开始联网提问": "Ask with online search",
   "联网回答会发送当前问题和本次对话中上一条联网问题，不发送学习画像或私有资料。": "Online answers send your current question and the preceding online question in this conversation, without your learning profile or private resources.",

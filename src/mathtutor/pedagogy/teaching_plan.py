@@ -42,9 +42,10 @@ class TeachingPlan:
 
     @property
     def fingerprint(self):
-        # A paraphrase does not count as another instructional operation.
+        # A new disclosure layer is new help; a paraphrase at the same layer is not.
         return sha256(repr((self.target_subgoal_id, self.strategy,
-                            self.material_refs, self.support_mode)).encode()).hexdigest()
+                            self.material_refs, self.support_mode,
+                            self.max_assistance_level)).encode()).hexdigest()
 
 
 _GOALS = {

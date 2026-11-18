@@ -1,5 +1,12 @@
 # Changelog
 
+## Desktop learning and exploration · 2026-11-18
+
+- Explore Zhihu from the desktop app. Compare attributed excerpts side by side and open the original in your browser. Learning profiles show why a resource fits the current goal.
+- Keep inequalities and domain restrictions through each supported step. Graduated hints, clarification for missing conditions and local concept explanations continue offline.
+- Build one practice and reading plan from the learner’s explicit goal, available time, prerequisites and recent work. Preserve that goal when the app restarts.
+- Keep partial answers and explain why they stopped. Continue from the stored answer after restarting. The tutoring home now focuses on the problem, with reading suggestions in the learning profile.
+
 ## Unreleased — 2026-11-11
 
 - Add Concept Check under the learning profile: bounded exact probes for fraction addition and signed subtraction, provisional response-pattern observations, independent practice, 24/72-hour review and missing-operand structure checks. Preserve help exposure, first-response evidence, owner isolation, retries and restart state; keep review and transfer evidence separate from mastery or DKT scores.

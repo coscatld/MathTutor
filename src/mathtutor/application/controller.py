@@ -96,6 +96,7 @@ def _concept_hint_for(problem: MathProblem | None) -> str:
         "quadratic": "一元二次方程的概念",
         "linear_inequality": "不等式的基本性质",
         "quadratic_inequality": "一元二次不等式与二次函数图像的关系",
+        "linear_system": "方程组的解必须同时满足每一个方程",
     }.get(problem.problem_type, "")
 
 
@@ -104,12 +105,13 @@ def _strategy_hint_for(problem: MathProblem | None) -> str:
     if problem is None:
         return ""
     return {
-        "arithmetic": "先统一分数的分母，再合并计算",
+        "arithmetic": "先确定括号和运算顺序；分数加减先通分，乘除按相应规则计算",
         "polynomial": "先展开或合并同类项，再比较系数",
         "linear": "先把含未知数的项移到一边，常数项移到另一边",
         "quadratic": "先尝试因式分解，或用求根公式",
         "linear_inequality": "先移项整理，两边同乘除负数时改变不等号方向",
         "quadratic_inequality": "先求对应方程的根，再结合抛物线开口方向确定解集",
+        "linear_system": "选定一个未知数，通过两式整体倍乘相加减消元，或从一式表示它再代入另一式",
     }.get(problem.problem_type, "")
 
 
@@ -361,7 +363,9 @@ class MathTutorController:
                 await self._function_graph(owner.student_id, session, bound_verified, graph_request, stream)
                 return
             from mathtutor.application.network_chat import NetworkFallbackSink, network_reply
-            online = await network_reply(self, request, session, payload)
+            from mathtutor.application.message_intent import is_concrete_math_input
+            online = (None if is_concrete_math_input(str(payload.get("text", "")))
+                      else await network_reply(self, request, session, payload))
             if online is not None:
                 if online.status in {"answered", "partial", "local_plan"} or online.calculation_receipts:
                     await self._dialogue(stream, session, online.text, "TUTOR_CHAT")
@@ -412,6 +416,9 @@ class MathTutorController:
             from mathtutor.application.discussion_notebook import public_discussion
             notebook = await self.sessions.teaching.load(owner.student_id, session.cycle.cycle_id)
             if public_discussion(notebook):
+                if command == "request_solution" and notebook.get("capability_boundary"):
+                    await self._dialogue(stream, session, "原题尚无可核验的完整解答。可以点击解释讨论概念，或选择一题能够逐步核验的练习。", "ASK_STUDENT")
+                    return
                 # Explicit teaching requests for a saved discussion use the same
                 # chat/verification path as typed questions. They do not enter
                 # the verified exercise state machine or create learning evidence.
@@ -617,9 +624,8 @@ class MathTutorController:
                     cycle_id=str(session.cycle.cycle_id), event_type=phase, **delivery)
         await self.mark_delivery(owner_id, delivery_id, "possibly_exposed")
         if turn is not None:
-            data = json.loads(getattr(turn, "continuation_context", "") or "{}")
-            data["delivery_id"] = delivery_id
-            turn.continuation_context = json.dumps(data, ensure_ascii=False)
+            from mathtutor.application.network_chat import merge_continuation_context
+            merge_continuation_context(turn, {"delivery_id": delivery_id})
 
     async def _continue_active_problem(
         self,
@@ -661,6 +667,50 @@ class MathTutorController:
             follow_up=True,
         )
 
+    async def _show_math_boundary(self, session, owner_id, text, constraint, stream, *, client_session_id=""):
+        from mathtutor.application.constraint_layer import boundary_discussion_allowed, boundary_response
+        from mathtutor.application.bounded_calculus import derivative_question_receipt
+        from mathtutor.application.bounded_rational_equation import rational_equation_receipt, render_rational_receipt
+        from mathtutor.application.discussion_notebook import SCHEMA
+        from mathtutor.application.tutor_runtime import current_turn
+
+        message = boundary_response(constraint)
+        if not message:
+            return False
+        receipt = derivative_question_receipt(text)
+        if receipt is None:
+            receipt = await rational_equation_receipt(text, self.service.verification_backend)
+        recovery = None
+        if receipt is None:
+            session, recovery = await self._remember_recovery(session, owner_id, text,
+                client_session_id=client_session_id, mathematical=True)
+        if receipt or boundary_discussion_allowed(constraint):
+            if session is None and client_session_id:
+                session = await self.sessions.create(owner_id, client_session_id)
+            if session and not await self.sessions.load_verified(owner_id, session.cycle.cycle_id):
+                notebook = {"schema_version": SCHEMA, "problem_id": f"discussion-{uuid4()}",
+                    "display_text": text, "skill_ids": [], "lifecycle": "discussion", "student_focus": "",
+                    "discussed": [], "assessments": [], "capability_boundary": constraint.reason}
+                if recovery:
+                    notebook.update(recovery_problem=recovery, recovery_original_text=text)
+                if receipt:
+                    notebook["math_receipt"] = receipt
+                await self.sessions.teaching.save(owner_id, session.cycle.cycle_id, notebook)
+        if receipt:
+            message = (render_rational_receipt(receipt) if receipt["scope"] == "bounded_rational_equation" else
+                       f"已核验导数：\\(\\frac{{d}}{{d{receipt['variable']}}}({receipt['expression']})"
+                       f"={receipt['display_latex']}\\)。可以点击解释，继续讨论求导规则。")
+        turn = current_turn.get()
+        if turn is not None:
+            from mathtutor.application.network_chat import merge_continuation_context
+            merge_continuation_context(turn, {"math_boundary": {
+                "reason": constraint.reason, "original_question": text, "formula_receipt": receipt,
+                "constraint_receipt": constraint.boundary_receipt}})
+        if session and session.state == CycleState.GROUNDING:
+            await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
+        await self._dialogue(stream, session, message, "ASK_STUDENT")
+        return True
+
     async def _begin_or_replace_problem(
         self,
         request: MathTutorRequest,
@@ -670,6 +720,9 @@ class MathTutorController:
         stream: MathTutorEventSink,
     ) -> None:
         constraint = evaluate_constraints(text)
+        if await self._show_math_boundary(session, request.owner.student_id, text, constraint, stream,
+                                         client_session_id=request.session_id):
+            return
         if constraint.reason == "resource_limit":
             await stream.error("这道表达式超出计算预算，请缩短式子或减小数值后重试。",
                                source=self.manifest.name, metadata={"error_code": "RESOURCE_LIMIT"})
@@ -1082,6 +1135,8 @@ class MathTutorController:
     ) -> None:
         text = str(payload.get("text", ""))
         constraint = constraint or evaluate_constraints(text)
+        if await self._show_math_boundary(session, owner_id, text, constraint, stream):
+            return
         if constraint.reason == "resource_limit":
             await stream.error("这道表达式超出计算预算，请缩短式子或减小数值后重试。",
                                source=self.manifest.name, metadata={"error_code": "RESOURCE_LIMIT"})
@@ -1161,6 +1216,8 @@ class MathTutorController:
         if session.state != CycleState.GROUNDING:
             raise InvalidTransitionError(session.state, CycleCommand.GROUNDING_OK)
         constraint = constraint or evaluate_constraints(text)
+        if await self._show_math_boundary(session, owner_id, text, constraint, stream):
+            return
         if constraint.reason == "resource_limit":
             await self._step(owner_id, session, CycleCommand.GROUNDING_UNSUPPORTED)
             await stream.error("这道表达式超出计算预算，请缩短式子或减小数值后重试。",
@@ -1572,7 +1629,9 @@ class MathTutorController:
             if not restore_solution:
                 if not continuing:
                     teaching_context["help_without_progress"] += int(utterance.assistance_level > 0)
-                    teaching_context["help_fingerprints"].append(plan.fingerprint)
+                    from dataclasses import replace
+                    teaching_context["help_fingerprints"].append(
+                        replace(plan, max_assistance_level=utterance.assistance_level).fingerprint)
                 teaching_context["last_plan"] = {**plan.public(), "max_assistance_level": utterance.assistance_level}
                 delivery_id = str(action.action_id)
                 if continuing:
@@ -1598,9 +1657,8 @@ class MathTutorController:
                 if utterance.assistance_level > 0:
                     await self.mark_delivery(owner_id, delivery_id, "possibly_exposed")
                 if turn is not None and utterance.assistance_level > 0:
-                    data = json.loads(turn.continuation_context)
-                    data["delivery_id"] = delivery_id
-                    turn.continuation_context = json.dumps(data, ensure_ascii=False)
+                    from mathtutor.application.network_chat import merge_continuation_context
+                    merge_continuation_context(turn, {"delivery_id": delivery_id})
         if candidate_text.writer_version not in {TemplateTutorWriter.writer_version, "mt-grounded-template-v2"} and not utterance.fallback_used:
             # Disclosure and equation guards do not verify every prose claim.
             # Persist this notice with approved bytes so history and continuation
@@ -1613,9 +1671,8 @@ class MathTutorController:
         if turn is not None and utterance.action == "SHOW_SOLUTION" and utterance.assistance_level == 5:
             # The turn can also contain an assessment or an invitation. Store
             # the guarded answer separately; reviewing it must not replay those.
-            context = json.loads(turn.continuation_context)
-            context["approved_solution_text"] = utterance.text
-            turn.continuation_context = json.dumps(context, ensure_ascii=False)
+            from mathtutor.application.network_chat import merge_continuation_context
+            merge_continuation_context(turn, {"approved_solution_text": utterance.text})
         if (teaching_context and teaching_context.get("pending_expression") and not restore_solution and not continuing
                 and (turn is None or teaching_context["pending_expression"]["request_id"] == turn.turn_id)):
             # Approved bytes form a durable outbox. A crash before action commit

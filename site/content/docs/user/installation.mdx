@@ -1,35 +1,17 @@
 ---
 title: 安装
-description: Windows 与 macOS 安装包、升级与首次打开说明。
+description: 在 Apple Silicon Mac 或 Windows x64 上安装、升级和首次打开 MathTutor。
 ---
 
-已发布安装包包含数学辅导、概念复查、学习记录与资料检索，内置 Python 和 Node 运行时。**知识探索目前为源码预览，尚未包含在这些安装包中**，见[知识探索](./knowledge-exploration.mdx)。
+| 系统 | 下载 | 安装 |
+| --- | --- | --- |
+| macOS · Apple Silicon | [MathTutor DMG](https://github.com/coscatld/MathTutor/releases/download/desktop-20261118/MathTutor-mac-arm64.dmg) | 打开磁盘映像，将 MathTutor 拖入“应用程序”，从那里启动。 |
+| Windows 10/11 · x64 | [MathTutor EXE](https://github.com/coscatld/MathTutor/releases/download/desktop-20261118/MathTutor-windows-x64.exe) | 双击文件，跟随安装向导，从开始菜单打开 MathTutor。 |
 
-| 系统 | 文件 |
-|---|---|
-| Windows 10/11 x64 | [MathTutor-windows-x64.exe](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-windows-x64.exe) |
-| macOS Apple Silicon | [MathTutor-mac-arm64.dmg](https://github.com/coscatld/MathTutor/releases/download/build-20261111-6f84868/MathTutor-mac-arm64.dmg) |
+## 首次打开
 
-发布页：[学习闭环更新与下载记录](https://github.com/coscatld/MathTutor/releases/tag/build-20261111-6f84868)。文件摘要和分平台验收记录随发布资产提供。
+macOS 包使用本地签名，未经过 Apple 公证。Windows 包没有发行者证书。若系统提示来源未知，请先在[官方发布页](https://github.com/coscatld/MathTutor/releases/tag/desktop-20261118)核对文件名、平台和 SHA-256 摘要。在 Mac 上可通过“系统设置 → 隐私与安全性”允许本次打开。
 
-升级前创建并验证应用内备份，正常退出旧版，再安装新版。应用按需迁移本地数据库；社区与插件配置需要单独保存。
+## 升级
 
-## Windows
-
-1. 下载 Windows EXE 安装包。
-2. 按安装向导安装。出现 SmartScreen 时，这是因为安装包没有 Authenticode 发行证书签名。
-3. 不必另装 Python 或 Node。
-
-## macOS
-
-当前安装包使用完整本地 ad-hoc 签名，**没有 Developer ID、未公证**，Gatekeeper 默认拒绝。请先核对文件来源与摘要，再明确允许打开。
-
-步骤见仓库 [docs/MACOS_INSTALLATION.md](https://github.com/coscatld/MathTutor/blob/main/docs/MACOS_INSTALLATION.md)：把应用拖入“应用程序”，必要时在“隐私与安全性”中允许。
-
-## Linux
-
-仓库配置了 AppImage 目标，但发布矩阵将 Linux 标为 **UNTESTED — NO TARGET MACHINE**，本页不提供下载入口。
-
-## 从源码运行
-
-见[快速开始](./quick-start.mdx)与[开发环境](../developer/development-setup.mdx)。
+在应用中创建并验证备份，退出 MathTutor，再安装新包。打开后可以在设置中检查原来的学习记录和资料。接下来试试[第一道练习](./quick-start.mdx)。

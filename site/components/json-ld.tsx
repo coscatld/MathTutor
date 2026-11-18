@@ -11,7 +11,7 @@ export function JsonLd() {
     url: SITE_URL,
     codeRepository: REPO_URL,
     description:
-      'Open-source math tutoring system with verifiable solving, graded guidance, and learning-process evidence.',
+      'Desktop AI math tutor with guided practice, local verification, personalized learning plans and source-linked Zhihu exploration.',
   };
   return (
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />

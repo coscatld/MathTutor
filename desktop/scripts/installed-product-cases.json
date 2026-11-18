@@ -1,0 +1,413 @@
+{
+  "frozen_at": "2026-11-18T06:44:09.501698+00:00",
+  "scope": "Actual installed Electron software only; normal frontend WebSocket/API and independent temporary data. CPU-only.",
+  "cases": [
+    {
+      "id": "A01",
+      "category": "A",
+      "name": "基础算术",
+      "stimulus": "3/4 + 1/8",
+      "expected": "7/8",
+      "evidence_layer": "ui_math",
+      "status": "not_run"
+    },
+    {
+      "id": "A02",
+      "category": "A",
+      "name": "代数化简",
+      "stimulus": "化简 2(x+3)-x",
+      "expected": "x+6",
+      "evidence_layer": "ui_math",
+      "status": "not_run"
+    },
+    {
+      "id": "A03",
+      "category": "A",
+      "name": "一元方程",
+      "stimulus": "2x+3=7",
+      "expected": "x=2",
+      "evidence_layer": "ui_math",
+      "status": "not_run"
+    },
+    {
+      "id": "A04",
+      "category": "A",
+      "name": "不等式",
+      "stimulus": "2x+3<7",
+      "expected": "x<2",
+      "evidence_layer": "ui_math",
+      "status": "not_run"
+    },
+    {
+      "id": "A05",
+      "category": "A",
+      "name": "函数",
+      "stimulus": "画出函数 y=x^2",
+      "expected": "真实函数图像；顶点(0,0)，不把绘图当作独立作答",
+      "evidence_layer": "ui_graph",
+      "status": "not_run"
+    },
+    {
+      "id": "A06",
+      "category": "A",
+      "name": "数形结合",
+      "stimulus": "画出函数 y=2x+1，读取 x=2 时的函数值",
+      "expected": "真实图像读数5",
+      "evidence_layer": "ui_graph",
+      "status": "not_run"
+    },
+    {
+      "id": "A07",
+      "category": "A",
+      "name": "多步骤",
+      "stimulus": "3(x-2)+5=2x+8",
+      "expected": "x=9",
+      "evidence_layer": "ui_math",
+      "status": "not_run"
+    },
+    {
+      "id": "A08",
+      "category": "A",
+      "name": "复杂条件",
+      "stimulus": "(x^2-1)/(x-1)=2，且 x≠1",
+      "expected": "无解；必须保留x≠1，不能宣称x=1正确",
+      "evidence_layer": "ui_math",
+      "status": "not_run"
+    },
+    {
+      "id": "B01",
+      "category": "B",
+      "name": "能力外",
+      "stimulus": "求解微分方程 y'=y^2+x",
+      "expected": "不伪称确定性求解或自动判对；明确边界",
+      "evidence_layer": "ui_boundary",
+      "status": "not_run"
+    },
+    {
+      "id": "B02",
+      "category": "B",
+      "name": "条件不足",
+      "stimulus": "一个长方形的周长是20，求面积",
+      "expected": "指出缺少长宽约束，不猜唯一面积",
+      "evidence_layer": "ui_boundary",
+      "status": "not_run"
+    },
+    {
+      "id": "B03",
+      "category": "B",
+      "name": "表达式异常",
+      "stimulus": "求解 x + (( = 3",
+      "expected": "明确解析失败/澄清，不生成核验结论",
+      "evidence_layer": "ui_boundary",
+      "status": "not_run"
+    },
+    {
+      "id": "B04",
+      "category": "B",
+      "name": "模糊数学",
+      "stimulus": "把那道题算一下",
+      "expected": "请求题目/指代澄清，不擅造题目",
+      "evidence_layer": "ui_boundary",
+      "status": "not_run"
+    },
+    {
+      "id": "B05",
+      "category": "B",
+      "name": "数学与知识混合",
+      "stimulus": "为什么移项需要变号？不要解某道方程。",
+      "expected": "概念解释或清晰降级，不建立已核验求解/掌握记录",
+      "evidence_layer": "ui_boundary",
+      "status": "not_run"
+    },
+    {
+      "id": "C01",
+      "category": "C",
+      "name": "独立作答",
+      "stimulus": "2x+3=7 → 我来写 → x=2",
+      "expected": "正确性与独立证据绑定真实作答，不需先泄露答案",
+      "evidence_layer": "ui_teaching",
+      "status": "not_run"
+    },
+    {
+      "id": "C02",
+      "category": "C",
+      "name": "一级提示",
+      "stimulus": "新题 3x-4=8 → 第一次请求提示",
+      "expected": "帮助记录增加，不写成独立掌握",
+      "evidence_layer": "ui_teaching",
+      "status": "not_run"
+    },
+    {
+      "id": "C03",
+      "category": "C",
+      "name": "二级提示",
+      "stimulus": "同题 → 第二次请求提示",
+      "expected": "逐级支持、正确可用，不重复错误状态",
+      "evidence_layer": "ui_teaching",
+      "status": "not_run"
+    },
+    {
+      "id": "C04",
+      "category": "C",
+      "name": "完整答案",
+      "stimulus": "同题 → 查看完整答案",
+      "expected": "结果x=4；事后抄答案不计独立",
+      "evidence_layer": "ui_teaching",
+      "status": "not_run"
+    },
+    {
+      "id": "C05",
+      "category": "C",
+      "name": "错误纠正",
+      "stimulus": "新题 4x-5=7 → x=2 → x=3",
+      "expected": "先错后对，保留原误差证据并记录后续纠正",
+      "evidence_layer": "ui_teaching",
+      "status": "not_run"
+    },
+    {
+      "id": "C06",
+      "category": "C",
+      "name": "迁移练习",
+      "stimulus": "已完成后请求并接受新练习",
+      "expected": "真实新题，关联来源任务，不重复已完成题",
+      "evidence_layer": "ui_teaching",
+      "status": "not_run"
+    },
+    {
+      "id": "C07",
+      "category": "C",
+      "name": "学习记录更新",
+      "stimulus": "打开学习画像与查看依据",
+      "expected": "实际题目/回答/帮助暴露可追溯；查看不制造作答",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "D01",
+      "category": "D",
+      "name": "新用户",
+      "stimulus": "首次打开推荐及学习画像",
+      "expected": "无证据即未知，不虚构掌握/薄弱点",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "D02",
+      "category": "D",
+      "name": "已有记录",
+      "stimulus": "完成真实独立作答后读取计划",
+      "expected": "关联实际最新证据，不再声称没有记录",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "D03",
+      "category": "D",
+      "name": "完成任务",
+      "stimulus": "完成一道题后下一步",
+      "expected": "不把已完成同一任务当待完成，知识掌握不由一次观看推断",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "D04",
+      "category": "D",
+      "name": "未掌握/前置",
+      "stimulus": "真实错误作答后计划",
+      "expected": "不跳过已证实困难直接晋级；不把未观察前置当失败",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "D05",
+      "category": "D",
+      "name": "明确目标",
+      "stimulus": "在设置将目标改为probability",
+      "expected": "当前目标与计划对应，刷新/重启保留",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "D06",
+      "category": "D",
+      "name": "目标冲突",
+      "stimulus": "配置probability后明确要求学习线性代数",
+      "expected": "当前明确请求优先；不拼接互相矛盾的下一步",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "E01",
+      "category": "E",
+      "name": "数学知识搜索",
+      "stimulus": "独立公开概念查询",
+      "expected": "真实结果且与问题相关",
+      "evidence_layer": "parent_live_provider",
+      "status": "not_run"
+    },
+    {
+      "id": "E02",
+      "category": "E",
+      "name": "学习资料搜索",
+      "stimulus": "匹配起点的资料查询",
+      "expected": "真实资料与推荐理由",
+      "evidence_layer": "parent_live_provider",
+      "status": "not_run"
+    },
+    {
+      "id": "E03",
+      "category": "E",
+      "name": "知乎检索",
+      "stimulus": "官方接口",
+      "expected": "保留实际返回与调用身份，不能模拟成功",
+      "evidence_layer": "parent_live_provider",
+      "status": "not_run"
+    },
+    {
+      "id": "E04",
+      "category": "E",
+      "name": "来源展示",
+      "stimulus": "结果卡片/回答",
+      "expected": "真实标题、作者未知处理、片段范围",
+      "evidence_layer": "parent_live_provider",
+      "status": "not_run"
+    },
+    {
+      "id": "E05",
+      "category": "E",
+      "name": "引用",
+      "stimulus": "逐条关键主张",
+      "expected": "引用支持主张，数学正确性另判",
+      "evidence_layer": "parent_live_provider",
+      "status": "not_run"
+    },
+    {
+      "id": "E06",
+      "category": "E",
+      "name": "原文链接",
+      "stimulus": "点击原文",
+      "expected": "实际返回URL，不虚构地址",
+      "evidence_layer": "parent_live_provider",
+      "status": "not_run"
+    },
+    {
+      "id": "E07",
+      "category": "E",
+      "name": "观点对照",
+      "stimulus": "两来源适用条件对照",
+      "expected": "无捏造分歧或范围扩大",
+      "evidence_layer": "parent_live_provider",
+      "status": "not_run"
+    },
+    {
+      "id": "E08",
+      "category": "E",
+      "name": "搜索失败",
+      "stimulus": "受控失败",
+      "expected": "明确失败、可恢复、不装作无结果",
+      "evidence_layer": "fault_injection",
+      "status": "not_run"
+    },
+    {
+      "id": "E09",
+      "category": "E",
+      "name": "API失败",
+      "stimulus": "受控失败",
+      "expected": "无伪造来源，无隐私外发",
+      "evidence_layer": "fault_injection",
+      "status": "not_run"
+    },
+    {
+      "id": "E10",
+      "category": "E",
+      "name": "无结果",
+      "stimulus": "受控空返回",
+      "expected": "明示无相关结果，不伪造内容",
+      "evidence_layer": "fault_injection",
+      "status": "not_run"
+    },
+    {
+      "id": "F01",
+      "category": "F",
+      "name": "网络断开",
+      "stimulus": "窗口离线后恢复",
+      "expected": "有界失败；草稿保留，恢复可继续",
+      "evidence_layer": "fault_injection_ui",
+      "status": "not_run"
+    },
+    {
+      "id": "F02",
+      "category": "F",
+      "name": "API超时",
+      "stimulus": "仅延迟本地推荐响应",
+      "expected": "聊天可用，超时/恢复有界",
+      "evidence_layer": "fault_injection_ui",
+      "status": "not_run"
+    },
+    {
+      "id": "F03",
+      "category": "F",
+      "name": "API限流",
+      "stimulus": "推荐API返回429",
+      "expected": "展示可重试/稍后状态，不无界重试",
+      "evidence_layer": "fault_injection_ui",
+      "status": "not_run"
+    },
+    {
+      "id": "F04",
+      "category": "F",
+      "name": "模型失败",
+      "stimulus": "无模型凭据的正常产品路径",
+      "expected": "模板/明确降级，数学核心不被未验证模型覆盖",
+      "evidence_layer": "ui_and_service",
+      "status": "not_run"
+    },
+    {
+      "id": "F05",
+      "category": "F",
+      "name": "部分回答",
+      "stimulus": "真实生成中断或可标识的传输注入",
+      "expected": "保留部分状态及失败原因，不将半答标完整",
+      "evidence_layer": "parent_live_or_injection",
+      "status": "not_run"
+    },
+    {
+      "id": "F06",
+      "category": "F",
+      "name": "应用重启",
+      "stimulus": "结束安装应用进程再启动相同隔离数据",
+      "expected": "聊天、学习记录、当前目标持久",
+      "evidence_layer": "installed_restart",
+      "status": "not_run"
+    },
+    {
+      "id": "F07",
+      "category": "F",
+      "name": "数据备份恢复",
+      "stimulus": "正常同源backup/verify/restore",
+      "expected": "恢复后状态与备份一致，丢弃备份后测试更改",
+      "evidence_layer": "service_backup_restore",
+      "status": "not_run"
+    },
+    {
+      "id": "L01",
+      "category": "L",
+      "name": "语言入口",
+      "stimulus": "左上品牌区域与设置语言",
+      "expected": "无重复中英按钮；正式设置可双向切换",
+      "evidence_layer": "ui_language",
+      "status": "not_run"
+    }
+  ],
+  "rules": [
+    "A supported completion requires correct substantive output; a clear unsupported response is a safety success but not an A completion.",
+    "No source TestClient, API/WS fixture or developer server may count as installed successful behavior.",
+    "Injected failures must be labeled separately from genuine provider responses and complete successful answers.",
+    "No false credentials or production credentials written by this driver; real provider validation belongs to parent.",
+    "Every executed case records artifact identity, exact inputs, results, relevant frames/API data and screenshot when UI applies.",
+    "Unexecuted, unsupported, blocked or pending checks never count as passed.",
+    "Reading resources or assistant answers must not create independent mastery evidence.",
+    "Original startup/migration/plugin smoke remains separately executed and separately reported.",
+    "No commit or push before parent completes full acceptance."
+  ]
+}

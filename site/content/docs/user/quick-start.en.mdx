@@ -1,41 +1,11 @@
 ---
-title: Quick Start
-description: Configure a model after install, optional placement items, and what still works offline.
+title: First steps
+description: Try a problem, use a hint and check your understanding with a new exercise.
 ---
 
-## Installed app
+1. [Install](./installation.mdx) and open MathTutor. You may skip initial model setup and assessment. Choose your interface language in Settings.
+2. In a new conversation, enter `2x + 3 = 7`. Try writing your own first step.
+3. If you get stuck, request a hint and try again. After a hint you can reveal the worked solution.
+4. When offered a related exercise, try it on your own. Open your learning profile to see how much help you used on each problem.
 
-1. Install and open MathTutor.
-2. Configure a provider, model, and API key, or skip.
-3. You may skip the 10-item placement quiz. It is a provisional practice start, not proof of mastery.
-4. Paste or pick a problem, attempt it, then request hints if needed.
-
-Without a cloud model, in-scope local solving, verification, learning records, and template tutoring still run. Generative explanations degrade.
-
-## Browser development mode
-
-```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-python -m mathtutor
-```
-
-Second terminal:
-
-```bash
-cd web
-npm ci
-npm run dev
-```
-
-Backend `http://127.0.0.1:8001`, frontend `http://127.0.0.1:3000`. The loopback single-user flow does not require signup.
-
-## Desktop from source
-
-```bash
-cd web && npm ci && npm run build
-cd ../desktop && npm ci && npm start
-```
-
-The shell uses the repo `.venv` and starts the Python service, verifier worker, and UI.
+Local math practice works offline. To explore other explanations, connect Zhihu under Settings → Knowledge sources and enable Online in chat. Try asking why fractions need a common denominator before addition. [Knowledge exploration](./knowledge-exploration.mdx)

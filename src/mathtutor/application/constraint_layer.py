@@ -52,6 +52,7 @@ class ConstraintResult:
     interpretations: tuple[AmbiguousReading, ...] = ()
     clarification_prompt: str = ""
     reason: str = ""
+    boundary_receipt: dict | None = None
 
     @property
     def solver_text(self) -> str:
@@ -77,6 +78,16 @@ def evaluate_constraints(text: str) -> ConstraintResult:
             normalized_text=normalized.normalized,
             repairs=normalized.repairs,
             reason="unsupported_operation",
+        )
+
+    from mathtutor.solving.elementary_geometry import rectangle_area_task
+    geometry = rectangle_area_task(normalized.raw)
+    if geometry and geometry.status in {"underdetermined", "infeasible"}:
+        return ConstraintResult(
+            status=ConstraintStatus.SOFT_FAIL, raw_text=normalized.raw,
+            normalized_text=normalized.normalized, repairs=normalized.repairs,
+            reason="rectangle_area_" + geometry.status,
+            clarification_prompt=geometry.boundary_message(), boundary_receipt=geometry.receipt(),
         )
 
     parse = parse_problem(normalized.normalized)
@@ -141,6 +152,32 @@ def evaluate_constraints(text: str) -> ConstraintResult:
         parse=parse,
         reason=parse.reason or parse.kind,
     )
+
+
+def boundary_response(constraint: ConstraintResult) -> str:
+    from mathtutor.application.message_intent import is_open_math_question
+
+    if constraint.status is not ConstraintStatus.SOFT_FAIL or is_open_math_question(constraint.raw_text):
+        return ""
+    if constraint.reason in {"rectangle_area_underdetermined", "rectangle_area_infeasible"}:
+        return constraint.clarification_prompt
+    if boundary_discussion_allowed(constraint):
+        return ("这道题超出当前可逐步核验的求解范围，不能把其中一小段式子的结果当作整题答案。"
+                "原题已保留，可以点击解释讨论相关概念；这类讲解会标明尚未逐句核验。")
+    return ("这条输入还不能可靠地解析为完整题目。请补充已知条件、要求和完整表达式，"
+            "并检查括号、运算符和等号两边；我不会猜测缺失的条件或直接给出数值答案。")
+
+
+def boundary_discussion_allowed(constraint: ConstraintResult) -> bool:
+    """Retain a stated mathematical object without claiming its conditions are complete."""
+    text = constraint.raw_text.strip().rstrip("。？?.")
+    if not text or re.search(r"[=+*/^<>≤≥−-]$|猜猜|猜测|\bguess\b", text, re.I):
+        return False
+    if any(text.count(left) != text.count(right) for left, right in (("(", ")"), ("[", "]"), ("{", "}"))):
+        return False
+    return bool((constraint.parse and constraint.parse.kind == "unsupported")
+                or (constraint.reason == "unsupported_operation" and re.search(r"\d|[xyz]|\\frac", text))
+                or re.search(r"[0-9A-Za-z)]\s*=\s*[-+0-9A-Za-z(]", text))
 
 
 def _semantic_ambiguity(
@@ -242,4 +279,6 @@ __all__ = [
     "ConstraintResult",
     "ConstraintStatus",
     "evaluate_constraints",
+    "boundary_response",
+    "boundary_discussion_allowed",
 ]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import re
@@ -20,15 +21,23 @@ from mathtutor.application.exploration_learning import catalog_manifest, explain
 from mathtutor.application.foundation_references import authored_reference, fraction_foundations
 from mathtutor.application.math_claims import certify
 from mathtutor.application.math_verification import verify_math
+from mathtutor.application.network_plan_sources import choose_current_reading
 from mathtutor.application.verified_examples import render_verified_examples, verified_examples
 from mathtutor.domain.dual_channel_gate import MathState, SourceState, decide
 from mathtutor.infrastructure.zhihu import ZhihuError
 from mathtutor.learning.skill_graph import SKILLS
 
-POLICY = "network-claims-v4"
+POLICY = "network-claims-v5"
 logger = logging.getLogger(__name__)
+_REQUIRED_ORDER = re.compile(
+    r"(?:顺序|次序)(?:是|为)?(?:固定|唯一|不可颠倒|不能颠倒)|"
+    r"固定(?:的)?(?:先后)?(?:顺序|次序)|(?:必须|只能|务必)先|"
+    r"\b(?:the order is (?:fixed|mandatory)|fixed (?:order|sequence)|must (?:always )?(?:first|precede)|"
+    r"the only (?:valid |possible )?(?:order|sequence))\b", re.I,
+)
 _LINK = re.compile(r"(?i)(?:[a-z][a-z0-9+.-]*://|(?:javascript|data|file|mailto):|www\.)")
 _TOPICS = {
+    "math_foundations": ("数学基础", ("数学基础", "数学入门", "mathematical foundations", "math foundations")),
     "derivative": ("连续与可导", ("可导", "不可微", "导数", "连续", "derivative", "differentiab", "continuity")),
     "limit": ("函数极限", ("极限", "limit")),
     "decimal_limit": ("无限小数与极限", ("0.999", "无限小数", "循环小数", "repeating decimal")),
@@ -53,9 +62,19 @@ _PURPOSES = {
     "resources": ("教程与学习资料", ("推荐", "资料", "教程", "文章", "resource", "tutorial", "recommend")),
 }
 _LEARNING_NEXT = re.compile(
+    r"(?:安排|制定)[^。！？\n]{0,25}(?:练习|学习|计划)|"
     r"下一步|继续(?:哪|那)一步|下次(?:该|要|应该)?(?:学|做|练)|接下来(?:该|要|应该)?(?:学|做|练)|学习(?:安排|计划|顺序)|跳过|"
     r"what(?: should I)? (?:learn|study|do) next|what(?:'s| is) next|next (?:learning )?step|"
     r"(?:can|may|should) I skip|(?:learning|study) (?:plan|schedule)|where (?:should|do) I start", re.I)
+
+
+def _asserts_required_order(text: str) -> bool:
+    for match in _REQUIRED_ORDER.finditer(text):
+        prefix = text[max(0, match.start() - 20):match.start()]
+        if not re.search(r"(?:并非|不是|没有|并无|无需|不必|未必|不一定|不存在)(?:一个)?$|"
+                         r"\b(?:not|no|without)(?: an?)?\s+$", prefix, re.I):
+            return True
+    return False
 
 
 def _purpose_for(text):
@@ -121,6 +140,8 @@ def choose_network_task(text: str, history=(), language="zh", prior_question="")
                     if purpose == "explain" and re.search(r"^(?:继续|还有|再来|continue|and |more)", current.strip()):
                         purpose = _purpose_for(previous)
                     break
+    if not topics and purpose == "learn":
+        topics = ("math_foundations",)
     if not topics:
         return None
     suffix = _PURPOSES.get(purpose, ("概念解释与例子", ()))[0]
@@ -226,6 +247,19 @@ class PlanResourceReceipt(Frozen):
     selection_reason: str = Field(max_length=600)
     source_time: str | None = Field(default=None, max_length=64)
     source_time_kind: Literal["published_or_updated", "published", "unknown"] = "unknown"
+    origin: Literal["reviewed_catalog", "current_search_summary"] = "reviewed_catalog"
+    source_id: ReceiptId | None = None
+    supporting_claim_ids: tuple[ReceiptId, ...] = Field(default=(), max_length=10)
+    span_id: ReceiptId | None = None
+    quote_start: int | None = Field(default=None, ge=0)
+    quote_end: int | None = Field(default=None, ge=0)
+
+
+class PlanStepReceipt(Frozen):
+    kind: Literal["read", "practice", "check"]
+    title: str = Field(min_length=1, max_length=80)
+    detail: str = Field(min_length=1, max_length=600)
+    minutes: int | None = Field(default=None, ge=1, le=120)
 
 
 class LearningPlanReceipt(Frozen):
@@ -244,6 +278,19 @@ class LearningPlanReceipt(Frozen):
     reason_code: ReceiptId
     resources: tuple[PlanResourceReceipt, ...] = Field(max_length=3)
     language: Literal["zh", "en"]
+    goal_source: Literal["current_request", "current_goal", "context_goal", "automatic"] = "context_goal"
+    progress: str = Field(default="", max_length=600)
+    time_budget_minutes: int | None = Field(default=None, ge=1, le=120)
+    steps: tuple[PlanStepReceipt, ...] = Field(default=(), max_length=3)
+    check_goal: str = Field(default="", max_length=600)
+    state_event_ids: tuple[ReceiptId, ...] = Field(default=(), max_length=32)
+    resource_notice: str = Field(default="", max_length=600)
+
+    @model_validator(mode="after")
+    def fits_session(self):
+        if self.time_budget_minutes and sum(step.minutes or 0 for step in self.steps) > self.time_budget_minutes:
+            raise ValueError("Learning steps exceed the requested time budget")
+        return self
 
 
 @dataclass(frozen=True)
@@ -348,22 +395,30 @@ class NetworkQA:
                 logger.warning("Local learning plan unavailable: %s", type(error).__name__)
                 addition, receipt = "", None
             if addition:
-                answered = result.status in {"answered", "partial"}
-                prefix = result.text if answered else result.text + "\n\n" + _message(language, "local_plan")
+                prefix, retained, suppressed = _plan_context(result, language,
+                    same_goal=receipt["goal"] == _plan_goal(task))
+                addition, receipt = _attach_current_reading(receipt, task, result, retained)
+                answered = bool(retained)
+                if not answered:
+                    note = _message(language, "resolved_plan" if result.status in {"answered", "partial"} else "local_plan")
+                    prefix = "\n\n".join(part for part in (prefix, note) if part)
+                if calculations:
+                    prefix += "\n\n" + render_verified_examples(calculations, language)
                 final_text = prefix + "\n\n" + addition
                 receipt.update(network_status=result.status, network_answer_available=answered,
+                               retained_context_ids=retained, suppressed_advice_ids=suppressed,
                                answer_prefix_sha256=text_hash(prefix), final_text_sha256=text_hash(final_text))
-                result = replace(result, text=final_text, status=result.status if answered else "local_plan",
+                result = replace(result, text=final_text, status=("partial" if suppressed else result.status) if answered else "local_plan",
                                  planner_receipt=receipt)
         return result
 
     async def _learning_plan(self, owner, task):
-        goals = {"derivative": "calculus", "limit": "calculus", "geometric_series": "calculus",
-                 "decimal_limit": "math_foundations", "square_root": "math_foundations",
-                 "equation_division": "math_foundations", "paper_reading": "research_methods"}
-        goal = goals.get(task.topics[0], task.topics[0])
-        plan = await self.planner(owner, goal, language=task.language)
-        if plan.get("goal") != goal:
+        goal = _plan_goal(task)
+        parameters = inspect.signature(self.planner).parameters
+        context = {"request": task.question} if "request" in parameters or any(
+            param.kind is inspect.Parameter.VAR_KEYWORD for param in parameters.values()) else {}
+        plan = await self.planner(owner, goal, language=task.language, **context)
+        if plan.get("goal") != goal and plan.get("goal_source") not in {"current_request", "current_goal"}:
             return "", None
         resources = []
         for resource in plan.get("resources", [])[:3]:
@@ -376,20 +431,26 @@ class NetworkQA:
                     title=resource.get("title"), author=resource.get("author"), url=url,
                     summary=summary, summary_sha256=text_hash(summary),
                     excerpt_sha256=resource.get("provenance", {}).get("excerpt_sha256"),
-                    selection_reason=resource.get("selection_reason") or resource.get("recommendation_reason") or "",
+                    selection_reason=resource.get("recommendation_reason") or resource.get("selection_reason") or "",
                     source_time=resource.get("source_time"), source_time_kind=resource.get("source_time_kind", "unknown")))
             except (ValidationError, TypeError, AttributeError):
                 continue
         receipt = LearningPlanReceipt(
-            planner_policy=plan.get("policy"), goal=goal, target=plan.get("target"), action=plan.get("action"),
+            planner_policy=plan.get("policy"), goal=plan.get("goal"), target=plan.get("target"), action=plan.get("action"),
             profile_revision=plan.get("profile_revision"), graph_version=plan.get("graph_version"),
             catalog_version=plan.get("catalog_version"), last_event_seq=plan.get("last_event_seq"),
             evidence_ids=plan.get("evidence_ids", ()), title=plan.get("title"), reason=plan.get("reason"),
-            reason_code=plan.get("reason_code"), resources=tuple(resources), language=task.language)
+            reason_code=plan.get("reason_code"), resources=tuple(resources), language=task.language,
+            goal_source=plan.get("goal_source", "context_goal"), progress=plan.get("progress", ""),
+            time_budget_minutes=plan.get("time_budget_minutes"), steps=tuple(plan.get("steps", ())),
+            check_goal=plan.get("check_goal", ""), state_event_ids=tuple(plan.get("state_event_ids", ())),
+            resource_notice=(("初审资料只对可见摘要片段进行 AI 审核，未审核全文。" if task.language == "zh" else
+                "Catalog resources received AI review of visible excerpts only; full articles were not reviewed.") if resources else ""))
         if len(receipt.evidence_ids) != len(set(receipt.evidence_ids)) or len(receipt.evidence_ids) != plan.get("evidence_count"):
             raise ValueError("Learning plan evidence count mismatch")
         addition = _render_learning_receipt(receipt)
         return addition, {**receipt.model_dump(mode="json"), "rendered_text": addition,
+                          "request_sha256": text_hash(task.question),
                           "rendered_text_sha256": text_hash(addition)}
 
     async def respond(self, owner, task: NetworkTask) -> NetworkReply:
@@ -416,7 +477,7 @@ class NetworkQA:
         metadata = _source_metadata(batch, provider_items)
         if not shown:
             return NetworkReply(_message(task.language, "unsupported"), "unsupported", task.query, metadata, audit)
-        text = render_answer(shown, batch, task.language, audit, source_metadata=metadata)
+        text = render_answer(shown, batch, task.language, audit, source_metadata=metadata, purpose=task.purpose)
         return NetworkReply(text, "partial" if len(shown) < len(draft.claims) else "answered", task.query, metadata, audit)
 
     async def gate(self, draft, review, spans, references):
@@ -445,6 +506,11 @@ class NetworkQA:
                     reasons.append(reason)
             support = valid_refs and all((check.supported, check.conditions_preserved, check.attribution_correct,
                                           check.relevant, check.relation_correct))
+            if (claim.kind in {"source_statement", "author_view"}
+                    and _asserts_required_order(claim.text + "\n" + claim.conditions)
+                    and not any(_asserts_required_order(item.quote) for item in claim.evidence)):
+                support = False
+                reasons.append("stronger_order_than_source")
             dependencies = set(claim.depends_on) | set(check.missing_dependencies)
             support &= dependencies <= kept
             if not dependencies <= kept:
@@ -457,11 +523,16 @@ class NetworkQA:
             math_checks = [{**assertion.model_dump(), "status": "not_submitted" if not assertion.answer.strip() else "not_run",
                             "reason": "empty_answer" if not assertion.answer.strip() else ""} for assertion in claim.math]
             formula_audit = {"status": "not_run"}
+            solution_counterexample = None
             if math is not MathState.INCORRECT:
+                from mathtutor.application.radical_counterexamples import source_solution_counterexample
+
+                solution_counterexample = source_solution_counterexample(claim.text, claim.conditions)
                 for index, assertion in enumerate(claim.math):
                     if not assertion.answer.strip():
                         continue
-                    outcome = await verify_math(self.verification_backend, assertion.expression, assertion.answer)
+                    outcome = await verify_math(self.verification_backend, assertion.expression, assertion.answer,
+                                                conditions=claim.conditions)
                     math_checks[index].update(status=outcome.status, reason=outcome.reason)
                     if outcome.status == "refuted":
                         math = MathState.INCORRECT
@@ -470,7 +541,7 @@ class NetworkQA:
                 formula_audit = {"status": "checked", **certification.counts(),
                                  "refutations": [{"statement": asdict(statement), "reason": reason}
                                                  for statement, reason in certification.refuted]}
-                if certification.refuted:
+                if certification.refuted or solution_counterexample:
                     math = MathState.INCORRECT
             decision = decide(SourceState.SUMMARY_OK if support else SourceState.REJECTED, math)
             accepted = decision.visible
@@ -487,7 +558,8 @@ class NetworkQA:
                           if claim._proposed_relation else {},
                           "evidence": [_evidence_receipt(evidence, registry) for evidence in claim.evidence],
                           "math_assertions": [assertion.model_dump() for assertion in claim.math], "math_checks": math_checks,
-                          "formula_checks": formula_audit})
+                          "formula_checks": formula_audit,
+                          "solution_counterexample": solution_counterexample})
             if accepted:
                 kept.add(claim.claim_id)
                 shown.append(claim)
@@ -530,20 +602,101 @@ def _date_label(value, kind, language):
     return prefix + date + " (UTC)"
 
 
+def _plan_goal(task):
+    goals = {"derivative": "calculus", "limit": "calculus", "geometric_series": "calculus",
+             "decimal_limit": "math_foundations", "square_root": "math_foundations",
+             "equation_division": "math_foundations", "paper_reading": "research_methods"}
+    return goals.get(task.topics[0], task.topics[0])
+
+
+def _plan_context(reply, language, *, same_goal):
+    sources = {row["source_id"]: row for row in reply.sources}
+    kept, suppressed, pieces = [], [], []
+    for row in reply.audit:
+        if not row["accepted"]:
+            continue
+        advice = re.search(r"建议|应该|下次|下一步|学习计划|学习路径|先学|掌握|分钟|每天|"
+                           r"\b(?:should|recommend\w*|mastery|next step|minutes|schedule)\b", row["text"], re.I)
+        if not same_goal or row["kind"] == "ai_inference" or advice or not set(row["dependencies"]) <= set(kept):
+            suppressed.append(row["claim_id"])
+            continue
+        kept.append(row["claim_id"])
+        label = {"source_statement": ("资料解释", "Source explanation"), "author_view": ("作者观点", "Author viewpoint"),
+                 "comparison": ("观点对照", "Viewpoint comparison")}[row["kind"]][language == "en"]
+        if row["math"] in {"unsupported", "undetermined"}:
+            label += " · 数学表述待核对" if language == "zh" else " · Mathematical statement unverified"
+        text = f"**{label}**\n\n" + _literal(row["text"])
+        if row["conditions"]:
+            text += "\n\n" + ("适用条件：" if language == "zh" else "Conditions: ") + _literal(row["conditions"])
+        links = []
+        for source_id in dict.fromkeys(evidence["source_id"] for evidence in row["evidence"]):
+            source = sources.get(source_id)
+            if source and safe_source_url(source["original_url"]):
+                label = source["title"] + " · " + (source.get("author") or ("作者未知" if language == "zh" else "Unknown author"))
+                date = _date_label(source.get("published_or_updated_at"), source.get("source_time_kind"), language)
+                links.append(f"[{_literal(label)}]({_markdown_url(source['original_url'])}) · {date}")
+        if links:
+            text += "\n\n" + ("来源：" if language == "zh" else "Sources: ") + " · ".join(links)
+        pieces.append(text)
+    if pieces:
+        return "\n\n".join(pieces) + "\n\n" + _message(language, "scope"), kept, suppressed
+    return reply.text if reply.status not in {"answered", "partial"} else "", kept, suppressed
+
+
 def _render_learning_receipt(receipt):
     language = receipt.language
     heading = "接下来怎么学" if language == "zh" else "Your next learning step"
     parts = [f"**{heading}**", _literal(receipt.title), _literal(receipt.reason)]
+    for step in receipt.steps:
+        minutes = step.minutes
+        duration = (f"（{minutes} 分钟）" if language == "zh" else f" ({minutes} min)") if minutes else ""
+        parts.append(f"- {_literal(step.title)}{duration}：{_literal(step.detail)}")
     for resource in receipt.resources:
         author = resource.author or ("作者未知" if language == "zh" else "Unknown author")
         title = _literal(resource.title) + " · " + _literal(author)
         date = _date_label(resource.source_time, resource.source_time_kind, language)
         reason = _literal(resource.selection_reason)
-        parts.append(f"- [{title}]({_markdown_url(resource.url)}) · {date}" + (f"：{reason}" if reason else ""))
+        selected = (("本次选读：" if language == "zh" else "Selected for this session: ") if resource.origin == "current_search_summary" else
+                    ("初审片段选读：" if language == "zh" else "Reviewed catalog excerpt: "))
+        parts.append(f"- {selected}[{title}]({_markdown_url(resource.url)}) · {date}" + (f"：{reason}" if reason else ""))
+    if receipt.resource_notice:
+        parts.append(_literal(receipt.resource_notice))
     return "\n\n".join(parts)
 
 
-def render_answer(claims, batch, language, audit, *, source_metadata=()):
+def _attach_current_reading(receipt, task, reply, retained):
+    plan = LearningPlanReceipt.model_validate({key: value for key, value in receipt.items()
+                                              if key in LearningPlanReceipt.model_fields})
+    wants_resource = task.purpose == "resources" or bool(re.search(r"资料|教程|文章|\b(?:resources?|tutorials?|articles?)\b", task.question, re.I))
+    reading = any(step.kind == "read" for step in plan.steps)
+    if not plan.resources and (reading or wants_resource):
+        resource = choose_current_reading(reply.sources, reply.audit, retained,
+                                          target=plan.target, language=task.language)
+        try:
+            selected = PlanResourceReceipt.model_validate(resource) if resource else None
+        except ValidationError:
+            selected = None
+        if selected:
+            plan = plan.model_copy(update={"resources": (selected,),
+                "resource_notice": ("本次选读依据为自动检查过的知乎检索摘要；未审核全文，也未加入初审资料库。" if task.language == "zh" else
+                    "This reading choice uses an automatically checked Zhihu search excerpt. The full text has not been reviewed, and it is not part of the reviewed catalog.")})
+        elif wants_resource:
+            plan = plan.model_copy(update={"resource_notice": ("本次没有可选作当前目标入门资料的来源，暂不指定文章；可先按上面的目标练习和核对。" if task.language == "zh" else
+                "No available source can be selected as introductory reading for this goal. No article is assigned; you can use the practice and check steps above.")})
+    rendered = _render_learning_receipt(plan)
+    return rendered, {**receipt, **plan.model_dump(mode="json"), "rendered_text": rendered,
+                      "rendered_text_sha256": text_hash(rendered)}
+
+
+def _reader_claim_text(text, dependencies):
+    for claim_id in dependencies:
+        token = re.escape(claim_id)
+        text = re.sub(r"(?<![A-Za-z0-9_])" + token + r"(?=\s*(?:的|所述|中的))", "前文", text)
+        text = re.sub(r"\bclaim\s+" + token + r"\b", "the earlier explanation", text, flags=re.I)
+    return text
+
+
+def render_answer(claims, batch, language, audit, *, source_metadata=(), purpose="explain"):
     source_by_id = {source.source_id: source for source in batch.sources}
     dates = {source["source_id"]: source for source in source_metadata}
     spans = {span.span_id: span for span in build_evidence_spans(batch)}
@@ -555,7 +708,7 @@ def render_answer(claims, batch, language, audit, *, source_metadata=()):
         label = labels[claim.kind][language == "en"]
         if decisions[claim.claim_id]["math"] in {"unsupported", "undetermined"}:
             label += " · 数学表述待核对" if language == "zh" else " · Mathematical statement unverified"
-        rows = [f"**{label}**", _literal(claim.text)]
+        rows = [f"**{label}**", _literal(_reader_claim_text(claim.text, claim.depends_on))]
         if claim.conditions:
             rows.append(("适用条件：" if language == "zh" else "Conditions: ") + _literal(claim.conditions))
         refs = []
@@ -574,6 +727,9 @@ def render_answer(claims, batch, language, audit, *, source_metadata=()):
         if claim.reference_ids:
             rows.append("MathTutor 原创数学基础" if language == "zh" else "MathTutor original mathematical foundations")
         pieces.append("\n\n".join(rows))
+    if purpose == "compare" and not any(claim.kind == "comparison" for claim in claims):
+        pieces.append("现有摘录支持上面分别列出的解释。两种说法是否适用于同一条件，还需要对照原文。"
+                      if language == "zh" else "The excerpts support the explanations above. Compare the original answers to check whether their conditions match.")
     pieces.append(_message(language, "scope") if any(claim.evidence for claim in claims) else (
         "以上依据 MathTutor 原创数学基础，数学表述的核验状态见各段标注。" if language == "zh" else
         "These explanations use MathTutor's original mathematical foundations; each paragraph shows its mathematical verification status."))
@@ -602,6 +758,7 @@ def _message(language, key):
         "no_evidence": ("这次没有找到足以引用的知乎资料，可以继续讨论概念或换一个具体知识点。", "No usable Zhihu evidence was found. We can continue discussing the concept or choose a more specific topic."),
         "unsupported": ("本次材料尚不足以支持生成的解释，未展示这些结论。可以继续用已有数学知识讨论。", "The retrieved material did not adequately support the proposed explanation. We can continue with existing mathematical knowledge."),
         "local_plan": ("以下学习安排来自本地学习记录与已审核的资料目录，不代表本次联网解释已通过检查。", "The plan below uses local learning records and the reviewed resource catalog; the online explanation has not passed review."),
+        "resolved_plan": ("以下安排以你当前的请求和学习记录为准；资料中的学习建议不直接决定你的进度。", "This plan follows your current request and learning records; advice in retrieved material does not determine your progress."),
         "scope": ("来源为知乎接口返回的检索摘要，尚未审核全文；解释经过自动证据检查，数学自然语言仍需核对。", "Sources are Zhihu search summaries, not reviewed full texts. Explanations underwent automated evidence checks; mathematical prose still needs verification."),
         "partial": ("已省略证据不足或依赖无效的部分，以上保留可支持的解释。", "Parts with insufficient evidence or invalid dependencies were omitted; supported explanations remain above."),
     }

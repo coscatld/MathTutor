@@ -63,10 +63,18 @@ export function SourceComparison({ cards, comparisons, onClear }: {
       <h3 id="comparison-title" className="text-lg font-semibold">{t("把条件放在一起看")}</h3>
       <button type="button" onClick={onClear} className="min-h-11 shrink-0 px-2 text-sm text-[var(--primary-text)]">{t("清除选择")}</button>
     </div>
-    <div className="mt-3 grid gap-4 sm:grid-cols-2">{cards.map(card => <div key={card.span_id} className="min-w-0">
-      <p className="break-words font-medium leading-6">{card.title}</p>
-      <p className="mt-2 break-words text-sm leading-7 text-[var(--muted-foreground)]">{card.reading_question || t("这段话使用了哪些定义、范围或前提？")}</p>
-    </div>)}</div>
+    <div className="mt-3 grid gap-5 sm:grid-cols-2">{cards.map(card => {
+      const href = sourceHref(card.original_url);
+      return <article key={card.span_id} className="min-w-0">
+        <h4 className="break-words font-medium leading-6">{card.title}</h4>
+        <p className="mt-1 text-sm text-[var(--muted-foreground)]">{card.author || t("作者未提供")} · {t("知乎搜索摘录")}</p>
+        <blockquote className="my-3 whitespace-pre-wrap break-words border-l-2 border-[var(--border)] pl-3 leading-7">{card.quote}</blockquote>
+        <p className="text-sm leading-6">{card.reading_question || t("这段话使用了哪些定义、范围或前提？")}</p>
+        {href && <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm text-[var(--primary-text)] hover:underline">
+          {t("打开知乎原文")}<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+        </a>}
+      </article>;
+    })}</div>
     <p className="mt-4 leading-7">{t("两段话讨论的是同一个条件下的问题吗？回到原文，找出各自的适用范围。")}</p>
     {questions.map((item, index) => <div key={index} className="mt-3 border-t border-[var(--border)] pt-3">
       <p className="text-sm text-[var(--muted-foreground)]">{t("AI 对照问题 · 待你核对")}</p>

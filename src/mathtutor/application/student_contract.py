@@ -70,7 +70,8 @@ async def session_contract(store, owner_id, session, *, processing=False):
     from mathtutor.application.discussion_notebook import public_discussion
     discussion = verified is None and bool(public_discussion(context)) and session.state != CycleState.CLOSED
     if discussion and not valid:
-        allowed.extend(TEACHING_COMMANDS)
+        allowed.extend(command for command in TEACHING_COMMANDS
+                       if command != "request_solution" or not context.get("capability_boundary"))
     if context and valid and session.state != CycleState.CLOSED:
         if (context.get("response_mode") == "free_response" and not context.get("choices")
                 and "submit_attempt" in allowed):
@@ -116,7 +117,7 @@ async def session_contract(store, owner_id, session, *, processing=False):
     if discussion:
         for action in actions:
             if action["reason_code"] == "NO_VERIFIED_SOLUTION":
-                action["description"] = "本题已保存，可以直接在对话中追问；尚未启用本地自动判题。"
+                action["description"] = "原题尚无可核验的完整解答，可以点击解释讨论相关概念。"
     evidence = {"independent": 0, "assisted": 0, "post_solution": 0, "diagnostic": 0, "ungradable": 0, "status": "尚无独立检测证据"}
     tracking = getattr(store, "student_state", None)
     if tracking:

@@ -42,7 +42,7 @@ class DiscussionTeacher:
 
 @pytest.mark.parametrize('command, request_phrase', [
     ('request_hint', '起步提示'), ('request_explanation', '关键概念'),
-    ('request_example', '同类示例'), ('request_solution', '完整解答'),
+    ('request_example', '同类示例'),
 ])
 def test_saved_discussion_support_buttons_answer_same_question_without_grading(tmp_path, command, request_phrase):
     from test_tutor_p0 import count
@@ -56,7 +56,8 @@ def test_saved_discussion_support_buttons_answer_same_question_without_grading(t
         before = summary(client)
         available = {a['command']: a for a in before['allowed_actions']}
         assert all(available[c]['enabled'] for c in (
-            'request_hint', 'request_explanation', 'request_example', 'request_solution'))
+            'request_hint', 'request_explanation', 'request_example'))
+        assert not available['request_solution']['enabled'] and not teacher.seen
         events = count(db, 'learning_events')
         frames = send(ws, command, 'help', {}, cycle_id=before['cycle_id'],
                       problem_revision=before['problem_revision'], expected_state_version=before['state_version'])
@@ -64,6 +65,7 @@ def test_saved_discussion_support_buttons_answer_same_question_without_grading(t
         assert not any(f['event_type'] == 'turn_error' for f in frames)
         text, options = teacher.seen[-1]
         assert request_phrase in text and options['unstructured_math']
+        assert json.loads(options['problem_context'])['capability_boundary']
         assert json.loads(options['problem_context'])['original_question'] == QUESTION
         after = summary(client)
         assert after['problem_context']['display_text'] == QUESTION
@@ -145,13 +147,13 @@ def test_real_gateway_receives_saved_question_as_data_and_current_stage(tmp_path
         assert kwargs['max_tokens']==4096
 
 
-def test_high_school_paste_is_agent_led_but_explicit_practice_is_verified(tmp_path):
+def test_high_school_supported_paste_and_explicit_practice_are_verified(tmp_path):
     with client_at(tmp_path/'modes.db') as client,client.websocket_connect('/api/v2/math-tutor/ws') as ws:
         state=get_product_state()
         state.learner_settings.update('high',10)
         state.controller.chat_responder=DiscussionTeacher()
         send(ws,'send_message','paste',{'text':'x^2-5x+6>0'})
-        assert summary(client)['problem_context']['lifecycle']=='discussion'
+        assert summary(client)['problem_context']['lifecycle']=='active'
         send(ws,'submit_problem','practice',{'text':'x^2-5x+6>0'},session='practice')
         assert summary(client,'practice')['problem_context']['lifecycle']=='active'
         send(ws,'submit_attempt','answer',{'answer':'x<2或x>3'},session='practice')

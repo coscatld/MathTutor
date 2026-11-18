@@ -33,9 +33,9 @@ export const roadmap: {
     en: 'Windows x64 and macOS arm64 installers, plus cross-platform source CI.',
   },
   {
-    status: 'in-progress',
-    zh: '知识探索源码预览：原聊天联网、逐项证据检查、23 份已审片段与基于学习证据的资料推荐，支持可选后台发现；尚未进入桌面安装包。',
-    en: 'Knowledge exploration source preview: online chat, per-claim evidence checks, 23 reviewed excerpts, and evidence-based resource suggestions with optional background discovery. Not yet in desktop installers.',
+    status: 'completed',
+    zh: '知乎知识探索提供原聊天联网、逐项证据检查、带原文的已审片段与基于学习证据的资料推荐，支持可选后台发现。',
+    en: 'Zhihu exploration includes online chat, per-claim evidence checks, reviewed excerpts linked to their originals, and evidence-based resource suggestions with optional background discovery.',
   },
   {
     status: 'in-progress',

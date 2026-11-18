@@ -48,7 +48,10 @@ def test_short_intersection_question_reaches_model_and_completes(tmp_path, grade
         state = bind(transport)
         state.learner_settings.update('high' if grade >= 10 else 'middle', grade)
         frames = send(ws, 'send_message', 'intersection', {'text': QUESTION})
+        assert not calls
+        assert any('超出当前' in f['payload'].get('final_text', '') for f in frames)
         assert summary(client)['problem_context']['display_text'] == QUESTION
+        frames = send(ws, 'request_explanation', 'explain-intersection', {})
         assert sum(summary(client)['evidence_summary'][k]
                    for k in ('independent', 'assisted', 'post_solution')) == 0
     assert len(calls) == 1
@@ -106,11 +109,13 @@ def test_failure_has_true_reason_no_misleading_solver_fallback(tmp_path, monkeyp
         monkeypatch.setattr(tutor_runtime, 'complete_math_tools', limited)
     with client_at(tmp_path / 'failed.db') as client, client.websocket_connect('/api/v2/math-tutor/ws') as ws:
         bind(transport)
-        frames = send(ws, 'send_message', 'failed', {'text': QUESTION})
+        send(ws, 'send_message', 'original', {'text': QUESTION})
+        assert not calls
+        frames = send(ws, 'request_explanation', 'failed', {})
         traces = client.get('/api/v2/math-tutor/desktop/diagnostics/turns').json()['turns']
         # Replaying an identical failed request does not call the model again.
         before = len(calls)
-        send(ws, 'send_message', 'failed', {'text': QUESTION})
+        send(ws, 'request_explanation', 'failed', {})
         assert len(calls) == before
     reason, code, notice = (('TOKEN_LIMIT', 'TUTOR_TOKEN_LIMIT', '处理长度达到上限') if failure == 'budget'
                             else ('PROVIDER_ERROR', 'MODEL_UNAVAILABLE', '模型服务暂时不可用'))

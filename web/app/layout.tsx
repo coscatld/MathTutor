@@ -8,8 +8,8 @@ import {LOCALE_BOOT_SCRIPT} from "@/lib/i18n/messages";
 import {I18nProvider} from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "MathTutor——基于学习过程追踪与可验证解题的开源数学智能辅导系统",
-  description: "面向小学至高中的开源数学智能辅导系统，结合学习过程追踪、受限数学核验、个人资料库与创作者教学插件。",
+  title: "MathTutor",
+  description: "面向学习者的桌面 AI 数学学习与知识探索软件，提供分级辅导、可验证练习和带来源的知乎资料。",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

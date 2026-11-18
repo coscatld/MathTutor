@@ -1,71 +1,20 @@
 ---
 title: Knowledge exploration
-description: Bring attributed Zhihu explanations into the existing chat and choose learning resources from your recorded attempts.
+description: Search Zhihu in chat, compare explanations, follow citations and choose a next resource.
 ---
 
-Enable **Search online** in the existing chat to explain a concept with Zhihu sources, compare interpretations, or find learning resources. **Resources for your next step** in your learning profile uses recorded attempts to suggest a starting point and relevant prerequisites.
+## Start with a question
 
-**Available from source.** Published macOS and Windows installers do not yet include knowledge exploration. Follow [Development setup](../developer/development-setup.mdx) to run the current source. This website provides documentation; it does not run searches or accept credentials.
+1. Connect your own Zhihu Access Secret under Settings → Knowledge sources.
+2. Enable Online in chat. Ask a specific question, such as “Why do fractions need a common denominator for addition? Can you compare two explanations?”
+3. Open a citation to see its title, available author and retrieved excerpt. Follow the link for the original. Ask a follow-up about a particular method, condition or counterexample.
 
-## Use online chat
+## Reading a comparison
 
-1. Configure your Zhihu Access Secret at `/math-tutor/settings?section=sources`. Alternatively, set `MATHTUTOR_ZHIHU_ACCESS_SECRET` in the Python service environment. Never use a `NEXT_PUBLIC_` variable or commit the secret.
-2. Enable **Search online** in the chat composer. Try “Why do fractions need a common denominator?”, “How are continuity and differentiability related?”, or “What should I learn before linear algebra?”
-3. Ask a follow-up about an example, condition, or next step. The relevant preceding online question provides context. Turning Search online off or starting a new conversation resets it.
-4. Read each explanation with its sources, authors, and original links. Active exercise attempts retain the existing verification and graded-hint flow.
+Source explanations carry citations. Author views and AI inferences are identified separately. Check whether two sources address the same question under the same conditions. Search returns excerpts, so open the original when a formula or its context is missing. A local math check applies to the calculation it identifies.
 
-Retrieval uses public knowledge topics; the explanation addresses your actual question. Each claim undergoes an automated support check. Missing evidence, timeouts, rate limits, and service failures are reported, with the regular math discussion still available.
+## Choosing your next resource
 
-## Understand the evidence
+Open your learning profile to see material for your current goal. Tell MathTutor how much time you have, what you have already read and what you want to try on your own. The app distinguishes independent attempts, hints and reading. If a prerequisite still needs checking, the plan gives you a starting point. Expand a resource to read its selection reason, excerpt review scope and original link.
 
-| Answer content | Treatment |
-|---|---|
-| Source explanation | Bound to a specific search-summary excerpt, including its conditions |
-| Author viewpoint | Distinguished from AI inference; summaries are not presented as verbatim author quotations |
-| Viewpoint comparison | At least two sources; complementary accounts, different conditions, and disagreement are distinguished |
-| Learning advice and inference | Explicitly labeled as inference and checked against its premises |
-| Mathematical statement | Parseable expressions receive a separate check; mathematical prose still needs verification |
-
-The application saves source snapshots, character ranges, hashes, and per-claim review records. Claims rejected by the checks and their dependent conclusions are omitted. Accepted wording is rendered directly, without a subsequent free-form rewrite.
-
-Unambiguous, supported formulas in the current question can also receive a **MathTutor local verification** result. This reuses the local solver and verifier and records the question, formula span, and computation. The label covers those calculations only. Existing disclosure limits still apply during active exercises or when you request hints only.
-
-Zhihu search returns bounded summaries. Automated semantic review can be wrong: a valid citation is not a mathematical proof, and an excerpt does not represent a complete article or the community. Check the original when formulas, context, or qualifications are missing.
-
-Multi-turn comparisons and resource recommendations can still omit requested points or selection reasons. The complete answer-quality gate has not passed. This source preview supports testing and feedback; check learning conclusions against the original material and your own work.
-
-## Choose the next resource
-
-The initial catalog contains **23 AI-reviewed excerpts** covering fractions, equations, linear algebra, probability, and calculus. Each retains its title, author, original link, topics, recommendation reason, review scope, and available time metadata. The provider timestamp is labeled “published or updated”; an unknown original publication date stays unknown.
-
-“Reviewed excerpt” means a scoped initial review of the returned text, not human expert review or full-article certification. Expand **View evidence and review scope** to inspect it. Fresh search results are separately labeled **New discovery · unread**.
-
-Recommendations reuse recorded attempts and prerequisite relationships: read an explanation, try a check, revisit a prerequisite, or continue. Reading, revealed answers, and assisted work do not count as independent mastery. Missing evidence stays unknown, including for goals such as calculus or machine learning that extend beyond the current skill assessment.
-
-## Discover resources at startup
-
-In **Knowledge sources**, select a learning goal and enable **Discover Zhihu resources in the background at startup**. External discovery is off by default; local resources and suggestions remain available.
-
-When enabled, discovery runs asynchronously without holding up the workbench. Matching learning states reuse a six-hour cache, with at most two external discovery starts per owner per day. Duplicate starts share work. Failures and timeouts retain usable local resources; disabling the setting stops new searches.
-
-Changing goals, excluding evidence, or deleting learning history invalidates old suggestions. Late results from canceled work cannot restore them. Accounts have separate recommendations, caches, and discovery budgets.
-
-## Record your understanding
-
-The existing `/math-tutor/explore` reading workbench keeps questions, learning goals, and reflections. Optional AI selects registered excerpts and reading focuses; the application supplies fixed reading questions.
-
-There are **16 bilingual fixed understanding checks**. Within that scope, actual responses and assistance states inform a plan of up to three steps; other topics keep open questions. One correct attempt does not establish long-term mastery or transfer.
-
-## What is sent to Zhihu
-
-| Action | Outgoing content |
-|---|---|
-| Online chat | Public topics for search; your current question, relevant preceding online question, and excerpts for Zhida |
-| Background discovery | Public knowledge topics, without attempt details, learning profiles, or private documents |
-| Reading workbench | The search question; optional AI organization also sends the learning goal and registered excerpts |
-
-Only the backend uses the credential. Desktop uses the OS credential store; development mode may keep it only in memory, as shown in settings. Deleting an app-saved credential does not remove one supplied by the server environment.
-
-## Design references
-
-Attribution, semantic support, and mathematical correctness are treated separately, informed by [ALCE](https://aclanthology.org/2023.emnlp-main.398/), [RARR](https://aclanthology.org/2023.acl-long.910/), and [Sufficient Context](https://arxiv.org/abs/2411.06037). Learning actions reuse evidence and prerequisite relationships, informed by the problem studied in [KnowLP](https://arxiv.org/abs/2506.22303). Engineering tests do not establish real-world learning effectiveness.
+Startup discovery is optional in Knowledge sources. With the network offline, saved materials and learning records remain available. The reading workbench also lets you save a reflection and check your understanding on the topics it covers.

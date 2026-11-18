@@ -171,31 +171,21 @@ class TutorIntentDispatcher:
             if session
             else None
         )
-        learner_settings = getattr(self, "learner_settings", None)
-        if (
-            not verified
-            and learner_settings is not None
-            and learner_settings.current().stage == "high"
-            and self.chat_responder is not None
-            and getattr(self.chat_responder, "is_configured", True)
-        ):
-            from mathtutor.application.message_intent import is_concrete_math_input
+        if session and not verified:
+            from mathtutor.application.discussion_notebook import FOLLOWUP, public_discussion, starts_new_question
+            from mathtutor.application.message_intent import is_concrete_math_input, _requested_action
 
-            if is_concrete_math_input(text):
-                # Pasted high-school homework starts an agent-led lesson.
-                # Explicit submit_problem/practice commands keep the verified
-                # exercise protocol and its independent evidence accounting.
-                await self.chat_message(
-                    session,
-                    text,
-                    request.conversation_messages,
-                    stream,
-                    owner_id=request.owner.student_id,
-                    client_session_id=request.session_id,
-                    unstructured_math=True,
-                    agent_discussion=True,
-                )
-                return
+            notebook = await self.sessions.teaching.load(request.owner.student_id, session.cycle.cycle_id)
+            if public_discussion(notebook) and notebook.get("capability_boundary") and not starts_new_question(text):
+                action = _requested_action(text)
+                if action == "request_solution":
+                    await self.dialogue(stream, session, "原题尚无可核验的完整解答。可以点击解释讨论概念，或选择一题能够逐步核验的练习。", "ASK_STUDENT")
+                    return
+                if action or FOLLOWUP.match(text.strip()) or is_concrete_math_input(text):
+                    await self.chat_message(session, text, request.conversation_messages, stream,
+                        owner_id=request.owner.student_id, client_session_id=request.session_id,
+                        unstructured_math=True, follow_up=True, agent_discussion=True)
+                    return
         if not verified and re.fullmatch(r"[+-]?\d+(?:\.\d+)?", text.strip()):
             await self.dialogue(
                 stream,
@@ -406,6 +396,9 @@ class TutorIntentDispatcher:
             session.state.value if session is not None else "",
         )
         if routed.intent is ConversationIntent.GENERAL_CHAT:
+            from mathtutor.application.math_operation_scope import requires_unstructured_math
+            from mathtutor.application.message_intent import _command_quotation
+
             await self.chat_message(
                 session,
                 text,
@@ -413,6 +406,8 @@ class TutorIntentDispatcher:
                 stream,
                 owner_id=request.owner.student_id,
                 client_session_id=request.session_id,
+                unstructured_math=not _command_quotation(text) and bool(
+                    re.search(r"[=+*/^√∫]|\\(?:frac|sqrt)\b", text) or requires_unstructured_math(text)),
             )
             return
         if routed.intent is ConversationIntent.CLARIFY_INTENT:
@@ -1004,6 +999,7 @@ class TutorIntentDispatcher:
             )
         if turn is not None:
             from mathtutor.application.network_chat import merge_continuation_context
+            from mathtutor.application.offline_foundations import offline_concept_reply
 
             merge_continuation_context(turn,
                 {
@@ -1018,6 +1014,10 @@ class TutorIntentDispatcher:
                     == "CONTINUATION_BOUNDARY_UNVERIFIED",
                 },
             )
+            if using_fallback and not recovery:
+                local = offline_concept_reply(text)
+                if local is not None and local.text == raw_visible:
+                    merge_continuation_context(turn, {"offline_foundations": local.receipt()})
         await stream.emit(
             MathTutorEvent(
                 type=MathTutorEventType.CONTENT,

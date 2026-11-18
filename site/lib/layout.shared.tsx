@@ -30,9 +30,7 @@ function navTitle(copy: Messages) {
     <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold">
       <BrandMark className="size-8 shrink-0" />
       <span>MathTutor</span>
-      <span className="text-fd-muted-foreground font-normal hidden sm:inline">
-        {copy.localeName === '简体中文' ? '数迹' : ''}
-      </span>
+      {copy.localeName === '简体中文' && <span className="hidden font-normal text-fd-muted-foreground sm:inline">数迹</span>}
     </span>
   );
 }
@@ -48,7 +46,6 @@ export function baseOptions(locale: string): BaseLayoutProps {
     links: [
       { type: 'main', text: copy.nav.features, url: `/${locale}/features` },
       { type: 'main', text: copy.nav.download, url: `/${locale}/download` },
-      { type: 'main', text: copy.nav.architecture, url: `/${locale}/architecture` },
       { type: 'main', text: copy.nav.roadmap, url: `/${locale}/roadmap` },
       { type: 'main', text: copy.nav.docs, url: `/${locale}/docs` },
     ],

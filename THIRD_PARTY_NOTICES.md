@@ -1,5 +1,12 @@
 # Third-party notices
 
+## Zhihu reading materials
+
+MathTutor credits Zhihu authors on its reading cards and links to their original
+answers and articles. The bundled catalog records which passage was reviewed and
+what that passage supports. Live search results identify the excerpt returned by
+Zhihu for that inquiry.
+
 ## CSSwitch
 
 - Project: [SuperJJ007/CSSwitch](https://github.com/SuperJJ007/CSSwitch)

@@ -78,6 +78,9 @@ def test_real_tutor_tool_path_returns_derivative_receipt(tmp_path):
     with client_at(tmp_path / "calculus.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         bind(replies, requests)
         frames = send(ws, "send_message", "derivative-check", {"text": "如何对 (2*x-3)^3 求导？"})
+        assert not requests
+        assert any("已核验导数" in frame["payload"].get("final_text", "") for frame in frames)
+        frames = send(ws, "request_explanation", "explain-derivative", {})
     receipt = json.loads(next(message for message in requests[1]["messages"]
                               if message["role"] == "tool")["content"])
     assert receipt == {"status": "refuted", "signals": ["polynomial_derivative_mismatch"]}

@@ -25,6 +25,35 @@ from mathtutor.domain.solution import MathSolutionCandidate, VerifiedSolutionRef
 from mathtutor.domain.tutoring import TutorAction
 from mathtutor.pedagogy.exceptions import DisclosurePolicyViolation
 
+_RELATIONS = {"eq": "=", "gt": ">", "ge": r"\ge", "lt": "<", "le": r"\le"}
+_FLIP = {"gt": "lt", "lt": "gt", "ge": "le", "le": "ge"}
+
+
+def _disclosure_steps(candidate: MathSolutionCandidate) -> tuple[dict[str, Any], ...]:
+    steps = tuple({**step, "display_relation": "eq"} for step in candidate.steps)
+    if candidate.final_answer.get("kind") != "inequality":
+        return steps
+    from mathtutor.solving.strategies import _common as c
+
+    relation = candidate.final_answer.get("relation")
+    if relation not in _FLIP:
+        raise DisclosurePolicyViolation("不等式步骤缺少已核验的方向")
+    for step in steps:
+        try:
+            lhs = c.coeffs_from_dict(step["after"]["lhs"])
+            rhs = c.coeffs_from_dict(step["after"]["rhs"])
+            coefficient = lhs.get(1, 0) - rhs.get(1, 0)
+            if coefficient == 0:
+                raise ValueError("missing linear coefficient")
+            step["display_relation"] = relation if coefficient > 0 else _FLIP[relation]
+            step["label"] = str(step.get("label") or "整理不等式").replace("等号", "不等号")
+            transform = step["transform"]
+            if transform.get("kind") == "divide_all" and c.frac_from_dict(transform["value"]) < 0:
+                step["label"] += "（除以负数，不等号反向）"
+        except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+            raise DisclosurePolicyViolation("不等式步骤不能可靠投影") from exc
+    return steps
+
 
 def _fraction_latex(payload: dict[str, Any]) -> str:
     numerator = int(payload["n"])
@@ -52,7 +81,8 @@ def _display_step(step: dict[str, Any], index: int, variable: str) -> dict[str, 
             after = step["after"]
             lhs = n.poly_to_latex(c.coeffs_from_dict(after["lhs"]), variable)
             rhs = n.poly_to_latex(c.coeffs_from_dict(after["rhs"]), variable)
-            latex = f"{lhs} = {rhs}"
+            relation = _RELATIONS[step.get("display_relation", "eq")]
+            latex = f"{lhs} {relation} {rhs}"
         elif "expr" in step and "coeffs" in step:
             latex = n.poly_to_latex(c.coeffs_from_dict(step["coeffs"]), variable)
         elif "discriminant" in step:
@@ -90,7 +120,7 @@ def display_solution(candidate: MathSolutionCandidate) -> dict[str, Any]:
         variable = prefix if prefix.isidentifier() else "x"
     return {
         "steps": [_display_step(dict(step), index, variable)
-                  for index, step in enumerate(candidate.steps, 1)],
+                  for index, step in enumerate(_disclosure_steps(candidate), 1)],
         "final_answer": _display_final_answer(final_answer),
     }
 
@@ -148,7 +178,7 @@ class SolutionDisclosureProjector:
                 f"level {level} requires a verified solution reference"
             )
 
-        steps = candidate.steps
+        steps = _disclosure_steps(candidate)
 
         if level == 3:
             index = min(action.target_step_index or 0, max(len(steps) - 1, 0))

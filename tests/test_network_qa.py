@@ -321,7 +321,7 @@ async def test_planner_receipt_accepts_actual_shared_catalog_contract():
         return plan_learning_actions([], goal, catalog, language=language)
     qa = NetworkQA(Client(), InProcessVerificationBackend(), planner=planner)
     rendered, receipt = await qa._learning_plan("owner", choose_network_task("推荐连续与可导的入门资料"))
-    assert receipt["planner_policy"] == "learning-actions-v1"
+    assert receipt["planner_policy"] == "learning-actions-v3"
     assert receipt["evidence_ids"] == [] and receipt["resources"]
     assert len(receipt["resources"]) <= 3
     assert receipt["catalog_version"] == catalog["version"]
@@ -389,6 +389,27 @@ async def test_valid_review_cannot_override_forged_source_or_quote(evidence):
     shown, _ = await service().gate(AnswerDraft(claims=[claim(spans[0], evidence=evidence)]),
         AnswerReview(claims=[review()]), spans, references)
     assert not shown
+
+
+@pytest.mark.parametrize(("quote", "statement", "supported"), [
+    ("先去括号，再合并同类项。", "去括号与合并同类项的先后顺序是固定的。", False),
+    ("先去括号，再合并同类项。", "可以先去括号，再合并同类项。", True),
+    ("这两步没有固定顺序。", "这两步的顺序是固定的。", False),
+    ("First expand, then collect terms.", "You must first expand before collecting terms.", False),
+    ("There is no fixed order.", "The order is fixed.", False),
+    ("在这个算法中必须先归一化。", "在这个算法中必须先归一化。", True),
+])
+async def test_attributed_sequence_cannot_become_a_mandatory_order(quote, statement, supported):
+    _, _, _, spans, references = setup(quote)
+    draft = AnswerDraft(claims=[
+        claim(spans[0], text=statement),
+        claim(spans[0], claim_id="b", text="A later conclusion.", depends_on=["a"]),
+    ])
+    _, audit = await service().gate(draft, AnswerReview(claims=[review(), review("b")]), spans, references)
+    assert [row["accepted"] for row in audit] == [supported, supported]
+    if not supported:
+        assert "stronger_order_than_source" in audit[0]["reasons"]
+        assert "invalid_dependency" in audit[1]["reasons"]
 
 
 async def test_failed_premise_invalidates_transitive_consequences_without_dropping_independent_part():
@@ -534,3 +555,11 @@ async def test_completion_rejects_oversized_reply():
         200, json={"choices": [{"message": {"content": "x" * 24001}}]})))
     with pytest.raises(ZhihuError):
         await client.complete("owner", system="data", payload={})
+
+
+def test_display_resolves_prose_references_without_rewriting_math_variables():
+    from mathtutor.application.network_qa import _reader_claim_text
+
+    assert _reader_claim_text("把c1的通分思路代入", ["c1"]) == "把前文的通分思路代入"
+    assert _reader_claim_text("Using claim c1: c1=3", ["c1"]) == "Using the earlier explanation: c1=3"
+    assert _reader_claim_text("c1 + c2", ["c1", "c2"]) == "c1 + c2"

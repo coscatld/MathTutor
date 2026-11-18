@@ -48,7 +48,7 @@ def test_formula_checks_are_counted_in_the_trace(tmp_path):
     db = tmp_path / "trace.db"
     with client_at(db) as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         get_product_state().controller.chat_responder = WrongChat()
-        send(ws, "send_message", "chat", {"text": "3 加 4 等于几？"})
+        send(ws, "send_message", "chat", {"text": "请讲解加法交换律，用3+4举例。"})
     details = json.loads(rows(db)[-1]["details"])
     assert details["formulas"] == {"verified": 0, "unchecked": 0, "refuted": 1}
 

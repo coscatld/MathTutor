@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import {
-  ArrowRight,
   BookOpen,
   Download,
   Github,
@@ -36,24 +35,17 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--mt-muted)]">{copy.hero.subtitle}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href={localePath(locale, '/docs/user/quick-start')}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--mt-blue)] px-5 text-[var(--mt-on-blue)]"
-              >
-                {copy.hero.getStarted}
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-              <Link
-                href={localePath(locale, '/docs')}
-                className="inline-flex min-h-11 items-center rounded-full border border-[var(--mt-border)] bg-[var(--mt-card)] px-5"
-              >
-                {copy.hero.documentation}
-              </Link>
-              <Link
                 href={localePath(locale, '/download')}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--mt-border)] px-5"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--mt-blue)] px-5 text-[var(--mt-on-blue)]"
               >
                 <Download className="size-4" aria-hidden="true" />
                 {copy.hero.download}
+              </Link>
+              <Link
+                href={localePath(locale, '/docs/user/quick-start')}
+                className="inline-flex min-h-11 items-center rounded-full border border-[var(--mt-border)] bg-[var(--mt-card)] px-5"
+              >
+                {copy.hero.getStarted}
               </Link>
               <a
                 href="https://github.com/coscatld/MathTutor"

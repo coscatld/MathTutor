@@ -5,6 +5,11 @@ name: Windows installer (unsigned)
 # Public signed packaging stays in release-packaging.yml.
 on:
   workflow_dispatch:
+    inputs:
+      verify_zhihu:
+        description: Test live Zhihu sources in the installed app
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -21,7 +26,7 @@ jobs:
           python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       - run: npm ci --prefix web
       - run: npm ci --prefix desktop
       - name: Prepare relocatable Windows runtime
@@ -45,11 +50,81 @@ jobs:
           name: MathTutor-windows-startup-acceptance
           if-no-files-found: warn
           path: desktop/dist/startup-acceptance/
+      - name: Prepare isolated installed-product QA driver
+        shell: pwsh
+        run: |
+          $QaTools = Join-Path $env:RUNNER_TEMP 'mathtutor-product-qa-tools'
+          npm install --prefix $QaTools --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+          if ($LASTEXITCODE -ne 0) { throw "Playwright QA driver installation failed." }
+          "MATHTUTOR_QA_PLAYWRIGHT=$QaTools/node_modules/playwright/index.mjs" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Verify installed product UI, mathematics and lifecycle
+        shell: pwsh
+        timeout-minutes: 45
+        run: |
+          $Installer = Get-ChildItem desktop/dist/MathTutor-*-win-x64.exe | Select-Object -First 1
+          python desktop/scripts/verify-installed-product.py --installer $Installer.FullName --output desktop/dist/product-acceptance --playwright-module $env:MATHTUTOR_QA_PLAYWRIGHT --timeout 2400
+          if ($LASTEXITCODE -ne 0) { throw "Installed product automatic acceptance failed; inspect product-acceptance artifacts." }
+      - name: Upload installed product acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MathTutor-windows-product-acceptance
+          if-no-files-found: warn
+          path: desktop/dist/product-acceptance/
+      - name: Verify installed product failure handling
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        timeout-minutes: 20
+        run: |
+          $Installer = Get-ChildItem desktop/dist/MathTutor-*-win-x64.exe | Select-Object -First 1
+          python desktop/scripts/verify-installed-product.py --installer $Installer.FullName --output desktop/dist/fault-acceptance --playwright-module $env:MATHTUTOR_QA_PLAYWRIGHT --driver desktop/scripts/installed-fault-acceptance.mjs --result-file installed-fault-acceptance.json --timeout 1100
+          if ($LASTEXITCODE -ne 0) { throw "Installed failure-handling acceptance failed; inspect fault-acceptance artifacts." }
+      - name: Upload installed failure-handling evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MathTutor-windows-fault-acceptance
+          if-no-files-found: warn
+          path: desktop/dist/fault-acceptance/
+      - name: Report automatic results and pending independent review
+        if: always()
+        shell: pwsh
+        run: |
+          @'
+          import json
+          import os
+          from pathlib import Path
+
+          rows = []
+          for label, folder, filename in [
+              ('Product UI', 'product-acceptance', 'installed-product-acceptance.json'),
+              ('Injected failures', 'fault-acceptance', 'installed-fault-acceptance.json'),
+          ]:
+              path = Path('desktop/dist') / folder / filename
+              if not path.is_file():
+                  rows.append(f'| {label} | not completed | — | — | — |')
+                  print(f'::warning title=Installed acceptance incomplete::{label} did not produce a final report.')
+                  continue
+              result = json.loads(path.read_text(encoding='utf-8'))
+              scope = result['automatic_scope']
+              pending = [case['id'] for case in result['results'] if case['status'] == 'needs_review']
+              rows.append(f"| {label} | {scope['planned']} | {scope['passed']} | {scope['failed']} | {', '.join(pending) or 'none in this scope'} |")
+              if pending:
+                  print('::warning title=Independent review required::These installed cases still need semantic review: ' + ', '.join(pending))
+          summary = ('## Installed application checks\n\n'
+                     '| Scope | Planned | Automatic pass | Fail | Independent review pending |\n'
+                     '|---|---:|---:|---:|---|\n' + '\n'.join(rows) +
+                     '\n\nA successful automation job is not full product acceptance. Inspect the uploaded UI, protocol and database evidence; live-provider and semantic checks are recorded separately.\n')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as stream:
+              stream.write(summary)
+          '@ | python -
       - name: Checksums
+        if: ${{ !cancelled() }}
         shell: pwsh
         working-directory: desktop/dist
         run: Get-FileHash *.exe, *.blockmap -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)" } | Tee-Object SHA256SUMS-windows.txt
       - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
           name: MathTutor-windows
           if-no-files-found: error
@@ -57,3 +132,48 @@ jobs:
             desktop/dist/*.exe
             desktop/dist/*.exe.blockmap
             desktop/dist/SHA256SUMS-windows.txt
+
+  zhihu:
+    needs: windows
+    if: inputs.verify_zhihu
+    runs-on: windows-latest
+    timeout-minutes: 20
+    environment: installed-zhihu-acceptance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: MathTutor-windows
+          path: candidate-installer
+      - name: Prepare the UI driver
+        shell: pwsh
+        run: |
+          $qa = Join-Path $env:RUNNER_TEMP 'mathtutor-installed-zhihu'
+          npm install --prefix $qa --no-save --ignore-scripts playwright@1.62.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PLAYWRIGHT_MODULE=$(Join-Path $qa 'node_modules/playwright/index.mjs')" >> $env:GITHUB_ENV
+      - name: Check source search, citations and original links
+        shell: pwsh
+        env:
+          MATHTUTOR_ZHIHU_ACCESS_SECRET: ${{ secrets.MATHTUTOR_ZHIHU_ACCESS_SECRET }}
+        run: |
+          $installer = Get-ChildItem candidate-installer/*.exe -ErrorAction Stop
+          if (@($installer).Count -ne 1) { throw 'Expected one previously tested installer.' }
+          python desktop/scripts/verify-installed-product.py --installer $installer.FullName --output zhihu-results --playwright-module $env:PLAYWRIGHT_MODULE --driver desktop/scripts/installed-zhihu-acceptance.mjs --result-file installed-zhihu-acceptance.json --timeout 650
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MathTutor-windows-zhihu-acceptance
+          if-no-files-found: warn
+          retention-days: 5
+          path: |
+            zhihu-results/installed-zhihu-acceptance.json
+            zhihu-results/installation-driver.json
+            zhihu-results/source-comparison.png

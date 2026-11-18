@@ -14,7 +14,7 @@ def starts_new_question(text: str) -> bool:
     if (re.search(r"为什么|为何|看不懂|不明白|怎么想到|怎么算", text)
             and not re.match(r"^(?:换题|新题|下一题|已知|若)", text)):
         return False
-    return bool(re.match(r"^(?:换题[：:]?|新题[：:]?|下一题[：:]?|已知|若|求|计算|化简|证明|解(?:方程|不等式)|函数|数列)", text)
+    return bool(re.match(r"^(?:换题[：:]?|新题[：:]?|下一题[：:]?|已知|若|求|计算|化简|证明|解(?:方程|不等式)|函数|数列|(?:solve|calculate|differentiate|find)\b)", text, re.I)
                 or re.search(r"_{3,}|（\s*）|\(\s*\)", text))
 
 
@@ -29,5 +29,10 @@ def public_discussion(context):
 def model_context(context):
     if not public_discussion(context):
         return None
-    return {"original_question": context["display_text"], "student_focus": context.get("student_focus", ""),
+    result = {"original_question": context["display_text"], "student_focus": context.get("student_focus", ""),
             "recent_explanations": context.get("discussed", []), "assessment_status": "not_machine_verified"}
+    if context.get("capability_boundary"):
+        result["capability_boundary"] = context["capability_boundary"]
+    if context.get("math_receipt"):
+        result["math_receipt"] = context["math_receipt"]
+    return result

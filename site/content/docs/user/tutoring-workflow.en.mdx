@@ -3,20 +3,10 @@ title: Math Tutoring Workflow
 description: How independent attempts, graded hints, disclosure, and transfer practice connect.
 ---
 
-Structured tutoring is driven by a state machine, not by a chat model deciding to reveal the answer.
+1. Enter a problem and try a first step yourself. Add missing information if the tutor asks for it.
+2. Request a hint, an explanation or an example when you need it. You can view the solution after a hint on an unfinished problem.
+3. Accept a related exercise to check whether you can solve it independently. Your profile records how much help you used on each attempt.
 
-## Student-visible loop
+## Concepts and graphs
 
-1. Submit a problem. Unsupported families become an unsupported state instead of a fake proof.
-2. Attempt it independently.
-3. Request a hint, explanation, or example. L0–L5 disclosure is clipped by `SolutionDisclosureProjector`.
-4. Unsolved items require seeing a hint before the full answer.
-5. A practice offer may follow. Released exercises pass the parse–solve–verify gate.
-
-## Free chat
-
-High-school paste-and-discuss can follow up and draw, but **free tutoring does not write independent-attempt mastery**. Viewing that item’s graph before answering counts as assisted.
-
-## Graphs
-
-Requests such as “draw y = x^2 - 2x - 3” compile through a whitelist parser. Coordinates are computed by the app. Model illustrations must call `draw_scene`.
+Ask why moving a term across an equation changes its sign to discuss a concept. Ask to draw y = x² − 2x − 3 to see the graph and its coordinates. Using hints or a graph for your current problem is recorded as assistance.

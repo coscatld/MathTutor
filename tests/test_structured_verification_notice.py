@@ -15,7 +15,7 @@ from test_tutor_p0 import client_at, send, summary
 
 
 NOTICE = "本段讲解未经逐句数学核验。"
-REQUEST = "Check the student solution.\nProblem: A box contains 9 red and 8 blue balls. How many balls?\nStudent: 9+8=17.\nIs the answer incorrect? Write only Yes or No."
+REQUEST = "Is multiplication the same operation as addition? Write only Yes or No."
 
 
 class FixedResponse:

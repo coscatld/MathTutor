@@ -6,11 +6,11 @@ Anything else returns None, and the existing recovery scaffold stays in charge.
 from __future__ import annotations
 
 import re
+from math import isqrt
 
 from mathtutor.solving import nodes as n
 from mathtutor.solving.parser import ParsedProblem, ParseOutcome, normalize_math_problem_text
 
-_HYPOTENUSE = {(3, 4): 5, (4, 3): 5, (6, 8): 10, (8, 6): 10, (5, 12): 13, (12, 5): 13}
 _RELATIONS = (
     (">=", "ge", r"\ge"),
     ("<=", "le", r"\le"),
@@ -77,36 +77,48 @@ def parse_inequality_text(text: str, parse_core) -> ParseOutcome | None:
 
 
 def _compile_template(text: str):
-    found = re.search(r"一个数的(\d+)倍加(\d+)等于(\d+)", text)
+    text = re.sub(r"\s+", "", text).strip("。？?")
+    from mathtutor.solving.elementary_geometry import rectangle_area_task
+    rectangle = rectangle_area_task(text)
+    if rectangle and rectangle.expression():
+        return rectangle.expression(), "arithmetic", None
+    found = re.fullmatch(r"(?:求)?一个数的(\d+)倍加(\d+)等于(\d+)(?:[，,]?求这个数)?", text)
     if found:
         return f"{found.group(1)}*x+{found.group(2)}={found.group(3)}", "linear", None
-    found = re.search(r"一个数的(\d+)倍减(\d+)等于(\d+)", text)
+    found = re.fullmatch(r"(?:求)?一个数的(\d+)倍减(\d+)等于(\d+)(?:[，,]?求这个数)?", text)
     if found:
         return f"{found.group(1)}*x-{found.group(2)}={found.group(3)}", "linear", None
-    found = re.search(r"买了?(\d+)支.*?每支(\d+)元.*?(?:一共|共)", text)
-    if found and re.search(r"多少|几", text):
+    found = re.fullmatch(r"[\u4e00-\u9fff]{0,6}买了?(\d+)支[\u4e00-\u9fff]{1,8}[，,]?每支(\d+)元[，,]?(?:一共|共)(?:花)?(?:多少|几)(?:钱|元)", text)
+    if found:
         return f"{found.group(1)}*{found.group(2)}", "arithmetic", None
-    found = re.search(r"买了?(\d+)支.*?又花了?(\d+)元.*?(?:一共|共)(?:花了?)?(\d+)元", text)
+    found = re.fullmatch(r"[\u4e00-\u9fff]{0,6}买了?(\d+)支[\u4e00-\u9fff]{1,8}[，,]?又花了?(\d+)元[，,]?(?:一共|共)(?:花了?)?(\d+)元(?:[，,]?每支(?:多少|几)元)?", text)
     if found:
         return f"{found.group(1)}*x+{found.group(2)}={found.group(3)}", "linear", None
-    found = re.search(r"三角形.*?(\d+)\s*度.*?(\d+)\s*度.*?第三", text)
+    found = re.fullmatch(r"(?:求)?三角形(?:的)?两个内角(?:是|为)?(\d+)度(?:和|、)(\d+)度(?:时)?(?:的)?第三个角(?:是多少)?", text)
     if found:
+        if not 0 < int(found[1]) + int(found[2]) < 180 or min(int(found[1]), int(found[2])) <= 0:
+            return None
         return f"180-{found.group(1)}-{found.group(2)}", "arithmetic", None
-    found = re.search(r"长方形.*?长(?:为|是)?(\d+).*?宽(?:为|是)?(\d+).*?(周长|面积)", text)
+    found = re.fullmatch(r"(?:求)?长方形(?:的)?长(?:为|是)?(\d+)[，,]?宽(?:为|是)?(\d+)[，,]?(?:的|求)?(周长|面积)(?:是多少)?", text)
     if found:
         left, right, kind = found.groups()
+        if min(int(left), int(right)) <= 0:
+            return None
         expression = f"2*({left}+{right})" if kind == "周长" else f"{left}*{right}"
         return expression, "arithmetic", None
-    found = re.search(r"正方形.*?边长(?:为|是)?(\d+).*?(周长|面积)", text)
+    found = re.fullmatch(r"(?:求)?正方形(?:的)?边长(?:为|是)?(\d+)[，,]?(?:的|求)?(周长|面积)(?:是多少)?", text)
     if found:
         side, kind = found.groups()
+        if int(side) <= 0:
+            return None
         expression = f"4*{side}" if kind == "周长" else f"{side}*{side}"
         return expression, "arithmetic", None
-    found = re.search(r"直角边.*?(\d+).*?(\d+).*?斜边", text)
+    found = re.fullmatch(r"(?:求)?(?:直角三角形)?(?:的)?(?:两条)?直角边(?:分别)?(?:是|为)?(\d+)(?:和|、)(\d+)[，,]?(?:求)?斜边(?:长)?", text)
     if found:
         pair = (int(found.group(1)), int(found.group(2)))
-        length = _HYPOTENUSE.get(pair)
-        if length is None:
+        square = pair[0] ** 2 + pair[1] ** 2
+        length = isqrt(square)
+        if min(pair) <= 0 or length * length != square:
             return None
         return str(length), "arithmetic", rf"\sqrt{{{pair[0]}^{{2}}+{pair[1]}^{{2}}}}"
     return None

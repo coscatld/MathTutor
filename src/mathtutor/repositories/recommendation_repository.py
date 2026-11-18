@@ -61,6 +61,16 @@ class RecommendationRepository:
                     status="idle", lease_token="", lease_key="", lease_until=0))
             return await self.get(owner, conn=conn)
 
+    async def select_goal(self, owner, *, goal, generation):
+        """A chat plan may change its goal, never a newer setting or consent flag."""
+        async with self.engine.begin() as conn:
+            await conn.execute(insert(table).values(**defaults(owner)).on_conflict_do_nothing())
+            await conn.execute(table.update().where(table.c.student_id == str(owner),
+                table.c.generation == generation, table.c.goal != goal).values(
+                    goal=goal, generation=table.c.generation + 1, cache_key="", payload={}, updated_at=0,
+                    expires_at=0, status="idle", lease_token="", lease_key="", lease_until=0))
+            return await self.get(owner, conn=conn)
+
     async def reserve(self, owner, *, generation, cache_key, now):
         day = datetime.fromtimestamp(now, UTC).date().isoformat()
         async with self.engine.begin() as conn:

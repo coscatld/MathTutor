@@ -55,16 +55,20 @@ _WRAPPERS = (
 )
 
 _INFIX_WORDS = (
-    (re.compile(r"(?<=[\w)\]])\s*乘以?\s*(?=[\w(\\])"), "*"),
-    (re.compile(r"(?<=[\w)\]])\s*除以\s*(?=[\w(\\])"), "/"),
-    (re.compile(r"(?<=[\w)\]])\s*加\s*(?=[\w(\\])"), "+"),
-    (re.compile(r"(?<=[\w)\]])\s*减\s*(?=[\w(\\])"), "-"),
+    (re.compile(r"(?<=[0-9A-Za-z)\]])\s*乘以?\s*(?=[0-9A-Za-z(\\])"), "*"),
+    (re.compile(r"(?<=[0-9A-Za-z)\]])\s*除以\s*(?=[0-9A-Za-z(\\])"), "/"),
+    (re.compile(r"(?<=[0-9A-Za-z)\]])\s*加\s*(?=[0-9A-Za-z(\\])"), "+"),
+    (re.compile(r"(?<=[0-9A-Za-z)\]])\s*减\s*(?=[0-9A-Za-z(\\])"), "-"),
 )
 
 _TRAILING_QUESTION = re.compile(r"[?？]+$")
 _TRAILING_EQUALS = re.compile(r"=+\s*$")
+_ARITHMETIC_QUESTION = re.compile(r"^([0-9.\s+*/^()−-]+)(?:等于几|等于多少|是多少|结果是多少)$")
+_SUPERSCRIPT = re.compile(r"(?<=[0-9A-Za-z)）])[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+")
+_SUPERSCRIPT_DIGITS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻", "0123456789+-")
 _LEADING_TASK = re.compile(
-    r"^(?:请|帮我)?(?:计算|求解|解方程|化简|因式分解|求根(?!号)|求值|求极限|证明|解不等式|展开|求(?!根号))\s*"
+    r"^(?:(?:请|帮我)?(?:计算|求解|解方程|解不等式|化简|因式分解|求根(?!号)|求值|求极限|证明|展开|求(?!根号)|解(?=\s*[0-9A-Za-z(\\]))|"
+    r"(?:please\s+)?(?:solve|calculate|compute|evaluate|simplify|expand|factor)(?:\s+(?:the\s+)?(?:equation|inequality|expression))?\b)\s*", re.I
 )
 
 
@@ -78,8 +82,12 @@ class NormalizedInput:
 def normalize_input(text: str) -> NormalizedInput:
     """Return a losslessly rewritten form of ``text`` plus the repairs applied."""
     raw = str(text or "")
-    current = unicodedata.normalize("NFKC", raw).strip()
+    powers = _SUPERSCRIPT.sub(lambda m: "^(" + m.group().translate(_SUPERSCRIPT_DIGITS) + ")", raw)
+    current = "".join(character if "\u2080" <= character <= "\u209f" or character in "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"
+                      else unicodedata.normalize("NFKC", character) for character in powers).strip()
     repairs: list[str] = []
+    if powers != raw:
+        repairs.append("superscript-power")
     if current != raw.strip():
         repairs.append("unicode-width")
 
@@ -106,7 +114,12 @@ def normalize_input(text: str) -> NormalizedInput:
     if stripped != current:
         repairs.append("trailing-question")
         current = stripped
-    stripped = _TRAILING_EQUALS.sub("", current).strip()
+    arithmetic_question = _ARITHMETIC_QUESTION.fullmatch(current)
+    if arithmetic_question:
+        current = arithmetic_question[1].strip()
+        repairs.append("arithmetic-question")
+    stripped = (_TRAILING_EQUALS.sub("", current).strip()
+                if not re.search(r"[A-Za-z]", re.sub(r"\\(?:frac|sqrt)\b", "", current)) else current)
     if stripped != current:
         repairs.append("trailing-equals")
         current = stripped

@@ -144,3 +144,44 @@ def check_polynomial_derivative(expression: str, answer: str) -> tuple[str, str]
     if derivative == proposed:
         return "verified", "exact_polynomial_derivative"
     return "refuted", "polynomial_derivative_mismatch"
+
+
+def derivative_question_receipt(text: str) -> dict | None:
+    """Recognize a complete derivative request and reuse the exact coefficient rule."""
+    from mathtutor.application.input_normalizer import normalize_input
+    from mathtutor.solving.nodes import poly_to_latex
+
+    source = normalize_input(text).normalized.strip().rstrip("?.。？")
+    request = _REQUEST.fullmatch(source)
+    if request:
+        expression, variable = request.groups()
+    else:
+        patterns = (
+            r"(?:How do I\s+)?differentiate\s+(.+)",
+            r"Find the derivative of\s+(.+)",
+            r"(?:请)?(?:如何)?对\s*(.+?)\s*求导",
+            r"(.+?)\s*(?:的导数|求导)",
+            r"(?:对)?(.+?)\s*求导数",
+        )
+        match = next((m for pattern in patterns if (m := re.fullmatch(pattern, source, re.I))), None)
+        if match is None:
+            return None
+        expression = match[1].strip()
+        variables = set(re.findall(r"[A-Za-z]", expression))
+        if len(variables) != 1:
+            return None
+        variable = variables.pop()
+    try:
+        coefficients = _parse_polynomial(expression, variable)
+        derivative = _bounded({degree - 1: degree * coefficient
+                               for degree, coefficient in coefficients.items() if degree})
+        answer = "+".join(f"({value})*{variable}^{degree}" if degree else f"({value})"
+                          for degree, value in sorted(derivative.items())) or "0"
+        if check_polynomial_derivative(f"derivative({expression},{variable})", answer) != (
+                "verified", "exact_polynomial_derivative"):
+            return None
+    except (UnsupportedCalculus, ArithmeticError, RecursionError, ValueError):
+        return None
+    return {"status": "verified", "scope": "polynomial_derivative", "expression": expression,
+            "variable": variable, "answer": answer, "display_latex": poly_to_latex(derivative, variable),
+            "signal": "exact_polynomial_derivative"}

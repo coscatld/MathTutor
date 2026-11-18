@@ -4,13 +4,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import time
 from contextlib import nullcontext
 from datetime import UTC, datetime
 
 from mathtutor.application.exploration_evidence import build_source_snapshots
 from mathtutor.application.learning_actions import (
-    POLICY, goal_label, goal_options, load_catalog, plan_learning_actions, validate_goal,
+    POLICY, goal_label, goal_options, load_catalog, plan_learning_actions, requested_goal, validate_goal,
 )
 from mathtutor.infrastructure.zhihu import ZhihuError
 from mathtutor.learning.skill_graph import SKILLS
@@ -52,9 +53,26 @@ class RecommendationsService:
         return hashlib.sha256(json.dumps([str(owner), row["generation"], row["goal"],
             plan["profile_revision"], self.catalog_hash, POLICY], ensure_ascii=False).encode()).hexdigest()
 
-    async def plan_for(self, owner, goal, language="zh"):
-        history = await self.student_state.events(str(owner))
-        return plan_learning_actions(history, validate_goal(goal), self.catalog, language=language)
+    async def plan_for(self, owner, goal=None, language="zh", *, request=""):
+        async with self.repository.engine.connect() as conn:
+            row = await self.repository.get(owner, conn=conn)
+            history = await self.student_state.events(str(owner), conn=conn)
+        explicit = requested_goal(request)
+        if explicit and re.search(r"学习目标|学习计划|安排|(?:接下来|以后|下次).{0,10}学|\b(?:learning goal|study plan|schedule)\b", request, re.I):
+            row = await self.repository.select_goal(owner, goal=explicit, generation=row["generation"])
+            task = self.tasks.get(str(owner))
+            if task and task[0] != row["lease_token"]:
+                task[1].cancel()
+            if row["goal"] != explicit:
+                explicit = None
+            history = await self.student_state.events(str(owner))
+        current = row["goal"] if row["generation"] > 0 or goal is None else goal
+        if row["goal"] == "math_foundations" and goal in SKILLS:
+            current = goal
+        selected = explicit or (current if request else goal or current)
+        source = "current_request" if explicit else "current_goal" if selected == row["goal"] else "context_goal"
+        return plan_learning_actions(history, validate_goal(selected), self.catalog, language=language,
+                                     request=request, goal_source=source, resolve_goal=False)
 
     async def _snapshot(self, owner, language):
         async with self.repository.engine.connect() as conn:
@@ -95,6 +113,8 @@ class RecommendationsService:
     async def _local_start(self, owner, row, plan, language):
         if self.closed or not row["enabled"]:
             return self._view(owner, row, plan, language=language)
+        if plan["action"] in {"check", "continue"}:
+            return self._view(owner, row, plan, language=language, status="idle")
         key = self._cache_key(owner, row, plan)
         now = self.clock()
         if ((row["cache_key"] == key and row["expires_at"] > now)

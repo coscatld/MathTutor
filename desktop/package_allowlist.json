@@ -58,6 +58,8 @@
       "application/community_documents.py",
       "api/community_documents_api.py",
       "community_assets/catalog.json",
+      "community_assets/zhihu_catalog.json",
+      "application/foundation_references.py",
       "infrastructure/verifier_worker.py",
       "release_probe.py",
       "skills/canvas_drawing/SKILL.md",

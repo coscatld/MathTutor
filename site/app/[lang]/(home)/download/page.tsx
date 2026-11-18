@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Apple, Monitor } from 'lucide-react';
-import { CURRENT_ASSETS, LINUX_STATUS, RELEASE_URL } from '@/lib/releases';
+import { CURRENT_ASSETS, RELEASE_URL } from '@/lib/releases';
 import { t } from '@/lib/messages';
 import { absUrl, isLocale, localePath, type Locale } from '@/lib/site';
 
@@ -27,18 +27,6 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
       <h1 className="mt-2 text-4xl font-semibold tracking-tight">{copy.title}</h1>
       <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--mt-muted)]">{copy.intro}</p>
 
-      <aside className="mt-8 border-l-2 border-[var(--mt-blue)] pl-5">
-        <h2 className="font-semibold">{locale === 'zh' ? '想体验知识探索？' : 'Want to try knowledge exploration?'}</h2>
-        <p className="mt-2 max-w-3xl leading-7 text-[var(--mt-muted)]">
-          {locale === 'zh'
-            ? '知识探索目前通过源码体验。下方已发布的安装包尚不包含这一功能。'
-            : 'Knowledge exploration is currently a source preview. The published installers below do not yet include it.'}
-        </p>
-        <Link href={localePath(locale, '/docs/user/knowledge-exploration')} className="mt-1 inline-flex min-h-11 items-center text-[var(--mt-blue)] hover:underline">
-          {locale === 'zh' ? '查看源码体验与知乎配置 →' : 'See the source preview and Zhihu setup →'}
-        </Link>
-      </aside>
-
       <div className="mt-10 grid gap-5 md:grid-cols-2">
         {CURRENT_ASSETS.map((asset) => {
           const Icon = asset.id === 'macos-arm64' ? Apple : Monitor;
@@ -61,13 +49,6 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
         })}
       </div>
 
-      <section className="mt-8 rounded-2xl border border-dashed border-[var(--mt-border)] p-6">
-        <h2 className="text-lg font-semibold">{copy.linuxTitle}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--mt-muted)]">
-          {locale === 'zh' ? LINUX_STATUS.reasonZh : LINUX_STATUS.reasonEn}
-        </p>
-      </section>
-
       <section className="mt-8 grid gap-4 md:grid-cols-2">
         <article className="rounded-2xl border border-[var(--mt-border)] p-6">
           <h2 className="font-semibold">{copy.unsignedTitle}</h2>
@@ -79,14 +60,6 @@ export default async function DownloadPage({ params }: { params: Promise<{ lang:
             <li>
               <a href={RELEASE_URL} className="underline">
                 {copy.releases}
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/coscatld/MathTutor/blob/main/docs/MACOS_INSTALLATION.md"
-                className="underline"
-              >
-                {copy.macGuide}
               </a>
             </li>
             <li>

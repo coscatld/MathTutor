@@ -55,7 +55,7 @@ async def assess_answer(backend, problem, candidate, answer: str):
     return await backend.verify_attempt(attempt, problem, candidate)
 
 
-async def verify_math(backend, expression: str, answer: str) -> MathCheck:
+async def verify_math(backend, expression: str, answer: str, *, conditions: str = "") -> MathCheck:
     """Check ``answer`` against ``expression``.
 
     An equivalent intermediate equation counts as verified; a partial answer
@@ -64,6 +64,12 @@ async def verify_math(backend, expression: str, answer: str) -> MathCheck:
     properties inferred from that formula.
     """
     from mathtutor.application.bounded_calculus import check_polynomial_derivative
+    from mathtutor.application.radical_counterexamples import solution_counterexample
+
+    counterexample = solution_counterexample(expression, answer, conditions)
+    if counterexample:
+        return MathCheck("refuted", "incorrect", (counterexample["reason"],),
+                         reason=f"{counterexample['variable']}={counterexample['witness']}")
 
     calculus = check_polynomial_derivative(expression, answer)
     if calculus is not None:

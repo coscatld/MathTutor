@@ -177,6 +177,8 @@ def test_quoted_or_historical_commands_do_not_trigger_code_and_current_exercise_
         send(ws, "send_message", "quoted", {"text": "> /echo 仅引用，不执行"})
         send(ws, "send_message", "history", {"text": "解释一下上面的引文。"})
         assert not marker.exists()
+        assert summary(client)["problem_context"] is None
+        assert summary(client)["recovery_problem"] is None
         send(ws, "submit_problem", "problem", {"text": "2x+3=7"})
         before = summary(client)
         observations = count(db, "learning_events")

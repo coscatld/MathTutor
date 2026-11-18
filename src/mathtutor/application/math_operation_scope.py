@@ -9,7 +9,8 @@ from __future__ import annotations
 import re
 
 
-_CHINESE_OPERATION = re.compile(r"求导|导数|微分|积分|极限|极值|最[大小]值|最值|单调性|驻点|拐点|凹凸性")
+_CHINESE_OPERATION = re.compile(r"求导|导数|微分|积分|极限|极值|最[大小]值|最值|单调性|驻点|拐点|凹凸性|证明|求特征值|行列式")
+_ADVANCED_EXPRESSION = re.compile(r"[∫∑]|\\(?:lim|int|sum|partial)(?![A-Za-z])|\b(?:sin|cos|tan|log|ln|exp)\s*\(", re.I)
 _ENGLISH_OPERATION = re.compile(
     r"\b(?:differentiat(?:e|ion|ing)|derivatives?|integrat(?:e|ion|ing)|integrals?|limits?|"
     r"maxima|minima|maximum|minimum|extrema|extremums?|stationary\s+points?|critical\s+points?|"
@@ -23,5 +24,5 @@ _MATH_CONTEXT = re.compile(
 def requires_unstructured_math(text: str) -> bool:
     """Recognize a math operation which the structured problem AST omits."""
     source = str(text or "")
-    return bool(_CHINESE_OPERATION.search(source) or
+    return bool(_CHINESE_OPERATION.search(source) or _ADVANCED_EXPRESSION.search(source) or
                 (_ENGLISH_OPERATION.search(source) and _MATH_CONTEXT.search(source)))

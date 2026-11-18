@@ -57,15 +57,17 @@ def test_math_repair_keeps_original_language_and_hint_scope(tmp_path):
     assert "7+5=12" in final["final_text"] and "7+5=13" not in final["final_text"]
 
 
-def test_repair_preserves_first_contact_disclosure_limit(tmp_path):
+def test_repair_after_boundary_preserves_explicit_explanation_disclosure_limit(tmp_path):
     provider = Replies("先算 $7+5=13$。", "先算 $7+5=12$。")
     with client_at(tmp_path / "first-contact.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         state = get_product_state()
         state.learner_settings.update("high", 11)
         state.gateway.register_provider(ModelRole.TUTOR_WRITER, provider)
         send(ws, "send_message", "repair", {"text": "已知某函数满足 f(x)=x^3，求它的极值。"})
+        assert not provider.calls
+        send(ws, "request_explanation", "explain", {})
     assert len(provider.calls) == 2
-    assert all("首次接触" in call[0][0]["content"] for call in provider.calls)
+    assert all("暂不公布最终答案" in json.dumps(call[0], ensure_ascii=False) for call in provider.calls)
 
 
 def test_continuation_restores_original_language_and_disclosure_request(tmp_path):
@@ -138,6 +140,8 @@ def test_tool_never_verifies_a_silently_truncated_or_coerced_claim(tmp_path, exp
     with client_at(tmp_path / "tool-arguments.db") as client, client.websocket_connect("/api/v2/math-tutor/ws") as ws:
         bind(replies, requests)
         frames = send(ws, "send_message", "derivative", {"text": "如何对 (2*x-3)^3 求导？"})
+        assert not requests
+        frames = send(ws, "request_explanation", "explain", {})
     assert len(requests) == 2, [(f["event_type"], f["payload"].get("final_text")) for f in frames]
     receipt = json.loads(next(m for m in requests[1]["messages"] if m["role"] == "tool")["content"])
     assert receipt["status"] == "rejected"

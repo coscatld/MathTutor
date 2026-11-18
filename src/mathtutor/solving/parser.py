@@ -121,7 +121,7 @@ class _Tokenizer:
             if ch == "\\":
                 self._command()
                 continue
-            if ch.isdigit() or ch == ".":
+            if ch.isdecimal() or ch == ".":
                 self._number()
                 continue
             if "a" <= ch.lower() <= "z":
@@ -165,12 +165,12 @@ class _Tokenizer:
 
     def _number(self) -> None:
         start = self.pos
-        while self.pos < len(self.text) and self.text[self.pos].isdigit():
+        while self.pos < len(self.text) and self.text[self.pos].isdecimal():
             self.pos += 1
         if self.pos < len(self.text) and self.text[self.pos] == ".":
             self.pos += 1
             digits = 0
-            while self.pos < len(self.text) and self.text[self.pos].isdigit():
+            while self.pos < len(self.text) and self.text[self.pos].isdecimal():
                 self.pos += 1
                 digits += 1
             if digits == 0:
@@ -236,6 +236,7 @@ class _Parser:
         self.budget = budget or ParseBudget()
         self.tokens = tokens
         self.pos = 0
+        self.denominators: list[n.Node] = []
 
     def peek(self) -> _Token | None:
         return self.tokens[self.pos] if self.pos < len(self.tokens) else None
@@ -282,6 +283,8 @@ class _Parser:
             if token.kind in ("star", "slash"):
                 kind = self.next().kind
                 right = self.parse_factor()
+                if kind == "slash":
+                    self.denominators.append(right)
                 left = n.div(left, right) if kind == "slash" else n.mul(left, right)
             elif self._implicit(token):
                 right = self.parse_factor()
@@ -354,6 +357,7 @@ class _Parser:
             num_tokens, den_tokens = token.value
             numerator = self._parse_sublist(num_tokens)
             denominator = self._parse_sublist(den_tokens)
+            self.denominators.append(denominator)
             return n.div(numerator, denominator)
         if token.kind == "sqrt":
             raise UnsupportedError("√/\\sqrt 不在 MVP 题族范围内")
@@ -364,6 +368,7 @@ class _Parser:
         node = inner.parse_expression()
         if not inner.at_end():
             raise ParseError("\\frac 内部存在多余的记号")
+        self.denominators.extend(inner.denominators)
         return node
 
 
@@ -428,7 +433,8 @@ def normalize_math_problem_text(text: str) -> str:
     compact = " ".join(str(text or "").strip().split())
     compact = _LEADING_TASK.sub("", compact).strip()
     compact = _TRAILING_QUESTION.sub("", compact).strip()
-    compact = _TRAILING_EQUALS.sub("", compact).strip()
+    if not re.search(r"[A-Za-z]", re.sub(r"\\(?:frac|sqrt)\b", "", compact)):
+        compact = _TRAILING_EQUALS.sub("", compact).strip()
     return compact
 
 
@@ -437,6 +443,18 @@ def stored_math_ast(payload: dict[str, Any]) -> dict[str, Any]:
     if isinstance(payload, dict) and payload.get("kind") == "inequality" and isinstance(payload.get("equation"), dict):
         return payload["equation"]
     return payload
+
+
+def parse_equation_with_domain(text: str, *, budget: ParseBudget) -> tuple[n.Equation, tuple[n.Node, ...]]:
+    """Read the existing grammar before family classification, retaining canceled divisors."""
+    budget.check_text(text)
+    parser = _Parser(_Tokenizer(normalize_math_problem_text(text), budget).tokenize(), budget)
+    left = parser.parse_expression()
+    parser.expect("equals")
+    right = parser.parse_expression()
+    if not parser.at_end():
+        raise ParseError("方程后仍有未解析的内容")
+    return n.eq(left, right), tuple(parser.denominators)
 
 
 def parse_problem(text: str, *, budget: ParseBudget | None = None) -> ParseOutcome:

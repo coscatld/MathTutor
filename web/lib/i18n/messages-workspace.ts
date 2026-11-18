@@ -1,4 +1,13 @@
 export const workspaceEnglish: Record<string, string> = {
+  "本轮处理次数已达到上限。": "This reply reached its processing limit. ",
+  "本轮回答长度已达到上限。": "This reply reached its length limit. ",
+  "本轮用量已达到设置上限。": "This reply reached the configured usage limit. ",
+  "模型响应超时。": "The model response timed out. ",
+  "模型服务暂时不可用。": "The model service is temporarily unavailable. ",
+  "回答传输中断。": "The response connection was interrupted. ",
+  "已按你的要求停止生成。": "Generation stopped at your request. ",
+  "本轮处理未能继续。": "Processing this reply could not continue. ",
+  "本轮处理发生错误。": "An error interrupted this reply. ",
   "请求队列已满，这条请求尚未执行。请稍后重试。": "The request queue is full. This request has not run. Please try again shortly.",
   "已停止：这条排队请求尚未执行。如需继续，请重新发送。": "Stopped: this queued request has not run. Send it again if you want to continue.",
   "停止请求的对话标识无效。": "The stop request has an invalid conversation identifier.",

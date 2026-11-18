@@ -4,27 +4,25 @@ import { localePath, type Locale } from '@/lib/site';
 
 const content = {
   zh: {
-    label: '知识探索 · 源码预览',
+    label: '知乎知识探索',
     title: '带着一个疑问，读出自己的理解。',
-    body: '在原聊天中结合知乎解释概念、对照不同观点。每个结论保留依据与条件，再从 23 份已审学习片段和自己的作答记录中选择下一步资料。',
+    body: '在原聊天中结合知乎解释概念、对照不同观点。打开引用，查看片段和原文；再结合自己的作答记录选择下一份资料。',
     steps: [
       ['提出问题', '在聊天中开启联网，询问概念、例子或学习顺序。'],
       ['对照来源', '区分资料解释、作者观点与 AI 推导，查看逐项来源。'],
       ['自己试一试', '根据作答证据检查前置知识，也可开启后台资料发现。'],
     ],
-    availability: '当前通过源码体验。已发布的桌面安装包尚不包含知识探索。',
     action: '了解知识探索与配置方法',
   },
   en: {
-    label: 'Knowledge exploration · Source preview',
+    label: 'Explore with Zhihu',
     title: 'Start with a question. Build your own understanding.',
-    body: 'Bring Zhihu explanations and viewpoints into the existing chat, with sources and conditions attached to each claim. Choose your next resource from 23 reviewed excerpts and your recorded attempts.',
+    body: 'Bring Zhihu explanations and viewpoints into the existing chat, and follow citations to the original answers. Use your attempts and current goal to choose what to read next.',
     steps: [
       ['Ask a question', 'Enable Online in chat to ask about concepts, examples, or learning order.'],
       ['Read the sources', 'Distinguish source explanations, author views, and AI inference with per-claim evidence.'],
       ['Try it yourself', 'Check prerequisites using your recorded attempts, or opt in to background resource discovery.'],
     ],
-    availability: 'Available from source. Published desktop installers do not yet include knowledge exploration.',
     action: 'Explore the workflow and setup',
   },
 } as const;
@@ -41,7 +39,6 @@ export function ExplorationFeature({ locale }: { locale: Locale }) {
           <Link href={localePath(locale, '/docs/user/knowledge-exploration')} className="mt-5 inline-flex min-h-11 items-center gap-2 font-medium text-[var(--mt-blue)] hover:underline">
             {copy.action}<ArrowRight className="size-4 shrink-0" aria-hidden="true" />
           </Link>
-          <p className="mt-3 max-w-xl leading-7 text-[var(--mt-muted)]">{copy.availability}</p>
         </div>
         <ol className="divide-y divide-[var(--mt-border)] border-y border-[var(--mt-border)]">
           {copy.steps.map(([title, body], index) => (
