@@ -2,7 +2,7 @@
 
 import { productClass } from "@/styles/product-classes";
 import {useI18n} from "@/lib/i18n";
-import { ArrowUp, ImagePlus, Loader2, Paperclip } from "lucide-react";
+import { ArrowUp, Globe2, ImagePlus, Loader2, Paperclip } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useUnsavedNavigation } from "../hooks/useUnsavedNavigation";
 import { useChatAttachments } from "../hooks/useChatAttachments";
@@ -13,7 +13,7 @@ import SlashSuggestions from "./SlashSuggestions";
 import {usePluginCommands} from "../hooks/usePluginCommands";
 import {availableCommands, isSlashCommand, slashQuery} from "../lib/plugin-commands";
 import type {PluginCommand} from "../community/api";
-export default function ChatComposer({ busy, disabled, onSend, onSendAttempt, attemptMode = false, problemKey = "", onExitAttempt, onAddMaterial, onCancel, focusRequest = 0, placeholder = "输入问题，或粘贴截图…" }: { busy: boolean; disabled: boolean; onSend: (text: string, attachments: ChatAttachment[]) => Promise<boolean>; onSendAttempt?: (text: string) => Promise<boolean>; attemptMode?: boolean; problemKey?: string; onExitAttempt?: () => void; onAddMaterial: () => void; onCancel?: () => void; focusRequest?: number; placeholder?: string }) {
+export default function ChatComposer({ busy, disabled, onSend, onSendAttempt, networkSearch = false, onNetworkSearchChange, attemptMode = false, problemKey = "", onExitAttempt, onAddMaterial, onCancel, focusRequest = 0, placeholder = "输入问题，或粘贴截图…" }: { busy: boolean; disabled: boolean; onSend: (text: string, attachments: ChatAttachment[]) => Promise<boolean>; onSendAttempt?: (text: string) => Promise<boolean>; networkSearch?: boolean; onNetworkSearchChange?: (enabled: boolean) => void; attemptMode?: boolean; problemKey?: string; onExitAttempt?: () => void; onAddMaterial: () => void; onCancel?: () => void; focusRequest?: number; placeholder?: string }) {
   const {t} = useI18n();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -84,12 +84,13 @@ export default function ChatComposer({ busy, disabled, onSend, onSendAttempt, at
         <input ref={picker} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={event => { images.addFiles(Array.from(event.target.files || [])); event.target.value = ""; }} />
         <button type="button" disabled={locked} onClick={() => picker.current?.click()} className={productClass("mt-icon-button p-2")} aria-label={t("上传图片")}><ImagePlus className="h-5 w-5" /></button>
         <button type="button" onClick={onAddMaterial} className={productClass("mt-icon-button p-2")} aria-label={t("为当前对话添加资料")}><Paperclip className="h-5 w-5" /></button>
+        {onNetworkSearchChange ? <button type="button" disabled={locked || attemptMode} onClick={() => onNetworkSearchChange(!networkSearch)} aria-pressed={networkSearch} title={t("按需搜索知乎公开资料")} className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${networkSearch ? "bg-[var(--accent)] text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:bg-[var(--accent)]"}`}><Globe2 className="h-4 w-4" aria-hidden="true" />{t("联网")}</button> : null}
         <span className={productClass("flex-1")} />
         {images.attachments.length > 0 && <span className="text-[11px] text-[var(--muted-foreground)]">{images.attachments.length}{t("/4 · 发送时交给当前模型")}</span>}
         {busy && onCancel && <button type="button" onClick={onCancel} className="min-h-9 rounded-full px-3 text-sm text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]">{t("停止生成")}</button>}
         <button type="button" onClick={() => void submit()} disabled={(!text.trim() && !images.attachments.length) || locked || staleAttempt} className={productClass("mt-send-button")} aria-label={failed ? t("重试发送") : attemptMode && !commandDraft ? t("提交本题步骤") : t("发送")}>{sending || busy ? <Loader2 className="h-4 w-4 animate-spin" /> : failed ? t("重试") : <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.25} />}</button>
       </div>
     </div>
-    <p id="composer-help" className={productClass("mt-composer-help")}>{attemptMode && !commandDraft ? <><kbd>Enter</kbd>{t("提交步骤 ·")}<kbd>Shift</kbd> + <kbd>Enter</kbd>{t("换行 · 添加图片会改为图片提问")}</> : <><kbd>Enter</kbd>{t("发送 ·")}<kbd>Shift</kbd> + <kbd>Enter</kbd>{t("换行 · 粘贴 / 拖入图片，每张最多 10 MB")}</>}</p>
+    <p id="composer-help" className="sr-only">{attemptMode && !commandDraft ? <><kbd>Enter</kbd>{t("提交步骤 ·")}<kbd>Shift</kbd> + <kbd>Enter</kbd>{t("换行 · 添加图片会改为图片提问")}</> : <><kbd>Enter</kbd>{t("发送 ·")}<kbd>Shift</kbd> + <kbd>Enter</kbd>{t("换行 · 粘贴 / 拖入图片，每张最多 10 MB")}</>}</p>
   </div>;
 }

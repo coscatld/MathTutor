@@ -81,6 +81,20 @@ def _display_final_answer(answer: dict[str, Any]) -> dict[str, str]:
     return {"display_text": "最终答案", "display_latex": latex}
 
 
+def display_solution(candidate: MathSolutionCandidate) -> dict[str, Any]:
+    """Presentation only; callers must establish verification and disclosure permission."""
+    final_answer = dict(candidate.final_answer)
+    variable = str(final_answer.get("var") or final_answer.get("variable") or "")
+    if not variable:
+        prefix = str(final_answer.get("latex") or "").split("=", 1)[0].strip()
+        variable = prefix if prefix.isidentifier() else "x"
+    return {
+        "steps": [_display_step(dict(step), index, variable)
+                  for index, step in enumerate(candidate.steps, 1)],
+        "final_answer": _display_final_answer(final_answer),
+    }
+
+
 class DisclosedSolutionContext(BaseModel):
     """Everything the writer is allowed to see for one action (§7.2)."""
 
@@ -152,23 +166,9 @@ class SolutionDisclosureProjector:
             )
 
         if level == 5:
-            final_answer = dict(candidate.final_answer)
-            variable = str(final_answer.get("var") or final_answer.get("variable") or "")
-            if not variable:
-                # Equation answer LaTeX is server-authored (e.g. ``y = 2``).
-                # Recover only its identifier for display; ``x`` is the safe
-                # MVP fallback for arithmetic/no-variable answers.
-                prefix = str(final_answer.get("latex") or "").split("=", 1)[0].strip()
-                variable = prefix if prefix.isidentifier() else "x"
             return DisclosedSolutionContext(
                 assistance_level=5,
-                full_solution={
-                    "steps": [
-                        _display_step(dict(step), index, variable)
-                        for index, step in enumerate(steps, 1)
-                    ],
-                    "final_answer": _display_final_answer(final_answer),
-                },
+                full_solution=display_solution(candidate),
             )
 
         raise DisclosurePolicyViolation(f"unknown assistance level {level}")
@@ -178,4 +178,5 @@ __all__ = [
     "DisclosedSolutionContext",
     "DisclosurePolicyViolation",
     "SolutionDisclosureProjector",
+    "display_solution",
 ]

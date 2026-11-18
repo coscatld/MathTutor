@@ -474,6 +474,11 @@ class ProductState:
         self.knowledge = KnowledgeService(self, engine) if engine is not None else None
         self.controller.knowledge = self.knowledge
         self.controller.knowledge_qa = KnowledgeQA(self) if self.knowledge else None
+        from mathtutor.application.recommendations import RecommendationsService
+        from mathtutor.application.network_qa import NetworkQA
+        self.recommendations = RecommendationsService(engine, self.student_state, self.exploration.client) if engine is not None else None
+        self.controller.network_qa = NetworkQA(self.exploration.client, self.verification_backend,
+            planner=self.recommendations.plan_for if self.recommendations else None)
         from mathtutor.application.stage_review import StageReviewService, ReviewDispatchSink
         self.stage_review = StageReviewService(engine, self.student_state) if engine is not None else None
         if self.stage_review:
@@ -692,6 +697,9 @@ class ProductState:
         if backup is not None:
             await stage("backup_workers", backup.shutdown)
         documents = getattr(self, "documents", None)
+        recommendations = getattr(self, "recommendations", None)
+        if recommendations is not None:
+            await stage("knowledge_discovery", recommendations.close)
         if documents is not None:
             await stage("document_workers", documents.aclose)
         worker_shutdown = getattr(self.verification_backend, "shutdown", None)

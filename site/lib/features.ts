@@ -18,16 +18,16 @@ export const features: Feature[] = [
     zh: {
       name: '知识探索 · 源码预览',
       problem: '读到不同解释后，需要看清来源和适用条件，再判断自己理解了什么。',
-      how: '用自己的知乎凭据搜索，保留带作者与原始链接的检索片段。可选 AI 选择已登记片段和阅读重点，应用提供固定阅读与比较问题。',
-      visible: '保存问题、目标与思考记录；16 道中英文固定理解检查题在覆盖范围内提供反馈，学习建议最多三步。入口为 /math-tutor/explore，已发布安装包尚不包含。',
-      limits: '只使用有长度限制的搜索摘要；引文绑定不证明语义支持或数学真值。阅读和一次答对都不等于掌握，也不代表真实教学成效。',
+      how: '在原聊天中开启联网，生成带来源的概念解释、观点对照与学习路径。逐项检查语义支持、条件和依赖，数学核验另行处理。',
+      visible: '23 份经 AI 初审的学习片段保留证据范围；学习画像推荐下一步资料，可选择启动时后台发现。阅读工作台保留 16 道双语理解检查；已发布安装包尚不包含。',
+      limits: '自动审核针对有限摘要，可能误判，不代表全文或专家认证。阅读和一次答对都不等于掌握；真实学习效果尚待验证。',
     },
     en: {
       name: 'Knowledge exploration · Source preview',
       problem: 'Different explanations need attributable sources and explicit conditions before you can judge your own understanding.',
-      how: 'Search with your Zhihu credential and keep attributed excerpts with original links. Optional AI selects registered spans and a reading focus; the app supplies fixed reading and comparison questions.',
-      visible: 'Save questions, goals, and reflections. Sixteen bilingual fixed checks give feedback within their scope, followed by up to three next steps. Open /math-tutor/explore from source; published installers do not yet include it.',
-      limits: 'Search excerpts are bounded, not full text. Quotation integrity does not establish semantic support or mathematical truth. Reading and one correct answer do not establish mastery or learning impact.',
+      how: 'Enable Online in the existing chat for attributed explanations, viewpoint comparisons, and learning paths. Review support, conditions, and dependencies per claim; check mathematics separately.',
+      visible: '23 AI-reviewed excerpts retain their evidence scope. Learning profiles suggest next resources, with opt-in startup discovery. The reading workbench retains 16 bilingual checks. Published installers do not yet include this.',
+      limits: 'Automated review covers bounded excerpts and may be wrong; it is not full-text or expert certification. Reading and one correct answer do not establish mastery. Learning impact remains untested.',
     },
   },
   {

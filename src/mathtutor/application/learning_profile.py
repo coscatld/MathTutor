@@ -134,6 +134,8 @@ async def revoke_pending(conn, sid, *, excluded_event_id=None):
     from sqlalchemy import select
     from mathtutor.infrastructure.schema import practice_offers, practice_recommendations
     from mathtutor.security.scopes import student_uuid
+    from mathtutor.repositories.recommendation_repository import invalidate_recommendations
+    await invalidate_recommendations(conn, sid)
     sid = str(student_uuid(sid))
     await conn.execute(practice_offers.update().where(practice_offers.c.student_id == sid,
         practice_offers.c.status == "ACTIVE").values(status="REVOKED"))

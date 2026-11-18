@@ -744,3 +744,9 @@ from mathtutor.infrastructure.exploration_schema import metadata as _exploration
 for _exploration_table in _exploration_metadata.sorted_tables:
     globals()[_exploration_table.name] = _exploration_table.to_metadata(metadata)
     __all__.append(_exploration_table.name)
+
+from mathtutor.infrastructure.recommendation_schema import metadata as _recommendation_metadata
+
+for _recommendation_table in _recommendation_metadata.sorted_tables:
+    globals()[_recommendation_table.name] = _recommendation_table.to_metadata(metadata)
+    __all__.append(_recommendation_table.name)

@@ -1,3 +1,4 @@
+import { RecommendationsProvider } from "@/features/math-tutor/exploration/Recommendations";
 import DesktopShell from "@/features/math-tutor/desktop/components/DesktopShell";
 import StartupBoundary from "@/features/math-tutor/desktop/components/StartupBoundary";
 import ToastProvider from "@/features/math-tutor/desktop/components/ToastProvider";
@@ -15,7 +16,7 @@ export default function MathTutorLayout({
 }>) {
   return (
     <StartupBoundary>
-      <ToastProvider><DesktopShell>{children}</DesktopShell></ToastProvider>
+      <ToastProvider><RecommendationsProvider><DesktopShell>{children}</DesktopShell></RecommendationsProvider></ToastProvider>
     </StartupBoundary>
   );
 }

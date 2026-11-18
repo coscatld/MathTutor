@@ -1,0 +1,1605 @@
+{
+  "version": "zhihu-curated-20261118",
+  "review_scope": "bounded_visible_provider_summary_units",
+  "full_articles_reviewed": 0,
+  "human_expert_reviewed": 0,
+  "resources": [
+    {
+      "resource_id": "zhihu-3609d4abc2170d58",
+      "title": "别说小学的东西太简单不重要,它可是一路相随哦",
+      "author": "笑看人生",
+      "url": "https://zhuanlan.zhihu.com/p/2096373798668854031",
+      "published_at": null,
+      "source_time": "2026-10-21T14:54:23+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "用 1314÷25 的例子说明同时扩大被除数和除数如何简化计算。",
+      "knowledge_points": [
+        "fraction_operations",
+        "signed_operations"
+      ],
+      "prerequisites": [
+        "signed_operations"
+      ],
+      "tags": [
+        "数学基础",
+        "fraction_operations",
+        "signed_operations"
+      ],
+      "recommendation_reason": "适合把商不变性质与口算策略联系起来，例题条件与结果均可直接核对。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.534736+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "仅审核本例：1314×4÷100=52.56；不纳入前段含“末两位都是0”的文字疏误或后续泛论。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合把商不变性质与口算策略联系起来，例题条件与结果均可直接核对。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "仅审核本例：1314×4÷100=52.56；不纳入前段含“末两位都是0”的文字疏误或后续泛论。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "68ea78a98965c2f26f365911ffa6c6e1",
+        "retrieved_at": "2026-11-18T03:20:47.400499+00:00",
+        "excerpt_sha256": "1858ffcb220097e639cf8be009dc2259516fcb7b293d9a26ef2f40fe380ed857",
+        "excerpt": "来一道四年级的计算题：1314÷25=？这么大的一个数字，如果你要做除竖式除法啊，1314÷25，你要算半天要算半天是不是？\n其实大家可以巧算，你把被除数和除数同时乘以4。你再看看，一个就变成25×4就是100了，所以你前面这个数除以100是不是就小数点移动两位就行了，你就是算这样一个乘法就行了。这样一个数乘以4比我们除以25要简单多了吧？口算能力不错的同学都能口算得出答案：52.56。",
+        "start": 232,
+        "end": 427,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "5df85762aa58902c828a0371324e83f74af0403b123af27b6e6c1680c49e73ad",
+        "raw_response_sha256": "3ed504ced7a94c6ee216f291773956ea0d6a2e46d5f16efeac0ee28e328ee358",
+        "provider_content_id": "673250920040652930",
+        "provider_content_type": "Article",
+        "provider_create_time": 1792594462,
+        "provider_edit_time": 1792594463,
+        "original_url": "https://zhuanlan.zhihu.com/p/2096373798668854031?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "9181b3c24611.json",
+        "source_index": 0,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-09e75195694c0ece",
+      "title": "五下数学:分数的基本性质,当分子分母同乘除一个数,和差竟也会「默契跟变」!0除外",
+      "author": "二宝妈跟娃学",
+      "url": "https://zhuanlan.zhihu.com/p/1923057746846146958",
+      "published_at": null,
+      "source_time": "2025-06-30T08:40:09+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "从分子与分母相差 1 出发，还原分母加 1 后化为 8/9 的原分数 16/17。",
+      "knowledge_points": [
+        "fraction_operations",
+        "equality_preservation"
+      ],
+      "prerequisites": [
+        "fraction_operations"
+      ],
+      "tags": [
+        "数学基础",
+        "fraction_operations",
+        "equality_preservation"
+      ],
+      "recommendation_reason": "适合练习用不变量解释分数等价，文字步骤不依赖缺失图片。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.534959+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "取正整数分子分母的本例，16/17 满足两个条件；未审核其他图片例题。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合练习用不变量解释分数等价，文字步骤不依赖缺失图片。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "取正整数分子分母的本例，16/17 满足两个条件；未审核其他图片例题。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "68ea78a98965c2f26f365911ffa6c6e1",
+        "retrieved_at": "2026-11-18T03:20:47.400499+00:00",
+        "excerpt_sha256": "796aaab5617951d65473fc2751a022887c27d05ecfbc6cf69004654b8f816d61",
+        "excerpt": "例3：一个分数的分子加上1，这个分数就等于1.\n1）如果把这个分数的分母加上1，所得新分数化简后为8/9，原分数是（）。\n解析：原分数，分子与分母差1，分子<分母\n分母加1时：分子与分母差2，所以要将8/9的分子与分母同时乘2。即现分数为16/18。\n原分分：16/(18-1)=16/17。\n具体步骤可看下图：",
+        "start": 86,
+        "end": 242,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "1f168b3ec6a460bbeef3c369c4bda8a2470bc455cd87608b7bea7fcc54da330d",
+        "raw_response_sha256": "3ed504ced7a94c6ee216f291773956ea0d6a2e46d5f16efeac0ee28e328ee358",
+        "provider_content_id": "5750096399113038049",
+        "provider_content_type": "Article",
+        "provider_create_time": 1751272809,
+        "provider_edit_time": 1751272809,
+        "original_url": "https://zhuanlan.zhihu.com/p/1923057746846146958?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "9181b3c24611.json",
+        "source_index": 1,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-56445d7dfd8dc493",
+      "title": "【龙吟精讲】数学|2.3 分式",
+      "author": "龙吟",
+      "url": "https://zhuanlan.zhihu.com/p/2084704530487306101",
+      "published_at": null,
+      "source_time": "2026-09-19T10:20:56+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "解 2/(x−1)=1/(x+1)，得到 x=−3，并检查两个分母均不为零。",
+      "knowledge_points": [
+        "fraction_operations",
+        "linear_isolation",
+        "substitution_check"
+      ],
+      "prerequisites": [
+        "equality_preservation",
+        "fraction_operations"
+      ],
+      "tags": [
+        "数学基础",
+        "fraction_operations",
+        "linear_isolation",
+        "substitution_check"
+      ],
+      "recommendation_reason": "适合把去分母和回代检查放在同一个完整例题里学习。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.535107+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "原式 x≠±1；交叉相乘后 x=−3，两边均为−1/2，保留非零检查。其余概括不在审核范围。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合把去分母和回代检查放在同一个完整例题里学习。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "原式 x≠±1；交叉相乘后 x=−3，两边均为−1/2，保留非零检查。其余概括不在审核范围。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "68ea78a98965c2f26f365911ffa6c6e1",
+        "retrieved_at": "2026-11-18T03:20:47.400499+00:00",
+        "excerpt_sha256": "c2f57f5bf506e06831f0fe19467e9dc27a45e781475e3d44c50dbdf4d945f18d",
+        "excerpt": "例题 解方程： \\(\\frac{2}{x-1} = \\frac{1}{x+1}\\) \n解：方程两边同乘最简公分母 \\((x-1)(x+1)\\) ，得\n\\(2(x+1) = x-1\\) \n解得 \\(x = -3\\) \n检验：当 \\(x=-3\\) 时， \\((x-1)(x+1) = (-4)\\times(-2) = 8 \\neq 0\\) ，所以 \\(x=-3\\) 是原方程的解。",
+        "start": 0,
+        "end": 188,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "2cf9552fa961d81752855a1731926f1d4a0fbea57a50c039d9b8f6dfabc89648",
+        "raw_response_sha256": "3ed504ced7a94c6ee216f291773956ea0d6a2e46d5f16efeac0ee28e328ee358",
+        "provider_content_id": "292728474211835219",
+        "provider_content_type": "Article",
+        "provider_create_time": 1789813256,
+        "provider_edit_time": 1789813256,
+        "original_url": "https://zhuanlan.zhihu.com/p/2084704530487306101?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "9181b3c24611.json",
+        "source_index": 4,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-a295cb0b6a952d64",
+      "title": "数源心法·第二篇 代数式与恒等变形卷",
+      "author": "湛二哥",
+      "url": "https://zhuanlan.zhihu.com/p/2064304422243640433",
+      "published_at": null,
+      "source_time": "2026-07-25T03:05:12+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "区分一次代入相等与公共定义域内处处相等的恒等关系。",
+      "knowledge_points": [
+        "equality_preservation",
+        "combine_like_terms"
+      ],
+      "prerequisites": [
+        "signed_operations"
+      ],
+      "tags": [
+        "数学基础",
+        "equality_preservation",
+        "combine_like_terms"
+      ],
+      "recommendation_reason": "适合纠正“试一个数相等就证明恒等”的误解，先明确取值范围。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.535400+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "只审核公共定义域上的恒等定义；不把文中修辞或未证明的分类当作数学定理。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合纠正“试一个数相等就证明恒等”的误解，先明确取值范围。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "只审核公共定义域上的恒等定义；不把文中修辞或未证明的分类当作数学定理。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "68ea78a98965c2f26f365911ffa6c6e1",
+        "retrieved_at": "2026-11-18T03:20:47.400499+00:00",
+        "excerpt_sha256": "8fe6177b91a0719886f72be20f1619f8cef83b6972dcb895b8aa488e1ceaa471",
+        "excerpt": "一、恒等之真义：全域等价，非止一端\n何谓恒等？非某一个数值代入相等，而是在公共定义域内，任意字母取值代入，前后两式数值完全相等。\n它不是偶然的巧合，是全域的同一；不是局部的相似，是本质的等价。这便是“恒”字的分量：恒常、普遍、永远成立。",
+        "start": 69,
+        "end": 187,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "af6254620b0396a91f9001c155e99816b3031fb55af6e42dfb422a51baddf4ce",
+        "raw_response_sha256": "3ed504ced7a94c6ee216f291773956ea0d6a2e46d5f16efeac0ee28e328ee358",
+        "provider_content_id": "7737794094536466592",
+        "provider_content_type": "Article",
+        "provider_create_time": 1784948711,
+        "provider_edit_time": 1784948712,
+        "original_url": "https://zhuanlan.zhihu.com/p/2064304422243640433?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "9181b3c24611.json",
+        "source_index": 5,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-3cf3c7b886d3c3a3",
+      "title": "这两个小学的公式该怎么理解?",
+      "author": "Jerry Wen",
+      "url": "https://www.zhihu.com/question/1914091319975974049/answer/1991221433318270526",
+      "published_at": null,
+      "source_time": "2026-01-04T10:56:24+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "把从 1/(1×2) 到 1/(9×10) 的和拆项，保留首尾项得到 9/10。",
+      "knowledge_points": [
+        "fraction_operations"
+      ],
+      "prerequisites": [
+        "fraction_operations"
+      ],
+      "tags": [
+        "数学基础",
+        "fraction_operations"
+      ],
+      "recommendation_reason": "适合在掌握通分后观察相邻项抵消，算式链完整可复算。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.535726+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "有限正整数项求和，逐项恒等成立；只纳入完整有限求和例，不推广为无穷求和。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合在掌握通分后观察相邻项抵消，算式链完整可复算。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "有限正整数项求和，逐项恒等成立；只纳入完整有限求和例，不推广为无穷求和。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "68ea78a98965c2f26f365911ffa6c6e1",
+        "retrieved_at": "2026-11-18T03:20:47.400499+00:00",
+        "excerpt_sha256": "b967836cbb8a83bf99d28c25c5ca69693fd759637ac0acb25e6a965fe2ef9267",
+        "excerpt": "例1（用第一个公式）：计算 \\boxed{\\frac{1}{1×2} + \\frac{1}{2×3} + \\frac{1}{3×4} + \\dots + \\frac{1}{9×10}}\n用公式拆每一项： \n \\begin{align*} &\\frac{1}{1×2} = \\frac{1}{1} - \\frac{1}{2} \\\\ &\\frac{1}{2×3} = \\frac{1}{2} - \\frac{1}{3} \\\\ &\\frac{1}{3×4} = \\frac{1}{3} - \\frac{1}{4} \\\\ &\\dots \\\\ &\\frac{1}{9×10} = \\frac{1}{9} - \\frac{1}{10} \\end{align*} \n 把所有项代入原式，中间的数会抵消： \n \\begin{align*} &\\left( 1 - \\frac{1}{2} \\right) + \\left( \\frac{1}{2} - \\frac{1}{3} \\right) + \\left( \\frac{1}{3} - \\frac{1}{4} \\right) + \\dots + \\left( \\frac{1}{9} - \\frac{1}{10} \\right) \\\\ &= 1 - \\frac{1}{10} \\quad \\text{（中间的}-\\frac{1}{2}+\\frac{1}{2}、-\\frac{1}{3}+\\frac{1}{3}\\text{都抵消了）} \\\\ &= \\frac{9}{10} \\end{align*}",
+        "start": 569,
+        "end": 1234,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "a3728855cb01998a947d19d2276abe6149ee2ddb3632a7af139f02038a9bc91c",
+        "raw_response_sha256": "3ed504ced7a94c6ee216f291773956ea0d6a2e46d5f16efeac0ee28e328ee358",
+        "provider_content_id": "4557842863887936632",
+        "provider_content_type": "Answer",
+        "provider_create_time": 1767524184,
+        "provider_edit_time": 1767524184,
+        "original_url": "https://www.zhihu.com/question/1914091319975974049/answer/1991221433318270526?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "9181b3c24611.json",
+        "source_index": 6,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-5b088267781adb48",
+      "title": "(十九)初中数学之一元二次方程",
+      "author": "马哥爱数学",
+      "url": "https://zhuanlan.zhihu.com/p/669553056",
+      "published_at": null,
+      "source_time": "2023-11-29T15:56:50+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "给出一元二次方程及其根的定义，明确一般式中二次项系数非零。",
+      "knowledge_points": [
+        "quadratic_roots",
+        "factorisation"
+      ],
+      "prerequisites": [
+        "combine_like_terms"
+      ],
+      "tags": [
+        "数学基础",
+        "quadratic_roots",
+        "factorisation"
+      ],
+      "recommendation_reason": "适合在学习解法之前识别一元、二次与整式三个条件。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.535923+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "只审核概念与一般式的 a≠0 条件；未纳入顶点式、因式形式及后文缺实根条件的求根公式。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合在学习解法之前识别一元、二次与整式三个条件。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "只审核概念与一般式的 a≠0 条件；未纳入顶点式、因式形式及后文缺实根条件的求根公式。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "51dcda895e8ffa20edb4e3f466cba9b5",
+        "retrieved_at": "2026-11-18T03:20:49.811373+00:00",
+        "excerpt_sha256": "56d10284e68d3ec694d95bc757a4c245063df96ea1c9713af20bbc334340658b",
+        "excerpt": "一、一元二次方程的概念\n1、例如，方程X^2+2X=0、（X-1）^2-3=0等等，这样两边都是整式，只含有一个未知数，并且未知数的最高次数是2次的方程叫做一元二次方程。能使一元二次方程两边相等的未知数的值叫做一元二次方程的解（或根）。\n2、一元二次方程的形式：（一般式、顶点式、交点式）（便于求解一元二次方程的根或者利用其来解决各种问题）\n①一般式：aX^2+bX+c=0(a≠0且a、b、c为常数)（通常按照未知数的次数从高到低排列，即：二次项、一次项、常数项）",
+        "start": 0,
+        "end": 233,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "253a3dbde273ac11607bc8da9b91e56f514fc724cd17c385ed8bddd5b5545bae",
+        "raw_response_sha256": "372eb5eaf5138fe584a40cabedbdd73b9a7c0f7cbd07f58009cb89114b536ecb",
+        "provider_content_id": "5089752226789328960",
+        "provider_content_type": "Article",
+        "provider_create_time": 1701273379,
+        "provider_edit_time": 1701273410,
+        "original_url": "https://zhuanlan.zhihu.com/p/669553056?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "87371cd79758.json",
+        "source_index": 1,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-30d7c52183dbed49",
+      "title": "初中数学基本概念 —— 一元二次方程",
+      "author": "灯塔学习笔记",
+      "url": "https://zhuanlan.zhihu.com/p/2030769268774658339",
+      "published_at": null,
+      "source_time": "2026-04-23T14:16:24+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "用 x²+10x−24=0 展示两边同时加 25，转为 (x+5)²=49 再开方。",
+      "knowledge_points": [
+        "quadratic_roots",
+        "equality_preservation"
+      ],
+      "prerequisites": [
+        "equality_preservation",
+        "combine_like_terms"
+      ],
+      "tags": [
+        "数学基础",
+        "quadratic_roots",
+        "equality_preservation"
+      ],
+      "recommendation_reason": "适合理解配方为什么必须同时改变等号两边，并保留正负两个分支。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.536088+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "逐步等价，x+5=±7；此片段止于开方步骤，不声称来源已经列出最终根。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合理解配方为什么必须同时改变等号两边，并保留正负两个分支。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "逐步等价，x+5=±7；此片段止于开方步骤，不声称来源已经列出最终根。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "51dcda895e8ffa20edb4e3f466cba9b5",
+        "retrieved_at": "2026-11-18T03:20:49.811373+00:00",
+        "excerpt_sha256": "806d3a7f5e052395ffaf33ee0c21d142e615673104630df6ffa6cc99cde70c6a",
+        "excerpt": "配方法\n通过配成完全平方形式来解一元二次方程的方法，叫做配方法\n用配方法时，需要观察方程里的系数，包括二次项和一次项的系数，如果根据它们的特点，可以通过“添项”（一般是添加一个实数）后，在等号的一边是一个完全平方式的展开式，然后就可以通过等号两边同时开方，得到最终的解。\n \\begin{align*}     x^2+10x-24 &= 0 \\\\        x^2+10x &= 24 \\\\     两边同时加上 25，&左边是一个完全平方式 \\\\     x^2+10x+25 &= 24+25 \\\\        (x+5)^2 &= 49 \\\\     两边同时&开方 \\\\     x+5&= \\pm 7    \\end{align*}",
+        "start": 245,
+        "end": 570,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "60cbc9e8cd5a960ea4ef3437162831c5f5fd05e4327ad011e08fe4040cd3e6c0",
+        "raw_response_sha256": "372eb5eaf5138fe584a40cabedbdd73b9a7c0f7cbd07f58009cb89114b536ecb",
+        "provider_content_id": "3771650478682547133",
+        "provider_content_type": "Article",
+        "provider_create_time": 1776953784,
+        "provider_edit_time": 1776953784,
+        "original_url": "https://zhuanlan.zhihu.com/p/2030769268774658339?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "87371cd79758.json",
+        "source_index": 3,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-79bc81d8738ce20a",
+      "title": "方程和函数,其实很简单",
+      "author": "潇洒畅想",
+      "url": "https://zhuanlan.zhihu.com/p/2025485552498001513",
+      "published_at": null,
+      "source_time": "2026-04-09T00:48:51+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "以 f(x)=x²−4x+3 为例，把方程的两个根与函数图像的横轴交点联系起来。",
+      "knowledge_points": [
+        "quadratic_roots",
+        "substitution_check"
+      ],
+      "prerequisites": [
+        "factorisation"
+      ],
+      "tags": [
+        "数学基础",
+        "quadratic_roots",
+        "substitution_check"
+      ],
+      "recommendation_reason": "适合从代数解题转向函数视角，先用同一具体多项式对照两种表达。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.536225+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "x²−4x+3=(x−1)(x−3)，根为1和3；限定为函数零点与对应方程的联系。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合从代数解题转向函数视角，先用同一具体多项式对照两种表达。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "x²−4x+3=(x−1)(x−3)，根为1和3；限定为函数零点与对应方程的联系。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "51dcda895e8ffa20edb4e3f466cba9b5",
+        "retrieved_at": "2026-11-18T03:20:49.811373+00:00",
+        "excerpt_sha256": "7c9d065ea4d92eb57011770f5870ecfd812725683b3ca0f6efc6f1d83fa32fd7",
+        "excerpt": "三、方程与函数的联系\n函数 f(x) = 0 就是一个方程。\n例如：f(x) = x² - 4x + 3 = 0 的解就是 x=1 和 x=3。\n这意味着：函数图像与 x 轴交点的横坐标就是方程的解。",
+        "start": 277,
+        "end": 377,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "9e6f467241425706a0d1b381a885ed106712490e7f274b9e807fbae5914397ce",
+        "raw_response_sha256": "372eb5eaf5138fe584a40cabedbdd73b9a7c0f7cbd07f58009cb89114b536ecb",
+        "provider_content_id": "6386474706627110094",
+        "provider_content_type": "Article",
+        "provider_create_time": 1775695731,
+        "provider_edit_time": 1775695731,
+        "original_url": "https://zhuanlan.zhihu.com/p/2025485552498001513?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "87371cd79758.json",
+        "source_index": 4,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-02220082a08b8c19",
+      "title": "初三数学中,一元二次方程的因式分解法具体怎么用?",
+      "author": "Jerry Wen",
+      "url": "https://www.zhihu.com/question/2080686119872734875/answer/2080697858047714605",
+      "published_at": null,
+      "source_time": "2026-09-08T08:43:46+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "通过提公因式、平方差、完全平方和十字相乘四个具体例子展示因式分解求根。",
+      "knowledge_points": [
+        "factorisation",
+        "quadratic_roots"
+      ],
+      "prerequisites": [
+        "combine_like_terms",
+        "distributive_law"
+      ],
+      "tags": [
+        "数学基础",
+        "factorisation",
+        "quadratic_roots"
+      ],
+      "recommendation_reason": "适合已能展开多项式的学习者比较不同结构，完整保留 x=0 的分支。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.536352+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "逐例核对根集 {0,3}、{−3,3}、{−3}、{2,3}；不采纳后文“永远”“首选最快”等无条件教学主张。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合已能展开多项式的学习者比较不同结构，完整保留 x=0 的分支。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "逐例核对根集 {0,3}、{−3,3}、{−3}、{2,3}；不采纳后文“永远”“首选最快”等无条件教学主张。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "51dcda895e8ffa20edb4e3f466cba9b5",
+        "retrieved_at": "2026-11-18T03:20:49.811373+00:00",
+        "excerpt_sha256": "b9e764298a4d5a2410d29a9d1986cc2aa502e7f50958608eca9e57b2d07a020a",
+        "excerpt": "第一招：提公因式。永远先看有没有公因式，这是最快的。\n比如 x^2=3x。先移项得 x^2-3x=0，左边提出 x：x(x-3)=0，所以 x=0 或 x=3。\n第二招：套公式。\n平方差公式 a^2-b^2=(a+b)(a-b)：比如 x^2-9=0，直接写成 (x+3)(x-3)=0，解得 x=3 或 x=-3。\n完全平方公式 a^2\\pm2ab+b^2=(a\\pm b)^2：比如 x^2+6x+9=0，写成 (x+3)^2=0，解得 x_1=x_2=-3。\n第三招：十字相乘。\n二次项系数是 1 的时候，它本质上就一句话：找两个数，积等于常数项，和等于一次项系数。\n比如 x^2-5x+6=0：找两个数，积为 6，和为 −5，是 −2 和 −3。所以\nx^2-5x+6=(x-2)(x-3)=0\n解得 x=2 或 x=3。",
+        "start": 101,
+        "end": 466,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "a760724779ad5bb7d348018fba302d070c146ff3c74d2d3e483a34c5989bbf69",
+        "raw_response_sha256": "372eb5eaf5138fe584a40cabedbdd73b9a7c0f7cbd07f58009cb89114b536ecb",
+        "provider_content_id": "-5856529166299287597",
+        "provider_content_type": "Answer",
+        "provider_create_time": 1788857026,
+        "provider_edit_time": 1788857026,
+        "original_url": "https://www.zhihu.com/question/2080686119872734875/answer/2080697858047714605?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "87371cd79758.json",
+        "source_index": 7,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-76f0bf733d17299f",
+      "title": "听说一元二次函数的判别式很有用,都有哪些用途?",
+      "author": "Jerry Wen",
+      "url": "https://www.zhihu.com/question/1970933113069745629/answer/2030919280594785615",
+      "published_at": null,
+      "source_time": "2026-04-24T00:03:41+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "在实数范围下，用判别式区分二次三项式是否有一次因式分解，并给出 2x²−3x+1 的例子。",
+      "knowledge_points": [
+        "quadratic_discriminant",
+        "factorisation"
+      ],
+      "prerequisites": [
+        "quadratic_discriminant"
+      ],
+      "tags": [
+        "数学基础",
+        "quadratic_discriminant",
+        "factorisation"
+      ],
+      "recommendation_reason": "适合明确因式分解所用数域，避免把实数与有理数分解混为一谈。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.536474+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "限定实系数 a≠0，实数域的一次因式分解；示例 (x−1)(2x−1) 展开正确。其他圆锥曲线/值域泛化未审核。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合明确因式分解所用数域，避免把实数与有理数分解混为一谈。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "限定实系数 a≠0，实数域的一次因式分解；示例 (x−1)(2x−1) 展开正确。其他圆锥曲线/值域泛化未审核。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "51dcda895e8ffa20edb4e3f466cba9b5",
+        "retrieved_at": "2026-11-18T03:20:49.811373+00:00",
+        "excerpt_sha256": "ec07dd5262af81c481f767dfd5be827b1384d73115b573446ecb25fd5ec01386",
+        "excerpt": "六、二次三项式的因式分解判定\n对于二次三项式 ax^2+bx+c \\ (a≠0) ，能否在实数范围内因式分解，完全由Δ决定：\n・若 \\Delta ≥0 ：可以在实数范围内分解为 a(x-x_1)(x-x_2) ，其中x1、x2是对应方程的两个实根\n・若 \\Delta <0 ：在实数范围内无法因式分解（仅能在复数范围内分解） 示例：分解 2x^2-3x+1 ，Δ=9-8=1>0，根为x=1和x=1/2，因此可分解为 (x-1)(2x-1) 。",
+        "start": 760,
+        "end": 982,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "c28ad32d53a1c7e08192c4fd738efcd5933d714be0965304ff28a86dffde1075",
+        "raw_response_sha256": "372eb5eaf5138fe584a40cabedbdd73b9a7c0f7cbd07f58009cb89114b536ecb",
+        "provider_content_id": "7106878423813960137",
+        "provider_content_type": "Answer",
+        "provider_create_time": 1776988889,
+        "provider_edit_time": 1776989021,
+        "original_url": "https://www.zhihu.com/question/1970933113069745629/answer/2030919280594785615?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "87371cd79758.json",
+        "source_index": 8,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-1aa908fb457bf691",
+      "title": "线性代数之01 线性方程组",
+      "author": "Jimshell",
+      "url": "https://zhuanlan.zhihu.com/p/1970211245798982863",
+      "published_at": null,
+      "source_time": "2026-06-07T10:33:24+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "对同一方程组同时给出代入法和加减法，均得到 x=2、y=−1。",
+      "knowledge_points": [
+        "system_substitution",
+        "system_elimination"
+      ],
+      "prerequisites": [
+        "linear_isolation",
+        "equality_preservation"
+      ],
+      "tags": [
+        "数学基础",
+        "system_substitution",
+        "system_elimination"
+      ],
+      "recommendation_reason": "适合比较两种方法的具体操作，理解消去一个未知数的共同目标。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.536644+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "代回 x−y=3 与2x+3y=1 均成立；对照的是本例中的等价变形，不据此宣布某方法普遍更快。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合比较两种方法的具体操作，理解消去一个未知数的共同目标。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "代回 x−y=3 与2x+3y=1 均成立；对照的是本例中的等价变形，不据此宣布某方法普遍更快。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "324a8e05d91475830f5226cf18b296d5",
+        "retrieved_at": "2026-11-18T03:20:51.275667+00:00",
+        "excerpt_sha256": "9cc85867c16ca220ee2068c03725090f4bd3c282eabbf174295df45d509fd2cd",
+        "excerpt": "2 线性方程组的解法\n我们在初中时就学过代入消元法和加减消元法。比如： \\begin{equation}  \\begin{cases} x-y=3 \\\\[10pt]  2x+3y=1   \\end{cases}  \\end{equation}\\\\\n我们可以从第一个方程解得 y=x-3 然后代入第二个方程中得： 2x+3\\left( x-3 \\right)=1 ，化简后得 x=2 ，将 x=2 代入 y=x-3 得 y=-1 。这是代入消元法。\n如果将第一个方程两边同时乘以 3 得 3x-3y=9 与第二个方程相加得 5x=10 ，这样就消去未知数 y ，得到 x=2 。这是加减消元法。\n代入消元法和加减消元法本质是一样的。我们可以从第一个方程解得 y=x-3 然后代入第二个方程中得2x+3\\left( x-3 \\right)=1 ，实际上就是第二个方程加上第一个方程的 3 倍。",
+        "start": 173,
+        "end": 567,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "be426c2307bebfc111a57387b06b6565869d93665a75a9a72c889c79c5586d43",
+        "raw_response_sha256": "1fb46fb64d60f8960a4927b44676e0f812154560ae28ae9c399be64322a1b32b",
+        "provider_content_id": "3170177367423284455",
+        "provider_content_type": "Article",
+        "provider_create_time": 1763481661,
+        "provider_edit_time": 1780828404,
+        "original_url": "https://zhuanlan.zhihu.com/p/1970211245798982863?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "414198147809.json",
+        "source_index": 0,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-8d086ad5f9489d2e",
+      "title": "数学知识篇17:二元一次方程组的解法",
+      "author": "影子",
+      "url": "https://zhuanlan.zhihu.com/p/426565837",
+      "published_at": null,
+      "source_time": "2021-11-10T15:07:30+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "通过 y=x−2 代入另一个方程，求出 x=3、y=1。",
+      "knowledge_points": [
+        "system_substitution",
+        "system_completeness"
+      ],
+      "prerequisites": [
+        "linear_isolation"
+      ],
+      "tags": [
+        "数学基础",
+        "system_substitution",
+        "system_completeness"
+      ],
+      "recommendation_reason": "适合刚掌握一次方程的学习者跟随一个完整代入法例题。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.536786+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "代回两个原方程均成立；未将后文系数±1建议当作必要条件。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合刚掌握一次方程的学习者跟随一个完整代入法例题。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "代回两个原方程均成立；未将后文系数±1建议当作必要条件。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "324a8e05d91475830f5226cf18b296d5",
+        "retrieved_at": "2026-11-18T03:20:51.275667+00:00",
+        "excerpt_sha256": "6c86f23920c115a467cfb56ca9b28e776a825ec33fa77c7ed5900b99dfa4a129",
+        "excerpt": "例:   解方程组 \\begin{equation}   \\left\\{   \\begin{array}{c}  x−y = 2\\qquad\\qquad\\ \\ \\ ① \\ \\\\   2x+3y = 9\\qquad\\ \\ \\ \\ \\ \\ ②  \\\\   \\end{array}   \\right.   \\end{equation} \n解: 由 ① 得 y = x−2    ③ \n把 ③ 代入 ② 得 2x+3(x−2) = 9 \n解得  x = 3  \n把  x = 3 代入 ③ 得 y = 1  \n所以方程组的解是 \\begin{equation}   \\left\\{   \\begin{array}{c} x = 3\\\\  y = 1 \\\\   \\end{array}   \\right.   \\end{equation}",
+        "start": 601,
+        "end": 965,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "8bca9940187a0cb6da5e200a7067b9d57a517c8225a60b380a8fbef6e519f22b",
+        "raw_response_sha256": "1fb46fb64d60f8960a4927b44676e0f812154560ae28ae9c399be64322a1b32b",
+        "provider_content_id": "5430142578862962958",
+        "provider_content_type": "Article",
+        "provider_create_time": 1636556848,
+        "provider_edit_time": 1636556850,
+        "original_url": "https://zhuanlan.zhihu.com/p/426565837?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "414198147809.json",
+        "source_index": 1,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-cd18e317a9bb6fe3",
+      "title": "二元一次方程该怎么解?",
+      "author": "龙吟",
+      "url": "https://www.zhihu.com/question/449609580/answer/2087198893192828755",
+      "published_at": null,
+      "source_time": "2026-09-26T07:16:34+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "解释方程组的解必须同时满足全部方程，并给出逐式代入的检验方法。",
+      "knowledge_points": [
+        "system_completeness",
+        "substitution_check"
+      ],
+      "prerequisites": [
+        "substitution_check"
+      ],
+      "tags": [
+        "数学基础",
+        "system_completeness",
+        "substitution_check"
+      ],
+      "recommendation_reason": "适合检查只满足一个方程的候选解，强化原条件检查。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.536996+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "仅此完整定义与检验单元通过；后文用系数比分类缺少分母非零条件，排除在可用证据范围之外。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合检查只满足一个方程的候选解，强化原条件检查。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "仅此完整定义与检验单元通过；后文用系数比分类缺少分母非零条件，排除在可用证据范围之外。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "324a8e05d91475830f5226cf18b296d5",
+        "retrieved_at": "2026-11-18T03:20:51.275667+00:00",
+        "excerpt_sha256": "15c32ed72aab673978c3290d26e78dfec00d9cb9872c828a89e1ca7bfa8a4ef9",
+        "excerpt": "方程组的解：同时满足方程组中所有方程的未知数的值，叫做二元一次方程组的解。\n检验方法：将一组值分别代入方程组中的每个方程，若都满足，则是方程组的解。",
+        "start": 255,
+        "end": 329,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "9a59a50bf6da0a3b16ed461f54163b8c7d799a5d51c901808197acf9bdf28b8b",
+        "raw_response_sha256": "1fb46fb64d60f8960a4927b44676e0f812154560ae28ae9c399be64322a1b32b",
+        "provider_content_id": "602454443158602820",
+        "provider_content_type": "Answer",
+        "provider_create_time": 1790406994,
+        "provider_edit_time": 1790406994,
+        "original_url": "https://www.zhihu.com/question/449609580/answer/2087198893192828755?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "414198147809.json",
+        "source_index": 5,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-193a23d395785d7c",
+      "title": "学不懂线性代数?用动画来拯救(一):线性变换",
+      "author": "tomsheep",
+      "url": "https://zhuanlan.zhihu.com/p/1896368529332237603",
+      "published_at": null,
+      "source_time": "2025-05-04T02:26:34+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "作者把几何可视化视为理解线性代数的学习支点，并说明文章的几何路线。",
+      "knowledge_points": [
+        "linear_algebra"
+      ],
+      "prerequisites": [
+        "math_foundations"
+      ],
+      "tags": [
+        "数学基础",
+        "linear_algebra"
+      ],
+      "recommendation_reason": "适合与符号路线比较学习入口；这是作者经验性建议，不是学习效果保证。",
+      "claim_kind": "author_opinion",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.537153+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "作者明确使用“我觉得”；保留意见类型，不将图文更易记忆当作普遍实验证据。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合与符号路线比较学习入口；这是作者经验性建议，不是学习效果保证。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "作者明确使用“我觉得”；保留意见类型，不将图文更易记忆当作普遍实验证据。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "b9f795a5b51d183b52f06e9aa7f683b7",
+        "retrieved_at": "2026-11-18T03:20:52.719579+00:00",
+        "excerpt_sha256": "37d0cc97651bc419883533dbfe127a5e2dbacf48eeb93846b383ebef2615848b",
+        "excerpt": "我觉得，几何其实是一个很好的锚点，它有一个很优越的品质，就是相对容易「可视化」。图文并茂，总是更容易记忆一些。我翻出了之前在知乎上写的一些回答，做一些可视化的加工和改良，再谈谈线性代数的话题。这一篇，我们来从几何的角度理解线性变换（也就是矩阵乘法）。",
+        "start": 140,
+        "end": 265,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "9c1628a5e5b99b6bbfe47c56edffa025d5ac7c31d19d26d60a87b087a8e13b32",
+        "raw_response_sha256": "f8144c861e352ac7306b59980949fffddea099d23c16e1fa1cc81c25f43c9285",
+        "provider_content_id": "-7985365935144254839",
+        "provider_content_type": "Article",
+        "provider_create_time": 1744941906,
+        "provider_edit_time": 1746325594,
+        "original_url": "https://zhuanlan.zhihu.com/p/1896368529332237603?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "a2d99d3da4d3.json",
+        "source_index": 2,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-307089be28388ed6",
+      "title": "如何直观理解矩阵和线性代数?",
+      "author": "北冥有鱼",
+      "url": "https://www.zhihu.com/question/21082351/answer/2041118241389602494",
+      "published_at": null,
+      "source_time": "2026-05-22T03:30:48+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "说明向量空间由加法、数乘及其公理确定，其元素也可以是多项式、函数或矩阵。",
+      "knowledge_points": [
+        "linear_algebra"
+      ],
+      "prerequisites": [
+        "math_foundations"
+      ],
+      "tags": [
+        "数学基础",
+        "linear_algebra"
+      ],
+      "recommendation_reason": "适合突破“向量只能是箭头”的直觉，再阅读正式公理。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.537289+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "可见文字明确需满足公理，不把加法/数乘闭合两条当作充分定义；不纳入前文物理断言或后文无条件局部线性化。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合突破“向量只能是箭头”的直觉，再阅读正式公理。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "可见文字明确需满足公理，不把加法/数乘闭合两条当作充分定义；不纳入前文物理断言或后文无条件局部线性化。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "b9f795a5b51d183b52f06e9aa7f683b7",
+        "retrieved_at": "2026-11-18T03:20:52.719579+00:00",
+        "excerpt_sha256": "e9e1c60b9375b6db333d042942c28236ffab2ec739b2d545eccd3aed828293e5",
+        "excerpt": "向量空间是个很朴素的东西：一个集合，里面的元素能做两件事——能相加（两个向量加起来还在集合里），能缩放（乘个数还在集合里）。再要求这两个运算守点规矩（加法交换、结合、有零元、分配律之类），凑齐几条公理，这个集合就配叫向量空间。\n这里有个极其关键、又极容易被忽略的点：整个定义里压根不提向量长什么样。\n它可以是平面上的小箭头，可以是一个多项式，可以是一段函数，可以是一串数列，甚至可以是矩阵本身。只要你能在这堆东西上定义出守规矩的「加法」和「数乘」，它就是向量空间，线性代数那一整套理论立刻原封不动地适用。这个结构是靠运算的行为来定义的，不靠对象的外貌。 记住这一点，后面讲应用为什么能跨那么多领域，谜底全在这儿。",
+        "start": 327,
+        "end": 633,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "122d7dac6ffd9bd024236d316ef233ef439cff0959420ce52c2e3dde302f3194",
+        "raw_response_sha256": "f8144c861e352ac7306b59980949fffddea099d23c16e1fa1cc81c25f43c9285",
+        "provider_content_id": "7245732047902314450",
+        "provider_content_type": "Answer",
+        "provider_create_time": 1779420510,
+        "provider_edit_time": 1779420648,
+        "original_url": "https://www.zhihu.com/question/21082351/answer/2041118241389602494?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "a2d99d3da4d3.json",
+        "source_index": 5,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-d64d58b31a5deb94",
+      "title": "【线性代数】第3章 线性变换 (Linear Transformations)",
+      "author": "轻衣",
+      "url": "https://zhuanlan.zhihu.com/p/2084405042191376688",
+      "published_at": null,
+      "source_time": "2026-09-19T00:32:13+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "给出保持加法和数乘的线性映射定义，以及核、像、秩与零度的正式表达。",
+      "knowledge_points": [
+        "linear_algebra"
+      ],
+      "prerequisites": [
+        "math_foundations"
+      ],
+      "tags": [
+        "数学基础",
+        "linear_algebra"
+      ],
+      "recommendation_reason": "适合已有向量与函数基础的学习者，将直觉对应到可检查的定义。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.537476+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "官方接口的真实返回；不将平台作者字段等同于独立核实身份。",
+          "correctness_for_use": "数域、向量空间及有限维条件完整；核/像定义与秩零度定义正确，只审核定义而非后续定理证明。",
+          "visible_completeness": "仅纳入可独立阅读的完整定义、例题或有归属的经验建议。",
+          "goal_stage_fit": "适合已有向量与函数基础的学习者，将直觉对应到可检查的定义。",
+          "readability": "选中片段没有影响核心内容的公式或图片缺失。",
+          "timeliness": "稳定数学概念或有归属的学习建议；不根据未知首发时间声称最新。"
+        },
+        "notes": "数域、向量空间及有限维条件完整；核/像定义与秩零度定义正确，只审核定义而非后续定理证明。",
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "b9f795a5b51d183b52f06e9aa7f683b7",
+        "retrieved_at": "2026-11-18T03:20:52.719579+00:00",
+        "excerpt_sha256": "2b4f12cdb12393feb87e1a52c84f0772fd50e771786bbd00d34de6e891e9355d",
+        "excerpt": "定义 3.1.1 线性变换 (Linear Transformation)：设 V,W 是域 F 上的向量空间，映射 T:V\\to W 称为线性变换，若对任意 \\alpha,\\beta\\in V 和任意 c\\in F，都有\nT(c\\alpha+\\beta)=cT\\alpha+T\\beta.\n等价地，T(\\alpha+\\beta)=T\\alpha+T\\beta 且 T(c\\alpha)=cT\\alpha。\n定义 3.1.2 零空间/核 (Null Space / Kernel)：T 的零空间定义为\nN(T)=\\{\\alpha\\in V: T\\alpha=0\\}.\n定义 3.1.3 像/值域 (Range)：T 的像定义为\nR(T)=\\{\\beta\\in W:\\exists\\,\\alpha\\in V,\\ T\\alpha=\\beta\\}.\n定义 3.1.4 秩与零度 (Rank and Nullity)：若 V 有限维，\\operatorname{rank}(T)=\\dim R(T) 称为 T 的秩；\\operatorname{nullity}(T)=\\dim N(T) 称为 T 的零度。",
+        "start": 451,
+        "end": 950,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "e229736e2a5c0a956a78f41b26c8aa879b53043e15ee332b79ffb81b3db616a9",
+        "raw_response_sha256": "f8144c861e352ac7306b59980949fffddea099d23c16e1fa1cc81c25f43c9285",
+        "provider_content_id": "5899740995656821316",
+        "provider_content_type": "Article",
+        "provider_create_time": 1789777933,
+        "provider_edit_time": 1789777933,
+        "original_url": "https://zhuanlan.zhihu.com/p/2084405042191376688?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "a2d99d3da4d3.json",
+        "source_index": 8,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-5b5ba946de780d32",
+      "title": "模块一:概率论与数理统计(一)",
+      "author": "流年似水",
+      "url": "https://zhuanlan.zhihu.com/p/2022272037821977647",
+      "published_at": null,
+      "source_time": "2026-03-31T07:37:19+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "用事件 B 限定观察范围，给出 P(A|B)=P(AB)/P(B)，并明确 P(B)>0。",
+      "knowledge_points": [
+        "probability",
+        "conditional_probability"
+      ],
+      "prerequisites": [
+        "fraction_operations",
+        "sets"
+      ],
+      "tags": [
+        "数学基础",
+        "probability",
+        "conditional_probability"
+      ],
+      "recommendation_reason": "适合已会分数比值、开始区分事件交集与条件概率的学习者；公式和分母条件在可见片段内完整。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.537735+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "真实官方 API 返回，保留作者字段、URL、取得时间和原始文本哈希；不宣称身份人工核实。",
+          "correctness_for_use": "仅对下列限定概念、例子或归属于作者的学习建议进行 AI 初审，不扩展为全文真值认证。",
+          "visible_completeness": "所选范围是一段可独立理解的概念/例子/清单；排除缺公式或缺上下文的其余范围。",
+          "goal_stage_fit": "适合已会分数比值、开始区分事件交集与条件概率的学习者；公式和分母条件在可见片段内完整。",
+          "readability": "当前摘录能直接阅读；没有依赖未返回图表的核心结论。",
+          "timeliness": "使用稳定数学概念或明确归属的建议；不声称新近软件或现行制度，时间字段按未知/发布或更新保留。"
+        },
+        "notes": [
+          "仅审核条件概率小节；后续贝叶斯展开与机器学习应用未纳入此条的质量结论。"
+        ],
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "eec6ecb32d1d1fd7846020afb03376ee",
+        "retrieved_at": "2026-11-18T03:20:54.841542+00:00",
+        "excerpt_sha256": "37d156a9711ab384111da4308003d5ce5a8817c8770181bb1e413ca562f7eddc",
+        "excerpt": "1.5.1 条件概率 (Conditional Probability)\n定义：在事件 B 发生的条件下，事件 A 发生的概率： \nP(A|B) = \\frac{P(AB)}{P(B)}, \\quad (P(B) > 0)\n・物理意义：样本空间从 \\Omega 压缩到了 B。我们在 B 这个新宇宙里看 A 占多大比例。",
+        "start": 136,
+        "end": 296,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "f6efee1cd800ee8dcb137d2b6e6516d651d9ce3b13cc735072ca2637ba55237d",
+        "raw_response_sha256": "eae7defd92124cdd1b94a52fbf2231d3179030843affbc3635cc0ff352a982cf",
+        "provider_content_id": "-6484953523523791692",
+        "provider_content_type": "Article",
+        "provider_create_time": 1774941391,
+        "provider_edit_time": 1774942639,
+        "original_url": "https://zhuanlan.zhihu.com/p/2022272037821977647?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "68a762cba841.json",
+        "source_index": 5,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-269bccd69782c8af",
+      "title": "怎样用非数学语言讲解贝叶斯定理(Bayes's theorem)?",
+      "author": "罗罗西西",
+      "url": "https://www.zhihu.com/question/19725590/answer/1962537517183120693",
+      "published_at": null,
+      "source_time": "2025-10-17T07:28:55+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "把条件概率解释为：在符合条件的可能情况中，目标结果所占的份额。",
+      "knowledge_points": [
+        "probability",
+        "conditional_probability",
+        "intuition"
+      ],
+      "prerequisites": [
+        "fraction_operations"
+      ],
+      "tags": [
+        "数学基础",
+        "probability",
+        "conditional_probability",
+        "intuition"
+      ],
+      "recommendation_reason": "作为概率公式之前的语言直觉，帮助明确分母指向的条件集合；它不提供数值例题的完整验证。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.538206+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "真实官方 API 返回，保留作者字段、URL、取得时间和原始文本哈希；不宣称身份人工核实。",
+          "correctness_for_use": "仅对下列限定概念、例子或归属于作者的学习建议进行 AI 初审，不扩展为全文真值认证。",
+          "visible_completeness": "所选范围是一段可独立理解的概念/例子/清单；排除缺公式或缺上下文的其余范围。",
+          "goal_stage_fit": "作为概率公式之前的语言直觉，帮助明确分母指向的条件集合；它不提供数值例题的完整验证。",
+          "readability": "当前摘录能直接阅读；没有依赖未返回图表的核心结论。",
+          "timeliness": "使用稳定数学概念或明确归属的建议；不声称新近软件或现行制度，时间字段按未知/发布或更新保留。"
+        },
+        "notes": [
+          "仅采用该概念解释，不采用全文动物数量类比或把观察频率直接当概率的推断。",
+          "该段没有声明零概率条件的处理；数值公式必须另保留 P(B)>0。"
+        ],
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "eec6ecb32d1d1fd7846020afb03376ee",
+        "retrieved_at": "2026-11-18T03:20:54.841542+00:00",
+        "excerpt_sha256": "463e3635ec9386c29da965f0e83699a07395f525c7ecb04019ee31b646c1c158",
+        "excerpt": "这就是“条件概率”背后的思维方式，用非数学的语言来说，一句话就能概括：\n 条件概率，是归一化后的联合概率——它衡量的不是“一起出现得多不多”，而是“在符合条件的所有可能中，某个结果占了多大分量”。",
+        "start": 183,
+        "end": 281,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "543756fc27b9965fe6f553c5b2021535d5e90c7239cfde85db63733e1c5ba1fd",
+        "raw_response_sha256": "eae7defd92124cdd1b94a52fbf2231d3179030843affbc3635cc0ff352a982cf",
+        "provider_content_id": "-1684427027959454310",
+        "provider_content_type": "Answer",
+        "provider_create_time": 1760685406,
+        "provider_edit_time": 1760686135,
+        "original_url": "https://www.zhihu.com/question/19725590/answer/1962537517183120693?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "68a762cba841.json",
+        "source_index": 6,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-dab21d765533a351",
+      "title": "条件概率:信息改变之后,概率也要重新计算",
+      "author": "甚远",
+      "url": "https://zhuanlan.zhihu.com/p/2048753699758007908",
+      "published_at": null,
+      "source_time": "2026-06-12T05:09:15+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "区分原样本空间中的交集概率与在条件事件发生后重新归一化的条件概率。",
+      "knowledge_points": [
+        "probability",
+        "conditional_probability",
+        "event_intersection"
+      ],
+      "prerequisites": [
+        "fraction_operations",
+        "sets"
+      ],
+      "tags": [
+        "数学基础",
+        "probability",
+        "conditional_probability",
+        "event_intersection"
+      ],
+      "recommendation_reason": "适合已经认识事件与交集的学习者，用来纠正把 P(A|B) 和 P(A∩B) 当成同一个量的混淆。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.538617+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "真实官方 API 返回，保留作者字段、URL、取得时间和原始文本哈希；不宣称身份人工核实。",
+          "correctness_for_use": "仅对下列限定概念、例子或归属于作者的学习建议进行 AI 初审，不扩展为全文真值认证。",
+          "visible_completeness": "所选范围是一段可独立理解的概念/例子/清单；排除缺公式或缺上下文的其余范围。",
+          "goal_stage_fit": "适合已经认识事件与交集的学习者，用来纠正把 P(A|B) 和 P(A∩B) 当成同一个量的混淆。",
+          "readability": "当前摘录能直接阅读；没有依赖未返回图表的核心结论。",
+          "timeliness": "使用稳定数学概念或明确归属的建议；不声称新近软件或现行制度，时间字段按未知/发布或更新保留。"
+        },
+        "notes": [
+          "这条仅推荐概念区分片段，不含缺少分母正条件的公式。",
+          "医学筛查例子未作为学习者健康建议或完整计算案例审核。"
+        ],
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "eec6ecb32d1d1fd7846020afb03376ee",
+        "retrieved_at": "2026-11-18T03:20:54.841542+00:00",
+        "excerpt_sha256": "4aa333adb966d96740d98cf398480c65aaa9dc71add29881a622448057520680",
+        "excerpt": "条件概率不是简单的交集概率\n很多人会把 P(A|B) 和 P(A\\cap B) 混在一起。\n它们不是一回事。\nP(A\\cap B) 问的是：在原始样本空间中，A 和 B 同时发生的概率。\nP(A|B) 问的是：已经知道 B 发生之后，A 发生的概率。\n前者没有改变背景，后者改变了背景。",
+        "start": 146,
+        "end": 289,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "08230ded8aa1724dce4f7f7498e3e87a92cd2efaead6c22f560370f88761d8ef",
+        "raw_response_sha256": "eae7defd92124cdd1b94a52fbf2231d3179030843affbc3635cc0ff352a982cf",
+        "provider_content_id": "794830702743780229",
+        "provider_content_type": "Article",
+        "provider_create_time": 1781240955,
+        "provider_edit_time": 1781240955,
+        "original_url": "https://zhuanlan.zhihu.com/p/2048753699758007908?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "68a762cba841.json",
+        "source_index": 7,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-90d0992771ae03af",
+      "title": "Think Bayes - 我所理解的贝叶斯定理",
+      "author": "链球选手",
+      "url": "https://zhuanlan.zhihu.com/p/22467549",
+      "published_at": null,
+      "source_time": "2017-01-07T06:57:41+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "借阳性检测的事件记号说明 P(B|A) 与 P(A|B) 询问的方向不同。",
+      "knowledge_points": [
+        "probability",
+        "bayes",
+        "conditional_probability"
+      ],
+      "prerequisites": [
+        "fraction_operations",
+        "conditional_probability"
+      ],
+      "tags": [
+        "数学基础",
+        "probability",
+        "bayes",
+        "conditional_probability"
+      ],
+      "recommendation_reason": "作为贝叶斯前的条件方向辨析：明确哪一个事件已经发生，哪一个事件的概率待求。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.538816+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "真实官方 API 返回，保留作者字段、URL、取得时间和原始文本哈希；不宣称身份人工核实。",
+          "correctness_for_use": "仅对下列限定概念、例子或归属于作者的学习建议进行 AI 初审，不扩展为全文真值认证。",
+          "visible_completeness": "所选范围是一段可独立理解的概念/例子/清单；排除缺公式或缺上下文的其余范围。",
+          "goal_stage_fit": "作为贝叶斯前的条件方向辨析：明确哪一个事件已经发生，哪一个事件的概率待求。",
+          "readability": "当前摘录能直接阅读；没有依赖未返回图表的核心结论。",
+          "timeliness": "使用稳定数学概念或明确归属的建议；不声称新近软件或现行制度，时间字段按未知/发布或更新保留。"
+        },
+        "notes": [
+          "仅审核两个条件概率的语言方向；去除缺乏当前片段基率背景的‘真实概率远低于99%’以及‘两个后验’的不精确称呼。",
+          "不对读者做医学风险解释；原帖疾病案例完整计算因公式缺失未通过本次审核。"
+        ],
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "eec6ecb32d1d1fd7846020afb03376ee",
+        "retrieved_at": "2026-11-18T03:20:54.841542+00:00",
+        "excerpt_sha256": "5d8af5c2c4c1b939d3e90c16aaee033f15671c20cae47c9cd2f4b8b8f18e48c9",
+        "excerpt": "如果用 A 表示这个人患有该疾病，用 B 表示医院检测的结果是阳性，那么 P(B|A) = 99\\% 表示的是「已知一个人得病的情况下医院检测出阳性的概率」，而我们现在问的是「对于随机抽取的这个人，已知检测结果为阳性的情况下这个人患病的概率」，即 P(A|B) 。",
+        "start": 849,
+        "end": 981,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "d8de7effecfec66eca6eeebed5f4ec35cabf7b9de82cf9e3b7fa72b24b6c2f25",
+        "raw_response_sha256": "eae7defd92124cdd1b94a52fbf2231d3179030843affbc3635cc0ff352a982cf",
+        "provider_content_id": "6588033139221454074",
+        "provider_content_type": "Article",
+        "provider_create_time": 1474009204,
+        "provider_edit_time": 1483772261,
+        "original_url": "https://zhuanlan.zhihu.com/p/22467549?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "68a762cba841.json",
+        "source_index": 9,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-87570f18dc985339",
+      "title": "学微积分时,怎样才能从背公式走到真正理解极限和导数?",
+      "author": "HNBC",
+      "url": "https://www.zhihu.com/question/2083510946463588805/answer/2103477758164721833",
+      "published_at": null,
+      "source_time": "2026-11-10T05:22:58+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "用 (x²−1)/(x−1) 在 x≠1 时趋近 x=1 的例子，区分函数的未定义点与附近的极限。",
+      "knowledge_points": [
+        "calculus",
+        "limit"
+      ],
+      "prerequisites": [
+        "factorisation",
+        "fraction_operations",
+        "functions"
+      ],
+      "tags": [
+        "数学基础",
+        "calculus",
+        "limit"
+      ],
+      "recommendation_reason": "适合已会因式分解和分式的极限入门：先核对这个有明确排除点的简短例子，再学习严格定义。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.539032+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "真实官方 API 返回，保留作者字段、URL、取得时间和原始文本哈希；不宣称身份人工核实。",
+          "correctness_for_use": "仅对下列限定概念、例子或归属于作者的学习建议进行 AI 初审，不扩展为全文真值认证。",
+          "visible_completeness": "所选范围是一段可独立理解的概念/例子/清单；排除缺公式或缺上下文的其余范围。",
+          "goal_stage_fit": "适合已会因式分解和分式的极限入门：先核对这个有明确排除点的简短例子，再学习严格定义。",
+          "readability": "当前摘录能直接阅读；没有依赖未返回图表的核心结论。",
+          "timeliness": "使用稳定数学概念或明确归属的建议；不声称新近软件或现行制度，时间字段按未知/发布或更新保留。"
+        },
+        "notes": [
+          "只审核该极限例子；关于教材、‘绝大多数人’和 ε-δ ‘不是理解工具’的绝对教学判断未采纳。",
+          "不声称本次读过完整回答，也不将摘录升级为一般极限定理证明。"
+        ],
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "4802552718e7f18b39f4562b48fddc2f",
+        "retrieved_at": "2026-11-18T03:20:56.820416+00:00",
+        "excerpt_sha256": "f89f51fc90d46904b0a8657f80d39e8a857043211cb74fcaa5bde2879f3dfcfc",
+        "excerpt": "比如 f(x) = (x²-1)/(x-1)，x 不能等于 1，但 x 靠近 1 的时候，f(x) 靠近 2。\n这就是极限。",
+        "start": 554,
+        "end": 616,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "8435c783cf13c254054248dcad107541c503595a3501ec54afbf6592f31e309e",
+        "raw_response_sha256": "ea4b1df6f5b41a048e9d8a2bddbb87315b2531ffdabc2b5324a2257bb12af54f",
+        "provider_content_id": "-6557488954573344365",
+        "provider_content_type": "Answer",
+        "provider_create_time": 1794288178,
+        "provider_edit_time": 1794288178,
+        "original_url": "https://www.zhihu.com/question/2083510946463588805/answer/2103477758164721833?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "dd5efd9c6667.json",
+        "source_index": 0,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-78c0bc2ac886ca2e",
+      "title": "整个知乎已能凑出一套《高等数学》",
+      "author": "层林尽书",
+      "url": "https://zhuanlan.zhihu.com/p/2090544825481311182",
+      "published_at": null,
+      "source_time": "2026-10-31T02:01:31+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "作者给出函数图象、对数、三角恒等式和根式的高中知识回顾清单。",
+      "knowledge_points": [
+        "calculus",
+        "prerequisites",
+        "functions"
+      ],
+      "prerequisites": [
+        "algebra"
+      ],
+      "tags": [
+        "数学基础",
+        "calculus",
+        "prerequisites",
+        "functions"
+      ],
+      "recommendation_reason": "把这份清单作为自学前的可选检查点，帮助定位需要复习的内容；它不是对当前学习者的诊断或统一必修顺序。",
+      "claim_kind": "author_opinion",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.539199+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "真实官方 API 返回，保留作者字段、URL、取得时间和原始文本哈希；不宣称身份人工核实。",
+          "correctness_for_use": "仅对下列限定概念、例子或归属于作者的学习建议进行 AI 初审，不扩展为全文真值认证。",
+          "visible_completeness": "所选范围是一段可独立理解的概念/例子/清单；排除缺公式或缺上下文的其余范围。",
+          "goal_stage_fit": "把这份清单作为自学前的可选检查点，帮助定位需要复习的内容；它不是对当前学习者的诊断或统一必修顺序。",
+          "readability": "当前摘录能直接阅读；没有依赖未返回图表的核心结论。",
+          "timeliness": "使用稳定数学概念或明确归属的建议；不声称新近软件或现行制度，时间字段按未知/发布或更新保留。"
+        },
+        "notes": [
+          "审核的是有出处的学习建议清单，不是所链接全部课本的内容质量。",
+          "未验证作者报告的 AI 成本、速度、生成课本质量及版权/转载来源；这些不作为推荐依据。"
+        ],
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "4802552718e7f18b39f4562b48fddc2f",
+        "retrieved_at": "2026-11-18T03:20:56.820416+00:00",
+        "excerpt_sha256": "b95b8dd57cb284ca4e9a607809a202544616c2e9ed2773bff7c2173f677e6fda",
+        "excerpt": "高中回顾\n为了学习高等数学，读者要熟练掌握一些高中知识。但是有的高中知识本身就比较难，很多人要么没有学会，要么学完就忘了。这是我挑出的一些需要特别复习的高中知识:\n・函数图象\n・对数\n・三角函数恒等式\n・根式",
+        "start": 375,
+        "end": 479,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "624332d730970ee253da02cc38103f466bd7ec06d0f75ae5aa8d610056774bba",
+        "raw_response_sha256": "ea4b1df6f5b41a048e9d8a2bddbb87315b2531ffdabc2b5324a2257bb12af54f",
+        "provider_content_id": "-1650196477999842727",
+        "provider_content_type": "Article",
+        "provider_create_time": 1791254000,
+        "provider_edit_time": 1793412091,
+        "original_url": "https://zhuanlan.zhihu.com/p/2090544825481311182?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "dd5efd9c6667.json",
+        "source_index": 2,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    },
+    {
+      "resource_id": "zhihu-499b817e06deac41",
+      "title": "微积分学习笔记",
+      "author": "无名者",
+      "url": "https://zhuanlan.zhihu.com/p/2088015593270263831",
+      "published_at": null,
+      "source_time": "2026-10-09T15:43:37+00:00",
+      "source_time_kind": "published_or_updated",
+      "summary": "用每个输入确定唯一输出来介绍函数，并列出表格、图形、公式和语言四种表示。",
+      "knowledge_points": [
+        "calculus",
+        "functions",
+        "representations"
+      ],
+      "prerequisites": [
+        "algebra"
+      ],
+      "tags": [
+        "数学基础",
+        "calculus",
+        "functions",
+        "representations"
+      ],
+      "recommendation_reason": "适合作为微积分前的函数表示复习；让学习者把同一个关系在几种表示之间转换。",
+      "claim_kind": "mathematical_explanation",
+      "review": {
+        "status": "accepted",
+        "scope": "search_excerpt",
+        "reviewed_at": "2026-11-18T03:32:41.539413+00:00",
+        "method": "ai_assisted",
+        "gates": {
+          "source_attribution": "pass",
+          "correctness_for_use": "pass",
+          "visible_completeness": "pass",
+          "goal_stage_fit": "pass",
+          "readability": "pass",
+          "timeliness": "pass"
+        },
+        "gate_notes": {
+          "source_attribution": "真实官方 API 返回，保留作者字段、URL、取得时间和原始文本哈希；不宣称身份人工核实。",
+          "correctness_for_use": "仅对下列限定概念、例子或归属于作者的学习建议进行 AI 初审，不扩展为全文真值认证。",
+          "visible_completeness": "所选范围是一段可独立理解的概念/例子/清单；排除缺公式或缺上下文的其余范围。",
+          "goal_stage_fit": "适合作为微积分前的函数表示复习；让学习者把同一个关系在几种表示之间转换。",
+          "readability": "当前摘录能直接阅读；没有依赖未返回图表的核心结论。",
+          "timeliness": "使用稳定数学概念或明确归属的建议；不声称新近软件或现行制度，时间字段按未知/发布或更新保留。"
+        },
+        "notes": [
+          "可见完整教学单元仅限函数定义与表示，历史年代和后续物理例子未作为本次核验对象。",
+          "作者声明这是教材读书笔记；保留此来源属性，不宣称作者原创定理或官方教材授权。"
+        ],
+        "full_article_reviewed": false,
+        "human_expert_reviewed": false
+      },
+      "provenance": {
+        "request_id": "4802552718e7f18b39f4562b48fddc2f",
+        "retrieved_at": "2026-11-18T03:20:56.820416+00:00",
+        "excerpt_sha256": "a6b570d61a338d15f14bc1950592fac18c3e9ff7ab6516f2b0a3e8d8adca5e8f",
+        "excerpt": "0.1.1 定义 \n如果一个变量 y 以这样的方式依赖于变量 x，即 x 的每一个值都恰好决定 y 的一个值，那么我们说 y 是 x 的函数。\n表示函数的四种常用方法是：\n• 用表格表示数值 • 用图形表示几何关系 \n• 用公式表示代数关系 • 用语言描述\n表示方法通常取决于函数是如何出现的。",
+        "start": 467,
+        "end": 614,
+        "offset_unit": "unicode_codepoint",
+        "provider_summary_sha256": "f0d3bac2628180c89e91dc537a9a9ab801f1c0762a89e1a411395c1231f307ce",
+        "raw_response_sha256": "ea4b1df6f5b41a048e9d8a2bddbb87315b2531ffdabc2b5324a2257bb12af54f",
+        "provider_content_id": "8823304154341284673",
+        "provider_content_type": "Article",
+        "provider_create_time": 1790604605,
+        "provider_edit_time": 1791560617,
+        "original_url": "https://zhuanlan.zhihu.com/p/2088015593270263831?utm_medium=openapi_platform&utm_source=b38f6831b176",
+        "source_file": "dd5efd9c6667.json",
+        "source_index": 7,
+        "date_semantics": "EditTime: published or updated; CreateTime semantics not verified; initial publication unknown"
+      }
+    }
+  ]
+}

@@ -121,6 +121,7 @@ export function usePrivacyData({
     setBusyId(key)
     try {
       await run()
+      window.dispatchEvent(new Event('mathtutor-learning-evidence-changed'))
       setConfirmDanger(null)
       setMessage({ kind: 'ok', text: okText })
       await load()
@@ -188,6 +189,7 @@ export function usePrivacyData({
     setBusyId('recompute')
     try {
       await recomputeLearningProfile()
+      window.dispatchEvent(new Event('mathtutor-learning-evidence-changed'))
       await load()
       setMessage({ kind: 'ok', text: '已根据有效记录重新计算学习画像。' })
     } catch {

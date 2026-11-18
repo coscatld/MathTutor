@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { productClass } from "@/styles/product-classes";
 import { useUnsavedNavigation } from "../hooks/useUnsavedNavigation";
 import { ExplorationApiError, explorationApi, type ExplorationConfiguration } from "./api";
+import { RecommendationSettings } from "./Recommendations";
 import { ExplorationRequests } from "./requests";
 
 export function ConnectionForm({ configuration, apiKey, busy, error, notice, onKeyChange, onSave, onRemove }: {
@@ -32,12 +33,14 @@ export function ConnectionForm({ configuration, apiKey, busy, error, notice, onK
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button type="submit" disabled={busy || apiKey.trim().length < 8} className={productClass("mt-btn mt-btn-primary min-h-11")}>{t("保存连接")}</button>
           {configuration?.has_saved_secret ? <button type="button" disabled={busy} onClick={onRemove} className={productClass("mt-btn mt-btn-ghost min-h-11")}>{t("移除已保存凭据")}</button> : null}
-          {configuration?.configured ? <Link href="/math-tutor/explore" className={productClass("mt-btn mt-btn-ghost min-h-11")}>{t("开始知识探索")}</Link> : null}
+          {configuration?.configured ? <Link href="/math-tutor" className={productClass("mt-btn mt-btn-ghost min-h-11")}>{t("开始联网提问")}</Link> : null}
         </div>
       </form>
       {error ? <p role="alert" className="mt-4 text-sm leading-6 text-[var(--destructive)]">{error}</p> : null}
       {notice ? <p role="status" className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">{notice}</p> : null}
     </div>
+    <p className="mt-5 text-sm leading-7 text-[var(--muted-foreground)]">{t("联网回答会发送当前问题和本次对话中上一条联网问题，不发送学习画像或私有资料。")}</p>
+    <RecommendationSettings />
   </section>;
 }
 

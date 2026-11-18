@@ -158,6 +158,12 @@ def validate_client_envelope(raw: Any) -> dict[str, Any]:
     payload = raw.get("payload", {})
     if not isinstance(payload, dict):
         raise SecurityViolationError("消息内容必须是对象")
+    if "network_search" in payload and (raw.get("command") != "send_message" or type(payload["network_search"]) is not bool):
+        raise SecurityViolationError("联网选项必须是当前消息的开关")
+    if "reply_language" in payload and payload["reply_language"] not in ("zh", "en"):
+        raise SecurityViolationError("回答语言无效")
+    if "network_context" in payload and (raw.get("command") != "send_message" or not isinstance(payload["network_context"], str) or len(payload["network_context"]) > 2000):
+        raise SecurityViolationError("联网问题上下文无效")
     if "attachment_ids" in payload:
         ids = payload["attachment_ids"]
         if raw.get("command") != "send_message" or not isinstance(ids, list) or len(ids) > 4 or any(not isinstance(i, str) or len(i) != 36 for i in ids):

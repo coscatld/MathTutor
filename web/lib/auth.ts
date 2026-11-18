@@ -56,7 +56,10 @@ export async function login(
       skipAuthRedirect: true,
     });
 
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("mathtutor-identity-changed"));
+      return { ok: true };
+    }
 
     const data = await res.json().catch(() => ({}));
     return { ok: false, error: extractDetail(data.detail) ?? "Login failed" };
@@ -129,11 +132,14 @@ export async function checkIsFirstUser(): Promise<boolean> {
  * POST to the logout endpoint to clear the session cookie.
  */
 export async function logout(): Promise<void> {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("mathtutor-identity-changing"));
   try {
     await apiFetch(apiUrl("/api/v2/auth/logout"), {
       method: "POST",
     });
   } catch {
     // Ignore — we'll redirect regardless
+  } finally {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("mathtutor-identity-changed"));
   }
 }

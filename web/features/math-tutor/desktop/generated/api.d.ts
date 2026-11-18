@@ -921,6 +921,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/math-tutor/desktop/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recommendations */
+        get: operations["recommendations_api_v2_math_tutor_desktop_recommendations_get"];
+        put?: never;
+        post?: never;
+        /** Delete */
+        delete: operations["delete_api_v2_math_tutor_desktop_recommendations_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/recommendations/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configure */
+        put: operations["configure_api_v2_math_tutor_desktop_recommendations_configuration_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/math-tutor/desktop/recommendations/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start */
+        post: operations["start_api_v2_math_tutor_desktop_recommendations_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/math-tutor/desktop/settings": {
         parameters: {
             query?: never;
@@ -1782,6 +1834,20 @@ export interface components {
             /** Vision Mode */
             vision_mode?: "auto" | "enabled" | "disabled";
         };
+        /** DiscoveredResources */
+        DiscoveredResources: {
+            /** Query */
+            query: string;
+            /** Resources */
+            resources: components["schemas"]["RecommendationResource"][];
+            /** Retrieved At */
+            retrieved_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "empty";
+        };
         /** DocumentRename */
         DocumentRename: {
             /** Filename */
@@ -2293,6 +2359,50 @@ export interface components {
             /** Stage */
             stage?: string | null;
         };
+        /** LearningActionPlan */
+        LearningActionPlan: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "explain" | "check" | "continue" | "review_prerequisite" | "explore";
+            /** Assessment Scope */
+            assessment_scope: string;
+            /** Catalog Version */
+            catalog_version: string;
+            /** Evidence Count */
+            evidence_count: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Goal */
+            goal: string;
+            /** Goal Label */
+            goal_label: string;
+            /** Graph Version */
+            graph_version: string;
+            /** Last Event Seq */
+            last_event_seq: number;
+            /** Policy */
+            policy: string;
+            /** Prerequisites */
+            prerequisites: components["schemas"]["RecommendationPrerequisite"][];
+            /** Profile Revision */
+            profile_revision: string;
+            /** Query */
+            query: string;
+            /** Reason */
+            reason: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Resources */
+            resources: components["schemas"]["RecommendationResource"][];
+            /** Target */
+            target: string;
+            /** Target Label */
+            target_label: string;
+            /** Title */
+            title: string;
+        };
         /** LearningEvidence */
         LearningEvidence: {
             /** Completion Scope */
@@ -2646,6 +2756,101 @@ export interface components {
             reason?: string;
             /** Status */
             status: "rebuilt" | "unavailable" | "no_chunks";
+        };
+        /** RecommendationGoal */
+        RecommendationGoal: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /** RecommendationPrerequisite */
+        RecommendationPrerequisite: {
+            /** Id */
+            id: string;
+            /** Observed */
+            observed: boolean;
+        };
+        /** RecommendationResource */
+        RecommendationResource: {
+            /** Author */
+            author?: string | null;
+            /** Knowledge Points */
+            knowledge_points?: string[];
+            /** Prerequisites */
+            prerequisites?: string[];
+            /** Provenance */
+            provenance: {
+                [key: string]: unknown;
+            };
+            /** Published At */
+            published_at?: string | null;
+            /**
+             * Recommendation Reason
+             * @default
+             */
+            recommendation_reason?: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Review */
+            review?: {
+                [key: string]: unknown;
+            };
+            /** Review Status */
+            review_status: string;
+            /**
+             * Selection Reason
+             * @default
+             */
+            selection_reason?: string;
+            /** Source Time */
+            source_time?: string | null;
+            /**
+             * Source Time Kind
+             * @default unknown
+             */
+            source_time_kind?: string;
+            /** Summary */
+            summary: string;
+            /** Tags */
+            tags?: string[];
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+        };
+        /** RecommendationSettings */
+        RecommendationSettings: {
+            /** Enabled */
+            enabled: boolean;
+            /** Goal */
+            goal: string;
+            /**
+             * Language
+             * @default zh
+             * @enum {string}
+             */
+            language?: "zh" | "en";
+        };
+        /** RecommendationView */
+        RecommendationView: {
+            discovery: components["schemas"]["DiscoveredResources"] | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Expires At */
+            expires_at: string | null;
+            /** Goal */
+            goal: string;
+            /** Goals */
+            goals: components["schemas"]["RecommendationGoal"][];
+            plan: components["schemas"]["LearningActionPlan"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "disabled" | "idle" | "running" | "cached" | "rate_limited" | "not_configured" | "failed";
+            /** Updated At */
+            updated_at: string | null;
         };
         /** RetrievalToggle */
         RetrievalToggle: {
@@ -5136,6 +5341,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Readiness"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recommendations_api_v2_math_tutor_desktop_recommendations_get: {
+        parameters: {
+            query?: {
+                language?: "zh" | "en";
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_v2_math_tutor_desktop_recommendations_delete: {
+        parameters: {
+            query?: {
+                language?: "zh" | "en";
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    configure_api_v2_math_tutor_desktop_recommendations_configuration_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecommendationSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_api_v2_math_tutor_desktop_recommendations_start_post: {
+        parameters: {
+            query?: {
+                language?: "zh" | "en";
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationView"];
                 };
             };
             /** @description Validation Error */

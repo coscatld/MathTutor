@@ -14,6 +14,7 @@ from mathtutor.api import (
     desktop_api,
     desktop_contracts,
     exploration_api,
+    recommendations_api,
     learning_profile_api,
     math_tutor_read,
 )
@@ -23,6 +24,7 @@ def desktop_schema() -> dict:
     app = FastAPI(title="MathTutor desktop contracts", version="1")
     app.include_router(desktop_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
     app.include_router(exploration_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
+    app.include_router(recommendations_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX)
     app.include_router(
         learning_profile_api.router, prefix=desktop_api.DESKTOP_ROUTER_PREFIX
     )

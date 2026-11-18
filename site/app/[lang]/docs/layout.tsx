@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
 import { baseOptions } from '@/lib/layout.shared';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { source } from '@/lib/source';
 import { isLocale } from '@/lib/site';
 
@@ -18,10 +17,6 @@ export default async function Layout({
   return (
     <DocsLayout
       {...options}
-      nav={{
-        ...options.nav,
-        children: <LanguageSwitcher locale={locale} />,
-      }}
       tree={source.getPageTree(locale)}
     >
       {children}

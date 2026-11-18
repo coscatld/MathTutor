@@ -1,49 +1,71 @@
 ---
 title: Knowledge exploration
-description: Read attributed Zhihu search excerpts, compare explanations, save a reflection, and choose a next step with an understanding check.
+description: Bring attributed Zhihu explanations into the existing chat and choose learning resources from your recorded attempts.
 ---
 
-Knowledge exploration connects a mathematical question to a reading and practice workflow: ask → compare sources → answer for yourself → choose a next step. Keep your learning goal, read explanations from different authors, and save what you understand.
+Enable **Search online** in the existing chat to explain a concept with Zhihu sources, compare interpretations, or find learning resources. **Resources for your next step** in your learning profile uses recorded attempts to suggest a starting point and relevant prerequisites.
 
-**This is a source preview.** Published macOS and Windows installers do not yet include it. Follow [Development setup](../developer/development-setup.mdx), run the current source, and open `/math-tutor/explore` in the app. This website provides documentation; it does not run Zhihu searches or accept credentials.
+**Available from source.** Published macOS and Windows installers do not yet include knowledge exploration. Follow [Development setup](../developer/development-setup.mdx) to run the current source. This website provides documentation; it does not run searches or accept credentials.
 
-## Start an exploration
+## Use online chat
 
-1. Configure your Zhihu Access Secret at `/math-tutor/settings?section=sources` in the app. Alternatively, set `MATHTUTOR_ZHIHU_ACCESS_SECRET` in the Python service environment. Do not use a `NEXT_PUBLIC_` variable or put the secret in the repository.
-2. Open `/math-tutor/explore`, enter a question and learning goal, then start a search. For example: “Why should I check whether an expression is zero before dividing by it?”
-3. Read the source cards with their authors, titles, search excerpts, and original links. Return to the original when an excerpt lacks context or a formula.
+1. Configure your Zhihu Access Secret at `/math-tutor/settings?section=sources`. Alternatively, set `MATHTUTOR_ZHIHU_ACCESS_SECRET` in the Python service environment. Never use a `NEXT_PUBLIC_` variable or commit the secret.
+2. Enable **Search online** in the chat composer. Try “Why do fractions need a common denominator?”, “How are continuity and differentiability related?”, or “What should I learn before linear algebra?”
+3. Ask a follow-up about an example, condition, or next step. The relevant preceding online question provides context. Turning Search online off or starting a new conversation resets it.
+4. Read each explanation with its sources, authors, and original links. Active exercise attempts retain the existing verification and graded-hint flow.
 
-The backend calls Zhihu. Credentials stay out of browser storage, the application database, and the repository. Desktop uses the OS credential store. Development mode may keep a secret only in memory; settings show whether it persists. Deleting an app-saved secret leaves an environment-provided credential active if the server still has one configured.
+Retrieval uses public knowledge topics; the explanation addresses your actual question. Each claim undergoes an automated support check. Missing evidence, timeouts, rate limits, and service failures are reported, with the regular math discussion still available.
 
-## Compare explanations
+## Understand the evidence
 
-Search works without AI organization. Optional AI selects registered excerpts and a reading focus: definition, conditions, reasoning, or example. The application then supplies fixed reading and comparison questions. Text and links come from saved sources; the model cannot create a citation, replace a link, or publish a freely generated factual claim.
+| Answer content | Treatment |
+|---|---|
+| Source explanation | Bound to a specific search-summary excerpt, including its conditions |
+| Author viewpoint | Distinguished from AI inference; summaries are not presented as verbatim author quotations |
+| Viewpoint comparison | At least two sources; complementary accounts, different conditions, and disagreement are distinguished |
+| Learning advice and inference | Explicitly labeled as inference and checked against its premises |
+| Mathematical statement | Parseable expressions receive a separate check; mathematical prose still needs verification |
 
-Comparisons are **unverified reading leads**. They do not certify contradiction, equivalence, or mathematical correctness. Compare assumptions, notation, and reasoning, then check the original text to decide what the differences mean.
+The application saves source snapshots, character ranges, hashes, and per-claim review records. Claims rejected by the checks and their dependent conclusions are omitted. Accepted wording is rendered directly, without a subsequent free-form rewrite.
+
+Unambiguous, supported formulas in the current question can also receive a **MathTutor local verification** result. This reuses the local solver and verifier and records the question, formula span, and computation. The label covers those calculations only. Existing disclosure limits still apply during active exercises or when you request hints only.
+
+Zhihu search returns bounded summaries. Automated semantic review can be wrong: a valid citation is not a mathematical proof, and an excerpt does not represent a complete article or the community. Check the original when formulas, context, or qualifications are missing.
+
+Multi-turn comparisons and resource recommendations can still omit requested points or selection reasons. The complete answer-quality gate has not passed. This source preview supports testing and feedback; check learning conclusions against the original material and your own work.
+
+## Choose the next resource
+
+The initial catalog contains **23 AI-reviewed excerpts** covering fractions, equations, linear algebra, probability, and calculus. Each retains its title, author, original link, topics, recommendation reason, review scope, and available time metadata. The provider timestamp is labeled “published or updated”; an unknown original publication date stays unknown.
+
+“Reviewed excerpt” means a scoped initial review of the returned text, not human expert review or full-article certification. Expand **View evidence and review scope** to inspect it. Fresh search results are separately labeled **New discovery · unread**.
+
+Recommendations reuse recorded attempts and prerequisite relationships: read an explanation, try a check, revisit a prerequisite, or continue. Reading, revealed answers, and assisted work do not count as independent mastery. Missing evidence stays unknown, including for goals such as calculus or machine learning that extend beyond the current skill assessment.
+
+## Discover resources at startup
+
+In **Knowledge sources**, select a learning goal and enable **Discover Zhihu resources in the background at startup**. External discovery is off by default; local resources and suggestions remain available.
+
+When enabled, discovery runs asynchronously without holding up the workbench. Matching learning states reuse a six-hour cache, with at most two external discovery starts per owner per day. Duplicate starts share work. Failures and timeouts retain usable local resources; disabling the setting stops new searches.
+
+Changing goals, excluding evidence, or deleting learning history invalidates old suggestions. Late results from canceled work cannot restore them. Accounts have separate recommendations, caches, and discovery budgets.
 
 ## Record your understanding
 
-Save your explanation, an unresolved condition, or an example you want to try as a reflection. The original question, goal, and reflection stay together so you can return to them.
+The existing `/math-tutor/explore` reading workbench keeps questions, learning goals, and reflections. Optional AI selects registered excerpts and reading focuses; the application supplies fixed reading questions.
 
-There are currently **16 curated understanding checks in Chinese and English**, covering a limited set of mathematical concepts. Where a check is available, the app uses the actual response and assistance state to suggest up to three next steps. Topics outside this set keep an open question instead of receiving an unverified generated grading item.
+There are **16 bilingual fixed understanding checks**. Within that scope, actual responses and assistance states inform a plan of up to three steps; other topics keep open questions. One correct attempt does not establish long-term mastery or transfer.
 
-Reading, reflection, seeing an explanation, and independent responses are recorded separately. One correct response describes that attempt; it does not establish mastery or transfer to a new situation.
+## What is sent to Zhihu
 
-## What a source establishes
+| Action | Outgoing content |
+|---|---|
+| Online chat | Public topics for search; your current question, relevant preceding online question, and excerpts for Zhida |
+| Background discovery | Public knowledge topics, without attempt details, learning profiles, or private documents |
+| Reading workbench | The search question; optional AI organization also sends the learning goal and registered excerpts |
 
-| Content | What is checked | What remains open |
-|---|---|---|
-| Quoted excerpt | A match to the saved search text and character range | Full text, formulas, or context outside the excerpt |
-| Author and original link | Attribution and a route back to the source | Accuracy and applicability to your question |
-| Reading question or comparison | AI selects registered excerpts; the app supplies fixed questions | Semantic support, equivalence, contradiction, or mathematical truth |
-| Understanding-check feedback | The response and assistance state for that fixed item | Long-term mastery, learning impact, and transfer |
-
-Zhihu returns bounded search excerpts, not complete articles or a representative sample of the community. Duplicate content does not count as independent support. Missing sources remain a visible gap rather than being filled with invented evidence.
-
-## What leaves your device
-
-Starting a search sends the question to Zhihu. Choosing AI organization sends the question, learning goal, and registered source excerpts to the Zhihu Zhida service. Reflections and check responses are saved in the local application. Keep personal information you do not want to send to an external service out of the search question.
+Only the backend uses the credential. Desktop uses the OS credential store; development mode may keep it only in memory, as shown in settings. Deleting an app-saved credential does not remove one supplied by the server environment.
 
 ## Design references
 
-The separation of attribution and support draws on [AIS](https://aclanthology.org/2023.cl-4.2/), [ALCE](https://aclanthology.org/2023.emnlp-main.398/), and [Attribute First](https://aclanthology.org/2024.acl-long.182/). Source binding checks quotation integrity; semantic faithfulness and learning outcomes require separate evaluation.
+Attribution, semantic support, and mathematical correctness are treated separately, informed by [ALCE](https://aclanthology.org/2023.emnlp-main.398/), [RARR](https://aclanthology.org/2023.acl-long.910/), and [Sufficient Context](https://arxiv.org/abs/2411.06037). Learning actions reuse evidence and prerequisite relationships, informed by the problem studied in [KnowLP](https://arxiv.org/abs/2506.22303). Engineering tests do not establish real-world learning effectiveness.

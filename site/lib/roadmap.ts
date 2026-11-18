@@ -34,8 +34,8 @@ export const roadmap: {
   },
   {
     status: 'in-progress',
-    zh: '知识探索源码预览：知乎来源片段、待核对的解释对照、思考记录与有限范围的理解检查；尚未进入桌面安装包。',
-    en: 'Knowledge exploration source preview: attributed Zhihu excerpts, unverified comparisons, reflections, and bounded understanding checks. Not yet in desktop installers.',
+    zh: '知识探索源码预览：原聊天联网、逐项证据检查、23 份已审片段与基于学习证据的资料推荐，支持可选后台发现；尚未进入桌面安装包。',
+    en: 'Knowledge exploration source preview: online chat, per-claim evidence checks, 23 reviewed excerpts, and evidence-based resource suggestions with optional background discovery. Not yet in desktop installers.',
   },
   {
     status: 'in-progress',

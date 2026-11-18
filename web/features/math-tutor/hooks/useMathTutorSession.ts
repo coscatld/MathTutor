@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { apiFetch, apiUrl, wsUrl } from "@/lib/api";
+import { readLocale } from "@/lib/i18n";
 import type { ConnectionStatus, MathTutorCommand, SessionSummary } from "../types";
 import { buildEnvelope, makeSessionId, projectStudentFrame, isUnstartedRequestRejection, rejectionMatchesRequest } from "../lib/protocol";
 import {
@@ -264,7 +265,7 @@ export function useMathTutorSession(explicitSessionId?: string) {
 
   /** Send a command envelope over the WS (only when connected). */
   const send = useCallback(
-    (command: MathTutorCommand, payload: Record<string, string | string[]> = {}, onComplete?: (success: boolean) => void, attachments: MessageAttachment[] = []): boolean => {
+    (command: MathTutorCommand, payload: Record<string, string | string[] | boolean> = {}, onComplete?: (success: boolean) => void, attachments: MessageAttachment[] = []): boolean => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         dispatch({
@@ -307,10 +308,10 @@ export function useMathTutorSession(explicitSessionId?: string) {
     [],
   );
 
-  const sendMessage = useCallback(async (text: string, attachments: ChatAttachment[]) => {
+  const sendMessage = useCallback(async (text: string, attachments: ChatAttachment[], networkSearch = false, networkContext = "") => {
     const saved = await imageUploads.current.upload(attachments);
     return new Promise<boolean>(resolve => {
-      if (!send("send_message", { text, ...(saved.length ? { attachment_ids: saved.map(a => a.id) } : {}) }, resolve, saved)) resolve(false);
+      if (!send("send_message", { text, network_search: networkSearch, reply_language: readLocale() === "en" ? "en" : "zh", ...(networkSearch && networkContext ? {network_context: networkContext} : {}), ...(saved.length ? { attachment_ids: saved.map(a => a.id) } : {}) }, resolve, saved)) resolve(false);
     });
   }, [send]);
 

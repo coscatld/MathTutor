@@ -1003,7 +1003,9 @@ class TutorIntentDispatcher:
                 owner_id, session.cycle.cycle_id, notebook
             )
         if turn is not None:
-            turn.continuation_context = json.dumps(
+            from mathtutor.application.network_chat import merge_continuation_context
+
+            merge_continuation_context(turn,
                 {
                     "kind": "chat",
                     "unstructured_math": unstructured_math,
@@ -1015,7 +1017,6 @@ class TutorIntentDispatcher:
                     "boundary_unverified": turn.error_code
                     == "CONTINUATION_BOUNDARY_UNVERIFIED",
                 },
-                ensure_ascii=False,
             )
         await stream.emit(
             MathTutorEvent(

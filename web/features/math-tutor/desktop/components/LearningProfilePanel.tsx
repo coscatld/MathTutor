@@ -1,5 +1,7 @@
 "use client";
 
+import { LearningRecommendations } from "../../exploration/Recommendations";
+
 import { productClass } from "@/styles/product-classes";
 
 import {useI18n} from "@/lib/i18n";
@@ -83,7 +85,7 @@ export default function LearningProfilePanel() {
   const [selected, setSelected] = useState<{title:string; skillId?:string; cycleId?:string} | null>(null);
   const load = useCallback(async () => {
     setLoading(true); setError(false);
-    try { setSummary(await fetchStudentSummary()); } catch { setError(true); }
+    try { setSummary(await fetchStudentSummary()); window.dispatchEvent(new Event("mathtutor-learning-evidence-changed")); } catch { setError(true); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -103,6 +105,7 @@ export default function LearningProfilePanel() {
       {!!unchecked.length && <details className={productClass("mt-card p-5")}><summary className="cursor-pointer font-medium">{t("尚未检查的技能 · {count}", {count: unchecked.length})}</summary><ul className="mt-4 grid gap-3 text-sm text-[var(--muted-foreground)] sm:grid-cols-2">{unchecked.map(skill => <li key={skill.code}>{t(skill.label)} · {t("尚未检查")}</li>)}</ul></details>}
     </>}
     <StageReviewPanel />
+    <LearningRecommendations />
     {selected && <SkillEvidenceDrawer {...selected} onClose={() => setSelected(null)} onChanged={() => void load()} />}
   </div>;
 }

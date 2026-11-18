@@ -96,7 +96,7 @@ export type MathTutorCommand =
 export interface ClientEnvelope {
   protocol_version?: number;
   command: string;
-  payload: Record<string, string | string[]>;
+  payload: Record<string, string | string[] | boolean>;
   session_id: string;
   request_id?: string;
   idempotency_key?: string;

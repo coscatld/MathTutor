@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Current database contract. Keep this aligned with the
 # Alembic head; release manifests and packaged smoke assert the exact value.
-MIGRATION_HEAD = "027"
+MIGRATION_HEAD = "028"
 
 
 def alembic_config(db_path: str | None = None) -> Config:
@@ -73,16 +73,20 @@ def _validate_recovery_schema(connection) -> None:
         return "NUMERIC"
 
     problems = []
+    existing_tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    later_tables = {"learning_loop_episodes", "exploration_inquiries", "exploration_generations",
+                    "knowledge_recommendations"}
     for table in metadata.tables.values():
         # Recovery only attests the historical 024 schema. Later additive
-        # tables are created by Alembic after the ancestor row is removed.
-        if table.name == "learning_loop_episodes":
+        # tables may be absent; any already present must still be valid.
+        if table.name in later_tables and table.name not in existing_tables:
             continue
         # Names originate only from the bundled SQLAlchemy metadata.
         columns = connection.execute(f'PRAGMA table_info("{table.name}")').fetchall()
         actual = {row[1]: row for row in columns}
         for column in table.columns:
-            if table.name == "verification_logs" and column.name in {"policy_id", "policy_version"}:
+            if (table.name == "verification_logs" and column.name in {"policy_id", "policy_version"}
+                    and column.name not in actual):
                 continue  # Added after the historical 024 recovery contract.
             row = actual.get(column.name)
             if row is None or affinity(row[2]) != affinity(str(column.type.compile(dialect=dialect()))):

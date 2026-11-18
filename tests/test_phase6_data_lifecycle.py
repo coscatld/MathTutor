@@ -1059,7 +1059,7 @@ def test_schema_table_count_unchanged_and_migrations_are_explicit() -> None:
     from mathtutor.infrastructure import schema as schema_module
 
     assert set(schema_module.metadata.tables) == set(DATA_CATEGORIES)
-    assert len(schema_module.metadata.tables) == 60
+    assert len(schema_module.metadata.tables) == 61
     versions_dir = (
         Path(schema_module.__file__).resolve().parent / "migrations" / "versions"
     )
@@ -1092,6 +1092,7 @@ def test_schema_table_count_unchanged_and_migrations_are_explicit() -> None:
         "025_learning_loop.py",
         "026_attestation_policy.py",
         "027_exploration.py",
+        "028_knowledge_recommendations.py",
     ]
 
 

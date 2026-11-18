@@ -360,6 +360,13 @@ class MathTutorController:
             if graph_request is not None:
                 await self._function_graph(owner.student_id, session, bound_verified, graph_request, stream)
                 return
+            from mathtutor.application.network_chat import NetworkFallbackSink, network_reply
+            online = await network_reply(self, request, session, payload)
+            if online is not None:
+                if online.status in {"answered", "partial", "local_plan"} or online.calculation_receipts:
+                    await self._dialogue(stream, session, online.text, "TUTOR_CHAT")
+                    return
+                stream = NetworkFallbackSink(stream, online.text)
             knowledge = getattr(self, "knowledge", None)
             if knowledge and (await knowledge.configuration(owner.student_id, request.session_id)).get("mode") == "knowledge":
                 from mathtutor.application.student_contract import REVIEW_STATES, session_contract

@@ -105,6 +105,7 @@ DATA_CATEGORY_VALUES: frozenset[str] = frozenset(
 
 #: table → category, covering EVERY business table in infrastructure/schema.py.
 DATA_CATEGORIES: dict[str, str] = {
+    "knowledge_recommendations": CATEGORY_DERIVED,
     "exploration_inquiries": CATEGORY_AUTHORITY_EDUCATIONAL,
     "exploration_generations": CATEGORY_SYSTEM,
     "knowledge_spaces": CATEGORY_USER_CONTROLLED,
@@ -179,6 +180,7 @@ DATA_CATEGORIES: dict[str, str] = {
 
 #: 分类理由（表 → 一句话依据），来源：infrastructure/schema.py + 设计文档。
 DATA_CATEGORY_REASONS: dict[str, str] = {
+    "knowledge_recommendations": "私有学习推荐随教育历史清除；仅保留无内容的取消代次和当日调用数",
     "exploration_inquiries": "用户问题、来源摘要和理解检查，随教育历史删除",
     "exploration_generations": "无内容的删除代次，阻止旧探索请求回写",
     "knowledge_spaces": "用户显式创建的资料空间，随资料清除",
@@ -748,6 +750,8 @@ class DataLifecycleService:
             from mathtutor.infrastructure.exploration_schema import inquiries
             from mathtutor.repositories.exploration_repository import bump_generation
             await bump_generation(conn, student_id)
+            from mathtutor.repositories.recommendation_repository import clear_recommendations
+            await clear_recommendations(conn, student_id)
             for table in (learning_predictions, student_state_snapshots, learning_events, practice_feedback, initial_assessments, learning_loop_episodes, reviews, preferences, inquiries):
                 result = await conn.execute(sa_delete(table).where(table.c.student_id == student_id))
                 deleted_by_table[table.name] = result.rowcount

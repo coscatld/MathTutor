@@ -44,7 +44,7 @@ def assert_content(path, encrypted):
     assert db_crypto.is_plaintext_file(path) is not encrypted
     with closing(db_crypto.connect_db(path)) as connection:
         assert connection.execute("SELECT value FROM recovery_sentinel").fetchall() == [("原文保留",), ("42",)]
-        assert connection.execute("SELECT version_num FROM alembic_version").fetchall() == [("027",)]
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchall() == [("028",)]
     assert not db_crypto.conversion_path(path).exists()
     assert not list(path.parent.glob("*.convert-*"))
 

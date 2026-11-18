@@ -208,7 +208,7 @@ def test_migration_006_backfills_old_rows_and_is_idempotent(tmp_path: Path) -> N
     conn.close()
     assert columns["attempt_id"] == 1 and columns["skill_id"] == 1
     assert row == ("att", SKILL_LINEAR_EQUATION, "idem")
-    assert version == "027"
+    assert version == "028"
 
 
 @pytest.mark.asyncio

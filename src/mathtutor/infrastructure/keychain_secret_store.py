@@ -39,12 +39,14 @@ import asyncio
 import os
 import platform
 import shutil
+from contextlib import suppress
 from typing import Awaitable, Callable, Protocol
 
 from mathtutor.infrastructure.secret_store import SecretStore
 
 DEFAULT_SERVICE_NAME = "com.mathtutor.product"
 DEFAULT_TIMEOUT_SECONDS = 10.0
+_TERMINATE_GRACE_SECONDS = 0.25
 
 # ``security`` exits 44 when the item does not exist (both find and delete).
 _SECURITY_NOT_FOUND_EXIT = 44
@@ -82,6 +84,19 @@ class SubprocessRunner(Protocol):
     ) -> tuple[int, str, str]: ...
 
 
+async def _stop_process(process) -> None:
+    if process.returncode is None:
+        with suppress(ProcessLookupError):
+            process.terminate()
+    try:
+        await asyncio.wait_for(process.communicate(), timeout=_TERMINATE_GRACE_SECONDS)
+    except TimeoutError:
+        if process.returncode is None:
+            with suppress(ProcessLookupError):
+                process.kill()
+        await process.communicate()
+
+
 async def _default_runner(
     argv: list[str], *, stdin: bytes | None = None
 ) -> tuple[int, str, str]:
@@ -92,9 +107,22 @@ async def _default_runner(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout, stderr = await asyncio.wait_for(
-        process.communicate(input=stdin), timeout=DEFAULT_TIMEOUT_SECONDS
-    )
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(input=stdin), timeout=DEFAULT_TIMEOUT_SECONDS
+        )
+    except BaseException:
+        cleanup = asyncio.create_task(_stop_process(process))
+        cancelled = False
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError:
+                cancelled = True
+        cleanup.result()
+        if cancelled:
+            raise asyncio.CancelledError from None
+        raise
     return process.returncode if process.returncode is not None else -1, (
         stdout.decode("utf-8", errors="replace")
     ), stderr.decode("utf-8", errors="replace")

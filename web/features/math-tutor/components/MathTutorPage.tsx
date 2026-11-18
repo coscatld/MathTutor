@@ -20,6 +20,7 @@ import TutorToolsPanel, { type ToolView } from "./TutorToolsPanel";
 import { CurrentProblem } from "./TeachingContext";
 import StudentNextStep from "./StudentNextStep";
 import TutorWelcome from "./TutorWelcome";
+import { LearningRecommendations } from "../exploration/Recommendations";
 import NearbyPractice from "./NearbyPractice";
 import { useConversationReferenceScope } from "./ConversationReferenceScope";
 import { parseTutorLaunch, type TutorLaunch } from "../desktop/lib/question-bank";
@@ -40,6 +41,14 @@ function TutorConversation({ sessionId, launch = null, onLaunched, initialPanel 
   const {t} = useI18n();
   const { state, send, sendMessage, sendAttempt, reconnect, recover } = useMathTutorSession(sessionId);
   const referenceScope = useConversationReferenceScope(sessionId);
+  const [networkSearch, setNetworkSearch] = useState(false);
+  const onlineAnchor = useRef("");
+  const toggleNetwork = (enabled: boolean) => { onlineAnchor.current = ""; setNetworkSearch(enabled); };
+  const sendOnlineMessage = async (text: string, attachments: Parameters<typeof sendMessage>[1]) => {
+    const sent = await sendMessage(text, attachments, networkSearch, onlineAnchor.current);
+    if (sent && networkSearch && text.length <= 2000 && !attachments.length) onlineAnchor.current = text;
+    return sent;
+  };
   const [tool, setTool] = useState<ToolView | null>(initialPanel);
   useEffect(() => { if (initialPanel) setTool(initialPanel); }, [initialPanel]);
   const toolOpener = useRef<HTMLElement | null>(null);
@@ -92,7 +101,7 @@ function TutorConversation({ sessionId, launch = null, onLaunched, initialPanel 
       <div className={productClass("mt-reading-region")}>
       <div ref={scroll.viewport} onScroll={scroll.onScroll} role="log" aria-live="polite" aria-label={t("辅导对话")} tabIndex={0} data-chat-scroll-root="true" className={productClass("mt-chat-log")}>
         <div ref={scroll.content} className={productClass("mt-reading-width flex flex-col gap-7")}>
-          {state.messages.length === 0 ? <TutorWelcome disabled={busy || !connected} onChoose={text => send("send_message", { text })} /> : state.messages.map((message) => <TutorActionCard key={message.id} message={message} onRecover={message.id === state.messages[state.messages.length - 1]?.id && !state.pendingCommand && !referenceScope.blocking ? recover : undefined} onContinue={message.id === state.messages[state.messages.length - 1]?.id && !state.pendingCommand && !referenceScope.blocking ? () => send("send_message", { text: "继续" }) : undefined} />)}
+          {state.messages.length === 0 ? <><TutorWelcome disabled={busy || !connected} onChoose={text => send("send_message", { text })} /><LearningRecommendations compact /></> : state.messages.map((message) => <TutorActionCard key={message.id} message={message} onRecover={message.id === state.messages[state.messages.length - 1]?.id && !state.pendingCommand && !referenceScope.blocking ? recover : undefined} onContinue={message.id === state.messages[state.messages.length - 1]?.id && !state.pendingCommand && !referenceScope.blocking ? () => sendOnlineMessage("继续", []) : undefined} />)}
           {busy ? <div className={productClass("mt-thinking")}><span className={productClass("mt-thinking-dots")} aria-hidden="true"><i /><i /><i /></span>{t("Tutor 正在思考下一步…")}</div> : null}
           {state.problemContext?.choices && state.allowedNextInputs.includes("submit_attempt") && <section ref={choices} aria-label={t("选择题诊断")} className={productClass("mt-card mt-rise p-5")}><h2 className="mb-3 text-base font-semibold">{t("选择题诊断")}</h2><p className="mb-4 break-words">{state.problemContext.display_text}</p>{state.problemContext.options_exposed && state.problemContext.response_mode === "free_response" ? <p className="mb-4 text-sm leading-6">{t("已查看选项，本题后续作答记为诊断。独立迁移需要再尝试一道未见新题。")}</p> : null}<ChoiceQuestion key={`${state.cycleId}:${state.problemContext.choices.version}`} choices={state.problemContext.choices} busy={busy || !connected} onSubmit={choice_id => send("submit_attempt", {choice_id, choice_version: state.problemContext?.choices?.version ?? ""})} /></section>}
           {state.messages.length > 0 ? <StudentNextStep context={state.problemContext} plan={state.teachingPlan} evidence={state.evidenceSummary} offer={state.activeOffer} actions={state.allowedActions} allowed={state.allowedNextInputs} busy={busy} disabled={!connected} onCommand={(command, payload) => send(command, payload)} onWrite={() => { if (state.problemContext?.choices) choices.current?.querySelector<HTMLInputElement>('input[type="radio"]:not(:disabled)')?.focus(); else { setAttemptBinding(currentAttemptBinding(state)); setComposeFocus(current => current + 1); } }} /> : null}
@@ -102,7 +111,7 @@ function TutorConversation({ sessionId, launch = null, onLaunched, initialPanel 
       {scroll.away ? <button type="button" onClick={scroll.toLatest} className={productClass("mt-jump-latest")}><ArrowDown className="h-4 w-4" aria-hidden="true" />{t("回到最新")}</button> : null}
       </div>
       {referenceScope.blocking ? <p role="status" className="px-5 pt-2 text-xs leading-6 text-[var(--muted-foreground)]">{referenceScope.saving ? t("正在应用资料范围，请稍候再发送。") : t("资料范围尚待确认，请在对话资料中重新读取后继续。")}</p> : null}
-      <ChatComposer problemKey={`${state.cycleId}:${state.problemRevision}`} attemptMode={attemptMode} onExitAttempt={() => setAttemptBinding(null)} onSendAttempt={text => attemptBinding && !referenceScope.blocking ? sendAttempt(text, attemptBinding) : Promise.resolve(false)} focusRequest={composeFocus} placeholder={state.problemContext?.lifecycle.toUpperCase() === "ACTIVE" ? t("写下这一步，或告诉我哪里卡住了…") : undefined} onCancel={() => send("cancel_turn")} busy={busy} disabled={!connected} onSend={(text, attachments) => referenceScope.blocking ? Promise.resolve(false) : sendMessage(text, attachments)} onAddMaterial={() => { toolOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setTool("documents"); }} />
+      <ChatComposer networkSearch={networkSearch} onNetworkSearchChange={toggleNetwork} problemKey={`${state.cycleId}:${state.problemRevision}`} attemptMode={attemptMode} onExitAttempt={() => setAttemptBinding(null)} onSendAttempt={text => attemptBinding && !referenceScope.blocking ? sendAttempt(text, attemptBinding) : Promise.resolve(false)} focusRequest={composeFocus} placeholder={state.problemContext?.lifecycle.toUpperCase() === "ACTIVE" ? t("写下这一步，或告诉我哪里卡住了…") : undefined} onCancel={() => send("cancel_turn")} busy={busy} disabled={!connected} onSend={(text, attachments) => referenceScope.blocking ? Promise.resolve(false) : sendOnlineMessage(text, attachments)} onAddMaterial={() => { toolOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setTool("documents"); }} />
     </section>
     {tool ? <TutorToolsPanel view={tool} onClose={closeTool} sessionId={sessionId} referenceScope={referenceScope} level={state.assistanceLevel} plan={state.teachingPlan} discussion={state.problemContext?.lifecycle === "discussion"} evidence={state.evidenceSummary} diagnosis={state.diagnosis} offer={state.activeOffer} actions={state.allowedActions} allowed={state.allowedNextInputs} busy={busy} disabled={!connected} onCommand={(command, payload) => { if (!referenceScope.blocking) send(command, payload); }} /> : null}
   </div>;

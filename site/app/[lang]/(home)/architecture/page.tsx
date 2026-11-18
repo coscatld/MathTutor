@@ -23,6 +23,8 @@ export default async function ArchitecturePage({ params }: { params: Promise<{ l
       ? [
           ['LLM', '语言表达、讲解措辞、资料综合。不拥有核验权威。'],
           ['Verifier', '对支持范围内的题目与算式做确定性核验。'],
+          ['知乎与证据检查', '公开主题检索进入原聊天。来源摘要、适用条件与主张依赖分开保存，自动语义审核与数学核验分别处理。'],
+          ['学习资料推荐', '复用现有作答与前置关系，选择已审学习片段；可选后台发现采用按用户隔离的预算、缓存和取消保护。'],
           ['State Machine', '教学回合状态、提示等级与答案披露许可。'],
           ['EvidenceTracker', '产品策略名 evidence_tracker_v2：从可信作答生成画像，而不是把自我报告写成掌握。'],
           ['DKT', '独立学生预测管道。当前最多调节一档，学习效果未在 MathTutor 真实学生数据上验证。'],
@@ -30,6 +32,8 @@ export default async function ArchitecturePage({ params }: { params: Promise<{ l
       : [
           ['LLM', 'Language and explanation. It does not own verification authority.'],
           ['Verifier', 'Deterministic checks for in-scope problems and expressions.'],
+          ['Zhihu and evidence review', 'Public-topic retrieval feeds the existing chat. Source summaries, conditions, and claim dependencies are saved; semantic review and mathematical verification remain separate.'],
+          ['Learning resources', 'Existing attempts and prerequisites guide excerpt selection. Optional background discovery uses per-owner budgets, caches, and cancellation guards.'],
           ['State Machine', 'Turn state, hint level, and answer-disclosure permission.'],
           ['EvidenceTracker', 'Product policy evidence_tracker_v2: profiles from trusted attempts, not self-reports.'],
           ['DKT', 'A separate student-prediction pipeline. It may shift one notch. Learning effect on MathTutor students is unverified.'],

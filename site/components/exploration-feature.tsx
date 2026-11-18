@@ -6,11 +6,11 @@ const content = {
   zh: {
     label: '知识探索 · 源码预览',
     title: '带着一个疑问，读出自己的理解。',
-    body: '从知乎中的数学解释出发，保留作者、原始链接与检索片段。把不同说法放在一起读，再写下理解，用一个小问题决定下一步。',
+    body: '在原聊天中结合知乎解释概念、对照不同观点。每个结论保留依据与条件，再从 23 份已审学习片段和自己的作答记录中选择下一步资料。',
     steps: [
-      ['提出问题', '保留你的疑问与学习目标，主动搜索相关解释。'],
-      ['对照来源', '回到原文查看条件；可选 AI 整理来源，选择阅读重点。'],
-      ['自己试一试', '保存思考，完成理解检查，获得最多三步的学习建议。'],
+      ['提出问题', '在聊天中开启联网，询问概念、例子或学习顺序。'],
+      ['对照来源', '区分资料解释、作者观点与 AI 推导，查看逐项来源。'],
+      ['自己试一试', '根据作答证据检查前置知识，也可开启后台资料发现。'],
     ],
     availability: '当前通过源码体验。已发布的桌面安装包尚不包含知识探索。',
     action: '了解知识探索与配置方法',
@@ -18,11 +18,11 @@ const content = {
   en: {
     label: 'Knowledge exploration · Source preview',
     title: 'Start with a question. Build your own understanding.',
-    body: 'Explore mathematical explanations from Zhihu with authors, original links, and search excerpts kept in view. Read perspectives side by side, write your reflection, and try a small check before choosing what comes next.',
+    body: 'Bring Zhihu explanations and viewpoints into the existing chat, with sources and conditions attached to each claim. Choose your next resource from 23 reviewed excerpts and your recorded attempts.',
     steps: [
-      ['Ask a question', 'Keep your question and learning goal as the starting point.'],
-      ['Read the sources', 'Check conditions in the original. Optionally ask AI to select excerpts and a reading focus.'],
-      ['Try it yourself', 'Save a reflection, take an understanding check, and get a plan of up to three steps.'],
+      ['Ask a question', 'Enable Online in chat to ask about concepts, examples, or learning order.'],
+      ['Read the sources', 'Distinguish source explanations, author views, and AI inference with per-claim evidence.'],
+      ['Try it yourself', 'Check prerequisites using your recorded attempts, or opt in to background resource discovery.'],
     ],
     availability: 'Available from source. Published desktop installers do not yet include knowledge exploration.',
     action: 'Explore the workflow and setup',
