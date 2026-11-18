@@ -10,7 +10,7 @@ export const GRAPH_ACTION = "SHOW_GRAPH";
 export const FIGURE_ACTION = "TUTOR_CHAT_FIGURE";
 
 export interface GraphMark { x: number; y: number; label: string }
-export interface GraphSeries { label: string; segments: [number, number][][] }
+export interface GraphSeries { label: string; segments: [number, number][][]; legacyClipLimits?: [number, number] }
 export interface GraphSpec {
   title: string;
   xRange: [number, number];
@@ -51,7 +51,12 @@ export function parseGraphSpec(raw: unknown): GraphSpec | null {
       points += clean.length;
       if (clean.length > 1) segments.push(clean);
     }
-    series.push({ label: label((item as GraphSeries).label), segments });
+    const curve: GraphSeries = { label: label((item as GraphSeries).label), segments };
+    if (value.sample_values !== "unclipped") {
+      const span = yRange[1] - yRange[0];
+      curve.legacyClipLimits = [Number((yRange[0] - span).toFixed(4)), Number((yRange[1] + span).toFixed(4))];
+    }
+    series.push(curve);
   }
   if (points > MAX_POINTS) return null;
   const marks = (Array.isArray(value.marks) ? value.marks : []).slice(0, 8)
@@ -92,8 +97,9 @@ export function valueAt(series: GraphSeries, x: number): number | null {
       const [x0, y0] = segment[i - 1];
       const [x1, y1] = segment[i];
       if (x >= x0 && x <= x1) {
-        if (x === x0) return y0;
-        if (x === x1) return y1;
+        if (x === x0) return series.legacyClipLimits?.includes(y0) ? null : y0;
+        if (x === x1) return series.legacyClipLimits?.includes(y1) ? null : y1;
+        if (series.legacyClipLimits?.includes(y0) || series.legacyClipLimits?.includes(y1)) return null;
         const span = x1 - x0;
         const ratio = x1 === x0 ? 0 : Number.isFinite(span) ? (x - x0) / span : (x / 2 - x0 / 2) / (x1 / 2 - x0 / 2);
         const delta = y1 - y0;

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 function parseFlags(values) {
@@ -546,6 +547,22 @@ try {
                 const table = await figure.getByRole('table').innerText();
                 const rows = await figure.getByRole('row').allTextContents();
                 assert(rows.some(row => row.includes(x) && row.includes(value)), `Expected graph reading (${x}, ${value})`);
+                if (id === 'A05') {
+                    await input.fill('5');
+                    await figure.getByRole('button', {name: '读取', exact: true}).click();
+                    const edgeTable = figure.getByRole('table', {name: 'x = 5 的函数读数', exact: true});
+                    await edgeTable.waitFor();
+                    const edgeValue = (await edgeTable.getByRole('cell').innerText()).trim();
+                    const readouts = {
+                        question, origin_table: table, edge_table: await edgeTable.innerText(),
+                        edge_x: 5, actual_edge_y: edgeValue, expected_edge_y: 25,
+                        interaction: 'Actual installed input and Read button; same graph after x=0',
+                        coverage_added: 'Post-observation regression for values beyond the drawing viewport'
+                    };
+                    write('A05-readouts.json', readouts);
+                    assert.equal(edgeValue, '25', 'Expected y=x² at x=5 to read 25; drawing bounds must not clip mathematical values');
+                    return {question, table, readouts, reply: result.text, actual_renderer: 'function readout'};
+                }
                 return {question, table, reply: result.text, actual_renderer: 'function readout'};
             }
             const sceneMatch = result.text.match(/```mathtutor-scene\n([\s\S]*?)\n```/);
@@ -856,6 +873,17 @@ try {
         await input.clear();
         const continued = await command('提示');
         assert(continued.text, 'No actual WebSocket response after cancelled quit');
+        const delivery = continued.event.delivery_id;
+        assert(delivery, 'The hint must have a presentation receipt');
+        const database = new DatabaseSync(path.join(data, 'math_tutor.db'), {readOnly: true});
+        let presented;
+        try {
+            const lookup = database.prepare('SELECT event_seq FROM learning_events WHERE event_id = ? AND event_type = ?');
+            await until(() => (presented = lookup.get(delivery + ':help_presented', 'help_presented')), 15000, 'the visible hint to be saved');
+        } finally {
+            database.close();
+        }
+        await until(async () => (await summary()).last_event_seq >= presented.event_seq, 10000, 'the learner profile to include that hint');
         const before = await summary();
         const p = await plan();
         const sessions = await api('/sessions');

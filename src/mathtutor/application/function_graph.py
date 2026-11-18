@@ -431,7 +431,7 @@ def _segments(curve: Curve, x_range: list[float], y_range: list[float]) -> list[
                 segments.append(current)
             current = []
         if y is not None:
-            current.append([round(x, 4), round(max(min(y, y_range[1] + span), y_range[0] - span), 4)])
+            current.append([round(x, 4), round(y, 4)])
         previous = y
     if len(current) > 1:
         segments.append(current)
@@ -452,7 +452,7 @@ def render_graph(curves: list[Curve], *, title: str, marks: list[dict], focus: l
     title = _pretty(title)
     curves = [Curve(_pretty(c.label), c.evaluate) for c in curves]
     spec = {
-        "v": 1, "title": title, "x_range": x_range, "y_range": y_range,
+        "v": 1, "title": title, "x_range": x_range, "y_range": y_range, "sample_values": "unclipped",
         "series": [{"label": c.label, "segments": _segments(c, x_range, y_range)} for c in curves],
         "vertical": vertical or [], "marks": marks[:MAX_MARKS], "note": note,
     }

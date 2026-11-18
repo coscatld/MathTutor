@@ -113,7 +113,11 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
       ctx.setLineDash(index === 0 ? [] : [7, 4]);
       for (const segment of series.segments) {
         ctx.beginPath();
-        segment.forEach(([x, y], i) => (i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))));
+        segment.forEach(([x, y], i) => {
+          const py = Math.max(PAD.top - plotH, Math.min(PAD.top + 2 * plotH, sy(y)));
+          if (i) ctx.lineTo(sx(x), py);
+          else ctx.moveTo(sx(x), py);
+        });
         ctx.stroke();
       }
     });
@@ -176,7 +180,7 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
     const values = spec.series.map(series => valueAt(series, x));
     setInputError(false);
     setReadout({ x, values });
-    const text = t("x = {x}。{values}", {x:formatReadout(x), values: values.length ? values.map((value,index) => t("{label}：{value}",{label:spec.series[index].label || t("曲线 {index}",{index:index+1}),value:value === null ? t("无定义") : formatReadout(value)})).join(t("；")) : t("当前图中没有可读取 y 值的函数曲线。")});
+    const text = t("x = {x}。{values}", {x:formatReadout(x), values: values.length ? values.map((value,index) => t("{label}：{value}",{label:spec.series[index].label || t("曲线 {index}",{index:index+1}),value:value === null ? t("无可用读数") : formatReadout(value)})).join(t("；")) : t("当前图中没有可读取 y 值的函数曲线。")});
     setAnnouncement(previous => ({ text, sequence: previous.sequence + 1 }));
   };
 
@@ -199,7 +203,7 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
         {hover ? <div aria-hidden="true" className="pointer-events-none absolute top-1 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs text-[var(--foreground)] shadow-[var(--shadow-xs)]"
           style={hover.px > width / 2 ? { right: width - hover.px + 8 } : { left: hover.px + 8 }}>
           <div className="text-[var(--muted-foreground)]">x = {formatTick(hover.x)}</div>
-          {hover.values.map((value, index) => spec.series[index].segments.length ? <div key={index}>{named.length > 1 ? `${spec.series[index].label}：` : "y = "}{value === null ? t("无定义") : formatTick(value)}</div> : null)}
+          {hover.values.map((value, index) => spec.series[index].segments.length ? <div key={index}>{named.length > 1 ? `${spec.series[index].label}：` : "y = "}{value === null ? t("无可用读数") : formatTick(value)}</div> : null)}
         </div> : null}
       </div>
       {spec.marks.length ? <figcaption className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
@@ -216,7 +220,7 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
           </div>
           <button type="submit" className={productClass("mt-btn min-h-11 shrink-0 px-4")}>{t("读取")}</button>
         </div>
-        <p id={`${inputId}-help`} className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{t("范围：")}{x0} ≤ x ≤ {x1}{t("。读数按采样点作线性插值；分段空缺显示“无定义”，不跨段插值。")}</p>
+        <p id={`${inputId}-help`} className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{t("范围：")}{x0} ≤ x ≤ {x1}{t("。读数按采样点作线性插值。缺少可靠采样值时不显示数值，不跨段插值。")}</p>
         {inputError ? <p id={`${inputId}-error`} className="mt-1 text-xs leading-5 text-[var(--foreground)]">{t("请输入 {min} 到 {max} 之间的有限数值（含端点）。",{min:x0,max:x1})}</p> : null}
       </form>
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement.text ? <span key={announcement.sequence}>{announcement.text}</span> : null}</p>
@@ -225,7 +229,7 @@ function FunctionGraphView({ spec }: { spec: GraphSpec }) {
         <thead><tr><th scope="col" className="w-2/3 py-1 pr-3 font-medium">{t("函数")}</th><th scope="col" className="py-1 font-medium">{t("y 值")}</th></tr></thead>
         <tbody>{submitted.values.map((value, index) => <tr key={index} className="border-t border-[var(--border)]">
           <th scope="row" className="break-words py-1 pr-3 font-normal">{spec.series[index].label || t("曲线 {index}",{index:index+1})}</th>
-          <td className="break-words py-1">{value === null ? t("无定义") : formatReadout(value)}</td>
+          <td className="break-words py-1">{value === null ? t("无可用读数") : formatReadout(value)}</td>
         </tr>)}</tbody>
       </table> : <p className="mt-3 text-xs leading-5 text-[var(--foreground)]">{t("当前图中没有可读取 y 值的函数曲线。")}</p> : null}
     </figure>

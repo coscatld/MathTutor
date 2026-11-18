@@ -49,6 +49,16 @@ def test_asymptote_splits_the_curve_and_periodic_functions_keep_a_readable_windo
     assert spec(graph_for_function("sin(x)"))["x_range"] == [-10.0, 10.0]
 
 
+@pytest.mark.parametrize(("expression", "sign"), [("x^2", 1), ("-x^2", -1)])
+def test_offscreen_samples_keep_their_math_values(expression, sign):
+    graph = spec(graph_for_function(expression))
+    assert graph["sample_values"] == "unclipped"
+    samples = dict(point for segment in graph["series"][0]["segments"] for point in segment)
+    for x in graph["x_range"]:
+        assert samples[x] == sign * x**2
+        assert not graph["y_range"][0] <= samples[x] <= graph["y_range"][1]
+
+
 @pytest.mark.parametrize("text, hidden, revealed", [
     ("2x+3=7", ["与纵轴交点 (0, -4)"], ["与纵轴交点 (0, -4)", "与横轴交点 (2, 0)"]),
     ("x^2-5x+6=0", ["与纵轴交点 (0, 6)", "顶点 (5/2, -1/4)"],

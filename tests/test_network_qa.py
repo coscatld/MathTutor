@@ -192,6 +192,9 @@ async def test_local_plan_uses_same_goal_and_never_enters_external_generation_pa
     assert receipt["answer_prefix_sha256"] == text_hash(prefix)
     assert receipt["rendered_text"] == "**接下来怎么学**" + addition
     assert receipt["rendered_text_sha256"] == text_hash(receipt["rendered_text"])
+    assert receipt["context_presentation"] == "verbatim_source_excerpts"
+    assert unescape(prefix).count(spans[0].text) == 1
+    assert receipt["context_excerpts"][0]["quote"] == spans[0].text
     assert receipt["final_text_sha256"] == text_hash(result.text)
     assert "作者甲" in result.text and "发布或更新于 2023-11-14" in result.text
     assert result.audit[0]["text"] == "可导函数在该点连续。"
@@ -393,6 +396,7 @@ async def test_valid_review_cannot_override_forged_source_or_quote(evidence):
 
 @pytest.mark.parametrize(("quote", "statement", "supported"), [
     ("先去括号，再合并同类项。", "去括号与合并同类项的先后顺序是固定的。", False),
+    ("先去括号，再合并同类项。", "去括号后，才能把字母部分相同的项合并。", False),
     ("先去括号，再合并同类项。", "可以先去括号，再合并同类项。", True),
     ("这两步没有固定顺序。", "这两步的顺序是固定的。", False),
     ("First expand, then collect terms.", "You must first expand before collecting terms.", False),

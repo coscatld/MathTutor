@@ -4,6 +4,7 @@
 
 - Explore Zhihu from the desktop app. Compare attributed excerpts side by side and open the original in your browser. Learning profiles show why a resource fits the current goal.
 - Keep inequalities and domain restrictions through each supported step. Graduated hints, clarification for missing conditions and local concept explanations continue offline.
+- Read sampled function values beyond the visible vertical axis. Older charts omit readings where the saved samples lost the original value.
 - Build one practice and reading plan from the learner’s explicit goal, available time, prerequisites and recent work. Preserve that goal when the app restarts.
 - Keep partial answers and explain why they stopped. Continue from the stored answer after restarting. The tutoring home now focuses on the problem, with reading suggestions in the learning profile.
 

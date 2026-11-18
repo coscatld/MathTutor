@@ -127,8 +127,9 @@ def test_startup_elapsed_is_captured_before_additional_acceptance(tmp_path, monk
 
     def local_read(base, path, *, origin):
         assert base == "http://127.0.0.1:8001" and origin == "http://127.0.0.1:8000"
-        payload = {"checks": {"migrations": "ok"}} if path.endswith("readiness") else {"version": acceptance.EXPECTED_VERSION}
-        return payload
+        if path.endswith("readiness"):
+            return {"checks": {"migrations": "ok"}}
+        return {"version": acceptance.EXPECTED_VERSION, "release_config": {"migration_head": "fixture-head"}}
 
     def code_smoke(*args, **kwargs):
         smoke_calls.append(kwargs)

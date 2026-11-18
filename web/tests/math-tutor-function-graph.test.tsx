@@ -66,6 +66,16 @@ test("graphs expose a labelled bounded keyboard lookup and describe sampled valu
   assert.doesNotMatch(graph, /<table/);
 });
 
+test("old charts with clipped samples omit those readings and new curves retain their offscreen values", () => {
+  const old = { ...spec, y_range: [-1, 4], series: [{ label: "y", segments: [[[0, 0], [1, 1], [2, 9], [3, 9]]] }] };
+  const legacy = parseGraphSpec(old)!.series[0];
+  assert.equal(valueAt(legacy, 1), 1);
+  assert.equal(valueAt(legacy, 1.5), null);
+  assert.equal(valueAt(legacy, 3), null);
+  const current = parseGraphSpec({ ...old, sample_values: "unclipped" })!.series[0];
+  assert.equal(valueAt(current, 3), 9);
+});
+
 test("only a server SHOW_GRAPH message renders a canvas", () => {
   const graph = renderToStaticMarkup(<TutorActionCard message={message("SHOW_GRAPH")} />);
   assert.match(graph, /<canvas/);

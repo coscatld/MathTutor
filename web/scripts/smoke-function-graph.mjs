@@ -70,8 +70,8 @@ try {
   assert.equal(await status.textContent(), "");
   await input.press("Enter");
   await table.waitFor();
-  assert.match(await table.textContent(), /x = 0 的函数读数.*y = x \+ 2.*2.*分段曲线.*无定义/);
-  assert.match(await status.textContent(), /x = 0.*y = x \+ 2：2.*分段曲线：无定义/);
+  assert.match(await table.textContent(), /x = 0 的函数读数.*y = x \+ 2.*2.*分段曲线.*无可用读数/);
+  assert.match(await status.textContent(), /x = 0.*y = x \+ 2：2.*分段曲线：无可用读数/);
   assert.equal(await status.getAttribute("aria-live"), "polite");
   const firstStatusNode = await status.locator("span").elementHandle();
   await input.press("Enter");
@@ -113,7 +113,7 @@ try {
   await input.fill("1");
   await input.press("Enter");
   assert.equal(await input.getAttribute("aria-invalid"), null);
-  assert.match(await table.textContent(), /x = 1 的函数读数.*y = x \+ 2.*3.*分段曲线.*无定义/);
+  assert.match(await table.textContent(), /x = 1 的函数读数.*y = x \+ 2.*3.*分段曲线.*无可用读数/);
 
   // A genuinely different graph clears old results, errors and announcements.
   await input.fill("7");

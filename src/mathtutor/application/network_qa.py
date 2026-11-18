@@ -31,7 +31,7 @@ POLICY = "network-claims-v5"
 logger = logging.getLogger(__name__)
 _REQUIRED_ORDER = re.compile(
     r"(?:顺序|次序)(?:是|为)?(?:固定|唯一|不可颠倒|不能颠倒)|"
-    r"固定(?:的)?(?:先后)?(?:顺序|次序)|(?:必须|只能|务必)先|"
+    r"固定(?:的)?(?:先后)?(?:顺序|次序)|(?:必须|只能|务必)先|(?:后|之后)[，,、\s]*(?:才可|才能)|"
     r"\b(?:the order is (?:fixed|mandatory)|fixed (?:order|sequence)|must (?:always )?(?:first|precede)|"
     r"the only (?:valid |possible )?(?:order|sequence))\b", re.I,
 )
@@ -395,7 +395,7 @@ class NetworkQA:
                 logger.warning("Local learning plan unavailable: %s", type(error).__name__)
                 addition, receipt = "", None
             if addition:
-                prefix, retained, suppressed = _plan_context(result, language,
+                prefix, retained, suppressed, excerpts = _plan_context(result, language,
                     same_goal=receipt["goal"] == _plan_goal(task))
                 addition, receipt = _attach_current_reading(receipt, task, result, retained)
                 answered = bool(retained)
@@ -407,6 +407,7 @@ class NetworkQA:
                 final_text = prefix + "\n\n" + addition
                 receipt.update(network_status=result.status, network_answer_available=answered,
                                retained_context_ids=retained, suppressed_advice_ids=suppressed,
+                               context_presentation="verbatim_source_excerpts", context_excerpts=excerpts,
                                answer_prefix_sha256=text_hash(prefix), final_text_sha256=text_hash(final_text))
                 result = replace(result, text=final_text, status=("partial" if suppressed else result.status) if answered else "local_plan",
                                  planner_receipt=receipt)
@@ -611,7 +612,8 @@ def _plan_goal(task):
 
 def _plan_context(reply, language, *, same_goal):
     sources = {row["source_id"]: row for row in reply.sources}
-    kept, suppressed, pieces = [], [], []
+    kept, suppressed, pieces, excerpts = [], [], [], []
+    seen = set()
     for row in reply.audit:
         if not row["accepted"]:
             continue
@@ -620,27 +622,26 @@ def _plan_context(reply, language, *, same_goal):
         if not same_goal or row["kind"] == "ai_inference" or advice or not set(row["dependencies"]) <= set(kept):
             suppressed.append(row["claim_id"])
             continue
-        kept.append(row["claim_id"])
-        label = {"source_statement": ("资料解释", "Source explanation"), "author_view": ("作者观点", "Author viewpoint"),
-                 "comparison": ("观点对照", "Viewpoint comparison")}[row["kind"]][language == "en"]
-        if row["math"] in {"unsupported", "undetermined"}:
-            label += " · 数学表述待核对" if language == "zh" else " · Mathematical statement unverified"
-        text = f"**{label}**\n\n" + _literal(row["text"])
-        if row["conditions"]:
-            text += "\n\n" + ("适用条件：" if language == "zh" else "Conditions: ") + _literal(row["conditions"])
-        links = []
-        for source_id in dict.fromkeys(evidence["source_id"] for evidence in row["evidence"]):
-            source = sources.get(source_id)
-            if source and safe_source_url(source["original_url"]):
-                label = source["title"] + " · " + (source.get("author") or ("作者未知" if language == "zh" else "Unknown author"))
-                date = _date_label(source.get("published_or_updated_at"), source.get("source_time_kind"), language)
-                links.append(f"[{_literal(label)}]({_markdown_url(source['original_url'])}) · {date}")
-        if links:
-            text += "\n\n" + ("来源：" if language == "zh" else "Sources: ") + " · ".join(links)
-        pieces.append(text)
+        for evidence in row["evidence"]:
+            source = sources.get(evidence["source_id"])
+            quote = evidence["quote"]
+            key = (evidence["source_id"], quote)
+            if len(excerpts) >= 4 or not source or key in seen or not safe_source_url(source["original_url"]):
+                continue
+            seen.add(key)
+            label = source["title"] + " · " + (source.get("author") or ("作者未知" if language == "zh" else "Unknown author"))
+            date = _date_label(source.get("published_or_updated_at"), source.get("source_time_kind"), language)
+            pieces.append(f"“{_literal(quote)}” — [{_literal(label)}]({_markdown_url(source['original_url'])}) · {date}")
+            excerpts.append({"claim_id": row["claim_id"], **evidence})
+            if row["claim_id"] not in kept:
+                kept.append(row["claim_id"])
+        if row["claim_id"] not in kept:
+            suppressed.append(row["claim_id"])
     if pieces:
-        return "\n\n".join(pieces) + "\n\n" + _message(language, "scope"), kept, suppressed
-    return reply.text if reply.status not in {"answered", "partial"} else "", kept, suppressed
+        heading = "**知乎检索摘录**" if language == "zh" else "**Zhihu search excerpts**"
+        return heading + "\n\n" + "\n\n".join(pieces), kept, suppressed, excerpts
+    prefix = reply.text if reply.status not in {"answered", "partial"} else ""
+    return prefix, kept, suppressed, excerpts
 
 
 def _render_learning_receipt(receipt):

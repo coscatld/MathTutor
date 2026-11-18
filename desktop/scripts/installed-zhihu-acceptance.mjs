@@ -61,26 +61,30 @@ function readReceipt(turnId) {
   }
 }
 
-function checkCitations(receipt, visibleLinks) {
+function checkCitations(receipt, visibleLinks, visibleText) {
   const sources = new Map(receipt.sources.map(source => [source.source_id, source]));
-  const shown = receipt.planner?.retained_context_ids;
-  const claims = receipt.claims.filter(claim => claim.accepted && (!shown || shown.includes(claim.claim_id)) && claim.evidence.length);
-  assert(claims.length, 'The current answer has no retained, source-linked explanations');
+  const claims = new Map(receipt.claims.filter(claim => claim.accepted).map(claim => [claim.claim_id, claim]));
+  const excerpts = receipt.planner.context_excerpts;
+  assert.equal(receipt.planner.context_presentation, 'verbatim_source_excerpts');
+  assert(excerpts.length, 'The current answer has no retained source excerpts');
   const citations = [];
-  for (const claim of claims) {
-    for (const item of claim.evidence) {
-      const source = sources.get(item.source_id);
-      assert(source?.request_id && source.scope === 'search_excerpt');
-      assert.equal(sha(source.raw_excerpt), source.raw_excerpt_sha256);
-      const text = [...source.text];
-      assert.equal(sha(text.slice(item.span_start, item.span_end).join('')), item.span_sha256);
-      assert.equal(text.slice(item.quote_start, item.quote_end).join(''), item.quote);
-      assert(visibleLinks.includes(source.original_url), 'The original link is missing from the answer');
-      citations.push({ claim: claim.claim_id, statement: claim.text, conditions: claim.conditions,
-        source: item.source_id, url: source.original_url, request_id: source.request_id,
-        excerpt_sha256: source.raw_excerpt_sha256, start: item.quote_start, end: item.quote_end,
-        quote: item.quote, quote_sha256: sha(item.quote) });
-    }
+  const normalize = text => text.replace(/\s+/g, ' ').trim();
+  for (const item of excerpts) {
+    const claim = claims.get(item.claim_id);
+    assert(claim && receipt.planner.retained_context_ids.includes(item.claim_id));
+    assert(claim.evidence.some(e => e.span_id === item.span_id && e.quote_start === item.quote_start && e.quote === item.quote));
+    const source = sources.get(item.source_id);
+    assert(source?.request_id && source.scope === 'search_excerpt');
+    assert.equal(sha(source.raw_excerpt), source.raw_excerpt_sha256);
+    const text = [...source.text];
+    assert.equal(sha(text.slice(item.span_start, item.span_end).join('')), item.span_sha256);
+    assert.equal(text.slice(item.quote_start, item.quote_end).join(''), item.quote);
+    assert(normalize(visibleText).includes(normalize(item.quote)), 'The cited passage must be visible in the answer');
+    assert(visibleLinks.includes(source.original_url), 'The original link is missing from the answer');
+    citations.push({ claim: claim.claim_id, displayed_statement: item.quote,
+      source: item.source_id, url: source.original_url, request_id: source.request_id,
+      excerpt_sha256: source.raw_excerpt_sha256, start: item.quote_start, end: item.quote_end,
+      quote: item.quote, quote_sha256: sha(item.quote) });
   }
   return citations;
 }
@@ -127,7 +131,8 @@ try {
   assert(['answered', 'partial'].includes(receipt.status), 'A sourced reply is required');
   await page.locator('a[href*="zhihu.com/"]').first().waitFor({ state: 'visible' });
   const visibleLinks = await page.locator('a[href*="zhihu.com/"]').evaluateAll(links => links.map(link => link.href));
-  report.cases.E05 = { citations: checkCitations(receipt, visibleLinks), status: 'matched_source_spans' };
+  const visibleText = await page.locator('body').innerText();
+  report.cases.E05 = { citations: checkCitations(receipt, visibleLinks, visibleText), status: 'matched_visible_source_quotes' };
   assert.equal(receipt.planner.goal, 'combine_like_terms');
   assert.equal(receipt.planner.steps.reduce((total, step) => total + step.minutes, 0), 10);
   const selectedResource = receipt.planner.resources[0];
