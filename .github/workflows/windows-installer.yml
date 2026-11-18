@@ -35,6 +35,7 @@ jobs:
           ./desktop/scripts/prepare-windows-python-runtime.ps1
           -OutputPath .runtime/python-win-x64 -BuildPython python -BuildPythonArgs @()
       - name: Build installer
+        id: installer
         shell: pwsh
         run: ./desktop/scripts/build-windows.ps1 -RuntimePath .runtime/python-win-x64
       - name: Verify installed startup, migrations, plugins and learning loop
@@ -51,6 +52,8 @@ jobs:
           if-no-files-found: warn
           path: desktop/dist/startup-acceptance/
       - name: Prepare isolated installed-product QA driver
+        id: prepare_qa
+        if: ${{ !cancelled() && steps.installer.outcome == 'success' }}
         shell: pwsh
         run: |
           $QaTools = Join-Path $env:RUNNER_TEMP 'mathtutor-product-qa-tools'
@@ -58,6 +61,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Playwright QA driver installation failed." }
           "MATHTUTOR_QA_PLAYWRIGHT=$QaTools/node_modules/playwright/index.mjs" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Verify installed product UI, mathematics and lifecycle
+        if: ${{ !cancelled() && steps.prepare_qa.outcome == 'success' }}
         shell: pwsh
         timeout-minutes: 45
         run: |
@@ -72,7 +76,7 @@ jobs:
           if-no-files-found: warn
           path: desktop/dist/product-acceptance/
       - name: Verify installed product failure handling
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.prepare_qa.outcome == 'success' }}
         shell: pwsh
         timeout-minutes: 20
         run: |

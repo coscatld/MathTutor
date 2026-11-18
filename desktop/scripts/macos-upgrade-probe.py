@@ -235,8 +235,12 @@ async def _authority_checks(db_path: Path, offer_id: str) -> dict[str, Any]:
 
 
 def verify(data_root: Path, expected_path: Path, namespace: str) -> dict[str, Any]:
+    from alembic.script import ScriptDirectory
+
     expected = json.loads(expected_path.read_text())
     db_path = data_root / "math_tutor.db"
+    migrations = importlib.import_module(f"{namespace}.infrastructure.migrate")
+    packaged_head = ScriptDirectory.from_config(migrations.alembic_config(str(db_path))).get_current_head()
     with _client(db_path, namespace) as client:
         version = client.get("/version")
         version.raise_for_status()
@@ -255,8 +259,7 @@ def verify(data_root: Path, expected_path: Path, namespace: str) -> dict[str, An
             json={"path": expected["backup_name"]},
         )
         checks = {
-            "migration_head": version.json().get("release_config", {}).get("migration_head")
-            == "025",
+            "migration_head": bool(packaged_head) and version.json().get("release_config", {}).get("migration_head") == packaged_head,
             "document_survives": documents.status_code == 200
             and any(item["document_id"] == expected["document_id"] for item in documents.json()),
             "memory_survives": memories.status_code == 200

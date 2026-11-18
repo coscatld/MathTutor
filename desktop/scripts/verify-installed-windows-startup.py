@@ -283,7 +283,7 @@ from contextlib import closing
 from mathtutor.infrastructure import db_crypto
 root = Path(os.environ['MATHTUTOR_DATA_ROOT'])
 rows = {}
-for path in [root / 'math_tutor.db', *sorted((root / 'backups').glob('*pre-025-*.sqlite3'))]:
+for path in [root / 'math_tutor.db', *sorted((root / 'backups').glob('math_tutor-pre-*-*.sqlite3'))]:
     with closing(db_crypto.connect(path, key=db_crypto.key_for_file(path))) as conn:
         revisions = conn.execute('SELECT version_num FROM alembic_version ORDER BY version_num').fetchall()
         sentinel_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE name='repair_sentinel'").fetchone()
@@ -333,7 +333,8 @@ def run_gui(executable, python, data, output, name, *, expect_failure=False):
                     ready_seconds = round(time.monotonic() - started, 3)
                     result = dict(case=name, seconds=ready_seconds,
                                   duplicate_exit=second.returncode, migration=migration,
-                                  version=version['version'], databases=probe(python, data, SNAPSHOT))
+                                  version=version['version'], migration_head=version['release_config']['migration_head'],
+                                  databases=probe(python, data, SNAPSHOT))
                     if name == 'fresh_unicode':
                         result['code_plugins'] = verify_code_plugins(base, python, executable, data, environment=env, origin=origin)
                     if name in ('fresh_unicode', 'restart_unicode'):
@@ -375,15 +376,23 @@ def main():
             stop_installer_autostart(executable)
             report['install_path'] = str(install)
             normal_data = root / '全新用户数据'
+            head = probe(python, normal_data, '''
+import json
+from alembic.script import ScriptDirectory
+from mathtutor.infrastructure.migrate import alembic_config
+print(json.dumps(ScriptDirectory.from_config(alembic_config()).get_current_head()))
+''')
+            assert isinstance(head, str) and head
+            report['expected_migration_head'] = head
             normal = run_gui(executable, python, normal_data, output, 'fresh_unicode')
-            assert normal['databases']['math_tutor.db']['revisions'] == [['025']]
+            assert normal['migration_head'] == head and normal['databases']['math_tutor.db']['revisions'] == [[head]], normal
             assert len(normal['databases']) == 1, normal
             report['cases'].append(normal)
             # Exercise normal relaunch on exactly the same data directory.
             # Remove only the previous test log, so the ready marker cannot be stale.
             (normal_data / 'logs' / 'startup.log').unlink()
             restart = run_gui(executable, python, normal_data, output, 'restart_unicode')
-            assert restart['databases']['math_tutor.db']['revisions'] == [['025']]
+            assert restart['migration_head'] == head and restart['databases']['math_tutor.db']['revisions'] == [[head]], restart
             assert restart['learning_loop']['episode_id'] == normal['learning_loop']['episode_id'], 'relaunch lost the saved learning episode'
             report['cases'].append(restart)
             damaged_data = root / '异常版本 用户数据'
@@ -392,13 +401,13 @@ def main():
 import json, os
 from pathlib import Path
 from contextlib import closing
-from mathtutor.infrastructure.migrate import upgrade_db
+from alembic import command
+from mathtutor.infrastructure.migrate import alembic_config
 from mathtutor.infrastructure import db_crypto
 path = Path(os.environ['MATHTUTOR_DATA_ROOT']) / 'math_tutor.db'
-upgrade_db(str(path))
+command.upgrade(alembic_config(str(path)), '024')
 with closing(db_crypto.connect_db(path)) as conn:
-    conn.execute('DROP TABLE learning_loop_episodes')
-    conn.execute("UPDATE alembic_version SET version_num = '024'")
+    conn.execute('DROP TABLE IF EXISTS learning_loop_episodes')
     conn.execute("INSERT INTO alembic_version VALUES ('023')")
     conn.execute('CREATE TABLE repair_sentinel (value TEXT)')
     conn.execute("INSERT INTO repair_sentinel VALUES ('preserve-original-data')")
@@ -407,8 +416,9 @@ print(json.dumps({'prepared': True}))
 ''')
             recovered = run_gui(executable, python, damaged_data, output, 'recover_023_024')
             live = recovered['databases'].pop('math_tutor.db')
-            assert live['revisions'] == [['025']] and live['sentinel'] == [['preserve-original-data']]
-            backup, = recovered['databases'].values()
+            assert live['revisions'] == [[head]] and live['sentinel'] == [['preserve-original-data']], live
+            (backup_name, backup), = recovered['databases'].items()
+            assert backup_name.startswith(f'math_tutor-pre-{head}-'), backup_name
             assert backup['revisions'] == [['023'], ['024']] and backup['sentinel'] == live['sentinel']
             recovered['databases']['math_tutor.db'] = live
             report['cases'].append(recovered)
@@ -429,7 +439,7 @@ print(json.dumps({'prepared': True}))
 ''')
             refused = run_gui(executable, python, invalid_data, output, 'reject_unknown_heads', expect_failure=True)
             refused['databases'] = probe(python, invalid_data, SNAPSHOT)
-            assert refused['databases']['math_tutor.db']['revisions'] == [['025'], ['future']]
+            assert refused['databases']['math_tutor.db']['revisions'] == sorted([[head], ['future']]), refused
             report['cases'].append(refused)
         report['status'] = 'PASS'
     except BaseException:
