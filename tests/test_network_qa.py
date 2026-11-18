@@ -420,6 +420,19 @@ async def test_unlisted_wrong_equation_is_still_checked():
     shown, audit = await service().gate(AnswerDraft(claims=[claim(spans[0], text="3+4=8")]),
         AnswerReview(claims=[review(math_consistency="not_applicable")]), spans, references)
     assert not shown and audit[0]["math"] == "incorrect"
+    assert audit[0]["formula_checks"]["refuted"] == 1
+    assert audit[0]["formula_checks"]["refutations"][0]["statement"]["shown"] == "3+4=8"
+    assert audit[0]["formula_checks"]["refutations"][0]["reason"] == "计算结果不对"
+
+
+async def test_root_fragment_cannot_turn_a_supported_warning_into_a_math_refutation():
+    text = "不能错误地写 √9=−3。"
+    _, _, _, spans, references = setup(text)
+    shown, audit = await service().gate(AnswerDraft(claims=[claim(spans[0], text=text)]),
+        AnswerReview(claims=[review()]), spans, references)
+    assert len(shown) == 1 and audit[0]["math"] == "unsupported"
+    assert audit[0]["formula_checks"]["refutations"] == []
+    assert audit[0]["formula_checks"]["verified"] == 0
 
 
 async def test_comparison_requires_two_sources_even_when_reviewer_accepts():

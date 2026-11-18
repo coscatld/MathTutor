@@ -25,7 +25,7 @@ from mathtutor.domain.dual_channel_gate import MathState, SourceState, decide
 from mathtutor.infrastructure.zhihu import ZhihuError
 from mathtutor.learning.skill_graph import SKILLS
 
-POLICY = "network-claims-v3"
+POLICY = "network-claims-v4"
 logger = logging.getLogger(__name__)
 _LINK = re.compile(r"(?i)(?:[a-z][a-z0-9+.-]*://|(?:javascript|data|file|mailto):|www\.)")
 _TOPICS = {
@@ -456,6 +456,7 @@ class NetworkQA:
                 math = MathState.UNSUPPORTED
             math_checks = [{**assertion.model_dump(), "status": "not_submitted" if not assertion.answer.strip() else "not_run",
                             "reason": "empty_answer" if not assertion.answer.strip() else ""} for assertion in claim.math]
+            formula_audit = {"status": "not_run"}
             if math is not MathState.INCORRECT:
                 for index, assertion in enumerate(claim.math):
                     if not assertion.answer.strip():
@@ -466,6 +467,9 @@ class NetworkQA:
                         math = MathState.INCORRECT
                         break
                 certification = await certify(claim.text + "\n" + claim.conditions, self.verification_backend)
+                formula_audit = {"status": "checked", **certification.counts(),
+                                 "refutations": [{"statement": asdict(statement), "reason": reason}
+                                                 for statement, reason in certification.refuted]}
                 if certification.refuted:
                     math = MathState.INCORRECT
             decision = decide(SourceState.SUMMARY_OK if support else SourceState.REJECTED, math)
@@ -482,7 +486,8 @@ class NetworkQA:
                           "normalization": {"ignored_relation_for_noncomparison": claim._proposed_relation}
                           if claim._proposed_relation else {},
                           "evidence": [_evidence_receipt(evidence, registry) for evidence in claim.evidence],
-                          "math_assertions": [assertion.model_dump() for assertion in claim.math], "math_checks": math_checks})
+                          "math_assertions": [assertion.model_dump() for assertion in claim.math], "math_checks": math_checks,
+                          "formula_checks": formula_audit})
             if accepted:
                 kept.add(claim.claim_id)
                 shown.append(claim)

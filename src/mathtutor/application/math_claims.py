@@ -93,6 +93,8 @@ def extract_statements(text: str) -> list[Statement]:
     for match in _PLAIN_SPAN.finditer(text):
         if any(a <= match.start() < b for a, b in covered):
             continue
+        if re.search(r"√\s*$", text[:match.start()]) or re.match(r"\s*√", text[match.end():]):
+            continue
         body = match.group(0)
         if re.search(r"[A-Za-z]{2,}", body):  # English words, not single-letter variables
             continue

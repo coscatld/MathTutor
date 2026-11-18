@@ -59,6 +59,20 @@ def test_premise_without_anchor_and_prose_are_not_claims():
     assert extract_statements("If x is positive, use the formula.") == []
 
 
+@pytest.mark.parametrize("text", [
+    "不能写 √9=−3。", "√ 9=3", "√(3²)=3=|3|", "√((−3)²)=√9=3",
+    "在非负范围内，√(x²)=x。", "3=√9", "3 = √ 9", "√(4)=2",
+])
+def test_unsupported_roots_are_not_stripped_to_certify_an_inner_fragment(text):
+    result = run(text)
+    assert result.verified == 0 and result.refuted == []
+
+
+def test_a_root_does_not_hide_a_separate_wrong_arithmetic_statement():
+    result = run("√9=3；但是 3+4=8。")
+    assert refuted(result) == ["3+4=8"]
+
+
 def test_notice_reports_the_outcome_and_marks_refuted_formulas_in_place():
     good, _ = asyncio.run(certify_and_annotate("得到 $2x=4$，所以 $x=2$。", BACKEND, anchor=("linear", "2x+3=7")))
     assert good.startswith("> 本段讲解中的 2 处算式已由本地验证器逐一核对；文字说明未经核验。")
