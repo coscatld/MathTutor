@@ -115,7 +115,8 @@ async function launch() {
       const record = { at: stamp(), case: currentCase, path: url.pathname, request: body, injection_layer: 'Chromium request routing before backend', mode };
       injected.push(record);
       assert.equal(body.question, '为什么函数连续不一定可导？');
-      assert.deepEqual(Object.keys(body).sort(), ['generation', 'goal', 'inquiry_id', 'language', 'question']);
+      assert.deepEqual(Object.keys(body).sort(), ['generation', 'goal', 'inquiry_id', 'language', 'mode', 'question']);
+      assert.equal(body.mode, 'zhihu');
       if (mode === 'connection_abort') { record.abort = 'connectionrefused'; return route.abort('connectionrefused'); }
       if (mode === 'api_failure') { record.response = { status: 502, body: { detail: '知乎服务暂时无法完成请求，请稍后再试。' } }; return route.fulfill({ status: 502, json: record.response.body }); }
       if (mode === 'empty') { record.response = { status: 200, body: emptyInquiry(body) }; return route.fulfill({ status: 200, json: record.response.body }); }
@@ -160,6 +161,7 @@ async function run(id, operation) {
 async function explorationFault(which) {
   mode = which;
   await navigate('/math-tutor/explore');
+  await page.getByRole('radio', {name: '知乎问答', exact: true}).check();
   const input = page.getByRole('textbox', { name: '你想弄清什么？', exact: true });
   await input.fill('为什么函数连续不一定可导？');
   const submit = page.getByRole('button', { name: '开始探索', exact: true });

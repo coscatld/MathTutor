@@ -39,12 +39,13 @@ const automatic = [
     'L01',
     'A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08',
     'B01', 'B02', 'B03', 'B04', 'B05',
-    'C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07',
+    'C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'E11',
     'D01', 'D02', 'D03', 'D04', 'D05', 'D06',
     'F01', 'F02', 'F03', 'F04', 'F06', 'F07',
 ];
 if (flags['self-test']) {
-    assert.equal(new Set(matrix.cases.map(c => c.id)).size, 44);
+    assert.equal(new Set(matrix.cases.map(c => c.id)).size, matrix.cases.length);
+    assert.equal(matrix.cases.length, 46);
     assert(automatic.every(id => matrix.cases.some(c => c.id === id)));
     assert.equal(normalize('x = \\frac{7}{8}'), 'x=7/8');
     assert.equal(redact({ api_key: 'synthetic', nested: { authorization: 'synthetic' } }).nested.authorization, '[redacted]');
@@ -80,6 +81,8 @@ identity.packaged_files = Object.fromEntries([
     'python-app/mathtutor/application/math_claims.py',
     'python-app/mathtutor/application/learning_actions.py',
     'python-app/mathtutor/application/network_qa.py',
+    'python-app/mathtutor/learning/attempt_verifier.py',
+    'python-app/mathtutor/application/open_readings.py',
     'python-app/mathtutor/application/recommendations.py',
     'web/.next-mathtutor/BUILD_ID', 'web/.next/BUILD_ID',
 ].filter(name => fs.existsSync(path.join(packageResources, name))).map(name => [name, hash(fs.readFileSync(path.join(packageResources, name)))]));
@@ -91,7 +94,8 @@ let application, page, base, currentCase = null, launches = 0, closing = false;
 const write = (filename, value) => fs.writeFileSync(path.join(output, filename), JSON.stringify(redact(value), null, 2) + '\n');
 const resultFor = id => results.find(c => c.id === id);
 const save = () => write('installed-product-acceptance.json', {
-    started_at: started, updated_at: stamp(), identity, live_provider_calls: 0,
+    started_at: started, updated_at: stamp(), identity, live_model_calls: 0, live_zhihu_calls: 0,
+    public_retrieval_attempts: resultFor('E11').observation?.retrieval_attempts ?? null,
     actual_installed_app: launches > 0, developer_server: false, source_testclient: false, results,
     automatic_scope: {
         planned: chosen.length, passed: results.filter(r => chosen.includes(r.id) && r.status === 'passed').length, failed: results.filter(r => chosen.includes(r.id) && r.status === 'failed').length, needs_review: results.filter(r => chosen.includes(r.id) && r.status === 'needs_review').length
@@ -281,12 +285,18 @@ async function closeTools() {
         await opener.click();
 }
 
-async function attempt(answer) {
+async function openAttempt() {
     await closeTools();
     const writeButton = page.getByRole('button', { name: '我来写', exact: true });
     if (await writeButton.isVisible().catch(() => false))
         await writeButton.click();
-    assert(await page.getByRole('button', { name: '提交本题步骤', exact: true }).isVisible(), 'Must submit using the real attempt UI');
+    const submit = page.getByRole('button', { name: '提交本题步骤', exact: true });
+    await submit.waitFor();
+    return submit;
+}
+
+async function attempt(answer) {
+    await openAttempt();
     return send(answer);
 }
 
@@ -525,8 +535,16 @@ try {
         const after = await evidence();
         const added = independentRows(after).filter(e => !independentRows(before).some(old => old.event_id === e.event_id));
         assert(added.some(e => e.correctness === 'correct'), 'No independent correct evidence for real submission');
+        const agenda = await api('/desktop/learning-loop');
+        const episode = agenda.domains.find(row => row.domain === 'linear_equation')?.episode;
+        assert.equal(episode?.source_cycle_id, started.event.cycle_id);
+        assert.equal(episode.phase, 'waiting');
+        assert.equal(episode.evidence.independent_practice, 1);
+        assert.deepEqual(episode.schedule.checkpoints.map(row => row.day), [1, 3, 7]);
+        assert.equal(Date.parse(episode.due_at) - Date.parse(episode.schedule.anchor_at), 24 * 60 * 60 * 1000);
         shared.independent = {
-            session: started.event.payload?.conversation_id, cycle: started.event.cycle_id, problem: started.event.problem_context.display_text, before, after, added, response
+            session: started.event.payload?.conversation_id, cycle: started.event.cycle_id,
+            problem: started.event.problem_context.display_text, before, after, added, response, episode
         };
         return shared.independent;
     });
@@ -925,6 +943,150 @@ try {
         return {
             mode: 'Real installed service backup/verify/restore through normal same-origin API', backup, verify, restore, restored_goal: p.goal
         };
+    });
+    await runCase('C08', async () => {
+        await goto('/math-tutor');
+        await newChat();
+        const uploads = [];
+        const external = [];
+        const webRequests = /^https?:/;
+        const localOnly = route => {
+            const url = new URL(route.request().url());
+            if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
+                external.push(url.origin);
+                return route.abort('internetdisconnected');
+            }
+            if (route.request().method() === 'POST' && url.pathname === '/api/v2/math-tutor/images')
+                uploads.push(url.pathname);
+            return route.fallback();
+        };
+        await page.route(webRequests, localOnly);
+        try {
+            const started = await send('5x+1=16');
+            verifiedProblem(started);
+            const cycle = started.event.cycle_id;
+            assert(cycle);
+            const session = new URL(page.url()).searchParams.get('session');
+            const evidenceForCycle = () => api('/desktop/student-evidence?cycle_id=' + encodeURIComponent(cycle));
+            await attempt('x+1=4');
+            const {items: partial} = await evidenceForCycle();
+            assert(partial.some(row => row.student_response === 'x+1=4' && row.correctness === 'partial'
+                && row.completion_scope === 'subgoal' && !row.first_target));
+
+            const submit = await openAttempt();
+            const input = page.getByRole('textbox', {name: '聊天输入', exact: true});
+            const filename = '本机作答截图.png';
+            await page.locator('input[type=file][accept="image/png,image/jpeg,image/webp"]').setInputFiles({
+                name: filename, mimeType: 'image/png', buffer: await page.screenshot(),
+            });
+            await page.getByRole('button', {name: '放大图片：' + filename, exact: true}).waitFor();
+            await page.getByText('草稿图仅供对照，输入的文字步骤将由本机核验。', {exact: true}).waitFor();
+            assert(await submit.isDisabled(), 'An image-only draft must not submit an assessed step');
+            await input.fill('5x=15');
+            await page.getByRole('button', {name: '常用公式', exact: true}).click();
+            const formulas = page.getByRole('group', {name: '常用公式', exact: true});
+            await formulas.getByRole('button', {name: '下一行'}).click();
+            await input.pressSequentially('5x=20');
+            await formulas.getByRole('button', {name: '下一行'}).click();
+            await input.pressSequentially('x=6');
+            await formulas.getByRole('button', {name: '分数'}).click();
+            await input.pressSequentially('2');
+            const answer = '5x=15\n5x=20\nx=6/2';
+            assert.equal(await input.inputValue(), answer);
+            await captureSurface('C08-local-image-and-working');
+            const wrong = await turn(() => submit.click());
+            const sent = wrong.events.find(row => row.direction === 'sent' && row.frame.command === 'submit_attempt');
+            assert.equal(sent?.frame.payload.answer, answer);
+            assert(!('attachment_ids' in sent.frame.payload));
+            assert.match(wrong.text, /第\s*2\s*行/);
+            assert.match(wrong.text, /常数项/);
+            await page.getByText(/第\s*2\s*行未通过与第\s*1\s*行的核对/).first().waitFor();
+            const {items: judged} = await evidenceForCycle();
+            const mistake = judged.find(row => row.student_response === answer && row.correctness === 'incorrect');
+            assert(mistake);
+            const observation = (await summary()).review_observations.find(row => row.event_id === mistake.event_id);
+            assert.equal(observation?.category, 'calculation');
+            assert.equal(observation.reason, 'constant');
+            assert(observation.next_problem);
+            assert(!judged.some(row => row.correctness === 'correct'));
+            const resources = await api('/desktop/conversations/' + encodeURIComponent(session) + '/resources');
+            assert.deepEqual(resources.images, []);
+            assert.deepEqual(uploads, []);
+            await captureSurface('C08-first-error');
+
+            const fixedAnswer = '5x=15\nx=3';
+            await attempt(fixedAnswer);
+            const {items: finalEvidence} = await evidenceForCycle();
+            assert(finalEvidence.some(row => row.student_response === fixedAnswer && row.correctness === 'correct'
+                && row.completion_scope === 'full_problem' && !row.first_target));
+            return {cycle, partial, first_error: wrong.text, observation, corrected: finalEvidence,
+                image_upload_requests: uploads.length, saved_images: resources.images.length,
+                blocked_external_renderer_origins: external, configured_model: false};
+        } finally {
+            await page.unroute(webRequests, localOnly);
+        }
+    });
+
+    await runCase('E11', async () => {
+        const configuration = await api('/desktop/exploration/configuration');
+        assert.equal(configuration.configured, false, 'A fresh profile must have no Zhihu connection');
+        await goto('/math-tutor/explore');
+        assert(await page.getByRole('radio', {name: '开放数学资料'}).isChecked());
+        const query = '为什么函数连续不一定可导？';
+        await page.getByRole('textbox', {name: '你想弄清什么？'}).fill(query);
+        const [response] = await Promise.all([
+            page.waitForResponse(res => new URL(res.url()).pathname === '/api/v2/math-tutor/desktop/exploration/inquiries'
+                && res.request().method() === 'POST', {timeout: 65000}),
+            page.getByRole('button', {name: '开始探索', exact: true}).click(),
+        ]);
+        assert(response.ok(), 'Default keyless inquiry must return sources from the bundled service');
+        const view = await response.json();
+        assert.equal(view.question, query);
+        assert.equal(view.mode, 'open');
+        const {sources, cards} = view.evidence;
+        const attempts = view.retrieval_attempts;
+        const remoteAttempts = attempts.filter(row => (row.access ?? 'online') === 'online');
+        assert(['wikipedia', 'wikibooks'].every(provider => remoteAttempts.some(row => row.provider === provider)));
+        assert(attempts.some(row => row.access === 'bundled' && row.provider === 'active_calculus' && row.status === 'found'));
+        assert(attempts.every(row => ['found', 'empty', 'unavailable', 'rate_limited'].includes(row.status)));
+        assert(!sources.some(source => source.provider === 'zhihu'));
+        const edition = sources.find(source => source.provider === 'active_calculus');
+        assert.equal(edition?.scope, 'textbook_excerpt');
+        assert.equal(edition.original_url, 'https://activecalculus.org/single/sec-1-7-lim-cont-diff.html');
+        assert.equal(edition.author, 'Matthew Boelkins');
+        assert(edition.attribution.version && edition.attribution.license && edition.retrieved_at);
+        assert.equal(edition.text_sha256, hash(edition.text));
+
+        const online = sources.filter(source => ['wikipedia', 'wikibooks'].includes(source.provider));
+        for (const attempt of remoteAttempts.filter(row => row.status === 'found' && ['wikipedia', 'wikibooks'].includes(row.provider))) {
+            assert(attempt.count > 0 && online.some(source => source.provider === attempt.provider
+                && source.attribution.language === attempt.language));
+        }
+        for (const source of online) {
+            const url = new URL(source.original_url);
+            assert.equal(url.origin, 'https://' + source.attribution.language + '.' + source.provider + '.org');
+            assert.equal(url.pathname, '/w/index.php');
+            assert.match(source.attribution.version, /^[1-9]\d*$/);
+            assert.equal(url.searchParams.get('oldid'), source.attribution.version);
+            assert(['page_excerpt', 'search_excerpt'].includes(source.scope));
+            assert.equal(hash(source.text), source.text_sha256);
+        }
+        const card = cards.find(item => online.some(source => source.source_id === item.source_id))
+            || cards.find(item => item.provider === 'active_calculus');
+        const source = sources.find(item => item.source_id === card?.source_id);
+        assert(source && card.quote && source.text.includes(card.quote));
+        assert.equal(card.original_url, source.original_url);
+        const article = page.getByRole('article', {name: card.title, exact: true}).first();
+        await article.waitFor();
+        assert.equal((await article.locator('blockquote').innerText()).replace(/\s+/g, ' ').trim(), card.quote.replace(/\s+/g, ' ').trim());
+        assert.equal(await article.getByRole('link', {name: '打开原文'}).getAttribute('href'), card.original_url);
+        const saved = await api('/desktop/exploration/inquiries/' + encodeURIComponent(view.inquiry_id) + '?language=zh');
+        assert.deepEqual(saved.evidence.sources.map(item => item.text_sha256), sources.map(item => item.text_sha256));
+        return {mode: view.mode, query, configured_zhihu: false, inquiry_id: view.inquiry_id,
+            retrieval_attempts: attempts, online_sources: online.length, displayed_source: {provider: source.provider, scope: source.scope,
+                title: card.title, url: card.original_url, quote_sha256: hash(card.quote)},
+            bundled_reading: {provider: edition.provider, version: edition.attribution.version,
+                url: edition.original_url, text_sha256: edition.text_sha256}};
     });
 }
 catch (error) {

@@ -1,5 +1,5 @@
 {
-  "frozen_at": "2026-11-18T06:44:09.501698+00:00",
+  "revised_on": "2026-11-25",
   "scope": "Actual installed Electron software only; normal frontend WebSocket/API and independent temporary data. CPU-only.",
   "cases": [
     {
@@ -183,6 +183,15 @@
       "status": "not_run"
     },
     {
+      "id": "C08",
+      "category": "C",
+      "name": "逐行核验与作答草稿",
+      "stimulus": "5x+1=16 → 等价中间式 → 使用公式菜单及本地截图输入前错后对的多行作答 → 修正",
+      "expected": "中间式保留未完状态，指出第 2 行首错，截图未上传；完整正确的重试可追溯",
+      "evidence_layer": "installed_renderer_ws_and_service",
+      "status": "not_run"
+    },
+    {
       "id": "D01",
       "category": "D",
       "name": "新用户",
@@ -324,6 +333,15 @@
       "stimulus": "受控空返回",
       "expected": "明示无相关结果，不伪造内容",
       "evidence_layer": "fault_injection",
+      "status": "not_run"
+    },
+    {
+      "id": "E11",
+      "category": "E",
+      "name": "免密默认数学资料检索",
+      "stimulus": "全新配置 → 知识探索默认来源 → 为什么函数连续不一定可导？",
+      "expected": "显示并保存真实来源、摘录和原文链接，记录在线提供方状态；断网仍可读取相关开放教材节选",
+      "evidence_layer": "installed_renderer_public_retrieval",
       "status": "not_run"
     },
     {
