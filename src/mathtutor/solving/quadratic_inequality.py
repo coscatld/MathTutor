@@ -169,7 +169,7 @@ def from_payload(payload) -> tuple[Interval, ...]:
 
 # ---------------------------------------------------------------- answers
 
-_NUMBER = r"[+-]?\d{1,18}(?:/\d{1,18})?"
+_NUMBER = r"[+-]?\d{1,18}(?:/\d{1,18}|\.\d{1,18})?"
 _ALL = re.compile(r"^(?:[a-z]\s*(?:为|是|∈)\s*)?(?:全体实数|任意实数|一切实数|所有实数|R|ℝ|\(-∞,\s*\+?∞\))$", re.I)
 _NONE = re.compile(r"^(?:无解|无实数解|空集|∅|不存在|no solution)$", re.I)
 _REL = {"<": ("hi", False), "<=": ("hi", True), ">": ("lo", False), ">=": ("lo", True)}
@@ -180,11 +180,37 @@ def parse_answer(text: str, variable: str) -> tuple[Interval, ...] | None:
     """Read a student's solution set; ``None`` when the text is not one."""
     source = (text.strip().replace("≤", "<=").replace("≥", ">=").replace("＜", "<").replace("＞", ">")
               .replace("≠", "!=").replace("\\le", "<=").replace("\\ge", ">=").replace("\\ne", "!=").replace(" ", ""))
-    if _ALL.match(source):
-        return (Interval(None, False, None, False),)
+    if membership := re.fullmatch(r"([A-Za-z])∈(.+)", source):
+        if membership[1] != variable:
+            return None
+        source = membership[2]
+    if re.search(r"/0+(?!\d)", source):
+        return None
+    if _ALL.fullmatch(source):
+        named = re.match(r"([a-z])(?:为|是|∈)", source, re.I)
+        return None if named and named[1] != variable else (Interval(None, False, None, False),)
     if _NONE.match(source):
         return ()
-    parts = [p for p in re.split(r"或|or|∪|,|，|;|；", source) if p]
+    if source.startswith(("(", "[")):
+        pieces = re.split(r"或|or|∪", source)
+        if len(pieces) > 8:
+            return None
+        intervals = []
+        for piece in pieces:
+            match = re.fullmatch(rf"(\[|\()(-∞|{_NUMBER})[,，](\+?∞|{_NUMBER})(\]|\))", piece)
+            if not match:
+                return None
+            left, low, high, right = match.groups()
+            lo = None if low == "-∞" else Fraction(low)
+            hi = None if high.endswith("∞") else Fraction(high)
+            if ((lo is None and left == "[") or (hi is None and right == "]")
+                    or (lo is not None and hi is not None and lo > hi)):
+                return None
+            if lo is not None and lo == hi and (left != "[" or right != "]"):
+                continue
+            intervals.append(Interval(lo, left == "[", hi, right == "]"))
+        return normalize(intervals)
+    parts = re.split(r"或|or|∪|,|，|;|；", source)
     intervals: list[Interval] = []
     v = re.escape(variable)
     for part in parts:

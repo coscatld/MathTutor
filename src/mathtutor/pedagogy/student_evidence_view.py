@@ -9,9 +9,9 @@ from copy import deepcopy
 def verified_claim_view(claim):
     kind = claim.get("claim", "")
     if kind == "equivalent_equation":
-        return {"claim": kind}  # its private root/roots certify equivalence
+        return {key: claim[key] for key in ("claim", "line") if key in claim}  # keep private roots out
     return {key: deepcopy(value) for key, value in claim.items()
-            if key in {"claim", "value", "variable", "coeffs", "roots", "equations_checked"}}
+            if key in {"claim", "value", "variable", "coeffs", "roots", "equations_checked", "line"}}
 
 
 def progress_view(rows):
@@ -26,12 +26,12 @@ def assessment_view(rows):
     for row in rows:
         public = {key: deepcopy(value) for key, value in row.items() if key in {
             "assessment_id", "raw_text", "assessment_scope", "math_validity", "task_completion",
-            "misconception_candidates", "help_before_attempt", "evidence_kind", "progress_kind"}}
+            "misconception_candidates", "help_before_attempt", "evidence_kind", "progress_kind", "working_feedback"}}
         public["verified_steps"] = [verified_claim_view(claim) for claim in row.get("verified_steps", [])]
         public["invalid_claims"] = [{key: deepcopy(value) for key, value in claim.items()
-                                    if key in {"claim", "actual", "reason", "variable"}}
+                                    if key in {"claim", "actual", "reason", "variable", "line", "previous_line"}}
                                    for claim in row.get("invalid_claims", [])]
-        public["remaining_requirements"] = [{"requirement": claim["requirement"]}
+        public["remaining_requirements"] = [{key: claim[key] for key in ("requirement", "line", "previous_line") if key in claim}
                                             for claim in row.get("remaining_requirements", []) if "requirement" in claim]
         result.append(public)
     return tuple(result)

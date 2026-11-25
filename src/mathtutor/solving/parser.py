@@ -238,6 +238,12 @@ class _Parser:
         self.pos = 0
         self.denominators: list[n.Node] = []
 
+    def require_constant_divisors(self) -> None:
+        # Check the original divisors even if an enclosing zero product or a
+        # cancellation has already removed them from the canonical expression.
+        if any(n.variables(denominator) for denominator in self.denominators):
+            raise UnsupportedError("分母含未知数，需要保留原式的定义域；这一步请先写明分母不为零的条件。")
+
     def peek(self) -> _Token | None:
         return self.tokens[self.pos] if self.pos < len(self.tokens) else None
 
@@ -494,12 +500,14 @@ def _parse_core(text: str, budget: ParseBudget | None = None) -> ParseOutcome:
             if not parser.at_end():
                 raise ParseError("'=' 只能出现一次")
             ast = n.eq(lhs, rhs)
+            parser.require_constant_divisors()
             classified = _classify_equation(ast)
         else:
             if not parser.at_end():
                 remaining = parser.tokens[parser.pos].kind
                 raise ParseError(f"表达式结束后仍有记号：{remaining}")
             ast = lhs
+            parser.require_constant_divisors()
             classified = _classify_expression(ast)
     except AmbiguityError as exc:
         return ParseOutcome.ambiguous(str(exc))
@@ -566,6 +574,7 @@ def _parse_linear_system(text: str, budget: ParseBudget) -> ParseOutcome:
             rhs = parser.parse_expression()
             if not parser.at_end():
                 raise ParseError("每个方程只能有一个等号")
+            parser.require_constant_divisors()
             equations.append(n.eq(lhs, rhs))
         ast = n.LinearSystem(tuple(equations))
         system_rows(ast)
@@ -595,6 +604,7 @@ def parse_linear_equation_fragment(text: str) -> ParseOutcome:
         if not parser.at_end():
             raise ParseError("每个方程只能有一个等号")
         ast = n.eq(lhs, rhs)
+        parser.require_constant_divisors()
         variables = tuple(sorted(n.variables(ast)))
         if len(variables) != 2:
             return ParseOutcome.unsupported("需要二元一次式")

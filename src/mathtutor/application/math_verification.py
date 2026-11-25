@@ -85,7 +85,7 @@ async def verify_math(backend, expression: str, answer: str, *, conditions: str 
         return MathCheck("unchecked", reason=type(exc).__name__)
     correctness = assessed.correctness.value
     signals = tuple(assessed.signals)
-    if correctness == "correct" or (correctness == "partial" and set(signals) <= {"equivalent_equation"}):
+    if correctness == "correct" or (correctness == "partial" and set(signals) <= {"equivalent_equation", "equivalent_inequality"}):
         return MathCheck("verified", correctness, signals)
     if correctness in {"incorrect", "partial"}:
         return MathCheck("refuted", correctness, signals)

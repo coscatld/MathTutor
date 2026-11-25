@@ -75,7 +75,8 @@ def _is_answer_shape(text: str, variable: str | None, variables=()) -> bool:
     if text.lower() in EMPTY_ROOT_SET_TOKENS:
         return True
     from mathtutor.solving.quadratic_inequality import parse_answer
-    if variable and re.search(r"[<>≤≥≠]|全体实数|任意实数|一切实数", text) and parse_answer(text, variable) is not None:
+    interval_notation = text.lstrip().startswith(("(", "[")) and "," in text
+    if variable and (interval_notation or re.search(r"[<>≤≥≠∈]|全体实数|任意实数|一切实数", text)) and parse_answer(text, variable) is not None:
         return True  # a solution set such as x>2, x<2或x>3, 2<x<3
     if not re.fullmatch(r"[\s\dA-Za-z.,，;；+\-*/^=(){}\[\]\\$√]+", text):
         return False
@@ -246,8 +247,13 @@ def classify_user_message(
         # constraint layer preserves its original operation for free teaching.
         return RoutedIntent(ConversationIntent.MATH_PROBLEM, ConversationMode.MATH_PROBLEM)
     action = _requested_action(str(text or ""))
-    fragment, explicit_attempt = _math_fragment(compact)
-    if active and (explicit_attempt or _is_answer_shape(fragment, variable, variables)):
+    fragment, explicit_attempt = _math_fragment(str(text or ""))
+    # A multi-line algebra submission is one attempt. Preserve its line breaks
+    # so the verifier can identify a failed link even when the last line is right.
+    lines = [line.strip() for line in fragment.splitlines() if line.strip()]
+    written_steps = (len(lines) > 1 and any(re.search(r"[=＝<>≤≥]", line) for line in lines)
+                     and all(re.fullmatch(r"[A-Za-z0-9\s+*/^=＝≤≥<>.,，(){}\[\]\\−÷×或无解²³∈∪∞-]+", line) for line in lines))
+    if active and (explicit_attempt or written_steps or _is_answer_shape(fragment, variable, variables)):
         return RoutedIntent(ConversationIntent.ATTEMPT, ConversationMode.MATH_PROBLEM, answer_text=fragment, command=action)
     from mathtutor.learning.skills import relates_to_skill
     if active and not explicit_attempt and (related_to_active or relates_to_skill(compact, skill_id)) and (

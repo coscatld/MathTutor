@@ -53,12 +53,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from mathtutor.domain.attempt import StudentAttempt
 from mathtutor.domain.problem import MathProblem
 from mathtutor.domain.solution import MathSolutionCandidate
-from mathtutor.learning.attempt_parser import ParsedAttempt, interpret_attempt
+from mathtutor.learning.attempt_parser import MAX_WORKING_LINES, ParsedAttempt, interpret_attempt, interpret_step
 from mathtutor.solving import nodes as n
 from mathtutor.solving.strategies import _common as c
 from mathtutor.solving.strategies import quadratic as q
 
-ATTEMPT_VERIFIER_POLICY_VERSION = "mt-attempt-verifier-v1"
+ATTEMPT_VERIFIER_POLICY_VERSION = "mt-attempt-verifier-v2"
+WORKING_POLICY_VERSION = "mt-equation-working-v1"
 
 # PARTIAL score for an equivalent-equation restatement (no final value/root
 # set given yet, but the step itself is mathematically valid).
@@ -174,7 +175,15 @@ def verify_attempt(
             **base,
         )
 
-    parsed_answer = interpret_attempt(student_attempt)
+    try:
+        if len(student_attempt.parsed_steps) > 1:
+            return _verify_working(student_attempt.parsed_steps, problem, base)
+        return _assess_answer(problem, interpret_attempt(student_attempt), base)
+    except n.MathComplexityError:
+        return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="这次作答超出精确计算预算，请拆成较小的步骤。", **base)
+
+
+def _assess_answer(problem: MathProblem, parsed_answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:
     if parsed_answer.kind == "undeterminable":
         return AttemptAssessment(
             correctness=Correctness.UNDETERMINED,
@@ -188,10 +197,7 @@ def verify_attempt(
         return _verify_linear_inequality(problem, parsed_answer, base)
     if problem.problem_type == "quadratic_inequality":
         return _verify_quadratic_inequality(problem, parsed_answer, base)
-    if parsed_answer.kind == "inequality_set":
-        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
-                                 reason="这道题要的不是取值范围。", **base)
-    if parsed_answer.kind == "inequality":
+    if parsed_answer.kind in {"inequality", "inequality_relation", "inequality_set"}:
         return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
                                  reason="这道题要的不是取值范围。", **base)
 
@@ -205,10 +211,13 @@ def verify_attempt(
         )
 
     if parsed_answer.kind == "root_values":
-        base["policy_version"] = "mt-attempt-root-set-v1"
+        base = {**base, "policy_version": "mt-attempt-root-set-v2"}
         if problem.problem_type not in {"linear", "quadratic"}:
             return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",), **base)
         variable = _problem_variable(problem_ast)
+        if parsed_answer.answer_variable and parsed_answer.answer_variable != variable:
+            return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_family",),
+                                     reason="这一行使用的未知数与原题不同。", **base)
         expected = _roots_as_fractions(_expected_roots(problem_ast, problem.problem_type, variable))
         claimed = tuple(sorted(set(parsed_answer.root_values)))
         if set(claimed) == set(expected):
@@ -241,27 +250,50 @@ def verify_attempt(
 def _verify_linear_inequality(problem: MathProblem, answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:
     """A boundary equation is not a solution. The range is recomputed from the stored equation."""
     from mathtutor.solving.strategies.inequality import solved_form
-    if answer.kind != "inequality":
-        return AttemptAssessment(
-            correctness=Correctness.INCORRECT,
-            signals=("wrong_family",),
-            reason="不等式的答案要保留不等号，不能只写边界方程。",
-            **base,
-        )
+    if answer.kind not in {"inequality", "inequality_relation", "inequality_set"}:
+        return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_family",),
+                                 reason="不等式的答案要保留不等号，不能只写边界方程。", **base)
     try:
         payload = problem.normalized_ast
         equation = n.from_dict(payload["equation"])
         kept, boundary = solved_form(equation, payload["variable"], payload["relation"])
+        variable, actual_relation, actual_boundary = answer.answer_variable, answer.relation, answer.boundary
+        isolated = True
+        if answer.kind == "inequality_set":
+            from mathtutor.solving.quadratic_inequality import parse_answer
+            symbol = {"gt": ">", "ge": ">=", "lt": "<", "le": "<="}[kept]
+            expected = parse_answer(f"{payload['variable']}{symbol}{boundary}", payload["variable"])
+            claimed = parse_answer(answer.set_text, payload["variable"])
+            if claimed is None:
+                return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="请核对区间两端、括号与并集写法。", **base)
+            if claimed != expected:
+                return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_value",),
+                                         reason="这个区间与原题的解集不同，请核对方向及端点是否包含。", **base)
+            return AttemptAssessment(correctness=Correctness.CORRECT, score=1,
+                                     verified_claims=({"claim": "inequality_solution", "relation": kept},), **base)
+        if answer.kind == "inequality_relation":
+            parsed = answer.parsed
+            if parsed.problem_type != "linear_inequality":
+                return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="这一行超出一次不等式的核验范围。", **base)
+            variable = parsed.variable
+            actual_relation, actual_boundary = solved_form(parsed.ast, variable, parsed.relation)
+            isolated = answer.isolated_variable
     except (KeyError, TypeError, ValueError, n.MathDomainError, n.MathComplexityError) as exc:
         return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason=f"不等式不能回放: {exc}", **base)
-    if answer.answer_variable.lower() != str(payload.get("variable", "")).lower():
-        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",), reason="未知数和原题不一致。", **base)
-    if answer.boundary == boundary and answer.relation == kept:
-        return AttemptAssessment(correctness=Correctness.CORRECT, score=1.0,
-                                 verified_claims=({"claim": "inequality_solution", "relation": kept},), **base)
-    if answer.boundary == boundary:
-        return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_value",), reason="不等号方向和原题不一致。", **base)
-    return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_value",), reason="这个范围的边界没有通过原题检验。", **base)
+    if variable.lower() != str(payload["variable"]).lower():
+        return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_family",), reason="未知数和原题不一致。", **base)
+    if actual_boundary == boundary and actual_relation == kept:
+        if isolated:
+            return AttemptAssessment(correctness=Correctness.CORRECT, score=1,
+                verified_claims=({"claim": "inequality_solution", "relation": kept},), **base)
+        return AttemptAssessment(correctness=Correctness.PARTIAL, score=EQUIVALENT_EQUATION_SCORE,
+            verified_claims=({"claim": "equivalent_inequality", "relation": actual_relation},),
+            remaining_requirements=({"requirement": "state_interval"},), signals=("equivalent_inequality",), **base)
+    if actual_boundary == boundary:
+        return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_value",),
+            reason="边界数值相同，请核对不等号方向以及边界点是否包含。", **base)
+    return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_value",),
+                             reason="这个范围的边界没有通过原题检验。", **base)
 
 
 def _verify_quadratic_inequality(problem: MathProblem, answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:
@@ -269,6 +301,19 @@ def _verify_quadratic_inequality(problem: MathProblem, answer: ParsedAttempt, ba
     from mathtutor.solving import quadratic_inequality as qi
     variable = str(problem.normalized_ast.get("variable", "x"))
     symbols = {"gt": ">", "ge": ">=", "lt": "<", "le": "<="}
+    if answer.kind == "inequality_relation":
+        parsed = answer.parsed
+        if parsed.problem_type != "quadratic_inequality" or parsed.variable != variable:
+            return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="请写出完整区间，以便核对这个不等式。", **base)
+        original = n.from_dict(problem.normalized_ast["equation"])
+        expected = qi.solution_set(*qi.coefficients(original, variable), problem.normalized_ast["relation"])
+        actual = qi.solution_set(*qi.coefficients(parsed.ast, variable), parsed.relation)
+        if actual != expected:
+            return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_value",),
+                                     reason="这一步改变了解集，请核对因式的符号、不等号和边界点。", **base)
+        return AttemptAssessment(correctness=Correctness.PARTIAL, score=EQUIVALENT_EQUATION_SCORE,
+            verified_claims=({"claim": "equivalent_inequality", "relation": parsed.relation},),
+            remaining_requirements=({"requirement": "state_interval"},), signals=("equivalent_inequality",), **base)
     if answer.kind == "inequality_set":
         text = answer.set_text
     elif answer.kind == "inequality" and answer.boundary is not None:
@@ -285,6 +330,8 @@ def _verify_quadratic_inequality(problem: MathProblem, answer: ParsedAttempt, ba
         verdict = qi.assess(problem, text) if text else None
     except (KeyError, TypeError, ValueError, ZeroDivisionError, n.MathDomainError) as exc:
         return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason=f"不等式不能回放: {exc}", **base)
+    if verdict is None and answer.kind == "inequality_set":
+        return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="请核对区间两端、括号与并集写法。", **base)
     if verdict is None:
         return AttemptAssessment(correctness=Correctness.INCORRECT, signals=("wrong_family",),
                                  reason="请写出解集，例如 x<2 或 x>3、2<x<3。", **base)
@@ -459,74 +506,7 @@ def _verify_linear(problem_ast: n.Node, answer: ParsedAttempt, base: dict[str, A
             **base,
         )
 
-    # Equation answer.
-    parsed = answer.parsed
-    assert parsed is not None
-    if parsed.problem_type != "linear":
-        return AttemptAssessment(
-            correctness=Correctness.INCORRECT,
-            score=0.0,
-            invalid_claims=({"claim": "equation_answer", "reason": "作答不是一元一次方程"},),
-            signals=("wrong_family",),
-            **base,
-        )
-    if parsed.variable != variable:
-        return AttemptAssessment(
-            correctness=Correctness.INCORRECT,
-            score=0.0,
-            invalid_claims=({"claim": "equation_answer", "reason": "变量不一致"},),
-            signals=("wrong_family",),
-            **base,
-        )
-    answer_diff = n.equation_difference(parsed.ast, variable)
-    if answer_diff is None or answer_diff.get(1, Fraction(0)) == 0:
-        return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="作答方程无法提取一次项系数", **base)
-    actual = Fraction(-answer_diff.get(0, Fraction(0)), answer_diff.get(1, Fraction(1)))
-    if actual == expected:
-        # Equivalent equation; solved-for-x only when |leading coefficient| == 1
-        # (x=2, 2=x, x=4/2 all normalize to that; 2x=4 does not).
-        if abs(answer_diff[1]) == 1:
-            return AttemptAssessment(
-                correctness=Correctness.CORRECT,
-                score=1.0,
-                verified_claims=(
-                    {
-                        "claim": "root_value",
-                        "value": c.frac_to_dict(expected),
-                        "variable": variable,
-                    },
-                ),
-                **base,
-            )
-        return AttemptAssessment(
-            correctness=Correctness.PARTIAL,
-            score=EQUIVALENT_EQUATION_SCORE,
-            verified_claims=(
-                {"claim": "equivalent_equation", "root": c.frac_to_dict(expected), "equation": n.to_dict(parsed.ast)},
-            ),
-            remaining_requirements=(
-                {"requirement": "solve_for_variable", "variable": variable, "expected": c.frac_to_dict(expected)},
-            ),
-            signals=("equivalent_equation",),
-            **base,
-        )
-    # Different root set: a definite error.
-    signals: tuple[str, ...]
-    if answer_diff[1] == diff[1]:
-        signals = ("wrong_operation",)  # same x-coefficient: transposition slip
-    elif actual == -expected:
-        signals = ("sign_flip",)
-    else:
-        signals = ("wrong_value",)
-    return AttemptAssessment(
-        correctness=Correctness.INCORRECT,
-        score=0.0,
-        invalid_claims=(
-            {"claim": "root_value", "actual": c.frac_to_dict(actual), "expected": c.frac_to_dict(expected)},
-        ),
-        signals=signals,
-        **base,
-    )
+    return _assess_equation(problem_ast, "linear", answer, base)
 
 
 def _verify_quadratic(problem_ast: n.Node, answer: ParsedAttempt, base: dict[str, Any]) -> AttemptAssessment:
@@ -569,89 +549,127 @@ def _verify_quadratic(problem_ast: n.Node, answer: ParsedAttempt, base: dict[str
             return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason=f"无法求值: {exc}", **base)
         return _judge_claimed_root_values(claimed, expected_values, base)
 
-    # Equation answer.
+    return _assess_equation(problem_ast, "quadratic", answer, base)
+
+
+def _assess_equation(previous: n.Equation, family: str, answer: ParsedAttempt, base: dict[str, Any],
+                     *, allow_root_subset: bool = True) -> AttemptAssessment:
+    """Check the two equations' real solution sets before deciding final form."""
     parsed = answer.parsed
-    assert parsed is not None
-    if parsed.problem_type == "linear":
-        if parsed.variable != variable:
-            return AttemptAssessment(
-                correctness=Correctness.INCORRECT,
-                score=0.0,
-                invalid_claims=({"claim": "equation_answer", "reason": "变量不一致"},),
-                signals=("wrong_family",),
-                **base,
-            )
-        answer_diff = n.equation_difference(parsed.ast, variable)
-        if answer_diff is None or answer_diff.get(1, Fraction(0)) == 0:
-            return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="作答方程无法提取根", **base)
-        claimed_root = Fraction(-answer_diff.get(0, Fraction(0)), answer_diff.get(1, Fraction(1)))
-        return _judge_claimed_root_values((claimed_root,), expected_values, base)
-    if parsed.problem_type != "quadratic":
-        return AttemptAssessment(
-            correctness=Correctness.INCORRECT,
-            score=0.0,
-            invalid_claims=({"claim": "equation_answer", "reason": "作答不是一元二次方程"},),
-            signals=("wrong_family",),
-            **base,
-        )
-    if parsed.variable != variable:
-        return AttemptAssessment(
-            correctness=Correctness.INCORRECT,
-            score=0.0,
-            invalid_claims=({"claim": "equation_answer", "reason": "变量不一致"},),
-            signals=("wrong_family",),
-            **base,
-        )
-    answer_diff = n.equation_difference(parsed.ast, variable)
-    if answer_diff is None or answer_diff.get(2, Fraction(0)) == 0:
-        return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="作答方程无法提取二次项系数", **base)
-    claimed_roots = q.quad_roots(
-        answer_diff.get(2, Fraction(0)),
-        answer_diff.get(1, Fraction(0)),
-        answer_diff.get(0, Fraction(0)),
-    )
-    valid = [root for root in claimed_roots if root in expected]
-    invalid = [root for root in claimed_roots if root not in expected]
-    if invalid:
-        # Policy: any wrong root (one that does not substitute back) is
-        # INCORRECT — even alongside correct ones (extraneous root).
-        if valid:
-            signals = ("extraneous_root",)
-        elif tuple(_negate_root(root) for root in claimed_roots) == expected:
-            signals = ("sign_flip",)
+    variable = _problem_variable(previous)
+    if (parsed is None or not isinstance(parsed.ast, n.Equation)
+            or parsed.problem_type not in {"linear", "quadratic"} or parsed.variable != variable):
+        return AttemptAssessment(correctness=Correctness.INCORRECT, score=0, signals=("wrong_family",),
+                                 invalid_claims=({"claim": "equation_answer"},), reason="请保持原题的未知数和等式。", **base)
+    expected = _expected_roots(previous, family, variable)
+    actual = _expected_roots(parsed.ast, parsed.problem_type, variable)
+    # Older serialized attempts may predate the source-form flag.
+    isolated = answer.isolated_variable
+    if isolated is None:
+        isolated = any(isinstance(side, n.Var) and not n.variables(other)
+                       for side, other in ((parsed.ast.lhs, parsed.ast.rhs), (parsed.ast.rhs, parsed.ast.lhs)))
+    if actual == expected:
+        if isolated and len(actual) == 1:
+            return AttemptAssessment(correctness=Correctness.CORRECT, score=1,
+                verified_claims=({"claim": "root_value", "value": actual[0]["value"], "variable": variable},), **base)
+        if family == "linear":
+            roots = {"root": expected[0]["value"]}
+            requirement = {"requirement": "solve_for_variable", "variable": variable, "expected": expected[0]["value"]}
         else:
-            signals = ("wrong_value",)
-        return AttemptAssessment(
-            correctness=Correctness.INCORRECT,
-            score=0.0,
-            invalid_claims=(
-                {"claim": "root_set", "invalid_roots": list(invalid)},
-            ),
-            signals=signals,
-            **base,
-        )
-    if len(claimed_roots) == len(expected):
-        # Identical root set via an equivalent equation (never the root-list
-        # final form) -> valid step, still missing the explicit answer.
-        return AttemptAssessment(
-            correctness=Correctness.PARTIAL,
-            score=EQUIVALENT_EQUATION_SCORE,
-            verified_claims=({"claim": "equivalent_equation", "roots": list(claimed_roots), "equation": n.to_dict(parsed.ast)},),
-            remaining_requirements=({"requirement": "state_roots", "expected_roots": list(expected)},),
-            signals=("equivalent_equation",),
-            **base,
-        )
-    # Proper subset: missing-root policy -> PARTIAL with proportional score.
-    return AttemptAssessment(
-        correctness=Correctness.PARTIAL,
-        score=Fraction(len(claimed_roots), len(expected)) if expected else 0.0,
-        verified_claims=({"claim": "root_subset", "roots": list(claimed_roots)},),
-        remaining_requirements=(
-            {"requirement": "give_all_roots", "missing_roots": list(r for r in expected if r not in claimed_roots)},
-        ),
-        signals=("missing_root",),
-        **base,
-    )
+            roots = {"roots": list(expected)}
+            requirement = {"requirement": "state_roots", "expected_roots": list(expected)}
+        return AttemptAssessment(correctness=Correctness.PARTIAL, score=EQUIVALENT_EQUATION_SCORE,
+            verified_claims=({"claim": "equivalent_equation", "equation": n.to_dict(parsed.ast), **roots},),
+            remaining_requirements=(requirement,), signals=("equivalent_equation",), **base)
+    extra = [root for root in actual if root not in expected]
+    missing = [root for root in expected if root not in actual]
+    if not extra:
+        if allow_root_subset and isolated:
+            return _judge_claimed_root_values(_roots_as_fractions(actual), _roots_as_fractions(expected), base)
+        signal, reason = "missing_root", "这一行丢失了上一式的解。请检查除去的因式是否可能为零，或是否遗漏了另一支解。"
+    elif not missing or any(root in expected for root in actual):
+        signal, reason = "extraneous_root", "这一行引入了额外的解。请把候选解代回上一式，检查平方或乘因式的条件。"
+    else:
+        before = n.equation_difference(previous, variable)
+        after = n.equation_difference(parsed.ast, variable)
+        if family == parsed.problem_type == "linear" and before[1] == after[1]:
+            signal, reason = "wrong_operation", "把两式各自整理到一侧，一次项系数相同，常数项却发生了变化。请复核移项的符号。"
+        elif len(actual) == len(expected) == 1 and _negate_root(actual[0]) == expected[0]:
+            signal, reason = "sign_flip", "这一步所得数值的符号相反。请复核两边乘除时的正负号。"
+        elif family == parsed.problem_type == "linear" and before.get(0, 0) == after.get(0, 0) != 0:
+            signal, reason = "like_terms", "把两式各自整理到一侧，常数项相同，一次项系数却发生了变化。请复核含未知数各项的系数。"
+        else:
+            signal, reason = "wrong_value", "两式的解集不同。请逐项复核括号、符号及等式两边所做的运算。"
+    return AttemptAssessment(correctness=Correctness.INCORRECT, score=0,
+        invalid_claims=({"claim": "equation_relation", "invalid_roots": extra},),
+        signals=(signal,), reason=reason, **base)
+
+
+def _verify_working(steps: tuple[dict[str, Any], ...], problem: MathProblem,
+                    base: dict[str, Any]) -> AttemptAssessment:
+    """Check successive equations, keeping the verified prefix and first broken link."""
+    base = {**base, "policy_version": WORKING_POLICY_VERSION}
+    if len(steps) > MAX_WORKING_LINES:
+        return AttemptAssessment(correctness=Correctness.UNDETERMINED, reason="推导行数超过核验预算，请分段提交。", **base)
+    if problem.problem_type == "linear_system" and len(steps) == 2:
+        # A system answer can be a pair of simultaneous equations on separate lines.
+        rows = [interpret_step(step) for step in steps]
+        if all(row.kind == "equation" and row.parsed and isinstance(row.parsed.ast, n.Equation) for row in rows):
+            from mathtutor.learning.linear_system_attempt import verify_system_attempt
+            from mathtutor.solving.parser import ParsedProblem
+            system = n.LinearSystem(tuple(row.parsed.ast for row in rows))
+            parsed = ParsedProblem("linear_system", system, n.to_dict(system), n.to_latex(system), None)
+            return verify_system_attempt(n.from_dict(problem.normalized_ast), ParsedAttempt("linear_system", parsed), base)
+    inequality_task = problem.problem_type in {"linear_inequality", "quadratic_inequality"}
+    if not inequality_task and problem.problem_type not in {"linear", "quadratic"}:
+        return AttemptAssessment(correctness=Correctness.UNDETERMINED,
+            reason="这类题的多行变形尚不能逐步核验，请单独提交完整答案。", **base)
+
+    previous = None if inequality_task else n.from_dict(problem.normalized_ast)
+    family = problem.problem_type
+    prefix = []
+    previous_line = 0
+    for index, step in enumerate(steps):
+        line = step.get("line", index + 1)
+        answer = interpret_step(step)
+        final = index == len(steps) - 1
+        if previous is not None and answer.kind == "equation":
+            verdict = _assess_equation(previous, family, answer, base, allow_root_subset=final)
+        elif final or inequality_task or answer.kind == "undeterminable":
+            verdict = _assess_answer(problem, answer, base)
+        else:
+            verdict = AttemptAssessment(correctness=Correctness.UNDETERMINED,
+                reason="请将这一行写成含原题未知数的完整等式，以便核对相邻两式。", **base)
+
+        claims = tuple({**claim, "line": line} for claim in verdict.verified_claims)
+        if verdict.correctness in {Correctness.INCORRECT, Correctness.UNDETERMINED}:
+            anchor = f"第 {previous_line} 行" if previous_line else "原题"
+            reason = verdict.reason or "这一步与上一式的解集不同，请复核等式两边的运算。"
+            unknown = verdict.correctness is Correctness.UNDETERMINED
+            location = f"第 {line} 行与{anchor}之间暂时无法核验。" if unknown else f"第 {line} 行未通过与{anchor}的核对。"
+            reason = location + reason
+            if not final:
+                last_answer = interpret_step(steps[-1])
+                try:
+                    last_is_correct = _assess_answer(problem, last_answer, base).correctness is Correctness.CORRECT
+                except n.MathComplexityError:
+                    last_is_correct = False
+                if last_is_correct:
+                    reason += "末行的答案单独通过了原题检验，请补正这里的推导。"
+            failure = {"line": line, "previous_line": previous_line, "reason": reason}
+            return verdict.model_copy(update={
+                "verified_claims": tuple(prefix), "reason": reason,
+                "invalid_claims": ({"claim": "equation_step", **failure},) if not unknown else (),
+                "remaining_requirements": ({"requirement": "clarify_step" if unknown else "revise_step", **failure},),
+                "policy_version": WORKING_POLICY_VERSION,
+            })
+        prefix.extend(claims)
+        if final:
+            return verdict.model_copy(update={"verified_claims": tuple(prefix), "policy_version": WORKING_POLICY_VERSION})
+        if previous is not None:
+            previous = answer.parsed.ast
+            family = answer.parsed.problem_type
+        previous_line = line
 
 
 def _judge_claimed_root_values(

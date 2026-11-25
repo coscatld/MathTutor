@@ -43,6 +43,7 @@ RULES: tuple[RuleSpec, ...] = (
     RuleSpec("miscon-missing-root", ("missing_root",), 0.75, "漏根：忽略了方程的其他解"),
     RuleSpec("miscon-extraneous-root", ("extraneous_root",), 0.75, "增根：混入了不满足方程的解"),
     RuleSpec("miscon-transposition-error", ("wrong_operation",), 0.7, "移项/常数处理错误"),
+    RuleSpec("miscon-like-terms", ("like_terms",), 0.7, "整理后的一次项系数变化"),
     RuleSpec("miscon-computation-error", ("wrong_value",), 0.6, "计算错误"),
     RuleSpec("miscon-wrong-family", ("wrong_family",), 0.5, "题族/变量混淆"),
 )

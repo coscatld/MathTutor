@@ -104,9 +104,17 @@ def apply_assessment(context, assessment, raw_text, assistance):
     context = deepcopy(context)
     record = assessment_record(assessment, raw_text, assistance,
                                diagnostic=context.get("diagnostic_item", False))
-    if context.get("problem_type") in {"linear_inequality", "quadratic_inequality"} and assessment.reason:
-        # Inequality errors are about direction and boundaries; the verifier's
-        # own reason is more precise than the generic signal guidance.
+    from mathtutor.learning.attempt_verifier import WORKING_POLICY_VERSION
+    if assessment.policy_version == WORKING_POLICY_VERSION:
+        record["working_feedback"] = assessment.reason
+        if not assessment.reason and assessment.verified_claims:
+            last = assessment.verified_claims[-1].get("line")
+            if last:
+                tail = "已经给出了完整答案。" if record["task_completion"] == "complete" else "请继续写出完整解集或未知数的值。"
+                record["working_feedback"] = f"已逐行核验到第 {last} 行。{tail}"
+    if assessment.reason and (context.get("problem_type") in {"linear_inequality", "quadratic_inequality"}
+                              or record["math_validity"] == "unknown"):
+        # Preserve the verifier's direction, domain or parse explanation.
         record["verifier_reason"] = assessment.reason
     record.update(classify_progress(context, record))
     context["assessments"].append(record)
@@ -131,7 +139,7 @@ def apply_assessment(context, assessment, raw_text, assistance):
             if claims & {"variable_value", "root_subset"}:
                 goals[0]["status"] = "verified_partial"
                 context["current_subgoal_index"] = min(1, len(goals) - 1)
-            elif "equivalent_equation" in claims and _isolated_coefficient_step(context, raw_text):
+            elif "equivalent_equation" in claims and _isolated_coefficient_step(context, raw_text, record["verified_steps"]):
                 # Recognize a verified result such as 3z=15, regardless of the
                 # student's chosen route. An unchanged restatement stays at
                 # the earlier goal; equivalence alone does not prove progress.
@@ -140,18 +148,22 @@ def apply_assessment(context, assessment, raw_text, assistance):
     return context, record
 
 
-def _isolated_coefficient_step(context, raw_text):
+def _isolated_coefficient_step(context, raw_text, claims=()):
     if context.get("problem_type") != "linear":
         return False
     from mathtutor.solving.parser import parse_problem
     from mathtutor.solving import nodes as n
-    parsed = parse_problem(raw_text)
-    if parsed.kind != "parsed" or parsed.problem.problem_type != "linear":
-        return False
+    equation_data = next((c["equation"] for c in reversed(claims)
+                          if c.get("claim") == "equivalent_equation" and "equation" in c), None)
+    if equation_data is None:
+        parsed = parse_problem(raw_text)
+        if parsed.kind != "parsed" or parsed.problem.problem_type != "linear":
+            return False
+        equation_data = parsed.problem.normalized_ast
     original = parse_problem(context.get("display_text", ""))
-    if original.kind == "parsed" and original.problem.normalized_ast == parsed.problem.normalized_ast:
+    if original.kind == "parsed" and original.problem.normalized_ast == equation_data:
         return False
-    equation = parsed.problem.ast
+    equation = n.from_dict(equation_data)
     variables = n.variables(equation)
     if len(variables) != 1:
         return False
@@ -212,7 +224,7 @@ def choose_plan(context, action, student_request=""):
         reason.append("VERIFIED_ERROR")
         codes = context["assessments"][-1].get("misconception_candidates", [])
         repeated = any(context.get("learner_evidence", {}).get("verified_error_counts", {}).get(code, 0) >= 2 for code in codes)
-        guidance = error_guidance(codes, repeated=repeated)
+        guidance = context["assessments"][-1].get("working_feedback") or error_guidance(codes, repeated=repeated)
         if repeated:
             reason.append("REPEATED_VERIFIED_ERROR")
             level = min(4, max(level, 2))
@@ -326,6 +338,8 @@ def apply_trained_dkt(plan: TeachingPlan, forecast: dict, *, context=None, stude
 
 
 def assessment_feedback(record):
+    if record.get("working_feedback"):
+        return record["working_feedback"]
     raw = record["raw_text"]
     if record["task_completion"] == "complete":
         return f"已验证你提交的「{raw}」满足这道题的完整要求。"
@@ -338,7 +352,7 @@ def assessment_feedback(record):
     if record["math_validity"] == "invalid":
         guidance = record.get("verifier_reason") or error_guidance(record.get("misconception_candidates", []))
         return f"你提交的「{raw}」未通过原题检验。" + (guidance or "先把你刚才的运算写成一步，我来检查。")
-    return "这次作答暂时无法可靠判定，不会记作答错。请补充这一步的等式或说明要检验的结论。"
+    return record.get("verifier_reason") or "这次作答暂时无法可靠判定，不会记作答错。请补充这一步的等式或说明要检验的结论。"
 
 
 def public_context(context):
@@ -354,6 +368,7 @@ def public_context(context):
 _ERROR_GUIDANCE = (
     ("wrong_operation", "前面不同题目的移项或常数处理还不稳定。", "这一步的移项或常数处理没有保持等式相等。",
      "先写出等式两边同时做的运算。"),
+    ("like_terms", "前面几次整理后的一次项系数有误。", "这一步整理后的一次项系数有误。", "请逐项核对同类项的系数。"),
     ("sign_flip", "前面不同题目的结果符号还不稳定。", "这个结果的符号没有通过原题检验。", "先把带符号的运算单独写成一步。"),
     ("missing_root", "前面不同题目都出现了漏解。", "这个答案还缺少满足原题的解。", "先确认一共应有几个解，再逐个求出。"),
     ("extraneous_root", "前面不同题目都混入了不满足原题的解。", "这个答案里有不满足原题的解。", "先把每个解代回原式检验。"),

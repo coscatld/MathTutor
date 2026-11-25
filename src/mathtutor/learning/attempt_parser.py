@@ -30,9 +30,10 @@ from uuid import UUID, uuid5
 
 from mathtutor.domain.attempt import StudentAttempt
 from mathtutor.solving import nodes as n
-from mathtutor.solving.parser import ParsedProblem, parse_problem
+from mathtutor.solving.budget import MAX_TEXT_CHARS
+from mathtutor.solving.parser import ParsedProblem, normalize_math_problem_text, parse_problem, stored_math_ast
 
-AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "root_values", "inequality", "undeterminable", "inequality_set"]
+AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_set", "root_values", "inequality", "undeterminable", "inequality_set", "inequality_relation"]
 
 # uuid5 namespace for deterministic attempt ids: attempt_id = f(submission_id),
 # so a replayed submission yields the SAME attempt identity end to end —
@@ -40,6 +41,8 @@ AttemptAnswerKind = Literal["value", "equation", "linear_system", "empty_root_se
 # the assessment/observation/evidence foreign keys consistent.
 ATTEMPT_ID_NAMESPACE = UUID("5e4f2a1b-8c3d-4e6a-9f0b-1d2c3e4f5a6b")
 
+
+MAX_WORKING_LINES = 16
 
 _ANSWER_RELATION = (
     (">=", "ge"), ("<=", "le"), ("≥", "ge"), ("≤", "le"), (">", "gt"), ("<", "lt"),
@@ -76,7 +79,7 @@ def _inequality_answer(text: str) -> dict | None:
 
 _SET_ANSWER = re.compile(
     r"[<>≤≥].*(?:或|or|∪|[,，;；]).*[<>≤≥]|[-\d/]\s*(?:<=|<|≤)\s*[A-Za-z]\s*(?:<=|<|≤)\s*[-\d]"
-    r"|≠|!=|\\ne|全体实数|任意实数|一切实数|所有实数|^\s*[Rℝ]\s*$|空集|∅", re.IGNORECASE)
+    r"|∈|≠|!=|\\ne|全体实数|任意实数|一切实数|所有实数|^\s*[Rℝ]\s*$|空集|∅", re.IGNORECASE)
 
 
 def attempt_id_for(attempt_submission_id: UUID) -> UUID:
@@ -112,6 +115,7 @@ class ParsedAttempt:
     boundary: Fraction | None = None
     answer_variable: str = ""
     set_text: str = ""
+    isolated_variable: bool | None = None
 
     @classmethod
     def undeterminable(cls, reason: str) -> "ParsedAttempt":
@@ -129,64 +133,23 @@ def parse_student_attempt(
     """Parse one raw answer into a :class:`StudentAttempt` with typed steps.
 
     The raw text is always preserved on the submission; ``parsed_steps``
-    carries the structured reading: either one ``{"kind": "answer", ...}``
-    step (with the canonical AST and parse kind) or one
-    ``{"kind": "unparsed", ...}`` step carrying the fail-closed reason.
+    carries the typed answer or a bounded sequence of numbered answers,
+    including unparsed lines. No unrecognized line is discarded.
     """
-    stripped = raw_text.strip()
-    rational = r"[+-]?\d{1,18}(?:/\d{1,18})?"
-    # Two roots of ONE variable written the way students write them —
-    # "x=2或x=3", "x1=2, x2=3", "x=2,3" — read as the bare root list. The
-    # variable letter must repeat, so a system answer "x=3, y=2" is untouched.
-    two_roots = re.fullmatch(
-        rf"([a-z])(?:_?[12₁₂])?\s*=\s*({rational})\s*(?:[,，;；]|或|or)\s*(?:\1(?:_?[12₁₂])?\s*=\s*)?({rational})",
-        stripped, flags=re.IGNORECASE)
-    if two_roots:
-        stripped = f"{two_roots.group(2)},{two_roots.group(3)}"
-    inequality_answer = _inequality_answer(stripped)
-    if inequality_answer is None and not two_roots and _SET_ANSWER.search(stripped):
-        # A solution set (two-sided, between, "≠", all reals). The quadratic
-        # inequality verifier reads it against the problem's own variable.
-        parsed_steps = ({"kind": "answer", "parse_kind": "inequality_set", "text": stripped[:200]},)
-    elif inequality_answer is not None:
-        parsed_steps = ({"kind": "answer", "parse_kind": "inequality", **inequality_answer},)
-    elif re.fullmatch(rf"{rational}\s*[,，]\s*{rational}", stripped):
-        try:
-            roots = [Fraction(value.strip()) for value in stripped.replace("，", ",").split(",")]
-            parsed_steps = ({"kind": "answer", "parse_kind": "root_values",
-                             "roots": [{"n": r.numerator, "d": r.denominator} for r in roots]},)
-        except (ValueError, ZeroDivisionError):
-            parsed_steps = ({"kind": "unparsed", "reason": "根的数值无效"},)
-    elif stripped.lower() in EMPTY_ROOT_SET_TOKENS:
-        parsed_steps = ({"kind": "answer", "parse_kind": "empty_root_set"},)
+    if len(raw_text) > MAX_TEXT_CHARS:
+        parsed_steps = ({"kind": "unparsed", "reason": f"作答超过 {MAX_TEXT_CHARS} 个字符，请分段提交。"},)
     else:
-        outcome = parse_problem(stripped)
-        if outcome.kind == "unsupported" and stripped.count("=") == 1:
-            from mathtutor.solving.parser import parse_linear_equation_fragment
-            fragment = parse_linear_equation_fragment(stripped)
-            if fragment.kind == "parsed":
-                outcome = fragment
-        if outcome.kind == "parsed" and outcome.problem is not None:
-            parsed_problem = outcome.problem
-            parse_kind = "linear_system" if isinstance(parsed_problem.ast, n.LinearSystem) else "equation" if isinstance(parsed_problem.ast, n.Equation) else "value"
-            parsed_steps = (
-                {
-                    "kind": "answer",
-                    "parse_kind": parse_kind,
-                    "problem_type": parsed_problem.problem_type,
-                    "normalized_ast": parsed_problem.normalized_ast,
-                    "variable": parsed_problem.variable,
-                    "display_latex": parsed_problem.display_latex,
-                },
-            )
+        lines = [(number, line.strip()) for number, line in enumerate(raw_text.splitlines(), 1) if line.strip()]
+        if len(lines) > MAX_WORKING_LINES:
+            parsed_steps = ({"kind": "unparsed", "reason": f"一次可核验 {MAX_WORKING_LINES} 行，请分段提交。"},)
+        elif len(lines) > 1 and any(re.search(r"[=＝<>≤≥]", line) for _, line in lines):
+            # Keep a root list or union continued across a line break as a single answer.
+            if all(re.search(r"(?:[,，;；]|或|or|∪)$", text, re.I) for _, text in lines[:-1]):
+                parsed_steps = (_answer_step(raw_text.strip()),)
+            else:
+                parsed_steps = tuple({**_answer_step(text), "line": number} for number, text in lines)
         else:
-            parsed_steps = (
-                {
-                    "kind": "unparsed",
-                    "parse_outcome": outcome.kind,
-                    "reason": outcome.reason or "作答无法识别",
-                },
-            )
+            parsed_steps = (_answer_step(raw_text.strip()),)
     return StudentAttempt.canonicalize(
         attempt_submission_id=attempt_submission_id,
         student_id=student_id,
@@ -194,6 +157,80 @@ def parse_student_attempt(
         parsed_steps=parsed_steps,
         attempt_index=attempt_index,
     )
+
+
+def _isolates_variable(text: str, variable: str) -> bool:
+    """Preserve the written form before canonical sums can remove variable terms."""
+    sides = re.split(r"<=|>=|[=<>≤≥]", normalize_math_problem_text(text))
+    if len(sides) != 2:
+        return False
+    left, right = sides
+    for subject, value in ((left, right), (right, left)):
+        subject = subject.strip()
+        while subject.startswith("(") and subject.endswith(")"):
+            subject = subject[1:-1].strip()
+        if subject == variable and not re.search(r"[A-Za-z]", re.sub(r"\\[A-Za-z]+", "", value)):
+            return True
+    return False
+
+
+def _answer_step(stripped: str) -> dict:
+    from mathtutor.application.input_normalizer import normalize_input
+
+    if "\n" not in stripped:
+        spelling = normalize_input(stripped)
+        # Square brackets are meaningful interval endpoints in an answer.
+        if set(spelling.repairs) <= {"unicode-width", "operator-alias", "superscript-power", "whitespace",
+                                       "latex-inline-paren", "latex-display-bracket", "latex-inline-dollar", "latex-display-dollar"}:
+            stripped = spelling.normalized
+    rational = r"[+-]?\d{1,18}(?:/\d{1,18})?"
+    two_roots = re.fullmatch(
+        rf"([a-z])(?:_?[12₁₂])?\s*=\s*({rational})\s*(?:[,，;；]|或|or)\s*(?:\1(?:_?[12₁₂])?\s*=\s*)?({rational})",
+        stripped, flags=re.IGNORECASE)
+    root_variable = two_roots.group(1) if two_roots else ""
+    if two_roots:
+        stripped = f"{two_roots.group(2)},{two_roots.group(3)}"
+    if re.search(r"(?<![<>!])=", stripped) and re.search(r"(?:≠|!=|\\ne|[,，;；].*(?:[<>≤≥]))", stripped):
+        return {"kind": "unparsed", "reason": "这一行带有额外定义域条件；请分开写出等式以及允许的取值范围。"}
+    inequality_answer = _inequality_answer(stripped)
+    if inequality_answer is not None:
+        return {"kind": "answer", "parse_kind": "inequality", **inequality_answer}
+    interval = stripped[:1] in {"(", "["} and "," in stripped and not re.search(r"[=<>≤≥]", stripped)
+    if not two_roots and (_SET_ANSWER.search(stripped) or interval):
+        if len(stripped) > 200:
+            return {"kind": "unparsed", "reason": "解集写法过长，请单独提交完整区间。"}
+        return {"kind": "answer", "parse_kind": "inequality_set", "text": stripped}
+    if re.fullmatch(rf"{rational}\s*[,，]\s*{rational}", stripped):
+        try:
+            roots = [Fraction(value.strip()) for value in stripped.replace("，", ",").split(",")]
+            return {"kind": "answer", "parse_kind": "root_values", "variable": root_variable,
+                    "roots": [{"n": r.numerator, "d": r.denominator} for r in roots]}
+        except (ValueError, ZeroDivisionError):
+            return {"kind": "unparsed", "reason": "根的数值无效"}
+    if stripped.lower() in EMPTY_ROOT_SET_TOKENS:
+        return {"kind": "answer", "parse_kind": "empty_root_set"}
+    outcome = parse_problem(stripped)
+    if outcome.kind == "unsupported" and stripped.count("=") == 1:
+        from mathtutor.solving.parser import parse_linear_equation_fragment
+        fragment = parse_linear_equation_fragment(stripped)
+        if fragment.kind == "parsed":
+            outcome = fragment
+    if outcome.kind != "parsed" or outcome.problem is None:
+        return {"kind": "unparsed", "parse_outcome": outcome.kind, "reason": outcome.reason or "作答无法识别"}
+    parsed = outcome.problem
+    if parsed.relation:
+        kind = "inequality_relation"
+    elif isinstance(parsed.ast, n.LinearSystem):
+        kind = "linear_system"
+    elif isinstance(parsed.ast, n.Equation):
+        kind = "equation"
+    else:
+        kind = "value"
+    step = {"kind": "answer", "parse_kind": kind, "problem_type": parsed.problem_type,
+            "normalized_ast": parsed.normalized_ast, "variable": parsed.variable, "display_latex": parsed.display_latex}
+    if kind in {"equation", "inequality_relation"} and parsed.variable:
+        step["isolated_variable"] = _isolates_variable(stripped, parsed.variable)
+    return step
 
 
 def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
@@ -205,7 +242,12 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
     steps = attempt.parsed_steps
     if not steps:
         return ParsedAttempt.undeterminable("作答没有解析步骤")
-    step = steps[0]
+    if len(steps) != 1:
+        return ParsedAttempt.undeterminable("多行作答需要逐行核验")
+    return interpret_step(steps[0])
+
+
+def interpret_step(step: dict) -> ParsedAttempt:
     if not isinstance(step, dict):
         return ParsedAttempt.undeterminable("解析步骤结构不识别")
     if step.get("kind") == "unparsed":
@@ -218,7 +260,8 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
             roots = step["roots"]
             if len(roots) != 2:
                 return ParsedAttempt.undeterminable("根集格式无效")
-            return ParsedAttempt("root_values", root_values=tuple(Fraction(r["n"], r["d"]) for r in roots))
+            return ParsedAttempt("root_values", root_values=tuple(Fraction(r["n"], r["d"]) for r in roots),
+                                 answer_variable=str(step.get("variable", "")))
         except (KeyError, TypeError, ValueError, ZeroDivisionError):
             return ParsedAttempt.undeterminable("根集格式无效")
     if parse_kind == "empty_root_set":
@@ -238,10 +281,10 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
             return ParsedAttempt("inequality", relation=relation, boundary=boundary, answer_variable=variable)
         except (KeyError, TypeError, ValueError, ZeroDivisionError):
             return ParsedAttempt.undeterminable("不等式答案格式无效")
-    if parse_kind not in ("value", "equation", "linear_system"):
+    if parse_kind not in ("value", "equation", "linear_system", "inequality_relation"):
         return ParsedAttempt.undeterminable(f"未知的解析类型: {parse_kind!r}")
     try:
-        ast = n.from_dict(step["normalized_ast"])
+        ast = n.from_dict(stored_math_ast(step["normalized_ast"]))
     except (KeyError, ValueError, TypeError) as exc:
         return ParsedAttempt.undeterminable(f"规范化答案不可回放: {exc}")
     parsed = ParsedProblem(
@@ -250,8 +293,9 @@ def interpret_attempt(attempt: StudentAttempt) -> ParsedAttempt:
         normalized_ast=step["normalized_ast"],
         display_latex=str(step.get("display_latex", "")),
         variable=step.get("variable"),
+        relation=step["normalized_ast"].get("relation"),
     )
-    return ParsedAttempt(parse_kind, parsed)
+    return ParsedAttempt(parse_kind, parsed, isolated_variable=step.get("isolated_variable"))
 
 
 __all__ = ["AttemptAnswerKind", "EMPTY_ROOT_SET_TOKENS", "ParsedAttempt", "interpret_attempt", "parse_student_attempt"]
