@@ -22,6 +22,6 @@ python scripts/learning_loop/eval.py --seed 0 --data-dir scripts/learning_loop/f
 
 The 34 authored development cases cover intermediate forms, final answers, first-issue line numbers and abstentions. Pass `--checkout` to score another checkout against the same cases.
 
-All 16 scripted template scenarios passed. The verifier covered 27 of 45 extracted math checks, and all 27 passed. In the seed-7 hint experiment, the guard let 88 of 660 deliberately revealing candidates through and flagged 0 of 360 clean candidates. The learning-loop comparison uses 200 simulated signed-subtraction episodes with known response rules. Measuring delayed transfer requires follow-up with learners.
+All 16 scripted template scenarios passed. Coverage on the same set of 45 extracted math checks rose from 27 to 30. All 30 covered checks passed. In the seed-7 hint experiment, the guard let 88 of 660 deliberately revealing candidates through and flagged 0 of 360 clean candidates. The learning-loop comparison uses 200 simulated signed-subtraction episodes with known response rules. Measuring delayed transfer requires follow-up with learners.
 
 The public benchmark compares two builds of MathTutor using the same underlying model. The analysis contains 191 teaching responses and 120 objective tasks. See the breakdowns by task, scoring rule and judge in the [benchmark report](https://github.com/coscatld/MathTutor/blob/main/docs/eval/OPEN_SOURCE_BENCHMARK_20261016.md).

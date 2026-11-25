@@ -64,7 +64,7 @@ npm --prefix web run dev
 | 项目 | 数据与比较 | 结果 |
 | --- | --- | --- |
 | 逐行核验 | 34 个手写开发案例，同时核对判定、首个问题行及指定诊断 | 从 8/34 到 34/34。22 个不应满分的案例中，错误满分从 5 降到 0。[案例](benchmarks/steps/cases.json) · [复跑脚本](benchmarks/steps/evaluate.py) |
-| 多轮辅导 | 模板模式，真实对话协议，16 个固定场景 | 16/16 场景通过。45 个提取出的数学检查项中可核验 27 个，这 27 个均通过。[评测方法](docs/eval/TUTOR_MULTITURN_EVAL.md) |
+| 多轮辅导 | 模板模式，真实对话协议，16 个固定场景 | 16/16 场景通过。同一批 45 个数学检查项中，可核验项从 27 增至 30，当前 30 项均通过。[评测方法](docs/eval/TUTOR_MULTITURN_EVAL.md) |
 | 提示中提前给出答案 | 固定种子 7，向提示防护注入 660 条含答案的留出候选与 360 条合规对照 | 拦截 572/660，放过 88/660；合规对照误拦 0/360。[原始分项](docs/experiments/dual_channel_ablation_seed7.json) |
 | 错误模式辨别 | 固定种子 0，有符号减法，三个问题内辨别已知规则的 200 个合成回合 | 主动选题 200/200，随机选题 165/200，固定顺序 43/200。[分项指标](docs/research/learning-loop-20261111/metrics.json) |
 | 四套公开数学辅导基准 | 两次 MathTutor 构建使用同一 DeepSeek Flash，独立模型评审 191 条教学回应 | 六项标准平均满足率从 78.36% 到 88.22%。包含客观任务的完整分析集为 311 条。[实验报告](docs/eval/OPEN_SOURCE_BENCHMARK_20261016.md) · [评分协议](benchmarks/opensource/PROTOCOL.md) |
