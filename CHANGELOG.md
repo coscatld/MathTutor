@@ -1,5 +1,12 @@
 # Changelog
 
+## Learning and open references · 2026-11-25
+
+- Check sequences of algebra steps. Equivalent intermediate forms stay open, and feedback identifies the first unsupported or incorrect line. The composer offers math shortcuts and can keep scratch images local during typed attempts.
+- Search Wikipedia, Wikibooks and selected open textbook excerpts without a key. Source cards retain attribution and original links. Local lecture notes can be searched separately and Zhihu is optional.
+- Review observed errors in the learning profile and revisit supported skills with delayed variants on days 1, 3 and 7.
+- Try three editable equations on the bilingual website. The README includes the architecture, developer setup and reproducible evaluation results.
+
 ## Desktop learning and exploration · 2026-11-18
 
 - Explore Zhihu from the desktop app. Compare attributed excerpts side by side and open the original in your browser. Learning profiles show why a resource fits the current goal.

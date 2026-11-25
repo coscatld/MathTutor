@@ -4,26 +4,26 @@ import { localePath, type Locale } from '@/lib/site';
 
 const content = {
   zh: {
-    label: '知乎知识探索',
+    label: '从不同来源读数学',
     title: '带着一个疑问，读出自己的理解。',
-    body: '在原聊天中结合知乎解释概念、对照不同观点。打开引用，查看片段和原文；再结合自己的作答记录选择下一份资料。',
+    body: '查一个概念，读百科里的定义，再看教材怎样使用它。每条摘录保留出处，你也可以在本机检索自己的讲义。',
     steps: [
-      ['提出问题', '在聊天中开启联网，询问概念、例子或学习顺序。'],
-      ['对照来源', '区分资料解释、作者观点与 AI 推导，查看逐项来源。'],
-      ['自己试一试', '根据作答证据检查前置知识，也可开启后台资料发现。'],
+      ['提出问题', '打开知识探索，输入要弄清楚的术语或问题。'],
+      ['对照来源', '对照百科、教材或社区问答，回到原文检查公式和前提。'],
+      ['自己试一试', '记下你的理解，再用一道新题检查这个方法适用的条件。'],
     ],
-    action: '了解知识探索与配置方法',
+    action: '阅读知识探索指南',
   },
   en: {
-    label: 'Explore with Zhihu',
+    label: 'Mathematics across sources',
     title: 'Start with a question. Build your own understanding.',
-    body: 'Bring Zhihu explanations and viewpoints into the existing chat, and follow citations to the original answers. Use your attempts and current goal to choose what to read next.',
+    body: 'Look up a definition, then see how a textbook uses it. Follow each excerpt to the source, or search your own lecture notes on your device.',
     steps: [
-      ['Ask a question', 'Enable Online in chat to ask about concepts, examples, or learning order.'],
-      ['Read the sources', 'Distinguish source explanations, author views, and AI inference with per-claim evidence.'],
-      ['Try it yourself', 'Check prerequisites using your recorded attempts, or opt in to background resource discovery.'],
+      ['Ask a question', 'Open Knowledge Exploration and enter a term or a question.'],
+      ['Read the sources', 'Compare an encyclopedia, a textbook, or a community explanation. Check formulas and conditions in the original.'],
+      ['Try it yourself', 'Write down your interpretation and try it on a new problem.'],
     ],
-    action: 'Explore the workflow and setup',
+    action: 'Read the exploration guide',
   },
 } as const;
 

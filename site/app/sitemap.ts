@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { source } from '@/lib/source';
 import { LOCALES, SITE_URL, absUrl } from '@/lib/site';
 
-const marketing = ['', '/features', '/download', '/architecture', '/roadmap', '/docs'];
+const marketing = ['', '/demo', '/features', '/download', '/architecture', '/roadmap', '/docs'];
 
 export const dynamic = 'force-static';
 

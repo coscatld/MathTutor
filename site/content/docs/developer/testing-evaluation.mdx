@@ -9,8 +9,19 @@ description: 仓库已有的检查入口和评测口径，避免把回归分数�
 - `.github/workflows/cross-platform.yml`：Ubuntu / macOS / Windows
 - 多轮辅导评测：`scripts/tutor_multiturn_eval.py`，说明见 `docs/eval/TUTOR_MULTITURN_EVAL.md`
 
-## 评测如何读
+## 复现实验
 
-README 中的检索指标、K12 内部基准和四套开源基准，都写明了样本、版本和限制。它们比较的是本项目链路或固定样本上的回归，**不是**与 ChatGPT / Khanmigo 的同题公开对比，也不是真实课堂实验。
+在仓库根目录安装开发依赖后，以下命令可在本机运行，输出写入自己指定的目录。
 
-`PROVISIONAL_AI` 表示 AI 初审。`learning_effect_verified=false` 出现在 DKT 评估报告中时，必须原样保留。
+```sh
+python benchmarks/steps/evaluate.py
+python scripts/tutor_multiturn_eval.py --mode template --output out/multiturn
+python experiments/dual_channel_ablation.py --seed 7 --out out/hints
+python scripts/learning_loop/eval.py --seed 0 --data-dir scripts/learning_loop/fixtures --checkpoint-dir scripts/learning_loop/checkpoints --output-dir out/learning
+```
+
+逐行核验套件有 34 条手写开发案例，覆盖中间式、最终形式、错误行号和待核验输入。可使用 `--checkout` 指向另一份已检出的 MathTutor 源码，同一批输入与期望结果会用于两次比较。
+
+模板多轮评测通过 16/16 个场景。45 个提取项中，27 个可由数学核验器判定，均通过。提示防护实验对蓄意注入答案的候选进行检查，固定种子 7 下漏过 88/660 条，误拦 0/360 条合规候选。学习循环的 200 个有符号减法回合使用已知规则模拟作答。真人延迟迁移的通过率需要学生随访。
+
+公开基准使用同一基础模型比较两次 MathTutor 构建，有 191 条教学回应和 120 条客观任务。可按题型、指标和评分者回看分项结果。[公开基准实验报告](https://github.com/coscatld/MathTutor/blob/main/docs/eval/OPEN_SOURCE_BENCHMARK_20261016.md)

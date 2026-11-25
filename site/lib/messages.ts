@@ -45,15 +45,15 @@ export const messages = {
     ctaBody: '下载适合你电脑的安装包，打开 MathTutor，即可开始练习。',
     footer: {
       license: 'Apache-2.0',
-      deeptutor: '在 DeepTutor 基础上二次开发，保留上游 Apache-2.0 与 HKU Data Intelligence Lab 版权声明。',
+      notices: '第三方声明',
     },
     featuresPage: {
       title: '功能与边界',
-      intro: '查看数学辅导、学习记录和知乎知识探索能怎样帮助你，以及哪些结果可以核验。',
+      intro: '查看数学辅导、学习记录和多来源知识探索能怎样帮助你，以及哪些结果可以核验。',
     },
     downloadPage: {
       title: '下载 MathTutor',
-      intro: '选择适合你电脑的安装包。安装后即可练习数学、查看学习记录，并按需连接知乎探索资料。',
+      intro: '选择适合你电脑的安装包。安装后即可练习数学、查看学习记录，并在知识探索里查找百科和教材。',
       notes: '安装说明',
       releases: 'GitHub Releases',
       unsignedTitle: '签名与公证状态',
@@ -122,7 +122,7 @@ export const messages = {
     ctaBody: 'Choose the installer for your computer, open MathTutor and start a practice session.',
     footer: {
       license: 'Apache-2.0',
-      deeptutor: 'Derived from DeepTutor. Upstream Apache-2.0 and the HKU Data Intelligence Lab copyright notice are preserved.',
+      notices: 'Third-party notices',
     },
     featuresPage: {
       title: 'Features and limits',
@@ -130,7 +130,7 @@ export const messages = {
     },
     downloadPage: {
       title: 'Download MathTutor',
-      intro: 'Choose the installer for your computer. Practice math, review your progress and connect Zhihu when you want to explore a question.',
+      intro: 'Choose the installer for your computer. Practice math, review your progress and look up questions in public references.',
       notes: 'Install notes',
       releases: 'GitHub Releases',
       unsignedTitle: 'Signing status',

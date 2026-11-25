@@ -42,10 +42,10 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
                 {copy.hero.download}
               </Link>
               <Link
-                href={localePath(locale, '/docs/user/quick-start')}
+                href={localePath(locale, '/demo')}
                 className="inline-flex min-h-11 items-center rounded-full border border-[var(--mt-border)] bg-[var(--mt-card)] px-5"
               >
-                {copy.hero.getStarted}
+                {locale === 'zh' ? '在线试一道题' : 'Try a problem online'}
               </Link>
               <a
                 href="https://github.com/coscatld/MathTutor"

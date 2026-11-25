@@ -28,6 +28,8 @@ const required = [
   'en/index.html',
   'zh/features/index.html',
   'en/features/index.html',
+  'zh/demo/index.html',
+  'en/demo/index.html',
   'zh/download/index.html',
   'en/download/index.html',
   'zh/architecture/index.html',

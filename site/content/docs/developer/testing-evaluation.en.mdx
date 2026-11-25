@@ -9,8 +9,19 @@ description: Existing check entry points and how to read benchmarks without turn
 - `.github/workflows/cross-platform.yml`: Ubuntu / macOS / Windows
 - Multi-turn tutoring eval: `scripts/tutor_multiturn_eval.py`, see `docs/eval/TUTOR_MULTITURN_EVAL.md`
 
-## How to read scores
+## Reproduce the evaluations
 
-Retrieval numbers, the internal K12 set, and the four open benchmarks in the README name their samples, versions, and limits. They compare this project’s pipelines or frozen items. They are **not** a public head-to-head with ChatGPT / Khanmigo, and not a classroom trial.
+Install the development dependencies. From the repository root, run:
 
-Keep `PROVISIONAL_AI` as AI-first-pass. If a DKT report says `learning_effect_verified=false`, quote it as-is.
+```sh
+python benchmarks/steps/evaluate.py
+python scripts/tutor_multiturn_eval.py --mode template --output out/multiturn
+python experiments/dual_channel_ablation.py --seed 7 --out out/hints
+python scripts/learning_loop/eval.py --seed 0 --data-dir scripts/learning_loop/fixtures --checkpoint-dir scripts/learning_loop/checkpoints --output-dir out/learning
+```
+
+The 34 authored development cases cover intermediate forms, final answers, first-issue line numbers and abstentions. Pass `--checkout` to score another checkout against the same cases.
+
+All 16 scripted template scenarios passed. The verifier covered 27 of 45 extracted math checks, and all 27 passed. In the seed-7 hint experiment, the guard let 88 of 660 deliberately revealing candidates through and flagged 0 of 360 clean candidates. The learning-loop comparison uses 200 simulated signed-subtraction episodes with known response rules. Measuring delayed transfer requires follow-up with learners.
+
+The public benchmark compares two builds of MathTutor using the same underlying model. The analysis contains 191 teaching responses and 120 objective tasks. See the breakdowns by task, scoring rule and judge in the [benchmark report](https://github.com/coscatld/MathTutor/blob/main/docs/eval/OPEN_SOURCE_BENCHMARK_20261016.md).

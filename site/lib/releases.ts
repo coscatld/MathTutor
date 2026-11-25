@@ -1,4 +1,4 @@
-export const RELEASE_TAG = 'desktop-20261118';
+export const RELEASE_TAG = 'desktop-20261125';
 export const RELEASE_URL = `https://github.com/coscatld/MathTutor/releases/tag/${RELEASE_TAG}`;
 
 export type PlatformId = 'windows-x64' | 'macos-arm64';

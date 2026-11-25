@@ -29,7 +29,7 @@ npm ci
 npm run dev
 ```
 
-默认服务端地址是 `http://127.0.0.1:8001`，前端是 `http://127.0.0.1:3000`。如需桌面客户端，按 README 的 `desktop/` 步骤构建。
+默认服务端地址是 `http://127.0.0.1:8001`，前端是 `http://127.0.0.1:3000`。如需桌面客户端，参见[桌面构建指南](site/content/docs/developer/desktop-packaging.mdx)。
 
 ## 提交前检查
 
