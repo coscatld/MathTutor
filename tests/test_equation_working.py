@@ -2,6 +2,7 @@
 import json
 import sqlite3
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 
@@ -13,41 +14,10 @@ from test_tutor_p0 import client_at, send, summary
 
 # Expected verdict, first failing physical line (when submitting working), and diagnostic signal.
 LINEAR = "2x+3=7"
+_CASES_FILE = Path(__file__).resolve().parents[1] / "benchmarks/steps/cases.json"
 CASES = [
-    ("coefficient", LINEAR, "2x=4", "partial", None, "equivalent_equation"),
-    ("translated-unit-slope", LINEAR, "x+1=3", "partial", None, "equivalent_equation"),
-    ("variable-on-both-sides", LINEAR, "2x=x+2", "partial", None, "equivalent_equation"),
-    ("cancellation-on-value-side", LINEAR, "x=2+x-x", "partial", None, "equivalent_equation"),
-    ("uncancelled-subject", LINEAR, "x+x-x=2", "partial", None, "equivalent_equation"),
-    ("isolated", LINEAR, "x=2", "correct", None, None),
-    ("reverse-exact", LINEAR, "6/3=x", "correct", None, None),
-    ("bare-value", LINEAR, "2.0", "correct", None, None),
-    ("right-route", LINEAR, "2x=4\nx=2", "correct", None, None),
-    ("reverse-route", LINEAR, "4=2x\n6/3=x", "correct", None, None),
-    ("unfinished", LINEAR, "x+1=3\n2x=x+2", "partial", None, "equivalent_equation"),
-    ("wrong-first-right-last", LINEAR, "2x=10\nx=2", "incorrect", 1, "wrong_operation"),
-    ("late-sign", LINEAR, "2x=4\n\nx=-2\nx=2", "incorrect", 3, "sign_flip"),
-    ("combine-like-terms", "3x+2x=15", "4x=15\nx=3", "incorrect", 1, "like_terms"),
-    ("distribution", "2(x+3)=14", "2x+3=14\nx=4", "incorrect", 1, "wrong_operation"),
-    ("unsupported-middle", LINEAR, "2x=4\n未写清\nx=2", "undetermined", 2, None),
-    ("domain-cancelled", LINEAR, "2x=4\nx=2+0/(x-2)\nx=2", "undetermined", 2, None),
-    ("rational-domain", LINEAR, "(x^2-4)/(x-2)=4\nx=2", "undetermined", 1, None),
-    ("squared-extra", "x=2", "x²=4\nx=2", "incorrect", 1, "extraneous_root"),
-    ("same-root-squared", "x=2", "(x-2)^2=0\n2=x", "correct", None, None),
-    ("discarded-factor", "x^2=4", "x=2\nx=-2或x=2", "incorrect", 1, "missing_root"),
-    ("quadratic-factor-and-roots", "x^2-5x+6=0", "(x-2)(x-3)=0\nx=2或x=3", "correct", None, None),
-    ("single-root-final", "x^2=4", "x=2", "partial", None, "missing_root"),
-    ("root-variable", "x^2=4", "y=-2或y=2", "incorrect", None, "wrong_family"),
-    ("negative-division", "-2x+1<5", "-2x<4\n-2<x", "correct", None, None),
-    ("wrong-inequality-direction", "-2x+1<5", "-2x<4\nx<-2", "incorrect", 2, "wrong_value"),
-    ("linear-interval", "-2x+1<5", "-2x<4\n(-2,+∞)", "correct", None, None),
-    ("quadratic-interval", "x^2-1<0", "(x-1)(x+1)<0\n(-1,1)", "correct", None, None),
-    ("wrong-closed-endpoint", "x^2-1<0", "(x-1)(x+1)<0\n[-1,1]", "incorrect", 2, "wrong_value"),
-    ("disjoint-intervals", "x^2-1>0", "(-∞,-1)∪(1,+∞)", "correct", None, None),
-    ("unfinished-union", "x^2-1>0", "(-∞,-1)∪", "undetermined", None, None),
-    ("closed-infinity", "x^2-1>0", "(-∞,-1)∪(1,+∞]", "undetermined", None, None),
-    ("range-does-not-solve-equation", LINEAR, "2x=4\nx<2", "incorrect", 2, "wrong_family"),
-    ("multiline-system", "x+y=3;x-y=1", "x=2\ny=1", "correct", None, None),
+    (row["id"], row["problem"], row["answer"], row["verdict"], row["issue_line"], row["signal"])
+    for row in json.loads(_CASES_FILE.read_text(encoding="utf-8"))
 ]
 
 
