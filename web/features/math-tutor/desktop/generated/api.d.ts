@@ -2012,9 +2012,8 @@ export interface components {
             /**
              * Provider
              * @default zhihu
-             * @enum {string}
              */
-            provider?: "zhihu" | "wikipedia" | "wikibooks" | "active_calculus" | "open_math_books";
+            provider?: "zhihu" | ("wikipedia" | "wikibooks" | "active_calculus" | "open_math_books");
             /** Quote */
             quote: string;
             /**
@@ -2938,6 +2937,12 @@ export interface components {
         /** RetrievalAttempt */
         RetrievalAttempt: {
             /**
+             * Access
+             * @default online
+             * @enum {string}
+             */
+            access?: "online" | "bundled";
+            /**
              * Count
              * @default 0
              */
@@ -2951,7 +2956,7 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "wikipedia" | "wikibooks";
+            provider: "wikipedia" | "wikibooks" | "active_calculus" | "open_math_books";
             /**
              * Status
              * @enum {string}
@@ -3101,9 +3106,8 @@ export interface components {
             /**
              * Provider
              * @default zhihu
-             * @enum {string}
              */
-            provider?: "zhihu" | "wikipedia" | "wikibooks" | "active_calculus" | "open_math_books";
+            provider?: "zhihu" | ("wikipedia" | "wikibooks" | "active_calculus" | "open_math_books");
             /** Raw Excerpt */
             raw_excerpt: string;
             /** Raw Excerpt Sha256 */

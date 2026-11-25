@@ -38,16 +38,18 @@ export function RetrievalStatus({ attempts, onRetry }: { attempts: NonNullable<E
   const { t } = useI18n();
   if (!attempts.length) return null;
   const labels = { found: "找到 {count} 条", empty: "无匹配", unavailable: "连接或响应异常", rate_limited: "请求受限" };
-  const failed = Object.keys(providerNames).filter(provider => {
-    const rows = attempts.filter(row => row.provider === provider);
+  const online = attempts.filter(row => row.access !== "bundled");
+  const projects = new Set(online.map(row => row.provider));
+  const failed = [...projects].filter(provider => {
+    const rows = online.filter(row => row.provider === provider);
     return rows.length && rows.every(row => row.status === "rate_limited" || row.status === "unavailable");
   }).length;
   return <div className="mt-4">{failed > 0 && <div role="status" className="flex flex-wrap items-center gap-x-4 text-sm leading-6 text-[var(--warning)]">
-    <p>{t(failed === new Set(attempts.map(row => row.provider)).size ? "在线来源暂不可用。" : "部分在线来源暂不可用。")}</p>
+    <p>{t(failed === projects.size ? "在线来源暂不可用。" : "部分在线来源暂不可用。")}</p>
     {onRetry && <button type="button" className="min-h-11 text-[var(--primary-text)] underline" onClick={onRetry}>{t("用这个问题重新查询")}</button>}
   </div>}
   <ul aria-label={t("各来源检索状态")} className="flex flex-wrap gap-x-5 gap-y-1 text-sm leading-6 text-[var(--muted-foreground)]">
-    {attempts.map(item => <li key={`${item.provider}-${item.language}`}>{t(providerNames[item.provider])} · {t(item.language === "zh" ? "中文" : "英文")} · {t(labels[item.status], { count: item.count ?? 0 })}</li>)}
+    {attempts.filter(item => item.access !== "bundled" || item.status !== "empty").map(item => <li key={`${item.provider}-${item.language}`}>{t(providerNames[item.provider])} · {t(item.access === "bundled" ? "内置教材节选" : item.language === "zh" ? "中文" : "英文")} · {t(labels[item.status], { count: item.count ?? 0 })}</li>)}
   </ul></div>;
 }
 

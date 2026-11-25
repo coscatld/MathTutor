@@ -23,7 +23,17 @@ _CONTENT_PATH = re.compile(
 )
 _ALLOWED_HOSTS = frozenset({"zhihu.com", "www.zhihu.com", "zhuanlan.zhihu.com"})
 SpanId = Annotated[str, Field(min_length=1, max_length=80)]
-SourceProvider = Literal["zhihu", "wikipedia", "wikibooks", "active_calculus", "open_math_books"]
+PublicProvider = Literal["wikipedia", "wikibooks", "active_calculus", "open_math_books"]
+WIKI_HOSTS = {
+    project: frozenset(f"{language}.{project}.org" for language in ("en", "zh"))
+    for project in ("wikipedia", "wikibooks")
+}
+TEXTBOOK_PAGES = {
+    "active_calculus": {"https://activecalculus.org/single/sec-1-7-lim-cont-diff.html"},
+    "open_math_books": {"https://discrete.openmathbooks.org/dmoi3/sec_logic-proofs.html"},
+}
+PUBLIC_PROVIDERS = frozenset(WIKI_HOSTS.keys() | TEXTBOOK_PAGES.keys())
+SourceProvider = Literal["zhihu"] | PublicProvider
 ExcerptScope = Literal["search_excerpt", "page_excerpt", "textbook_excerpt"]
 
 
@@ -70,15 +80,12 @@ def safe_source_url(value: object, provider: SourceProvider = "zhihu") -> str | 
             return None
         if provider == "zhihu":
             allowed = parsed.hostname in _ALLOWED_HOSTS and _CONTENT_PATH.fullmatch(parsed.path)
-        elif provider in ("wikipedia", "wikibooks"):
-            allowed = (parsed.hostname in {f"en.{provider}.org", f"zh.{provider}.org"}
+        elif provider in WIKI_HOSTS:
+            allowed = (parsed.hostname in WIKI_HOSTS[provider]
                        and parsed.path == "/w/index.php" and re.fullmatch(r"oldid=[1-9][0-9]*", parsed.query)
                        and not parsed.fragment)
         else:
-            allowed = value in {
-                "active_calculus": {"https://activecalculus.org/single/sec-1-7-lim-cont-diff.html"},
-                "open_math_books": {"https://discrete.openmathbooks.org/dmoi3/sec_logic-proofs.html"},
-            }.get(provider, set())
+            allowed = value in TEXTBOOK_PAGES.get(provider, set())
         if not allowed:
             return None
     except ValueError:

@@ -1,5 +1,19 @@
 # Third-party notices
 
+## Open textbook excerpts
+
+The knowledge explorer includes two English passages for offline reading.
+Each passage is distributed under the
+[Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/).
+
+- Matthew Boelkins, *Active Calculus*, second edition (2025), §1.7.4. The
+  excerpt is the sentence on continuity and differentiability at a point.
+  © 2012–2025 Matthew Boelkins. [Chapter](https://activecalculus.org/single/sec-1-7-lim-cont-diff.html) · [Publisher's notice](https://activecalculus.org/single/frontmatter-3.html)
+- Oscar Levin, *Discrete Mathematics: An Open Introduction*, third edition,
+  §3.2, “Proofs.” The excerpt states the pigeonhole principle. MathTutor
+  displays the typeset variable *n* as plain text.
+  [Chapter](https://discrete.openmathbooks.org/dmoi3/sec_logic-proofs.html) · [Author's license notice](https://discrete.openmathbooks.org/dmoi3.html)
+
 ## Zhihu reading materials
 
 MathTutor credits Zhihu authors on its reading cards and links to their original

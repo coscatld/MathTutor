@@ -1754,16 +1754,23 @@
             "type": "string"
           },
           "provider": {
-            "default": "zhihu",
-            "enum": [
-              "zhihu",
-              "wikipedia",
-              "wikibooks",
-              "active_calculus",
-              "open_math_books"
+            "anyOf": [
+              {
+                "const": "zhihu",
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "wikipedia",
+                  "wikibooks",
+                  "active_calculus",
+                  "open_math_books"
+                ],
+                "type": "string"
+              }
             ],
-            "title": "Provider",
-            "type": "string"
+            "default": "zhihu",
+            "title": "Provider"
           },
           "quote": {
             "title": "Quote",
@@ -4567,8 +4574,18 @@
       },
       "RetrievalAttempt": {
         "properties": {
+          "access": {
+            "default": "online",
+            "enum": [
+              "online",
+              "bundled"
+            ],
+            "title": "Access",
+            "type": "string"
+          },
           "count": {
             "default": 0,
+            "minimum": 0.0,
             "title": "Count",
             "type": "integer"
           },
@@ -4583,7 +4600,9 @@
           "provider": {
             "enum": [
               "wikipedia",
-              "wikibooks"
+              "wikibooks",
+              "active_calculus",
+              "open_math_books"
             ],
             "title": "Provider",
             "type": "string"
@@ -5059,16 +5078,23 @@
             "type": "string"
           },
           "provider": {
-            "default": "zhihu",
-            "enum": [
-              "zhihu",
-              "wikipedia",
-              "wikibooks",
-              "active_calculus",
-              "open_math_books"
+            "anyOf": [
+              {
+                "const": "zhihu",
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "wikipedia",
+                  "wikibooks",
+                  "active_calculus",
+                  "open_math_books"
+                ],
+                "type": "string"
+              }
             ],
-            "title": "Provider",
-            "type": "string"
+            "default": "zhihu",
+            "title": "Provider"
           },
           "raw_excerpt": {
             "maxLength": 16000,

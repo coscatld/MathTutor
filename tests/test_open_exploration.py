@@ -12,8 +12,8 @@ from test_phase5_e2e_offer_flow import _client
 
 from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.product_state import get_product_state, reset_product_state
-from mathtutor.application.exploration_evidence import safe_source_url
-from mathtutor.application.open_readings import OpenReadingSearch
+from mathtutor.application.exploration_evidence import Attribution, public_snapshot, safe_source_url
+from mathtutor.application.open_readings import AdapterReadings, OpenReadingSearch, RetrievalAttempt, TEXTBOOK_ADAPTERS
 from mathtutor.security.scopes import PrincipalScope, StudentOwnerScope
 
 
@@ -66,7 +66,10 @@ def test_default_entry_retrieves_both_projects_without_credentials_or_forwarding
         assert all(s["attribution"]["license"] == "CC BY-SA 4.0" for s in sources)
         assert "x^2" in sources[0]["text"] and "<mi>" not in sources[0]["text"]
         assert sources[0]["original_url"] == "https://en.wikipedia.org/w/index.php?oldid=101"
-        assert view["mode"] == "open" and [a["status"] for a in view["retrieval_attempts"]] == ["found", "found"]
+        attempts = view["retrieval_attempts"]
+        assert view["mode"] == "open" and [a["status"] for a in attempts if a["access"] == "online"] == ["found", "found"]
+        assert [(a["provider"], a["status"]) for a in attempts if a["access"] == "bundled"] == [
+            ("active_calculus", "found"), ("open_math_books", "empty")]
         path = PREFIX + "/inquiries/" + data["inquiry_id"]
         assert client.get(path).json()["evidence"]["sources"] == sources
         assert client.post(PREFIX + "/inquiries", json=data).json() == view and len(calls) == 4
@@ -86,7 +89,7 @@ async def test_chinese_fallback_keeps_partial_network_receipts_and_does_not_foll
 
     search = OpenReadingSearch(transport=httpx.MockTransport(partial))
     sources, attempts = await search.search("为什么函数连续不一定可导？", "zh")
-    assert [(a.provider, a.language, a.status) for a in attempts] == [
+    assert [(a.provider, a.language, a.status) for a in attempts if a.access == "online"] == [
         ("wikipedia", "zh", "rate_limited"), ("wikipedia", "en", "found"),
         ("wikibooks", "zh", "unavailable"), ("wikibooks", "en", "unavailable")]
     assert {s.provider for s in sources.sources} == {"wikipedia", "active_calculus"}
@@ -99,7 +102,7 @@ async def test_no_hits_and_failed_sources_do_not_create_unrelated_textbooks(payl
     search = OpenReadingSearch(transport=httpx.MockTransport(lambda _: httpx.Response(200, json=payload)))
     none, attempts = await search.search("unrelated occultation catalogue", "en")
     assert not none.sources
-    assert [a.status for a in attempts] == [status, status]
+    assert [a.status for a in attempts if a.access == "online"] == [status, status]
     relevant, _ = await search.search("Pigeonhole principle", "en")
     assert len(relevant.sources) == 1 and relevant.sources[0].scope == "textbook_excerpt"
     assert relevant.sources[0].provider == "open_math_books" and relevant.sources[0].author == "Oscar Levin"
@@ -116,6 +119,57 @@ async def test_no_hits_and_failed_sources_do_not_create_unrelated_textbooks(payl
 ])
 def test_provider_link_boundaries(url, provider, allowed):
     assert bool(safe_source_url(url, provider)) is allowed
+
+
+class FixtureAdapter:
+    access = "online"
+
+    def __init__(self, provider, *, broken=False, wrong_link=False):
+        self.provider, self.broken, self.wrong_link = provider, broken, wrong_link
+
+    async def retrieve(self, query):
+        if self.broken:
+            raise RuntimeError("Provider failed independently.")
+        snapshots = []
+        for index in (1, 2):
+            snap = public_snapshot(provider=self.provider, content_id=str(index), content_type="test",
+                title=f"{self.provider} {index}", author="Test contributors", text=f"{self.provider} passage {index}",
+                url=f"https://en.{self.provider}.org/w/index.php?oldid={index}", scope="page_excerpt",
+                retrieved_at=query.retrieved_at, attribution=Attribution(language="en", version=str(index)), request_id="test")
+            snapshots.append(snap.model_copy(update={"original_url": "https://wrong.invalid/"}) if self.wrong_link else snap)
+        return AdapterReadings(tuple(snapshots), (RetrievalAttempt(provider=self.provider, access=self.access,
+                              language="en", status="found", count=2),))
+
+
+@pytest.mark.asyncio
+async def test_registered_adapters_support_zero_one_and_round_robin_across_four_sources():
+    search = OpenReadingSearch(adapters=[])
+    topic = "continuous function and pigeonhole principle"
+    batch, receipt = await search.search(topic, "en")
+    assert not batch.sources and not receipt
+    search.register(FixtureAdapter("wikipedia"))
+    batch, receipt = await search.search(topic, "en")
+    assert [item.title for item in batch.sources] == ["wikipedia 1", "wikipedia 2"]
+    search.register(FixtureAdapter("wikibooks"))
+    for textbook in TEXTBOOK_ADAPTERS:
+        search.register(textbook)
+    batch, receipt = await search.search(topic, "en")
+    assert [item.provider for item in batch.sources] == [
+        "wikipedia", "wikibooks", "active_calculus", "open_math_books", "wikipedia", "wikibooks"]
+    assert len(receipt) == 4 and all(item.status == "found" for item in receipt)
+    with pytest.raises(ValueError, match="Duplicate"):
+        search.register(FixtureAdapter("wikipedia"))
+    with pytest.raises(ValueError, match="URL policy"):
+        search.register(FixtureAdapter("unregistered"))
+
+
+@pytest.mark.asyncio
+async def test_untrusted_or_crashing_adapter_isolated_from_a_working_third_adapter():
+    search = OpenReadingSearch(adapters=(FixtureAdapter("wikipedia", wrong_link=True),
+                               FixtureAdapter("wikibooks", broken=True), TEXTBOOK_ADAPTERS[1]))
+    batch, attempts = await search.search("pigeonhole principle", "en")
+    assert [a.status for a in attempts] == ["unavailable", "unavailable", "found"]
+    assert [s.provider for s in batch.sources] == ["open_math_books"]
 
 
 def test_premigration_zhihu_record_replays_and_organizes_without_source_selection(tmp_path):
