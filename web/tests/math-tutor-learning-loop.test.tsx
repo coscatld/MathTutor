@@ -53,6 +53,18 @@ test("helped correct feedback does not claim independent success", () => {
   assert.match(html,/Independent practice<\/dt><dd[^>]*>0/);
   assert.ok(!html.includes("Tab") && !html.includes("Enter to"));
 });
+test("the ordinary-equation agenda shows anchored days, observed time and the source in both languages", () => {
+  const linear: LoopEntry = {domain:"linear_equation", label_zh:"一元一次方程", label_en:"Linear equations",
+    episode:{...active.episode!, domain:"linear_equation", phase:"waiting", question:null,
+      source_cycle_id:"source-question", schedule:{anchor_at:"2026-07-01T09:00:00Z",checkpoints:[
+        {day:1,target_at:"2026-07-02T09:00:00Z",completed_at:"2026-07-04T09:00:00Z"},
+        {day:3,target_at:"2026-07-04T09:00:00Z"}, {day:7,target_at:"2026-07-08T09:00:00Z"}]}}};
+  const en = render(linear,true), zh = render(linear);
+  assert.match(en,/Day 1/); assert.match(en,/Day 3/); assert.match(en,/Day 7/);
+  assert.match(en,/Transfer completed/); assert.match(en,/source-question/);
+  assert.ok(!/[\u3400-\u9fff]/u.test(en)); assert.match(zh,/第 7 天/); assert.match(zh,/查看起始作答/);
+  assert.match(render({...linear,episode:null},true),/Solve an equation/);
+});
 test("client preserves idempotency fields and uses the authenticated API boundary", async () => {
   const previous=globalThis.fetch;
   let request: {url:string; init?:RequestInit}|undefined;

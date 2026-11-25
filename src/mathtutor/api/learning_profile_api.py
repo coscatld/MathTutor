@@ -112,7 +112,7 @@ async def recompute(owner: StudentOwnerScope = Depends(require_student_owner)):
 
 class LearningLoopStart(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    domain: Literal["fraction_addition", "signed_subtraction"]
+    domain: Literal["fraction_addition", "signed_subtraction", "linear_equation"]
 
 
 class LearningLoopAction(LearningLoopStart):

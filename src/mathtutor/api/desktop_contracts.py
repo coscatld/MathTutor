@@ -444,6 +444,18 @@ class StudentSummaryMisconceptionsItem(TypedDict):
     last_seen_at: str | None
 
 
+class ReviewObservation(TypedDict):
+    __pydantic_config__ = ConfigDict(extra="forbid")
+    event_id: str
+    cycle_id: str
+    occurred_at: str
+    category: Literal["calculation", "conditions", "method_transfer"]
+    reason: str
+    mode: Literal["independent", "assisted", "post_solution", "repeat", "choice"]
+    corrected_later: bool
+    next_problem: str | None
+
+
 class StudentSummaryCoverage(TypedDict):
     __pydantic_config__ = ConfigDict(extra="forbid")
     supported_skills: int
@@ -460,6 +472,7 @@ class StudentSummary(TypedDict):
     active_misconceptions: int
     misconceptions: NotRequired[list[StudentSummaryMisconceptionsItem]]
     item_error_observations: NotRequired[list[ItemErrorObservation]]
+    review_observations: NotRequired[list[ReviewObservation]]
     schema_version: NotRequired[str]
     has_conversations: NotRequired[bool]
     has_independent_evidence: NotRequired[bool]

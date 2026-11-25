@@ -1,7 +1,7 @@
 import {apiFetch} from "@/lib/api";
 import {responseError} from "@/lib/api-error";
 
-export type LoopDomain = "fraction_addition" | "signed_subtraction";
+export type LoopDomain = "fraction_addition" | "signed_subtraction" | "linear_equation";
 export type LoopPhase = "diagnose" | "practice" | "waiting" | "review" | "transfer" | "complete" | "exhausted";
 export interface LoopQuestion {
   probe_id: string; domain: LoopDomain; family: string; purpose: string;
@@ -10,6 +10,7 @@ export interface LoopQuestion {
 export interface LoopFeedback {
   kind: "correct" | "incorrect" | "unknown" | "help" | "recorded";
   probe_id: string; statement?: string; answer?: string; explanation_zh?: string; explanation_en?: string; independent?: boolean;
+  seen_in_tutoring?: boolean;
 }
 export interface LoopEpisode {
   episode_id: string; domain: LoopDomain; phase: LoopPhase; question: LoopQuestion | null;
@@ -17,6 +18,13 @@ export interface LoopEpisode {
   diagnostic: {status: string; answered: number; label_zh: string; label_en: string};
   evidence: {independent_practice: number; delayed_review: number; structural_transfer: number};
   feedback: LoopFeedback | null;
+  source_cycle_id?: string | null;
+  archive_reason?: "source_excluded" | "retired" | null;
+  schedule?: {anchor_at: string | null; checkpoints: {
+    day: number; target_at: string | null; reviewed_at?: string; completed_at?: string; from_legacy?: boolean;
+  }[]} | null;
+  observations?: {probe_id: string; statement: string; response: string; independent: boolean;
+    category: "calculation" | "conditions" | "method_transfer"; occurred_at: string}[];
 }
 export interface LoopEntry {
   domain: LoopDomain; label_zh: string; label_en: string; episode: LoopEpisode | null;

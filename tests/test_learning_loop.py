@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import json
 import sqlite3
 from uuid import uuid4
+from urllib.parse import quote
 
 import pytest
 
@@ -14,9 +15,11 @@ from mathtutor.api.product_state import get_product_state, reset_product_state
 from mathtutor.application.learning_loop import LearningLoopService
 from mathtutor.infrastructure.db import create_db_engine
 from mathtutor.infrastructure.migrate import alembic_config, upgrade_db
-from mathtutor.learning.diagnostic_probes import format_answer, get_probe
+from mathtutor.learning.diagnostic_probes import format_answer
+from mathtutor.learning.review_items import get_probe
 from mathtutor.security.scopes import PrincipalScope, StudentOwnerScope
 from test_phase5_e2e_offer_flow import _client
+from test_phase5_e2e_offer_flow import _collect, _send
 
 BASE = "/api/v2/math-tutor/desktop"
 PREFIX = BASE + "/learning-loop"
@@ -64,8 +67,158 @@ def stored(path, domain=DOMAIN):
         return [json.loads(row[0]) for row in conn.execute("SELECT payload FROM learning_loop_episodes WHERE domain=?", (domain,))]
 
 
+def tutor_problem(client, statement, answer=None, help_requested=False):
+    session = str(uuid4())
+    with client.websocket_connect("/api/v2/math-tutor/ws") as ws:
+        _send(ws, "submit_problem", {"text": statement}, session)
+        _collect(ws)
+        if help_requested:
+            _send(ws, "request_hint", {}, session)
+            _collect(ws)
+            _send(ws, "request_solution", {}, session)
+            _collect(ws)
+        if answer is not None:
+            _send(ws, "submit_attempt", {"answer": answer}, session)
+            _collect(ws)
+
+
+def replace_saved(path, domain, payload):
+    with closing(sqlite3.connect(path)) as conn, conn:
+        conn.execute("UPDATE learning_loop_episodes SET payload=? WHERE domain=?", (json.dumps(payload), domain))
+
+
+def test_regular_equation_error_to_assisted_correction_to_new_independent_agenda(tmp_path):
+    path = tmp_path / "tutor.db"
+    domain = "linear_equation"
+    with _client(path) as client:
+        tutor_problem(client, "2x+3=7", "2x=10")
+        observed = client.get(BASE + "/student-summary").json()["review_observations"][0]
+        assert (observed["category"], observed["reason"], observed["mode"]) == ("calculation", "constant", "independent")
+        assert observed["next_problem"] == "3x-4=11"
+        tutor_problem(client, "2x+3=7", "x=2", help_requested=True)
+        assert episode(client.get(PREFIX), domain) is None
+        assisted = client.get(BASE + "/student-evidence").json()["items"][0]
+        assert assisted["correctness"] == "correct" and assisted["evidence_kind"] == "post_solution"
+        tutor_problem(client, observed["next_problem"], "x=5")
+        saved = stored(path, domain)[0]
+        start = datetime.fromisoformat(saved["anchor_at"])
+        assert saved["source_event_id"] and saved["source_cycle_id"] and saved["evidence"]["independent_practice"] == 1
+        assert episode(client.get(PREFIX), domain)["source_cycle_id"] == saved["source_cycle_id"]
+        ids, families = set(), []
+        for day in (1, 3, 7):
+            now = start + timedelta(days=day)
+            get_product_state().learning_loop.clock = lambda: now
+            state = episode(client.post(PREFIX + "/start", json={"domain": domain}), domain)
+            assert state["phase"] == "review" and "answer" not in state["question"]
+            ids.add(state["question"]["statement"])
+            state = submit(client, state, "x=" + correct(state))
+            assert state["phase"] == "transfer"
+            ids.add(state["question"]["statement"])
+            families.append(state["question"]["relation"])
+            command = body(state, answer=correct(state))
+            state = episode(client.post(PREFIX + "/answer", json=command), domain)
+            assert episode(client.post(PREFIX + "/answer", json=command), domain) == state
+        assert families == ["unknown_on_right", "variable_both_sides", "distribute"]
+        assert len(ids) == 6 and "2x+3=7" not in ids
+        assert state["phase"] == "complete" and state["evidence"] == {
+            "independent_practice": 1, "delayed_review": 3, "structural_transfer": 3}
+        assert [row["day"] for row in state["schedule"]["checkpoints"] if row["completed_at"]] == [1, 3, 7]
+    reset_product_state()
+    with _client(path) as client:
+        assert episode(client.get(PREFIX), domain)["phase"] == "complete"
+
+
+def test_overdue_rounds_never_stack_and_assisted_transfer_cannot_advance(tmp_path):
+    path = tmp_path / "late.db"
+    day_zero = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    now = [day_zero]
+    with _client(path) as client:
+        get_product_state().learning_loop.clock = lambda: now[0]
+        state = submit(client, practice(client, episode(client.post(PREFIX + "/start", json={"domain": DOMAIN}))))
+        now[0] += timedelta(days=20)
+        state = episode(client.post(PREFIX + "/start", json={"domain": DOMAIN}))
+        state = submit(client, state)
+        assert state["evidence"]["delayed_review"] == 1
+        helped = episode(client.post(PREFIX + "/help", json=body(state)))
+        request = body(helped, answer=correct(helped))
+        state = episode(client.post(PREFIX + "/answer", json=request))
+        assert state["evidence"]["structural_transfer"] == 0 and state["phase"] == "practice"
+        assert not state["feedback"]["independent"] and state["question"]["purpose"] == "transfer"
+        state = submit(client, state)
+        assert not state["can_start"] and state["due_at"] == (now[0] + timedelta(days=1)).isoformat()
+        assert state["schedule"]["anchor_at"] == day_zero.isoformat()
+        for day in (21, 22, 23):
+            now[0] = day_zero + timedelta(days=day)
+            state = episode(client.post(PREFIX + "/start", json={"domain": DOMAIN}))
+            state = submit(client, submit(client, state))
+            if day < 23:
+                assert state["due_at"] == (now[0] + timedelta(days=1)).isoformat()
+                assert not episode(client.post(PREFIX + "/start", json={"domain": DOMAIN}))["can_start"]
+        assert state["evidence"]["delayed_review"] == state["evidence"]["structural_transfer"] == 3
+        assert [row["completed_at"] for row in state["schedule"]["checkpoints"]] == [
+            (day_zero + timedelta(days=day)).isoformat() for day in (21, 22, 23)]
+
+
+def test_linear_agenda_respects_tutoring_exposure_exclusions_and_old_events(tmp_path):
+    domain = "linear_equation"
+    path = tmp_path / "owner.db"
+    with _client(path) as client:
+        tutor_problem(client, "2x+3=7", "x=2")
+        saved = stored(path, domain)[0]
+        anchor = datetime.fromisoformat(saved["anchor_at"])
+        # An older installation may contain the independent event and no episode row.
+        with closing(sqlite3.connect(path)) as conn, conn:
+            conn.execute("DELETE FROM learning_loop_episodes WHERE domain=?", (domain,))
+        assert episode(client.get(PREFIX), domain)["episode_id"] == saved["episode_id"]
+        get_product_state().learning_loop.clock = lambda: anchor + timedelta(days=1)
+        state = episode(client.post(PREFIX + "/start", json={"domain": domain}), domain)
+        tutor_problem(client, state["question"]["statement"], help_requested=True)
+        result = submit(client, state)
+        assert result["evidence"]["delayed_review"] == 0 and not result["feedback"]["independent"]
+        assert result["feedback"]["seen_in_tutoring"] and result["question"]["probe_id"] != state["question"]["probe_id"]
+        excluded = client.post(BASE + "/student-evidence/" + quote(saved["source_event_id"], safe="") + "/exclude")
+        assert excluded.status_code == 200
+        retired = episode(client.get(PREFIX), domain)
+        assert retired["schedule"] is None and retired["phase"] == "exhausted"
+        assert retired["evidence"]["independent_practice"] == 0
+        tutor_problem(client, "4x-7=9", "x=4")
+        fresh = episode(client.get(PREFIX), domain)
+        assert fresh["episode_id"] != saved["episode_id"] and fresh["schedule"]["anchor_at"]
+        assert set(stored(path, domain)[0]["served_ids"]) >= {state["question"]["probe_id"]}
+
+
+def test_v1_completed_history_resumes_only_unobserved_day_seven(tmp_path):
+    path = tmp_path / "v1.db"
+    origin = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    now = [origin]
+    with _client(path) as client:
+        get_product_state().learning_loop.clock = lambda: now[0]
+        state = submit(client, practice(client, episode(client.post(PREFIX + "/start", json={"domain": DOMAIN}))))
+        old = stored(path)[0]
+        for key in ("schedule_version", "checkpoints", "anchor_at"):
+            del old[key]
+        old.update(phase="complete", review_round=2, due_at=None, current_probe=None)
+        for i, day in enumerate((1, 4)):
+            for phase in ("review", "transfer"):
+                probe_id = f"{DOMAIN}:{phase}:{i+2:02}"
+                old["served_ids"].append(probe_id)
+                old["attempts"].append({"phase": phase, "probe_id": probe_id, "answer": str(get_probe(probe_id).answer),
+                    "independent": True, "correctness": "correct", "occurred_at": (origin + timedelta(days=day)).isoformat()})
+        old["evidence"].update(delayed_review=2, structural_transfer=2)
+        replace_saved(path, DOMAIN, old)
+        state = episode(client.get(PREFIX))
+        assert state["phase"] == "waiting" and state["review_round"] == 2
+        assert state["schedule"]["checkpoints"][1]["from_legacy"]
+        assert state["schedule"]["checkpoints"][1]["completed_at"] == (origin + timedelta(days=4)).isoformat()
+        assert state["due_at"] == (origin + timedelta(days=7)).isoformat()
+        now[0] += timedelta(days=7)
+        state = episode(client.post(PREFIX + "/start", json={"domain": DOMAIN}))
+        state = submit(client, submit(client, state))
+        assert state["phase"] == "complete" and state["evidence"]["structural_transfer"] == 3
+
+
 @pytest.mark.parametrize("domain", [DOMAIN, "signed_subtraction"])
-def test_real_clock_gated_path_has_two_delayed_and_structural_checks(tmp_path, domain):
+def test_real_clock_gated_path_has_three_anchored_and_distinct_structural_checks(tmp_path, domain):
     path = tmp_path / "loop.db"
     now = [datetime(2026, 11, 11, 9, tzinfo=timezone.utc)]
     with _client(path) as client:
@@ -76,7 +229,12 @@ def test_real_clock_gated_path_has_two_delayed_and_structural_checks(tmp_path, d
         state = submit(client, state)
         assert state["phase"] == "waiting" and not state["can_start"]
         assert state["evidence"] == {"independent_practice": 1, "delayed_review": 0, "structural_transfer": 0}
-        for review_round, delay in ((1, 1), (2, 3)):
+        structures = []
+        anchor = now[0]
+        for review_round, day in enumerate((1, 3, 7), 1):
+            delay = (anchor + timedelta(days=day) - now[0]).days
+            assert state["schedule"]["anchor_at"] == anchor.isoformat()
+            assert state["due_at"] == (anchor + timedelta(days=day)).isoformat()
             now[0] += timedelta(days=delay) - timedelta(microseconds=1)
             before = episode(client.post(PREFIX + "/start", json={"domain": domain}), domain)
             assert before["phase"] == "waiting" and not before["can_start"]
@@ -87,10 +245,12 @@ def test_real_clock_gated_path_has_two_delayed_and_structural_checks(tmp_path, d
             assert state["phase"] == "review"
             state = submit(client, state)
             assert state["phase"] == "transfer" and state["question"]["relation"] != "new_instance"
+            structures.append(state["question"]["relation"])
             state = submit(client, state)
             assert state["review_round"] == review_round
+        assert len(set(structures)) == 3
         assert state["phase"] == "complete" and state["question"] is None
-        assert state["evidence"] == {"independent_practice": 1, "delayed_review": 2, "structural_transfer": 2}
+        assert state["evidence"] == {"independent_practice": 1, "delayed_review": 3, "structural_transfer": 3}
         assert episode(client.post(PREFIX + "/start", json={"domain": domain}), domain) == state
         assert client.get(BASE + "/student-summary").json()["total_attempts"] == 0
         saved = stored(path, domain)[0]

@@ -331,6 +331,9 @@ class StudentStateService:
                 await db.execute(learning_predictions.update().where(
                     learning_predictions.c.student_id == student_id,
                     learning_predictions.c.prediction_id == presentation_id).values(payload=presented))
+            if item_family_id == "linear":
+                from mathtutor.learning.linear_review import register
+                await register(db, event)
             await self._checkpoint(db, student_id)
             return event
 
@@ -359,6 +362,9 @@ class StudentStateService:
                 raise ValueError("cannot invalidate another owner's or missing event")
             if original.event_type != "attempt_assessed":
                 raise ValueError("only assessment evidence can be excluded")
+            if original.item_family_id == "linear":
+                from mathtutor.learning.linear_review import exclude_anchor
+                await exclude_anchor(db, student_id, invalidates_event_id)
             event = LearningEvent(event_id=event_id, student_id=str(student_id), session_id=original.session_id,
                 cycle_id=original.cycle_id, event_type="evidence_invalidated", problem_id=original.problem_id,
                 problem_revision=original.problem_revision, item_family_id=original.item_family_id,

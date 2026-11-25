@@ -3085,7 +3085,8 @@
           "domain": {
             "enum": [
               "fraction_addition",
-              "signed_subtraction"
+              "signed_subtraction",
+              "linear_equation"
             ],
             "title": "Domain",
             "type": "string"
@@ -3130,7 +3131,8 @@
           "domain": {
             "enum": [
               "fraction_addition",
-              "signed_subtraction"
+              "signed_subtraction",
+              "linear_equation"
             ],
             "title": "Domain",
             "type": "string"
@@ -3170,7 +3172,8 @@
           "domain": {
             "enum": [
               "fraction_addition",
-              "signed_subtraction"
+              "signed_subtraction",
+              "linear_equation"
             ],
             "title": "Domain",
             "type": "string"
@@ -4651,6 +4654,74 @@
         "title": "RetrievalToggle",
         "type": "object"
       },
+      "ReviewObservation": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "calculation",
+              "conditions",
+              "method_transfer"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "corrected_later": {
+            "title": "Corrected Later",
+            "type": "boolean"
+          },
+          "cycle_id": {
+            "title": "Cycle Id",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "independent",
+              "assisted",
+              "post_solution",
+              "repeat",
+              "choice"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "next_problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Problem"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "cycle_id",
+          "occurred_at",
+          "category",
+          "reason",
+          "mode",
+          "corrected_later",
+          "next_problem"
+        ],
+        "title": "ReviewObservation",
+        "type": "object"
+      },
       "SettingsSaveResult": {
         "additionalProperties": false,
         "properties": {
@@ -5332,6 +5403,13 @@
           "model_status": {
             "title": "Model Status",
             "type": "string"
+          },
+          "review_observations": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewObservation"
+            },
+            "title": "Review Observations",
+            "type": "array"
           },
           "schema_version": {
             "title": "Schema Version",

@@ -2490,7 +2490,7 @@ export interface components {
              * Domain
              * @enum {string}
              */
-            domain: "fraction_addition" | "signed_subtraction";
+            domain: "fraction_addition" | "signed_subtraction" | "linear_equation";
             /** Episode Id */
             episode_id: string;
             /** Probe Id */
@@ -2506,7 +2506,7 @@ export interface components {
              * Domain
              * @enum {string}
              */
-            domain: "fraction_addition" | "signed_subtraction";
+            domain: "fraction_addition" | "signed_subtraction" | "linear_equation";
             /** Episode Id */
             episode_id: string;
             /** Probe Id */
@@ -2520,7 +2520,7 @@ export interface components {
              * Domain
              * @enum {string}
              */
-            domain: "fraction_addition" | "signed_subtraction";
+            domain: "fraction_addition" | "signed_subtraction" | "linear_equation";
         };
         /** LearningPlan */
         LearningPlan: {
@@ -2970,6 +2970,31 @@ export interface components {
             /** Expected Updated At */
             expected_updated_at?: string | null;
         };
+        /** ReviewObservation */
+        ReviewObservation: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "calculation" | "conditions" | "method_transfer";
+            /** Corrected Later */
+            corrected_later: boolean;
+            /** Cycle Id */
+            cycle_id: string;
+            /** Event Id */
+            event_id: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "independent" | "assisted" | "post_solution" | "repeat" | "choice";
+            /** Next Problem */
+            next_problem: string | null;
+            /** Occurred At */
+            occurred_at: string;
+            /** Reason */
+            reason: string;
+        };
         /** SettingsSaveResult */
         SettingsSaveResult: {
             /** Accepted */
@@ -3193,6 +3218,8 @@ export interface components {
             misconceptions?: components["schemas"]["StudentSummaryMisconceptionsItem"][];
             /** Model Status */
             model_status?: string;
+            /** Review Observations */
+            review_observations?: components["schemas"]["ReviewObservation"][];
             /** Schema Version */
             schema_version?: string;
             /** Skills */

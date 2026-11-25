@@ -27,6 +27,33 @@ def test_profile_counts_diagnosed_rules_instead_of_fixed_zero():
     assert all(row["mastery"] is None for row in profile["skills"])
 
 
+@pytest.mark.parametrize("family,signal,purpose,expected", [
+    ("linear", "like_terms", "practice", ("calculation", "terms")),
+    ("arithmetic", "sign_flip", "practice", ("calculation", "sign")),
+    ("quadratic", "missing_root", "practice", ("conditions", "missing_root")),
+    ("linear_system", "missing_variable", "practice", ("conditions", "missing_variable")),
+    ("quadratic_inequality", "sign_flip", "practice", ("conditions", "interval")),
+    ("linear", "wrong_operation", "transfer", ("method_transfer", "constant")),
+])
+def test_targeted_review_describes_only_the_observed_condition(family, signal, purpose, expected):
+    from mathtutor.application.llm_candidate_generator import candidate_problem_revision
+    event = assessed(1, "incorrect", codes=(signal,), task_purpose=purpose).model_copy(update={"item_family_id": family})
+    row = profile_projection([event])["review_observations"][0]
+    assert (row["category"], row["reason"]) == expected
+    assert row["cycle_id"] == event.cycle_id and row["mode"] == "independent"
+    assert not any(key in row for key in ("mastery", "cause", "answer"))
+    # Even if a verdict was excluded, the learner has already seen that exercise.
+    used = assessed(2, "unknown", revision=candidate_problem_revision(row["next_problem"]), kind="unknown")
+    next_row = profile_projection([event, used])["review_observations"][0]
+    assert next_row["next_problem"] != row["next_problem"]
+
+
+def test_uncertain_exposure_and_valid_intermediate_steps_have_no_error_attribution():
+    events = [assessed(1, "partial", codes=("equivalent_equation",)),
+              assessed(2, "incorrect", codes=("sign_flip",), provenance_uncertain=True)]
+    assert profile_projection(events)["review_observations"] == []
+
+
 def test_independent_success_on_the_skill_resolves_its_rules():
     history = [assessed(1, "incorrect", codes=("sign_flip",)),
                assessed(2, "incorrect", skill="quadratic_roots", codes=("missing_root",)),

@@ -4,6 +4,7 @@ import { productClass } from "@/styles/product-classes";
 
 import {useCallback, useEffect, useId, useRef, useState} from "react";
 import {ArrowRight, RefreshCw} from "lucide-react";
+import Link from "next/link";
 import {useI18n} from "@/lib/i18n";
 import {ApiError} from "@/lib/api-error";
 import {
@@ -62,19 +63,45 @@ export function LearningLoopCard({entry, busy, onAction}: {
     <div className={productClass("flex flex-wrap items-start justify-between gap-3")}>
       <h3 className="text-lg font-semibold">{label}</h3>
       <span className="rounded-md bg-[var(--primary-soft)] px-3 py-1 text-sm text-[var(--primary-text)]">
-        {t(episode ? LOOP_PHASE_LABELS[episode.phase] : "尚未开始")}
+        {t(episode?.archive_reason ? "历史复查" : episode ? LOOP_PHASE_LABELS[episode.phase] : "尚未开始")}
       </span>
     </div>
     {!episode && <div className="mt-4">
-      <p className="leading-7 text-[var(--muted-foreground)]">{t("先用最多三道小题检查作答，再安排独立练习。")}</p>
+      {entry.domain === "linear_equation" ? <>
+        <p className="leading-7 text-[var(--muted-foreground)]">{t("在辅导中首次独立解出一道新方程，第 1、3、7 天的复测会自动出现在这里。")}</p>
+        <Link className={productClass("mt-btn mt-btn-primary mt-4 min-h-11")} href="/math-tutor?start=2x%2B3%3D7">{t("去解一道方程")}<ArrowRight aria-hidden="true" className="h-4 w-4" /></Link>
+      </> : <>
+      <p className="leading-7 text-[var(--muted-foreground)]">{t("先用最多三道小题检查作答，再安排独立练习。")} {t("独立完成后，第 1、3、7 天会有新的变式。")}</p>
       <button type="button" className={productClass("mt-btn mt-btn-primary mt-4 min-h-11")} disabled={busy}
         onClick={() => void onAction("start", {domain: entry.domain})}>{t("开始检查")}<ArrowRight aria-hidden="true" className="h-4 w-4" /></button>
+      </>}
     </div>}
     {episode && <div className="mt-4 space-y-5">
       {episode.diagnostic.label_zh && <div className="rounded-lg bg-[var(--muted)] p-4">
         <p className="font-medium">{t("当前观察")}</p>
         <p className="mt-1 break-words leading-7">{english ? episode.diagnostic.label_en : episode.diagnostic.label_zh}</p>
+        {episode.source_cycle_id && <Link className="mt-1 inline-flex min-h-11 items-center text-[var(--primary-text)] underline"
+          href={`/math-tutor/profile?cycle=${encodeURIComponent(episode.source_cycle_id)}`}>{t("查看起始作答")}</Link>}
       </div>}
+      {episode.schedule?.anchor_at && <div>
+        <h4 className="font-medium">{t("复测日程")}</h4>
+        <ol className="mt-2 grid gap-3 sm:grid-cols-3">
+          {episode.schedule.checkpoints.map((point, index) => <li key={point.day} className="border-l-2 border-[var(--primary-border)] pl-3 text-sm">
+            <p className="font-medium">{point.from_legacy ? t("原第 {round} 轮", {round:index + 1}) : t("第 {day} 天", {day: point.day})}</p>
+            {point.target_at && !point.from_legacy && <p className="mt-1 text-[var(--muted-foreground)]">{t("计划")} <time dateTime={point.target_at}>{new Date(point.target_at).toLocaleDateString(locale)}</time></p>}
+            {point.from_legacy && <p className="mt-1 text-[var(--muted-foreground)]">{t("原日程记录")}</p>}
+            {(point.completed_at || point.reviewed_at) && <p className="mt-1">{t(point.completed_at ? "完成变式" : "完成复测")} <time dateTime={point.completed_at || point.reviewed_at}>
+              {new Date((point.completed_at || point.reviewed_at)!).toLocaleString(locale, {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"})}</time></p>}
+          </li>)}
+        </ol>
+      </div>}
+      {!!episode.observations?.length && <details>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("最近的作答依据")}</summary>
+        <ul className="divide-y divide-[var(--border)] text-sm">{episode.observations.map(row => <li key={row.probe_id} className="space-y-1 py-2">
+          <p>{t(row.category === "method_transfer" ? "结构变式" : row.category === "conditions" ? "题目条件" : "计算结果")} · {t(row.independent ? "独立作答" : "受助或已见题")}</p>
+          <p className="break-words font-mono">{row.statement}</p><p>{t("提交的结果 {value} 未通过核验。", {value:row.response})}</p>
+        </li>)}</ul>
+      </details>}
       {feedback && <div id={`${inputId}-feedback`} role="status" aria-live="polite" className="border-l-2 border-[var(--primary-border)] pl-4">
         <h4 ref={feedbackHeading} tabIndex={-1} className="font-medium focus-visible:outline">{t("本次结果")}</h4>
         {feedback.statement && <p className="mt-1 break-words font-mono">{feedback.statement}</p>}
@@ -84,7 +111,7 @@ export function LearningLoopCard({entry, busy, onAction}: {
           {english ? feedback.explanation_en : feedback.explanation_zh}
         </p>}
         {feedback.kind === "correct" && feedback.independent === false &&
-          <p className="mt-1 leading-7">{t("参考解法后的答对已保存，接着用新题独立检查。")}</p>}
+          <p className="mt-1 leading-7">{t(feedback.seen_in_tutoring ? "这道题已在辅导中出现，接着用新题独立检查。" : "参考解法后的答对已保存，接着用新题独立检查。")}</p>}
       </div>}
       {question && <form onSubmit={event => {event.preventDefault(); void act("answer");}} aria-busy={busy}>
         {episode.phase === "diagnose" && <p className="mb-2 text-sm text-[var(--muted-foreground)]">
@@ -115,7 +142,8 @@ export function LearningLoopCard({entry, busy, onAction}: {
           onClick={() => void onAction("start", {domain: entry.domain})}>{t("开始复习")}</button>}
       </div>}
       {episode.phase === "complete" && <p className="leading-7">{t("已经留下本轮的延迟复习与结构变化题记录。")}</p>}
-      {episode.phase === "exhausted" && <p className="leading-7">{t("当前可用的新题已经完成，已有记录会保留。")}</p>}
+      {episode.phase === "exhausted" && !episode.archive_reason && <p className="leading-7">{t("当前可用的新题已经完成，已有记录会保留。")}</p>}
+      {episode.archive_reason === "source_excluded" && <Link className={productClass("mt-btn min-h-11")} href="/math-tutor">{t("独立完成一道新方程，重新开始复查")}</Link>}
       <div className="border-t border-[var(--border)] pt-4">
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div><dt className="text-sm text-[var(--muted-foreground)]">{t("独立练习记录")}</dt><dd className="mt-1 text-lg tabular-nums">{episode.evidence.independent_practice}</dd></div>
@@ -131,7 +159,7 @@ export function LearningLoopCard({entry, busy, onAction}: {
 export default function LearningLoopPanel() {
   const {t, locale} = useI18n();
   const [data, setData] = useState<LearningLoop | null>(null);
-  const [selected, setSelected] = useState<LoopDomain>("fraction_addition");
+  const [selected, setSelected] = useState<LoopDomain | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -182,7 +210,10 @@ export default function LearningLoopPanel() {
       if (mounted.current && sequence.current === version) setBusy(false);
     }
   };
-  const entry = data?.domains.find(row => row.domain === selected) || data?.domains[0];
+  const entry = data?.domains.find(row => row.domain === selected)
+    || data?.domains.find(row => row.episode?.can_start)
+    || data?.domains.find(row => row.domain === "linear_equation" && row.episode)
+    || data?.domains[0];
   return <section aria-labelledby="learning-loop-title" className={productClass("space-y-4")}>
     <div className={productClass("flex items-start justify-between gap-4")}>
       <div><h2 id="learning-loop-title" className="mt-section-title">{t("概念复查")}</h2>

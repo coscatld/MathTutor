@@ -3,13 +3,29 @@ import assert from "node:assert/strict";
 import React from "react";
 import {renderToStaticMarkup} from "react-dom/server";
 import {ItemErrorObservations, LearningOverview, SkillObservation} from "../features/math-tutor/desktop/components/LearningProfilePanel";
+import {I18nProvider} from "../lib/i18n";
 import ReferenceJourney from "../features/math-tutor/knowledge/ReferenceJourney";
+
 import StageReviewPanel from "../features/math-tutor/knowledge/StageReviewPanel";
 import {referenceSelectionHref, withTutorSession} from "../features/math-tutor/lib/workspace-navigation";
 import {groupOffers} from "../features/math-tutor/desktop/components/OffersPanel";
 import PracticeOfferCard from "../features/math-tutor/desktop/components/PracticeOfferCard";
 import DataPrivacySettings from "../features/math-tutor/desktop/components/DataPrivacySettings";
 import type {PracticeOffer} from "../features/math-tutor/desktop/types";
+
+test("profile presents the observable reason, provenance and a targeted practice item", () => {
+  const summary = {skills:[],total_attempts:1,active_misconceptions:0,review_observations:[{
+    event_id:"e",cycle_id:"c",occurred_at:"2026-07-01T09:00:00Z",category:"conditions" as const,
+    reason:"missing_root",mode:"independent" as const,corrected_later:false,next_problem:"x^2-7x+12=0",
+  }]};
+  for (const locale of ["en","zh-CN"] as const) {
+    const html = renderToStaticMarkup(<I18nProvider initialLocale={locale}><ItemErrorObservations summary={summary} onEvidence={() => {}} /></I18nProvider>);
+    assert.ok(html.includes("x^2-7x+12=0"));
+    assert.ok(html.includes(locale === "en" ? "Try this variant" : "练这道变式"));
+    assert.ok(html.includes(locale === "en" ? "omitted a solution" : "少了原方程的解"));
+    if (locale === "en") assert.ok(!/[\u3400-\u9fff]/u.test(html));
+  }
+});
 
 const offer: PracticeOffer = {offer_id:"offer",status:"ACTIVE",skill_labels:["移项"],concept_labels:[],difficulty:2,offered_at:"2026-09-13",expires_at:"2026-09-15",parent_cycle_id:"parent"};
 test("learning observation precedes collapsed evidence and preserves unknown mastery", () => {

@@ -15,6 +15,7 @@ import type {StudentSummary, SkillSummary} from "../types";
 import SkillEvidenceDrawer from "./SkillEvidenceDrawer";
 import StageReviewPanel from "../../knowledge/StageReviewPanel";
 import LearningLoopPanel from "./LearningLoopPanel";
+import ReviewObservations from "./ReviewObservations";
 
 export function SkillObservation({skill, onEvidence}: {skill: SkillSummary; onEvidence: () => void}) {
   const {locale, t} = useI18n();
@@ -55,8 +56,9 @@ export function ItemErrorObservations({summary, onEvidence}: {
 }) {
   const {t} = useI18n();
   const observations = summary.item_error_observations || [];
-  if (!observations.length) return null;
-  return <section className={productClass("mt-card p-5 sm:p-6")} aria-labelledby="item-error-observations-title">
+  const review = summary.review_observations?.length ? <ReviewObservations rows={summary.review_observations} onEvidence={onEvidence} /> : null;
+  if (!observations.length) return review;
+  return <>{review}<section className={productClass("mt-card p-5 sm:p-6")} aria-labelledby="item-error-observations-title">
     <h2 id="item-error-observations-title" className="mt-section-title">{t("整题错误观察")}</h2>
     <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">{t("这些作答涉及多个技能，具体技能待定位。记录中的错误线索用于复盘，不代表相关技能都存在问题。")}</p>
     <details className="mt-4">
@@ -72,7 +74,7 @@ export function ItemErrorObservations({summary, onEvidence}: {
         </li>)}
       </ul>
     </details>
-  </section>;
+  </section></>;
 }
 
 export default function LearningProfilePanel() {

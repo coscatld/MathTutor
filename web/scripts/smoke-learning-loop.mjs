@@ -10,6 +10,9 @@ const browser = await chromium.launch({headless:true,executablePath:process.env.
 const page = await browser.newPage();
 const errors=[]; page.on("pageerror",error=>errors.push(error.message));
 const domain="fraction_addition";
+const schedule = {anchor_at:"2026-11-11T06:00:00Z", checkpoints:[1,3,7].map(day=>({
+ day, target_at:new Date(Date.UTC(2026,10,11+day,6)).toISOString(),
+}))};
 const makeQuestion=(id,statement,purpose="review")=>({probe_id:id,domain,family:"fixture",purpose,statement,prompt_zh:"计算并填写结果。",prompt_en:"Calculate and enter the answer."});
 const q1=makeQuestion("d1","1/2 + 1/3","diagnostic"),q2=makeQuestion("r1","1/6 + 1/7"),q3=makeQuestion("r2","2/7 + 3/7"),q4=makeQuestion("r3","3/8 + 1/4"),q5=makeQuestion("t1","x + 1/6 = 1/7","transfer");
 let episode=null, loseResponse=true, due=false; const receipts=new Map(), answerIds=[];
@@ -24,7 +27,9 @@ await page.route("**/api/**",async route=>{
  else if(url.pathname.endsWith("/sessions"))body=[];
  else if(url.pathname.endsWith("/settings"))body={is_configured:true,onboarding_completed:true,preset_id:"custom",model:"fixture",base_url:"",key_masked:null};
  else if(url.pathname.endsWith("/presets"))body=[];
- else if(url.pathname.endsWith("/student-summary"))body={skills:[],total_attempts:0,active_misconceptions:0,has_conversations:false,has_independent_evidence:false};
+ else if(url.pathname.endsWith("/student-summary"))body={skills:[],total_attempts:1,active_misconceptions:0,has_conversations:true,has_independent_evidence:false,
+  review_observations:[{event_id:"error-1",cycle_id:"source-1",occurred_at:"2026-11-11T06:00:00Z",category:"calculation",reason:"constant",mode:"independent",corrected_later:false,next_problem:"3x-4=11"}]};
+ else if(url.pathname.includes("/recommendations"))body={status:"idle",plan:{title:"",reason:"",resources:[]}};
  else if(url.pathname.endsWith("/stage-review"))body={status:"idle",preferences:{},review:null};
  else if(url.pathname.includes("/learning-loop")){
   const action=url.pathname.split("/").at(-1),data=request.method()==="POST"?request.postDataJSON():null;
@@ -43,10 +48,11 @@ await page.route("**/api/**",async route=>{
     else if(q.probe_id==="d1")episode={...episode,phase:"practice",question:q2,diagnostic:{...episode.diagnostic,answered:2,status:"uncertain"},feedback:feedback("recorded",q)};
     else if(q.probe_id==="r1")episode={...episode,question:q3,feedback:feedback("correct",q,{answer:"13/42",independent:false})};
     else if(q.probe_id==="r2")episode={...episode,phase:"waiting",question:null,due_at:"2026-11-12T06:00:00Z",
-     evidence:{...episode.evidence,independent_practice:1},feedback:feedback("correct",q,{answer:"5/7",independent:true})};
+     schedule,evidence:{...episode.evidence,independent_practice:1},feedback:feedback("correct",q,{answer:"5/7",independent:true})};
     else if(q.probe_id==="r3")episode={...episode,phase:"transfer",question:{...q5,prompt_zh:"求 x 的值。",prompt_en:"Find x."},
      evidence:{...episode.evidence,delayed_review:1},feedback:feedback("correct",q,{answer:"5/8",independent:true})};
-    else episode={...episode,phase:"waiting",question:null,due_at:"2026-11-15T06:00:00Z",review_round:1,
+    else episode={...episode,phase:"waiting",question:null,due_at:"2026-11-14T06:00:00Z",review_round:1,
+     schedule:{...schedule,checkpoints:schedule.checkpoints.map(point=>point.day===1?{...point,completed_at:point.target_at}:point)},
      evidence:{...episode.evidence,structural_transfer:1},feedback:feedback("correct",q,{answer:"-1/42",independent:true})};
     receipts.set(data.request_id,structuredClone(episode));
     if(action==="answer"&&loseResponse){loseResponse=false;return route.abort("failed");}
@@ -103,6 +109,7 @@ try{
  await panel.getByText("Waiting for spaced review",{exact:true}).waitFor();
  assert.match(await panel.innerText(),/Delayed review\s*1/);
  assert.match(await panel.innerText(),/Changed-structure practice\s*1/);
+ for(const day of [1,3,7]) await panel.getByText(`Day ${day}`,{exact:true}).waitFor();
  for(const theme of ["light","dark"]){
   await page.emulateMedia({colorScheme:theme,reducedMotion:"reduce"});
   for(const [width,height] of [[1280,900],[375,812],[812,375]]){
@@ -121,11 +128,15 @@ try{
    await page.screenshot({path:path.join(output,`loop-records-${theme}-${width}.png`),animations:"disabled"});
   }
  }
+ const practice = page.getByRole("button",{name:"Try this variant"});
+ await Promise.all([page.waitForURL(url=>url.pathname==="/math-tutor" && url.searchParams.get("start")==="3x-4=11"),
+  practice.click()]);
  assert.deepEqual(errors,[]);
  const report={status:"PASS",scope:"synthetic browser API fixtures; no student data or learning-effect claims",checks:[
   "language and domain switches preserve draft","lost response retries same id","unknown answer stays ungraded","helped answer not independent",
   "feedback belongs to previous question","server-gated due review","review to structural transfer","reload preserves state",
-  "three viewports light/dark reduced-motion","visible keyboard focus and >=44px targets","record counts reachable by scrolling"],screenshots:12,errors,output};
+  "three viewports light/dark reduced-motion","visible keyboard focus and >=44px targets","record counts reachable by scrolling",
+  "days 1, 3 and 7 visible","targeted equation opens in a fresh tutoring session"],screenshots:12,errors,output};
  await writeFile(path.join(output,"browser-verification.json"),JSON.stringify(report,null,2)+"\n");
  console.log(JSON.stringify(report));
 }finally{await browser.close();}

@@ -1,6 +1,8 @@
 """Evidence-first public projections. Model probabilities stay internal."""
 from urllib.parse import urlencode
 
+from mathtutor.application.error_review import observed_errors
+
 from mathtutor.learning.diagnosis import RULES
 from mathtutor.learning.knowledge_tracing.events import (
     attributed_skill_ids, evidence_summary, has_verified_outcome,
@@ -101,6 +103,7 @@ def profile_projection(history, *, has_conversations=False, model_status="not_tr
         "total_attempts": sum(e.event_type == "attempt_assessed" and not e.duplicate_response for e in accepted),
         "active_misconceptions": len(misconceptions), "misconceptions": misconceptions,
         "item_error_observations": item_error_observations(accepted),
+        "review_observations": observed_errors(accepted, history),
         "has_conversations": has_conversations,
         "has_independent_evidence": any(e.independent_target for e in accepted)}
 
