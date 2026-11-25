@@ -42,7 +42,7 @@ def isolated(monkeypatch):
 
 def body(**changes):
     return {"inquiry_id": str(uuid4()), "generation": 0, "question": "√(x²)什么时候等于x？",
-            "goal": "compare", **changes}
+            "goal": "compare", "mode": "zhihu", **changes}
 
 
 def install(client):

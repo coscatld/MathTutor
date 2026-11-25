@@ -21,6 +21,7 @@ from mathtutor.application.exploration_learning import (
     grade_check,
     public_check,
 )
+from mathtutor.application.open_readings import OpenReadingSearch
 from mathtutor.infrastructure.zhihu import (
     ZhihuClient,
     ZhihuError,
@@ -32,18 +33,20 @@ from mathtutor.repositories.exploration_repository import (
 )
 
 POLICY = "zhihu_inquiry_v1"
+OPEN_POLICY = "open_inquiry_v1"
 
 
 class ExplorationService:
-    def __init__(self, engine, secret_store, *, client=None):
+    def __init__(self, engine, secret_store, *, client=None, open_search=None):
         self.repository = ExplorationRepository(engine)
         self.client = client or ZhihuClient(secret_store)
+        self.open_search = open_search or OpenReadingSearch()
 
     async def _load(self, owner, inquiry_id, revision=None):
         row = await self.repository.get(owner, inquiry_id)
         if row is None:
             raise LookupError("这个探索问题已不存在。")
-        if row["payload"].get("policy") != POLICY:
+        if row["payload"].get("policy") not in {POLICY, OPEN_POLICY}:
             raise ExplorationConflict("这份探索记录使用了不同规则，暂不能继续修改。")
         if revision is not None and row["revision"] != revision:
             raise ExplorationConflict("此问题已有更新，请重新打开后继续。")
@@ -70,7 +73,8 @@ class ExplorationService:
         })
         return {"inquiry_id": row["inquiry_id"], "revision": row["revision"], "updated_at": row["updated_at"],
                 "question": payload["question"], "goal": payload["goal"], "reflection": payload["reflection"],
-                "evidence": evidence,
+                "evidence": evidence, "mode": payload.get("mode", "zhihu"),
+                "retrieval_attempts": payload.get("retrieval_attempts", []),
                 "learning": self._learning(payload, language), "ai_status": payload["ai_status"],
                 "organization_attempts": payload["organization_attempts"],
                 "last_feedback": feedback, "last_check": last_check,
@@ -80,18 +84,27 @@ class ExplorationService:
     async def read(self, owner, inquiry_id, language="zh"):
         return self.public(await self._load(owner, inquiry_id), language)
 
-    async def create(self, owner, *, inquiry_id, generation, question, goal, language="zh"):
+    async def create(self, owner, *, inquiry_id, generation, question, goal, language="zh", mode=None):
         previous = await self.repository.get(owner, inquiry_id)
         if previous:
-            if previous["payload"]["question"] != question or previous["payload"]["goal"] != goal:
+            saved = previous["payload"]
+            if (saved["question"] != question or saved["goal"] != goal
+                    or mode is not None and mode != saved.get("mode", "zhihu")):
                 raise ExplorationConflict("同一个探索请求不能替换问题，请重新开始。")
             return self.public(previous, language)
         await self.repository.can_create(owner, generation)
-        result = await self.client.search(str(owner), question)
-        batch = build_source_snapshots(result["Items"], request_id=result["SearchHashId"],
-                                       retrieved_at=datetime.now(UTC).isoformat(), max_sources=6)
+        mode = mode or "open"
+        attempts = []
+        if mode == "zhihu":
+            result = await self.client.search(str(owner), question)
+            batch = build_source_snapshots(result["Items"], request_id=result["SearchHashId"],
+                                           retrieved_at=datetime.now(UTC).isoformat(), max_sources=6)
+        else:
+            batch, attempts = await self.open_search.search(question, language)
         evidence = compile_evidence_plan(batch, question=question, max_cards=6)
-        payload = {"policy": POLICY, "question": question, "goal": goal, "reflection": "",
+        payload = {"policy": OPEN_POLICY if mode == "open" else POLICY, "mode": mode,
+                   "retrieval_attempts": [a.model_dump() for a in attempts],
+                   "question": question, "goal": goal, "reflection": "",
                    "observations": [], "evidence": evidence.model_dump(mode="json"),
                    "ai_status": "not_requested", "organization_attempts": 0,
                    "last_feedback": "", "last_check": None, "last_correctness": None}
@@ -102,6 +115,8 @@ class ExplorationService:
     async def organize(self, owner, inquiry_id, *, revision, language="zh"):
         row = await self._load(owner, inquiry_id, revision)
         payload = deepcopy(row["payload"])
+        if payload.get("mode", "zhihu") != "zhihu":
+            raise ExplorationConflict("知乎整理仅适用于选择知乎问答的探索。")
         if payload["organization_attempts"] >= 2:
             raise ExplorationConflict("本次问题已整理两次，现有材料与阅读建议仍可使用。")
         evidence = EvidencePlan.model_validate(payload["evidence"])

@@ -188,6 +188,7 @@ class TestPositiveAllowlist:
                 "['DELETE'] /api/v2/math-tutor/desktop/exploration/configuration",
                 "['GET'] /api/v2/math-tutor/desktop/exploration/inquiries",
                 "['POST'] /api/v2/math-tutor/desktop/exploration/inquiries",
+                "['POST'] /api/v2/math-tutor/desktop/exploration/library",
                 "['GET'] /api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}",
                 "['DELETE'] /api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}",
                 "['POST'] /api/v2/math-tutor/desktop/exploration/inquiries/{inquiry_id}/organize",

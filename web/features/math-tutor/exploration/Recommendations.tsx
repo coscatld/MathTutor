@@ -148,6 +148,9 @@ export function LearningRecommendations() {
     {view.discovery?.resources.length ? <div className="mt-6"><h3 className="text-sm font-semibold">{t("本次发现")}</h3><ul className="mt-4 divide-y divide-[var(--border)]">{view.discovery.resources.map(resource => <ResourceRow key={resource.resource_id} resource={resource} />)}</ul></div> : null}
     {view.updated_at ? <p className="mt-4 text-sm text-[var(--muted-foreground)]">{t("探索更新于")} <time dateTime={view.updated_at}>{new Date(view.updated_at).toLocaleString()}</time></p> : null}
     {["failed", "not_configured", "rate_limited"].includes(view.status) ? <p role="status" className="mt-4 text-sm leading-6">{t(view.status === "not_configured" ? "连接知乎后可发现更多资料。" : "本次探索未完成，已保留可用的学习资料。")}</p> : null}
-    <Link href="/math-tutor/settings?section=sources" className="mt-4 inline-flex min-h-11 items-center gap-1 text-sm text-[var(--primary)]">{t("调整学习方向与探索设置")}<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>
+    <div className="mt-4 flex flex-wrap gap-x-5">
+      <Link href={{ pathname: "/math-tutor/explore", query: { topic: view.plan.target_label } }} className="inline-flex min-h-11 items-center gap-1 font-medium text-[var(--primary-text)]">{t("探索这个主题")}<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>
+      <Link href="/math-tutor/settings?section=sources" className="inline-flex min-h-11 items-center gap-1 text-sm text-[var(--primary-text)]">{t("调整学习方向与探索设置")}<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>
+    </div>
   </section>;
 }

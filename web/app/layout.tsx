@@ -9,7 +9,7 @@ import {I18nProvider} from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "MathTutor",
-  description: "面向学习者的桌面 AI 数学学习与知识探索软件，提供分级辅导、可验证练习和带来源的知乎资料。",
+  description: "面向学习者的桌面 AI 数学学习软件，提供分级辅导、可验证练习，以及百科、教材和本机文档的来源探究。",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

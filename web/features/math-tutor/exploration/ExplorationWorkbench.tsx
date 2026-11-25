@@ -6,16 +6,18 @@ import { ArrowRight, Plus, Search, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { productClass } from "@/styles/product-classes";
 import { useUnsavedNavigation } from "../hooks/useUnsavedNavigation";
-import { ExplorationApiError, explorationApi, type ExplorationConfiguration, type ExplorationView, type InquiryGoal, type InquiryLanguage, type InquiryList } from "./api";
+import { ExplorationApiError, explorationApi, type ExplorationConfiguration, type ExplorationView, type InquiryGoal, type InquiryLanguage, type InquiryList, type LibraryExcerpt } from "./api";
 import { ExplorationRequests } from "./requests";
-import { SourceCard, SourceComparison } from "./SourceReading";
+import { LibraryReadings, RetrievalStatus, SourceCard, SourceComparison } from "./SourceReading";
 import LearningPanel from "./LearningPanel";
 
 const goals: Array<[InquiryGoal, string]> = [["understand", "理解概念"], ["apply", "学会应用"], ["compare", "对照解法"]];
 const samples = ["为什么 0.999… 等于 1？", "方程两边同时除以 x，什么时候会丢解？", "为什么函数连续不一定可导？"];
-type Operation = "load" | "search" | "open" | "organize" | "reflect" | "respond" | "explain" | "delete";
+type Operation = "load" | "search" | "library" | "open" | "organize" | "reflect" | "respond" | "explain" | "delete";
+type SourceMode = "open" | "zhihu" | "library";
+const sourceModes: Array<[SourceMode, string]> = [["open", "开放数学资料"], ["library", "我的本机资料"], ["zhihu", "知乎问答"]];
 const operationLabels: Record<Operation, string> = {
-  load: "正在同步探索记录…", search: "正在检索知乎来源…", open: "正在打开探索…", organize: "正在整理阅读问题…",
+  load: "正在同步探索记录…", search: "正在检索所选来源…", library: "正在检索本机资料…", open: "正在打开探索…", organize: "正在整理阅读问题…",
   reflect: "正在保存理解记录…", respond: "正在检查回答…", explain: "正在打开解释…", delete: "正在删除探索…",
 };
 
@@ -23,13 +25,16 @@ function summaryOf(view: ExplorationView): InquiryList["items"][number] {
   return { inquiry_id: view.inquiry_id, question: view.question, goal: view.goal, revision: view.revision, updated_at: view.updated_at };
 }
 
-export default function ExplorationWorkbench() {
+export default function ExplorationWorkbench({ initialTopic = "" }: { initialTopic?: string } = {}) {
   const { t, locale } = useI18n();
   const language: InquiryLanguage = locale === "en" ? "en" : "zh";
   const [configuration, setConfiguration] = useState<ExplorationConfiguration | null>(null);
   const [history, setHistory] = useState<InquiryList | null>(null);
   const [view, setView] = useState<ExplorationView | null>(null);
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialTopic);
+  const [mode, setMode] = useState<SourceMode>("open");
+  const [localResult, setLocalResult] = useState<LibraryExcerpt[] | null>(null);
+  const [connectionFailed, setConnectionFailed] = useState(false);
   const [goal, setGoal] = useState<InquiryGoal>("understand");
   const [reflection, setReflection] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -44,7 +49,7 @@ export default function ExplorationWorkbench() {
   const questionRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const dirty = Boolean(view && reflection !== view.reflection);
-  useUnsavedNavigation(dirty ? t("你的理解记录尚未保存。") : !view && question.trim() ? t("探索问题尚未提交。") : "", undefined, `${view?.inquiry_id}:${reflection}:${question}`);
+  useUnsavedNavigation(dirty ? t("你的理解记录尚未保存。") : !view && mode !== "library" && question.trim() ? t("探索问题尚未提交。") : "", undefined, `${view?.inquiry_id}:${reflection}:${question}`);
 
   const acceptView = useCallback((value: ExplorationView, replaceDraft = false) => {
     const changedInquiry = viewRef.current?.inquiry_id !== value.inquiry_id;
@@ -61,15 +66,14 @@ export default function ExplorationWorkbench() {
     setBusy("load"); setError("");
     const currentId = viewRef.current?.inquiry_id;
     void (async () => {
-      const [configResult, listResult, viewResult] = await Promise.allSettled([
-        explorationApi.configuration(request.signal), explorationApi.list(request.signal),
+      const [listResult, viewResult] = await Promise.allSettled([
+        explorationApi.list(request.signal),
         currentId ? explorationApi.read(currentId, language, request.signal) : Promise.resolve(null),
       ]);
       if (!owner.accepts(request)) return;
-      if (configResult.status === "fulfilled") setConfiguration(configResult.value);
       if (listResult.status === "fulfilled") setHistory(listResult.value);
       if (viewResult.status === "fulfilled" && viewResult.value) acceptView(viewResult.value);
-      const failure = [configResult, listResult, viewResult].find(result => result.status === "rejected");
+      const failure = [listResult, viewResult].find(result => result.status === "rejected");
       if (failure?.status === "rejected") {
         setError(t(failure.reason instanceof ExplorationApiError ? failure.reason.message : "探索记录暂不可用，请重试。"));
         setNeedsRefresh(true);
@@ -79,7 +83,32 @@ export default function ExplorationWorkbench() {
     return () => owner.cancel();
   }, [language, reload, acceptView, t]);
 
+  useEffect(() => {
+    if (mode !== "zhihu") return;
+    const controller = new AbortController();
+    setConnectionFailed(false);
+    explorationApi.configuration(controller.signal).then(value => {
+      if (!controller.signal.aborted) setConfiguration(value);
+    }).catch(() => { if (!controller.signal.aborted) setConnectionFailed(true); });
+    return () => controller.abort();
+  }, [mode, reload]);
+
   useEffect(() => { if (view?.inquiry_id) titleRef.current?.focus({ preventScroll: true }); }, [view?.inquiry_id]);
+
+  useEffect(() => {
+    const clearOwner = () => {
+      requests.current.cancel(); viewRef.current = null; reflectionRef.current = "";
+      setView(null); setHistory(null); setConfiguration(null); setLocalResult(null); setMode("open");
+      setQuestion(""); setReflection(""); setSelected([]); setNotice(""); setError(""); setBusy("load");
+    };
+    const loadOwner = () => setReload(value => value + 1);
+    window.addEventListener("mathtutor-identity-changing", clearOwner);
+    window.addEventListener("mathtutor-identity-changed", loadOwner);
+    return () => {
+      window.removeEventListener("mathtutor-identity-changing", clearOwner);
+      window.removeEventListener("mathtutor-identity-changed", loadOwner);
+    };
+  }, []);
 
   async function run<T>(kind: Operation, action: (signal: AbortSignal) => Promise<T>, apply: (value: T) => void) {
     if (requests.current.busy) return;
@@ -102,19 +131,24 @@ export default function ExplorationWorkbench() {
   const reset = () => {
     if (requests.current.busy || !confirmDiscard()) return;
     viewRef.current = null; reflectionRef.current = "";
-    setView(null); setReflection(""); setQuestion(""); setSelected([]); setError(""); setNotice(""); setNeedsRefresh(false);
+    setView(null); setReflection(""); setQuestion(""); setMode("open"); setLocalResult(null); setSelected([]); setError(""); setNotice(""); setNeedsRefresh(false);
     requestAnimationFrame(() => questionRef.current?.focus());
   };
   const create = () => {
-    if (!history || !configuration?.configured || question.trim().length < 2 || needsRefresh) return;
+    if (question.trim().length < 2) return;
+    if (mode === "library") {
+      void run("library", signal => explorationApi.library(question.trim(), signal), setLocalResult);
+      return;
+    }
+    if (!history || (mode === "zhihu" && !configuration?.configured) || needsRefresh) return;
     const inquiryId = crypto.randomUUID();
-    void run("search", signal => explorationApi.create({ inquiry_id: inquiryId, generation: history.generation, question: question.trim(), goal, language }, signal), value => {
+    void run("search", signal => explorationApi.create({ inquiry_id: inquiryId, generation: history.generation, question: question.trim(), goal, language, mode }, signal), value => {
       acceptView(value, true); setQuestion("");
     });
   };
   const open = (id: string) => {
     if (id === view?.inquiry_id || !confirmDiscard()) return;
-    if (!view && question.trim() && !window.confirm(t("探索问题尚未提交。要放弃这个问题吗？"))) return;
+    if (!view && mode !== "library" && question.trim() && !window.confirm(t("探索问题尚未提交。要放弃这个问题吗？"))) return;
     void run("open", signal => explorationApi.read(id, language, signal), value => { acceptView(value, true); setQuestion(""); });
   };
   const remove = (id: string) => {
@@ -135,14 +169,14 @@ export default function ExplorationWorkbench() {
     <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-6">
       <div><p className="text-sm font-semibold tracking-wide text-[var(--primary-text)]">{t("知识探索")}</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{t("让一个问题，通向更清楚的理解。")}</h1>
-        <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted-foreground)]">{t("读知乎原文，对照解法的条件，再用一道题检验自己。")}</p>
+        <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted-foreground)]">{t("从百科、教材或自己的资料中找依据，对照解法的条件。")}</p>
       </div>
       {view ? <button type="button" onClick={reset} disabled={Boolean(busy)} className={productClass("mt-btn min-h-11")}><Plus className="h-4 w-4" aria-hidden="true" />{t("新问题")}</button> : null}
     </header>
 
     {busy || notice ? <div className="mt-4 flex flex-wrap items-center gap-3" role="status" aria-live="polite">
       <p className="text-sm leading-6 text-[var(--muted-foreground)]">{busy ? t(operationLabels[busy]) : notice}</p>
-      {busy && ["search", "organize", "open"].includes(busy) ? <button type="button" className={productClass("mt-btn mt-btn-ghost min-h-11")} onClick={() => {
+      {busy && ["search", "library", "organize", "open"].includes(busy) ? <button type="button" className={productClass("mt-btn mt-btn-ghost min-h-11")} onClick={() => {
         requests.current.cancel(); setBusy(null); setNotice(t("请求已取消。")); setNeedsRefresh(true); setReload(value => value + 1);
       }}>{t("取消请求")}</button> : null}
     </div> : null}
@@ -155,24 +189,31 @@ export default function ExplorationWorkbench() {
       <section aria-labelledby="question-label">
         <form onSubmit={event => { event.preventDefault(); create(); }}>
           <label id="question-label" htmlFor="exploration-question" className="block text-lg font-semibold">{t("你想弄清什么？")}</label>
-          <textarea ref={questionRef} id="exploration-question" value={question} onChange={event => setQuestion(event.target.value)}
+          <textarea ref={questionRef} id="exploration-question" value={question} onChange={event => { setQuestion(event.target.value); setLocalResult(null); }}
             minLength={2} maxLength={200} rows={3} required disabled={Boolean(busy)} placeholder={t("写一个具体的数学问题")}
             className={productClass("mt-input mt-4 h-auto min-h-[120px] resize-y py-3 text-base leading-7")} />
-          <fieldset className="mt-5" disabled={Boolean(busy)}><legend className="mb-2 text-sm font-medium">{t("这次的目标")}</legend>
+          <fieldset className="mt-5" disabled={Boolean(busy)}><legend className="mb-2 text-sm font-medium">{t("资料来源")}</legend>
+            <div className="flex flex-wrap gap-2">{sourceModes.map(([value, label]) => <label key={value} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${mode === value ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]" : "border-[var(--border)]"}`}>
+              <input type="radio" name="exploration-source" value={value} checked={mode === value} onChange={() => { setMode(value); setLocalResult(null); }} className="h-4 w-4 accent-[var(--primary)]" />{t(label)}
+            </label>)}</div>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{t(mode === "open" ? "免密钥查询维基百科和维基教科书，按主题补充内置教材。仅发送这次的查询词。" : mode === "library" ? "仅在本机检索你已允许使用的文档和 PDF。" : "使用已连接的知乎账号检索社区问答。")}</p>
+          </fieldset>
+          {mode !== "library" && <fieldset className="mt-5" disabled={Boolean(busy)}><legend className="mb-2 text-sm font-medium">{t("这次的目标")}</legend>
             <div className="flex flex-wrap gap-2">{goals.map(([value, label]) => <label key={value} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${goal === value ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]" : "border-[var(--border)]"}`}>
               <input type="radio" name="exploration-goal" value={value} checked={goal === value} onChange={() => setGoal(value)} className="h-4 w-4 accent-[var(--primary)]" />{t(label)}
             </label>)}</div>
-          </fieldset>
-          <button type="submit" disabled={Boolean(busy) || !history || !configuration?.configured || question.trim().length < 2 || needsRefresh}
-            className={productClass("mt-btn mt-btn-primary mt-5 min-h-11")}><Search className="h-4 w-4" aria-hidden="true" />{t("开始探索")}</button>
+          </fieldset>}
+          <button type="submit" disabled={Boolean(busy) || (mode !== "library" && (!history || needsRefresh)) || (mode === "zhihu" && !configuration?.configured) || question.trim().length < 2}
+            className={productClass("mt-btn mt-btn-primary mt-5 min-h-11")}><Search className="h-4 w-4" aria-hidden="true" />{t(mode === "library" ? "查找本机资料" : "开始探索")}</button>
         </form>
-        {configuration && !configuration.configured ? <div className="mt-5 rounded-lg bg-[var(--muted)] p-4 text-sm leading-7">
-          <p>{t("先连接知乎，即可检索真实问答。已保存的探索仍可继续阅读。")}</p>
+        {mode === "library" && <LibraryReadings items={localResult} />}
+        {mode === "zhihu" && (connectionFailed || (configuration && !configuration.configured)) ? <div className="mt-5 rounded-lg bg-[var(--muted)] p-4 text-sm leading-7">
+          <p>{t(connectionFailed ? "连接状态暂不可用，请重试。" : "先连接知乎，即可检索真实问答。已保存的探索仍可继续阅读。")}</p>
           <Link href="/math-tutor/settings?section=sources" className="inline-flex min-h-11 items-center gap-2 font-medium text-[var(--primary-text)]">{t("连接知乎")}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
         </div> : null}
         <div className="mt-8"><p className="text-sm font-medium text-[var(--muted-foreground)]">{t("从这些问题开始")}</p>
           <ul className="mt-2 divide-y divide-[var(--border)]">{samples.map(sample => <li key={sample}><button type="button" disabled={Boolean(busy)}
-            onClick={() => { setQuestion(t(sample)); questionRef.current?.focus(); }} className="flex min-h-11 w-full items-center justify-between gap-3 py-3 text-left text-sm leading-6 hover:text-[var(--primary-text)]">
+            onClick={() => { setQuestion(t(sample)); setLocalResult(null); questionRef.current?.focus(); }} className="flex min-h-11 w-full items-center justify-between gap-3 py-3 text-left text-sm leading-6 hover:text-[var(--primary-text)]">
             <span>{t(sample)}</span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
           </button></li>)}</ul>
         </div>
@@ -192,18 +233,24 @@ export default function ExplorationWorkbench() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
               <div><h2 id="sources-title" className="text-xl font-semibold">{t("先看来源")}</h2>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{t("检索到 {count} 段不同摘录", { count: view.evidence.distinct_excerpt_count })}</p></div>
-              <button type="button" disabled={mutationDisabled || !view.evidence.cards.length || view.organization_attempts >= 2}
+              {(view.mode ?? "zhihu") === "zhihu" && <button type="button" disabled={mutationDisabled || !view.evidence.cards.length || view.organization_attempts >= 2}
                 onClick={() => void run("organize", signal => explorationApi.organize(view, language, signal), acceptView)}
-                className={productClass("mt-btn min-h-11")}>{t(view.organization_attempts >= 2 ? "已用完本次整理次数" : view.ai_status === "not_requested" ? "AI 整理阅读问题" : "重新整理")}</button>
+                className={productClass("mt-btn min-h-11")}>{t(view.organization_attempts >= 2 ? "已用完本次整理次数" : view.ai_status === "not_requested" ? "AI 整理阅读问题" : "重新整理")}</button>}
             </div>
-            <p className="mt-4 text-sm leading-7 text-[var(--muted-foreground)]">{t("这里展示检索摘录；公式和上下文请回到原文核对。选两条摘录，比较适用条件。")}</p>
+            <RetrievalStatus attempts={view.retrieval_attempts ?? []} onRetry={busy ? undefined : () => {
+              if (!confirmDiscard()) return;
+              viewRef.current = null; reflectionRef.current = "";
+              setQuestion(view.question); setGoal(view.goal); setMode("open"); setView(null); setSelected([]); setReflection("");
+              requestAnimationFrame(() => questionRef.current?.focus());
+            }} />
+            <p className="mt-4 text-sm leading-7 text-[var(--muted-foreground)]">{t("选两条摘录对照适用条件，可打开原文核对公式。")}</p>
             <p className="mt-1 text-sm leading-7 text-[var(--muted-foreground)]">{t("来源中的数学结论仍需核对。")}</p>
             {view.ai_status === "unavailable" ? <p role="status" className="mt-3 text-sm leading-7 text-[var(--warning)]">{t("AI 整理未能完整完成，现有来源仍可阅读和对照。")}</p> : null}
             <SourceComparison cards={view.evidence.cards.filter(card => selected.includes(card.span_id))} comparisons={view.evidence.comparisons} onClear={() => setSelected([])} />
             {view.evidence.cards.length ? view.evidence.cards.map((card, index) => {
               const source = view.evidence.sources.find(item => item.source_id === card.source_id);
               return <SourceCard key={card.span_id} card={card} index={index} selected={selected.includes(card.span_id)} selectionFull={selected.length >= 2}
-                sourceText={source?.text} warnings={source?.content_warnings}
+                sourceText={source?.text} retrievedAt={source?.retrieved_at} warnings={source?.content_warnings}
                 onSelect={() => setSelected(previous => previous.includes(card.span_id) ? previous.filter(id => id !== card.span_id) : previous.length < 2 ? [...previous, card.span_id] : previous)} />;
             }) : <div className="py-10"><h3 className="font-semibold">{t("还没有可用的来源摘录")}</h3><p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">{t("试着在新问题中补充概念、条件或具体例子。你仍可以完成右侧的理解检查。")}</p></div>}
           </section>

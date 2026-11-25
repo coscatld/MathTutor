@@ -42,7 +42,7 @@ const {
   resolveWebRoot,
 } = require("./runtime/paths");
 const { claimSingleInstance, monitorService, waitForService } = require("./runtime/startup");
-const { validBridgeHeader, rendererHeaders, secretRedactor, isZhihuSourceLink } = require("./runtime/transport-boundary");
+const { validBridgeHeader, rendererHeaders, secretRedactor, isReadingLink } = require("./runtime/transport-boundary");
 // Per-process capability: only main and the two controlled child servers see
 // it. Never use NEXT_PUBLIC_, preload globals, URLs, or logs for this value.
 const bridgeSecret = crypto.randomBytes(32).toString("hex");
@@ -1545,7 +1545,7 @@ app.whenReady().then(async () => {
     callback({ requestHeaders: rendererHeaders(details, win.webContents.id, frontendUrl, bridgeSecret) });
   });
   function openSourceLink(target) {
-    if (!isZhihuSourceLink(target) || !win.webContents.getURL().startsWith(frontendUrl + "/")) return;
+    if (!isReadingLink(target) || !win.webContents.getURL().startsWith(frontendUrl + "/")) return;
     shell.openExternal(target).catch(() => {
       dialog.showErrorBox("MathTutor", app.getLocale().startsWith("zh")
         ? "无法打开原文，请检查默认浏览器设置。" : "Could not open the source. Check your default browser settings.");

@@ -1,6 +1,37 @@
 {
   "components": {
     "schemas": {
+      "Attribution": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "enum": [
+              "en",
+              "zh"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "license": {
+            "const": "CC BY-SA 4.0",
+            "default": "CC BY-SA 4.0",
+            "title": "License",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "language",
+          "version"
+        ],
+        "title": "Attribution",
+        "type": "object"
+      },
       "BackupActionResult": {
         "anyOf": [
           {
@@ -1687,6 +1718,16 @@
       "EvidenceCard": {
         "additionalProperties": false,
         "properties": {
+          "attribution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Attribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "author": {
             "anyOf": [
               {
@@ -1710,6 +1751,18 @@
           },
           "original_url": {
             "title": "Original Url",
+            "type": "string"
+          },
+          "provider": {
+            "default": "zhihu",
+            "enum": [
+              "zhihu",
+              "wikipedia",
+              "wikibooks",
+              "active_calculus",
+              "open_math_books"
+            ],
+            "title": "Provider",
             "type": "string"
           },
           "quote": {
@@ -1744,8 +1797,12 @@
             "type": "string"
           },
           "source_scope": {
-            "const": "search_excerpt",
             "default": "search_excerpt",
+            "enum": [
+              "search_excerpt",
+              "page_excerpt",
+              "textbook_excerpt"
+            ],
             "title": "Source Scope",
             "type": "string"
           },
@@ -2122,6 +2179,15 @@
           "learning": {
             "$ref": "#/components/schemas/LearningPlan"
           },
+          "mode": {
+            "default": "zhihu",
+            "enum": [
+              "open",
+              "zhihu"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "observation_count": {
             "title": "Observation Count",
             "type": "integer"
@@ -2137,6 +2203,13 @@
           "reflection": {
             "title": "Reflection",
             "type": "string"
+          },
+          "retrieval_attempts": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievalAttempt"
+            },
+            "title": "Retrieval Attempts",
+            "type": "array"
           },
           "revision": {
             "title": "Revision",
@@ -2465,6 +2538,22 @@
             ],
             "title": "Language",
             "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "zhihu"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New inquiries default to open. Replays retain the saved source.",
+            "title": "Mode"
           },
           "question": {
             "maxLength": 200,
@@ -3230,6 +3319,87 @@
           "reason"
         ],
         "title": "LearningStep",
+        "type": "object"
+      },
+      "LibraryExcerpt": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk_id": {
+            "format": "uuid",
+            "title": "Chunk Id",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "page_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page End"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "document_id",
+          "chunk_id",
+          "filename",
+          "page",
+          "page_end",
+          "section",
+          "text",
+          "truncated"
+        ],
+        "title": "LibraryExcerpt",
+        "type": "object"
+      },
+      "LibraryQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "question": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "LibraryQuery",
         "type": "object"
       },
       "LocalEmbeddingDownloadRequest": {
@@ -4395,6 +4565,48 @@
         "title": "RecommendationView",
         "type": "object"
       },
+      "RetrievalAttempt": {
+        "properties": {
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "language": {
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "wikipedia",
+              "wikibooks"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "found",
+              "empty",
+              "unavailable",
+              "rate_limited"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "language",
+          "status"
+        ],
+        "title": "RetrievalAttempt",
+        "type": "object"
+      },
       "RetrievalToggle": {
         "properties": {
           "enabled": {
@@ -4785,6 +4997,16 @@
       "SourceSnapshot": {
         "additionalProperties": false,
         "properties": {
+          "attribution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Attribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "author": {
             "anyOf": [
               {
@@ -4824,8 +5046,11 @@
             "title": "Duplicate Of"
           },
           "normalization": {
-            "const": "zhihu-highlight-v1",
             "default": "zhihu-highlight-v1",
+            "enum": [
+              "zhihu-highlight-v1",
+              "public-text-v1"
+            ],
             "title": "Normalization",
             "type": "string"
           },
@@ -4834,8 +5059,14 @@
             "type": "string"
           },
           "provider": {
-            "const": "zhihu",
             "default": "zhihu",
+            "enum": [
+              "zhihu",
+              "wikipedia",
+              "wikibooks",
+              "active_calculus",
+              "open_math_books"
+            ],
             "title": "Provider",
             "type": "string"
           },
@@ -4861,8 +5092,12 @@
             "type": "string"
           },
           "scope": {
-            "const": "search_excerpt",
             "default": "search_excerpt",
+            "enum": [
+              "search_excerpt",
+              "page_excerpt",
+              "textbook_excerpt"
+            ],
             "title": "Scope",
             "type": "string"
           },
@@ -7898,6 +8133,82 @@
           }
         },
         "summary": "Respond"
+      }
+    },
+    "/api/v2/math-tutor/desktop/exploration/library": {
+      "post": {
+        "operationId": "search_library_api_v2_math_tutor_desktop_exploration_library_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryExcerpt"
+                  },
+                  "title": "Response Search Library Api V2 Math Tutor Desktop Exploration Library Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Library"
       }
     },
     "/api/v2/math-tutor/desktop/initial-assessment": {

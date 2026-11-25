@@ -23,6 +23,8 @@ _CONTENT_PATH = re.compile(
 )
 _ALLOWED_HOSTS = frozenset({"zhihu.com", "www.zhihu.com", "zhuanlan.zhihu.com"})
 SpanId = Annotated[str, Field(min_length=1, max_length=80)]
+SourceProvider = Literal["zhihu", "wikipedia", "wikibooks", "active_calculus", "open_math_books"]
+ExcerptScope = Literal["search_excerpt", "page_excerpt", "textbook_excerpt"]
 
 
 class Frozen(BaseModel):
@@ -44,14 +46,15 @@ def _source_id(
     title: str,
     author: str | None,
     raw_hash: str,
+    provenance: tuple[str, ...] = (),
 ) -> str:
     payload = json.dumps(
-        [content_id, content_type, url, title, author, raw_hash], ensure_ascii=False
+        [content_id, content_type, url, title, author, raw_hash, *provenance], ensure_ascii=False
     )
     return "S-" + text_hash(payload)[:24]
 
 
-def safe_source_url(value: object) -> str | None:
+def safe_source_url(value: object, provider: SourceProvider = "zhihu") -> str | None:
     if not isinstance(value, str) or len(value) > 2_048 or not value:
         return None
     if any(ord(char) < 33 or ord(char) == 127 for char in value) or "\\" in value:
@@ -60,21 +63,39 @@ def safe_source_url(value: object) -> str | None:
         parsed = urlsplit(value)
         if (
             parsed.scheme != "https"
-            or parsed.hostname not in _ALLOWED_HOSTS
             or parsed.username is not None
             or parsed.password is not None
             or parsed.port not in (None, 443)
-            or not _CONTENT_PATH.fullmatch(parsed.path)
         ):
+            return None
+        if provider == "zhihu":
+            allowed = parsed.hostname in _ALLOWED_HOSTS and _CONTENT_PATH.fullmatch(parsed.path)
+        elif provider in ("wikipedia", "wikibooks"):
+            allowed = (parsed.hostname in {f"en.{provider}.org", f"zh.{provider}.org"}
+                       and parsed.path == "/w/index.php" and re.fullmatch(r"oldid=[1-9][0-9]*", parsed.query)
+                       and not parsed.fragment)
+        else:
+            allowed = value in {
+                "active_calculus": {"https://activecalculus.org/single/sec-1-7-lim-cont-diff.html"},
+                "open_math_books": {"https://discrete.openmathbooks.org/dmoi3/sec_logic-proofs.html"},
+            }.get(provider, set())
+        if not allowed:
             return None
     except ValueError:
         return None
     return value
 
 
+class Attribution(Frozen):
+    language: Literal["en", "zh"]
+    version: str = Field(min_length=1, max_length=120)
+    license: Literal["CC BY-SA 4.0"] = "CC BY-SA 4.0"
+
+
 class SourceSnapshot(Frozen):
     source_id: str
-    provider: Literal["zhihu"] = "zhihu"
+    provider: SourceProvider = "zhihu"
+    attribution: Attribution | None = None
     content_id: str
     content_type: str
     title: str
@@ -82,26 +103,29 @@ class SourceSnapshot(Frozen):
     original_url: str
     request_id: str
     retrieved_at: str
-    scope: Literal["search_excerpt"] = "search_excerpt"
+    scope: ExcerptScope = "search_excerpt"
     raw_excerpt: str = Field(max_length=MAX_EXCERPT_CHARS)
     raw_excerpt_sha256: str
     received_text_sha256: str
     text: str = Field(max_length=MAX_EXCERPT_CHARS)
     text_sha256: str
-    normalization: Literal["zhihu-highlight-v1"] = "zhihu-highlight-v1"
+    normalization: Literal["zhihu-highlight-v1", "public-text-v1"] = "zhihu-highlight-v1"
     truncated: bool = False
     duplicate_of: str | None = None
     content_warnings: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def validate_snapshot(self) -> SourceSnapshot:
-        if safe_source_url(self.original_url) is None:
+        if safe_source_url(self.original_url, self.provider) is None:
             raise ValueError("invalid source URL")
+        legacy = self.provider == "zhihu"
+        if legacy != (self.attribution is None) or legacy != (self.normalization == "zhihu-highlight-v1"):
+            raise ValueError("invalid provider attribution")
         if self.raw_excerpt_sha256 != text_hash(
             self.raw_excerpt
         ) or self.text_sha256 != text_hash(self.text):
             raise ValueError("snapshot hash mismatch")
-        if self.text != _normalize(self.raw_excerpt):
+        if self.text != (_normalize(self.raw_excerpt) if legacy else self.raw_excerpt):
             raise ValueError("snapshot normalization mismatch")
         if not self.truncated and self.received_text_sha256 != self.raw_excerpt_sha256:
             raise ValueError("untruncated snapshot must contain the received text")
@@ -112,11 +136,32 @@ class SourceSnapshot(Frozen):
             self.title,
             self.author,
             self.raw_excerpt_sha256,
+            self.provenance_key(),
         )
         if self.source_id != expected:
             raise ValueError("source identity mismatch")
         _retrieved_time(self.retrieved_at)
         return self
+
+    def provenance_key(self) -> tuple[str, ...]:
+        if self.attribution is None:
+            return ()
+        return (self.provider, self.scope, self.attribution.language, self.attribution.version, self.attribution.license)
+
+
+def public_snapshot(*, provider: SourceProvider, content_id: str, content_type: str, title: str, author: str,
+                    url: str, text: str, scope: ExcerptScope, attribution: Attribution, retrieved_at: str,
+                    request_id: str, warnings: tuple[str, ...] = ()) -> SourceSnapshot:
+    excerpt = text[:1000]
+    digest = text_hash(excerpt)
+    provenance = (provider, scope, attribution.language, attribution.version, attribution.license)
+    return SourceSnapshot(
+        source_id=_source_id(content_id, content_type, url, title, author, digest, provenance),
+        provider=provider, content_id=content_id, content_type=content_type, title=title, author=author,
+        original_url=url, request_id=request_id, retrieved_at=retrieved_at, scope=scope, attribution=attribution,
+        raw_excerpt=excerpt, text=excerpt, raw_excerpt_sha256=digest, received_text_sha256=text_hash(text), text_sha256=digest,
+        normalization="public-text-v1", content_warnings=warnings, truncated=len(excerpt) < len(text),
+    )
 
 
 class SourceRejection(Frozen):
@@ -200,6 +245,8 @@ class EvidenceCandidate(Frozen):
 
 class EvidenceCard(Frozen):
     source_id: str
+    provider: SourceProvider = "zhihu"
+    attribution: Attribution | None = None
     span_id: str
     title: str
     author: str | None
@@ -207,7 +254,7 @@ class EvidenceCard(Frozen):
     quote: str
     context: str
     quote_integrity: Literal["exact_snapshot_text"] = "exact_snapshot_text"
-    source_scope: Literal["search_excerpt"] = "search_excerpt"
+    source_scope: ExcerptScope = "search_excerpt"
     semantic_support: Literal["not_evaluated"] = "not_evaluated"
     mathematical_status: Literal["not_evaluated"] = "not_evaluated"
     reading_question: str | None = None
@@ -464,6 +511,9 @@ def compile_evidence_plan(
         cards.append(
             EvidenceCard(
                 source_id=source.source_id,
+                provider=source.provider,
+                attribution=source.attribution,
+                source_scope=source.scope,
                 span_id=span.span_id,
                 title=source.title,
                 author=source.author,
@@ -517,11 +567,10 @@ def compile_evidence_plan(
         for source in snapshots
         if source.duplicate_of is None and source.source_id not in selected_ids
     )
-    gaps = (
-        [EvidenceGap(code="search_excerpt_scope", source_ids=tuple(source_map))]
-        if snapshots
-        else [EvidenceGap(code="no_usable_sources")]
-    )
+    gaps = [] if snapshots else [EvidenceGap(code="no_usable_sources")]
+    excerpt_ids = tuple(source.source_id for source in snapshots if source.scope == "search_excerpt")
+    if excerpt_ids:
+        gaps.append(EvidenceGap(code="search_excerpt_scope", source_ids=excerpt_ids))
     for source in snapshots:
         gaps.extend(
             EvidenceGap(code=warning, source_ids=(source.source_id,))

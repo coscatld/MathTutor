@@ -478,6 +478,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/math-tutor/desktop/exploration/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search Library */
+        post: operations["search_library_api_v2_math_tutor_desktop_exploration_library_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/math-tutor/desktop/initial-assessment": {
         parameters: {
             query?: never;
@@ -1447,6 +1464,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Attribution */
+        Attribution: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "zh";
+            /**
+             * License
+             * @default CC BY-SA 4.0
+             * @constant
+             */
+            license?: "CC BY-SA 4.0";
+            /** Version */
+            version: string;
+        };
         BackupActionResult: components["schemas"]["BackupActionResultVariant1"] | components["schemas"]["BackupActionResultVariant2"];
         /** BackupActionResultVariant1 */
         BackupActionResultVariant1: {
@@ -1963,6 +1996,7 @@ export interface components {
         };
         /** EvidenceCard */
         EvidenceCard: {
+            attribution?: components["schemas"]["Attribution"] | null;
             /** Author */
             author: string | null;
             /** Context */
@@ -1975,6 +2009,12 @@ export interface components {
             mathematical_status?: "not_evaluated";
             /** Original Url */
             original_url: string;
+            /**
+             * Provider
+             * @default zhihu
+             * @enum {string}
+             */
+            provider?: "zhihu" | "wikipedia" | "wikibooks" | "active_calculus" | "open_math_books";
             /** Quote */
             quote: string;
             /**
@@ -1996,9 +2036,9 @@ export interface components {
             /**
              * Source Scope
              * @default search_excerpt
-             * @constant
+             * @enum {string}
              */
-            source_scope?: "search_excerpt";
+            source_scope?: "search_excerpt" | "page_excerpt" | "textbook_excerpt";
             /** Span Id */
             span_id: string;
             /** Title */
@@ -2131,6 +2171,12 @@ export interface components {
             /** Last Feedback */
             last_feedback: string;
             learning: components["schemas"]["LearningPlan"];
+            /**
+             * Mode
+             * @default zhihu
+             * @enum {string}
+             */
+            mode?: "open" | "zhihu";
             /** Observation Count */
             observation_count: number;
             /** Organization Attempts */
@@ -2139,6 +2185,8 @@ export interface components {
             question: string;
             /** Reflection */
             reflection: string;
+            /** Retrieval Attempts */
+            retrieval_attempts?: components["schemas"]["RetrievalAttempt"][];
             /** Revision */
             revision: number;
             /** Updated At */
@@ -2253,6 +2301,11 @@ export interface components {
              * @enum {string}
              */
             language?: "zh" | "en";
+            /**
+             * Mode
+             * @description New inquiries default to open. Replays retain the saved source.
+             */
+            mode?: ("open" | "zhihu") | null;
             /** Question */
             question: string;
         };
@@ -2526,6 +2579,36 @@ export interface components {
             step_id: string;
             /** Title */
             title: string;
+        };
+        /** LibraryExcerpt */
+        LibraryExcerpt: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Page */
+            page: number | null;
+            /** Page End */
+            page_end: number | null;
+            /** Section */
+            section: string;
+            /** Text */
+            text: string;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** LibraryQuery */
+        LibraryQuery: {
+            /** Question */
+            question: string;
         };
         /** LocalEmbeddingDownloadRequest */
         LocalEmbeddingDownloadRequest: {
@@ -2852,6 +2935,29 @@ export interface components {
             /** Updated At */
             updated_at: string | null;
         };
+        /** RetrievalAttempt */
+        RetrievalAttempt: {
+            /**
+             * Count
+             * @default 0
+             */
+            count?: number;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "zh" | "en";
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "wikipedia" | "wikibooks";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "found" | "empty" | "unavailable" | "rate_limited";
+        };
         /** RetrievalToggle */
         RetrievalToggle: {
             /** Enabled */
@@ -2970,6 +3076,7 @@ export interface components {
         };
         /** SourceSnapshot */
         SourceSnapshot: {
+            attribution?: components["schemas"]["Attribution"] | null;
             /** Author */
             author: string | null;
             /** Content Id */
@@ -2986,17 +3093,17 @@ export interface components {
             /**
              * Normalization
              * @default zhihu-highlight-v1
-             * @constant
+             * @enum {string}
              */
-            normalization?: "zhihu-highlight-v1";
+            normalization?: "zhihu-highlight-v1" | "public-text-v1";
             /** Original Url */
             original_url: string;
             /**
              * Provider
              * @default zhihu
-             * @constant
+             * @enum {string}
              */
-            provider?: "zhihu";
+            provider?: "zhihu" | "wikipedia" | "wikibooks" | "active_calculus" | "open_math_books";
             /** Raw Excerpt */
             raw_excerpt: string;
             /** Raw Excerpt Sha256 */
@@ -3010,9 +3117,9 @@ export interface components {
             /**
              * Scope
              * @default search_excerpt
-             * @constant
+             * @enum {string}
              */
-            scope?: "search_excerpt";
+            scope?: "search_excerpt" | "page_excerpt" | "textbook_excerpt";
             /** Source Id */
             source_id: string;
             /** Text */
@@ -4419,6 +4526,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplorationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_library_api_v2_math_tutor_desktop_exploration_library_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dt_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryExcerpt"][];
                 };
             };
             /** @description Validation Error */

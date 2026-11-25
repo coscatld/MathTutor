@@ -145,6 +145,7 @@ try {
 
   await page.goto(origin + '/math-tutor/explore');
   await page.getByPlaceholder('写一个具体的数学问题').fill('为什么分数相加之前要通分？');
+  await page.getByRole('radio', { name: '知乎问答', exact: true }).check();
   await page.locator('input[name="exploration-goal"][value="compare"]').check();
   const pending = page.waitForResponse(response => response.url().includes('/exploration/inquiries') && response.request().method() === 'POST', { timeout: 65000 });
   await page.getByRole('button', { name: '开始探索', exact: true }).click();

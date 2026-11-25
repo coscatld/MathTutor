@@ -16,7 +16,8 @@ export function ConnectionForm({ configuration, apiKey, busy, error, notice, onK
   const { t } = useI18n();
   return <section aria-labelledby="zhihu-connection-title" className="max-w-2xl">
     <h2 id="zhihu-connection-title" className="text-xl font-bold tracking-tight">{t("知识来源")}</h2>
-    <p className="mt-2 text-base leading-7 text-[var(--muted-foreground)]">{t("连接知乎，在数学问题中阅读原文、对照条件并检验理解。")}</p>
+    <p className="mt-2 text-base leading-7 text-[var(--muted-foreground)]">{t("知识探索可直接查阅百科、维基教科书和开放教材。知乎连接用于社区问答与聊天中的联网提问。")}</p>
+    <Link href="/math-tutor/explore" className={productClass("mt-btn mt-3 min-h-11")}>{t("开始知识探索")}</Link>
     <div className="mt-6 border-t border-[var(--border)] pt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">{t("知乎开放平台")}</h3>

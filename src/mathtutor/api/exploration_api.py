@@ -15,6 +15,8 @@ from mathtutor.api.auth_deps import require_student_owner
 from mathtutor.api.product_state import get_product_state
 from mathtutor.application.exploration_evidence import EvidencePlan
 from mathtutor.application.exploration_learning import CheckPrompt, LearningPlan
+from mathtutor.application.open_readings import RetrievalAttempt
+from mathtutor.infrastructure.lexical import fts_query_tokens
 from mathtutor.infrastructure.zhihu import ZhihuError, secret_name
 from mathtutor.repositories.exploration_repository import ExplorationConflict
 from mathtutor.security.scopes import StudentOwnerScope
@@ -22,6 +24,7 @@ from mathtutor.security.scopes import StudentOwnerScope
 Owner = Annotated[StudentOwnerScope, Depends(require_student_owner)]
 Language = Literal["zh", "en"]
 Goal = Literal["understand", "apply", "compare"]
+Mode = Literal["open", "zhihu"]
 
 
 class SafeValidationRoute(APIRoute):
@@ -62,6 +65,22 @@ class InquiryCreate(Strict):
     question: str = Field(min_length=2, max_length=200)
     goal: Goal = "understand"
     language: Language = "zh"
+    mode: Mode | None = Field(default=None, description="New inquiries default to open. Replays retain the saved source.")
+
+
+class LibraryQuery(Strict):
+    question: str = Field(min_length=2, max_length=200)
+
+
+class LibraryExcerpt(Strict):
+    document_id: UUID
+    chunk_id: UUID
+    filename: str
+    page: int | None
+    page_end: int | None
+    section: str
+    text: str
+    truncated: bool
 
 
 class InquiryOperation(Strict):
@@ -105,6 +124,8 @@ class ExplorationView(InquirySummary):
     last_check: CheckPrompt | None
     last_correctness: Literal["correct", "incorrect", "unknown", "explanation"] | None
     observation_count: int
+    mode: Mode = "zhihu"
+    retrieval_attempts: list[RetrievalAttempt] = Field(default_factory=list)
 
 
 async def invoke(owner, action, request: Request | None = None):
@@ -175,6 +196,25 @@ async def disconnect(owner: Owner):
 @router.get("/inquiries", response_model=InquiryList)
 async def inquiries(owner: Owner):
     return await invoke(owner, lambda state, sid: state.exploration.repository.list(sid))
+
+
+@router.post("/library", response_model=list[LibraryExcerpt])
+async def search_library(body: LibraryQuery, owner: Owner):
+    question = body.question.strip()
+    if len(question) < 2:
+        raise HTTPException(422, "请写下想弄清的问题。")
+
+    async def search(state, sid):
+        tokens = fts_query_tokens(question)
+        if not tokens:
+            return []
+        result = await state.document_repository.search_chunks(sid, query=question, query_tokens=tokens, limit=6)
+        return [LibraryExcerpt(document_id=hit.document_id, chunk_id=hit.chunk.chunk_id, filename=hit.filename,
+                               page=hit.chunk.page_start or hit.chunk.page, page_end=hit.chunk.page_end,
+                               section=hit.chunk.section,
+                               text=hit.chunk.text[:1400], truncated=len(hit.chunk.text) > 1400)
+                for hit in result.hits]
+    return await invoke(owner, search)
 
 
 @router.post("/inquiries", response_model=ExplorationView)

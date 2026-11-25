@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "../lib/i18n";
 import { explorationApi, ExplorationApiError, type CheckPrompt, type EvidenceCard, type ExplorationView } from "../features/math-tutor/exploration/api";
 import { ExplorationRequests } from "../features/math-tutor/exploration/requests";
-import { SourceCard, SourceComparison, sourceHref } from "../features/math-tutor/exploration/SourceReading";
+import { LibraryReadings, RetrievalStatus, SourceCard, SourceComparison, sourceHref } from "../features/math-tutor/exploration/SourceReading";
 import LearningPanel, { IndependentCheck, LearningFeedback } from "../features/math-tutor/exploration/LearningPanel";
 import { ConnectionForm } from "../features/math-tutor/exploration/ZhihuConnection";
 import ExplorationWorkbench from "../features/math-tutor/exploration/ExplorationWorkbench";
@@ -55,6 +55,28 @@ test("untrusted source URLs cannot become clickable links", () => {
   assert.equal(sourceHref(card.original_url), card.original_url);
 });
 
+test("open sources show the provider, edition, scope and license in both locales", () => {
+  const wiki: EvidenceCard = { ...card, provider: "wikibooks", source_scope: "page_excerpt", original_url: "https://zh.wikibooks.org/w/index.php?oldid=119362",
+    attribution: { language: "zh", version: "119362", license: "CC BY-SA 4.0" } };
+  for (const locale of ["zh-CN", "en"] as const) {
+    const html = renderToStaticMarkup(<I18nProvider initialLocale={locale}><SourceCard card={wiki} index={0} selected={false} selectionFull={false} onSelect={() => {}} /></I18nProvider>);
+    assert.match(html, locale === "en" ? /Wikibooks · Page excerpt/ : /维基教科书 · 原页节选/);
+    assert.match(html, /CC BY-SA 4.0/); assert.match(html, /119362/); assert.match(html, /wiki.php|index.php/);
+  }
+  for (const url of [wiki.original_url + "&redirect=yes", "https://test@zh.wikibooks.org/w/index.php?oldid=3", "https://other.wikibooks.org/w/index.php?oldid=4"])
+    assert.equal(sourceHref(url, "wikibooks"), undefined);
+  assert.equal(sourceHref(wiki.original_url, "wikipedia"), undefined);
+  assert.equal(sourceHref("https://activecalculus.org/single/sec-1-7-lim-cont-diff.html", "active_calculus"), "https://activecalculus.org/single/sec-1-7-lim-cont-diff.html");
+});
+
+test("a failed project, working project and local page ranges stay distinguishable", () => {
+  const html = renderToStaticMarkup(<I18nProvider initialLocale="en"><RetrievalStatus attempts={[
+    { provider: "wikipedia", language: "en", status: "found", count: 1 }, { provider: "wikibooks", language: "en", status: "rate_limited", count: 0 },
+  ]} /><LibraryReadings items={[{ document_id: "local-id", chunk_id: "chunk", filename: "Local.pdf", page: 1, page_end: 2, section: "", text: "local excerpt", truncated: false }]} /></I18nProvider>);
+  assert.match(html, /Some online sources are temporarily unavailable/); assert.match(html, /Rate limited/);
+  assert.match(html, /Page 1–2/); assert.match(html, /documents#document-local-id/); assert.match(html, /local excerpt/);
+});
+
 test("two-source comparison presents reading questions without an inferred verdict", () => {
   const other = { ...card, span_id: "span-two", source_id: "source-two", title: "第二种条件" };
   const html = renderToStaticMarkup(<SourceComparison cards={[card, other]} comparisons={[{
@@ -90,6 +112,7 @@ test("initial inquiry controls and sample prompts have an English UI", () => {
   const html = renderToStaticMarkup(<I18nProvider initialLocale="en"><ExplorationWorkbench /></I18nProvider>);
   assert.match(html, /Follow a question/); assert.match(html, /What would you like to understand/);
   assert.match(html, /Why does 0.999/); assert.match(html, /Compare approaches/);
+  assert.match(html, /Open mathematics sources/); assert.match(html, /My local library/); assert.match(html, /without a key/);
   assert.doesNotMatch(html, /你想弄清|知识探索|开始探索/);
 });
 

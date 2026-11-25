@@ -89,8 +89,16 @@ export default function DocumentsPanel({
   const upsert = (doc: DesktopDocument) => setDocuments(list => [doc, ...list.filter(row => row.document_id !== doc.document_id)]);
   const locate = (doc: DesktopDocument) => {
     const row = document.getElementById(`document-${doc.document_id}`);
+    for (let container = row?.closest("details"); container; container = container.parentElement?.closest("details") ?? null) container.open = true;
     row?.scrollIntoView({ block: "center", behavior: "instant" }); row?.focus({ preventScroll: true });
   };
+  const followedFragment = useRef("");
+  useEffect(() => {
+    const fragment = window.location.hash;
+    if (!fragment || loading || fragment === followedFragment.current) return;
+    const target = documents.find(doc => fragment === `#document-${doc.document_id}`);
+    if (target) { followedFragment.current = fragment; locate(target); }
+  }, [documents, loading]);
   const notifySaved = (doc: DesktopDocument) => toast({ ...documentResult(doc, t), action: { label: t("查看资料"), onClick: () => locate(doc) } });
   const finishImport = async (saved: DesktopDocument, target: string) => {
     let doc = saved;

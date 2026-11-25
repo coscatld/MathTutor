@@ -5,7 +5,7 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 const { BACKEND_ENTRY } = require("../runtime/paths");
-const { rendererHeaders, validBridgeHeader, secretRedactor, isZhihuSourceLink } = require("../runtime/transport-boundary");
+const { rendererHeaders, validBridgeHeader, secretRedactor, isZhihuSourceLink, isReadingLink } = require("../runtime/transport-boundary");
 const frontend = "http://127.0.0.1:31245";
 const secret = "per-launch-" + "s".repeat(48);
 const details = { webContentsId: 17, frame: { url: frontend + "/math-tutor" },
@@ -73,4 +73,17 @@ test("desktop source clicks open only HTTPS Zhihu content pages", () => {
     "https://www.zhihu.com:8080/question/12", "https://example.org/question/12",
     "file:///question/12", "https://www.zhihu.com/redirect?target=other", undefined,
   ]) assert.equal(isZhihuSourceLink(url), false);
+});
+
+test("desktop public readings open only revisions, licensed book sections and the license", () => {
+  for (const link of [
+    "https://zh.wikipedia.org/w/index.php?oldid=13", "https://en.wikibooks.org/w/index.php?oldid=52",
+    "https://discrete.openmathbooks.org/dmoi3/sec_logic-proofs.html", "https://activecalculus.org/single/sec-1-7-lim-cont-diff.html",
+    "https://creativecommons.org/licenses/by-sa/4.0/", "https://www.zhihu.com/question/12",
+  ]) assert.equal(isReadingLink(link), true, link);
+  for (const link of [
+    "https://zh.wikipedia.org.evil.test/w/index.php?oldid=13", "https://en.wikibooks.org/w/index.php?oldid=7&returnto=other",
+    "https://user@en.wikipedia.org/w/index.php?oldid=2", "https://activecalculus.org/single/unrelated.html",
+    "https://en.wikipedia.org/w/index.php?oldid=0", "https://en.wikibooks.org/wiki/Special:Redirect", "file:///tmp/private",
+  ]) assert.equal(isReadingLink(link), false, link);
 });

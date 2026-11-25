@@ -62,4 +62,20 @@ function isZhihuSourceLink(value) {
   }
 }
 
-module.exports = { validBridgeHeader, rendererHeaders, secretRedactor, isZhihuSourceLink };
+function isReadingLink(value) {
+  if (isZhihuSourceLink(value)) return true;
+  if (typeof value !== "string" || value.length > 2048 || /[\x00-\x20\x7f\\]/.test(value)) return false;
+  if ([
+    "https://activecalculus.org/single/sec-1-7-lim-cont-diff.html",
+    "https://discrete.openmathbooks.org/dmoi3/sec_logic-proofs.html",
+    "https://creativecommons.org/licenses/by-sa/4.0/",
+  ].includes(value)) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password && !url.port && !url.hash
+      && /^(?:en|zh)\.(?:wikipedia|wikibooks)\.org$/.test(url.hostname)
+      && url.pathname === "/w/index.php" && /^\?oldid=[1-9]\d*$/.test(url.search);
+  } catch { return false; }
+}
+
+module.exports = { validBridgeHeader, rendererHeaders, secretRedactor, isZhihuSourceLink, isReadingLink };

@@ -7,6 +7,7 @@ export type ExplorationConfiguration = components["schemas"]["ExplorationConfigu
 export type InquiryGoal = ExplorationView["goal"];
 export type InquiryLanguage = "zh" | "en";
 export type EvidenceCard = ExplorationView["evidence"]["cards"][number];
+export type LibraryExcerpt = components["schemas"]["LibraryExcerpt"];
 export type CheckPrompt = NonNullable<ExplorationView["learning"]["check"]>;
 
 const root = "/api/v2/math-tutor/desktop/exploration";
@@ -39,6 +40,7 @@ export const explorationApi = {
   configure: (apiKey: string, signal: AbortSignal) => request<ExplorationConfiguration>("/configuration", signal, "PUT", { api_key: apiKey }),
   disconnect: (signal: AbortSignal) => request<ExplorationConfiguration>("/configuration", signal, "DELETE"),
   list: (signal: AbortSignal) => request<InquiryList>("/inquiries", signal),
+  library: (question: string, signal: AbortSignal) => request<LibraryExcerpt[]>("/library", signal, "POST", { question }),
   create: (body: components["schemas"]["InquiryCreate"], signal: AbortSignal) => request<ExplorationView>("/inquiries", signal, "POST", body),
   read: (id: string, language: InquiryLanguage, signal: AbortSignal) => request<ExplorationView>(`${inquiryPath(id)}?language=${language}`, signal),
   organize: (view: ExplorationView, language: InquiryLanguage, signal: AbortSignal) =>
