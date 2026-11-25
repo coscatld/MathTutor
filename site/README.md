@@ -4,7 +4,7 @@
 
 与 `web/` 教学应用隔离：本目录有自己的 `package.json`、依赖和构建产物。访问官网不需要 Python 或 API Key。
 
-知识探索的中英文使用说明位于 `content/docs/user/knowledge-exploration*.mdx`。官网提供指南和安装包入口，联网检索在用户安装的 MathTutor 中完成。
+知识探索的中英文使用说明位于 `content/docs/user/knowledge-exploration*.mdx`。官网提供中英文三道方程体验（/zh/demo/、/en/demo/）、指南和安装包入口。体验页在浏览器内核验，联网检索在工作台中完成。
 
 ```bash
 npm ci

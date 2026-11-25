@@ -34,8 +34,8 @@ export const roadmap: {
   },
   {
     status: 'completed',
-    zh: '知乎知识探索提供原聊天联网、逐项证据检查、带原文的已审片段与基于学习证据的资料推荐，支持可选后台发现。',
-    en: 'Zhihu exploration includes online chat, per-claim evidence checks, reviewed excerpts linked to their originals, and evidence-based resource suggestions with optional background discovery.',
+    zh: '知识探索提供免密钥的百科与教材检索、本地讲义查询及可选的知乎问答。资料保留原文和出处，学习画像解释推荐理由。',
+    en: 'Knowledge Exploration searches public references without a key, supports private lecture notes and offers optional Zhihu discussions. Source links and selection reasons remain available for review.',
   },
   {
     status: 'in-progress',
